@@ -41,7 +41,7 @@ CLI 的 JSON 外层包含 `status`、`source`、`function`、`fetched_at_utc` �
 
 | 能力 | 来源及函数顺序 | 参数 / 边界 |
 |---|---|---|
-| 美股行情 | 新浪 `us_stock_quote_sina` → 腾讯 `us_stock_quote_tencent` → 东财 `stock_quote_eastmoney` | `ticker`；东财另需 `secid_prefix` |
+| 美股行情 | 新浪 `us_stock_quote_sina` → 腾讯 `us_stock_quote_tencent` → 东财 `stock_quote_eastmoney` | `ticker`；新浪 `timestamp` 不带时区，不能据此单称实时；东财另需 `secid_prefix` |
 | 港股行情 | 腾讯 `hk_stock_quote_tencent` → 新浪 `hk_stock_quote_sina` → 东财 `stock_quote_eastmoney` | `code`；东财 `ticker_or_code` +116 |
 | 美股 K 线 | 新浪 `us_stock_kline_sina` → Yahoo `stock_kline_yahoo` | 新浪 `num`；Yahoo `symbol, interval, range_`；匹配用户期间和粒度 |
 | 港股 K 线 | Yahoo `stock_kline_yahoo` | 如 `symbol="0700.HK"`；本包没有第二个港股 K 线来源 |
