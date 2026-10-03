@@ -53,7 +53,7 @@ metadata:
 - `get-exchange-symbols`：交易所 symbol 样本。
 - `search-tools`：MCP 能力发现。
 
-精确参数、必填/可选项、返回字段、单位、view、日期范围与 Premium 限制见 [`finnhub-mcp-1.21.3-schema.md`](../finnhub-mcp-1.21.3-schema.md)。正常股票分析不必读取整个 reference；只有参数/字段/单位不确定、schema error、MCP 升级或名称变更、需要核对 period/date/kind/view 限制，或用户询问未覆盖能力时才查。`search-tools` 只用于能力发现，不要因拆分 schema 而在每次股票分析时机械调用。
+精确参数、必填/可选项、返回字段、单位、view、日期范围与 Premium 限制见 [`finnhub-mcp-1.21.3-schema.md`](../stock-data/references/finnhub-mcp-1.21.3-schema.md)。正常股票分析不必读取整个 reference；只有参数/字段/单位不确定、schema error、MCP 升级或名称变更、需要核对 period/date/kind/view 限制，或用户询问未覆盖能力时才查。`search-tools` 只用于能力发现，不要因拆分 schema 而在每次股票分析时机械调用。
 
 ## Procedure
 

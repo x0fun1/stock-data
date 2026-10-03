@@ -1,84 +1,56 @@
 ---
 name: stock-data
-description: "Retrieve and analyze U.S. and Hong Kong stock data. Prefer Finnhub MCP for supported U.S. data and fall back to global-stock-data when that request fails or lacks required fields."
-version: 1.0.0
+description: Retrieve and analyze U.S. and Hong Kong stock quotes, price history, company financials, news, and market events. Use for stock research, comparisons, technical indicators, and data screening.
+metadata:
+  version: "1.1.0"
 ---
 
 # Stock Data
 
-按用户问题选取最少的数据。美股优先使用 Finnhub MCP；对应调用失败或缺少所需字段时，再从 global-stock-data 取同类数据。港股以及 Finnhub 当前未覆盖的能力直接使用 global-stock-data。逐项回退，分别标注来源、时间和期间。
+按用户问题选取需要的数据。美股在已暴露 Finnhub MCP 的能力范围内优先使用 Finnhub；对应数据项失败或覆盖不足时，再使用 global-stock-data。港股和当前 Finnhub 未覆盖的能力直接使用 global。其他市场尚无完整路由，明确说明覆盖边界。
 
-## 何时使用
+## 准备与调用
 
-- 查询美股或港股价格、走势、公司资料、基本面、新闻、分析师观点或事件。
-- 查询 K 线、技术指标、期权、资金流、SEC 文件、空头成交量或全市场筛选。
-- 比较股票或根据指定指标筛选股票。
-
-## 运行前检查
-
-- 只在当前会话实际暴露 Finnhub MCP 工具时调用 Finnhub。按当前工具清单和 schema 使用名称及参数；不要假设某个 host 一定采用 Hermes 别名。
-- Finnhub 数据只能通过 MCP 获取。禁止改用 Finnhub REST API、浏览器请求或自行实现客户端。
-- Finnhub 工具不可见时，将 Finnhub 标记为当前不可用，并按对应数据项尝试 global-stock-data；不得声称已查询 Finnhub。
-- global-stock-data 是 Python 代码型 skill，依赖 requests 和可用的本地执行环境。按需读取 [global-stock-data](references/global-stock-data.md) 中的共用 helper 与目标数据层；不要在未获请求时安装依赖。执行环境或网络策略不允许调用时，说明限制，不要伪称已完成回退。
-- Finnhub 运行时 schema 细节见 [Finnhub MCP schema](references/finnhub-mcp-1.21.3-schema.md)。该文档是版本基线；如当前工具清单不同，以当前 schema 为准。
+1. 确认市场、ticker、日期范围、粒度和所需字段；代码有歧义时先解析，不把输入错误当作数据源故障。
+2. 检查当前会话的 Finnhub 工具与 schema。参数基线见 [Finnhub schema](references/finnhub-mcp-1.21.3-schema.md)，当前 schema 优先。Finnhub 仅通过 MCP 调用；工具不可见时直接尝试 global，不声称已查询 Finnhub。
+3. 使用 global 前读取 [运行与来源说明](references/global-stock-data.md) 和 [来源限制](references/source-policies.md)，执行随包提供的 `scripts/global_stock_data.py`。需要 Python 3.10+、requests 和允许访问来源的网络；环境不可用时说明限制，不伪称已完成回退。
 
 ## 来源路由
 
-先判断市场、标的、时间范围和所需字段。明确 ticker 时直接使用；名称或代码有歧义时先解析，不把无效或不明确的标的误报成数据源故障。
+以下 Finnhub 名称为 server-native 名称，实际调用名称取当前工具清单。global 函数、参数及来源见运行说明。
 
-| 用户所需数据 | 首选与回退 | 覆盖边界 |
+| 所需数据 | 美股路由 | 港股路由及边界 |
 |---|---|---|
-| 美股当前报价 | Finnhub get-quote → global 的美股行情函数，如 us_stock_quote_sina、us_stock_quote_tencent | 价格必须附各自返回的时间戳；不得把历史收盘价称为当前报价。 |
-| 美股区间走势、收益或 K 线 | Finnhub get-price-summary；需要原始 candles 时用 view=full → global 的新浪/Yahoo K 线，按请求计算区间指标 | 两种摘要口径不同时保留原始期间、分辨率和来源；不把最新收盘冒充实时价。 |
-| 美股公司资料和关键指标 | 按意图调用 Finnhub get-company-profile、get-financials-snapshot → global 的 stock_search、yahoo_quote_summary(assetProfile) 或 key_statistics | global 字段不完全等价。只补缺失字段，明确期间、单位及空值，不推算缺失 KPI。 |
-| 美股完整财报三表 | 直接使用 global 财报函数或 SEC XBRL | 当前 Finnhub 工具集没有等价的完整三表端点。 |
-| 美股新闻 | Finnhub get-news-pulse → global stock_news | global 新闻列表不提供等价的 Finnhub 情绪分；不能据此补造情绪数值。 |
-| 美股分析师评级/预期 | Finnhub get-recommendations → global analyst_estimates | period 和字段定义可能不同；分别注明来源及报告期间。 |
-| 美股财报日历 | Finnhub get-calendar(kind=earnings) → global earnings_calendar(date=...) | global 函数按单日查询；若不能覆盖用户要求的日期范围，报告覆盖边界，不暗示已查完整范围。 |
-| 美股内部人活动 | Finnhub get-insider-signal → global SEC Form 4 / daily_filings | Form 4 申报列表不是净买卖信号。仅在用户接受申报记录这一较窄数据时作为补充，不可冒充等价替代。 |
-| 同行列表 | Finnhub get-peers；失败时 global 没有等价的同行发现能力 | 可以比较用户明确给出的股票；没有同行清单时如实说明。 |
-| 股票搜索/代码解析 | Finnhub search-symbol → global stock_search | 只在标的含糊时搜索；匹配仍不明确则询问用户。 |
-| 港股报价、基本面或 K 线 | 直接使用 global 对应港股函数 | Finnhub 本 skill 的首选路由仅用于其支持的美股数据。 |
-| 技术指标 | Finnhub get-price-summary(view=full) 提供足够 OHLCV candles 时本地计算并标注为派生值；失败或 candles 不足时用 global K 线与指标函数 | 只在 candles 粒度、长度和字段满足指标计算条件时使用 Finnhub；不要从走势图估算。 |
-| 期权、资金流、SEC filing、空头数据、全市场筛选 | 直接使用 global 对应层 | Finnhub 当前 schema 没有相同能力时，不做无意义调用。若能力是否存在不确定，先查当前工具清单；必要时用一次 search-tools 确认。 |
+| 当前报价 | `get-quote` → global 行情 | global 港股行情；保留行情时间 |
+| 区间价格、K 线 | `get-price-summary` → global K 线 | Yahoo K 线；须核对日期与粒度 |
+| 技术指标 | Finnhub 足量原始 candles → global K 线；本地计算 | Yahoo K 线后本地计算；标为派生值 |
+| 公司资料、关键指标 | `get-company-profile` / `get-financials-snapshot` → Yahoo / 东财 | Yahoo / 东财；按字段补缺 |
+| 财报三表 | global 东财 / Yahoo 财报函数 | global 东财 / Yahoo；SEC facts 只是结构化指标 |
+| 新闻 | `get-news-pulse` → Yahoo 新闻搜索 | Yahoo 新闻搜索；不承诺完整历史或情绪分 |
+| 分析师评级 | `get-recommendations` → Yahoo `analyst_estimates` 中已有评级 | Yahoo；空值如实报告 |
+| EPS / 营收预期 | global `analyst_estimates` | Yahoo；Finnhub 评级工具无此字段 |
+| 财报日历 | `get-calendar(kind=earnings)` → Nasdaq 单日日历 | 本包没有等价港股日历 |
+| 内部人活动 | `get-insider-signal`；缺失时可提供 SEC Form 4 记录 | 本包没有等价信号；申报记录不等于净买卖信号 |
+| 同行列表 | `get-peers`；global 无等价发现函数 | 无等价发现函数；可比较用户给定标的 |
+| 代码搜索 | `search-symbol` → global `stock_search` | 直接 global `stock_search` |
+| 期权、SEC、空头成交量 | global 对应美股函数 | 本包无等价港股能力 |
+| 资金流、市场列表及筛选 | global 对应函数 | global 对应港股函数 |
 
-### Finnhub 内部的最小调用
+宏观收益率曲线、CFTC COT 和 SEC 横截面直接使用 global 对应函数。Finnhub 交易所工具返回的有限样本不能当作完整股票池。
 
-- 当前报价：get-quote。
-- 价格区间：get-price-summary，按用户期间选择 7d、30d、90d 或 1y；未指定时用 30d。
-- 公司/基本面问题：只调用回答问题所需的 profile 或 snapshot；完整财报表格走 global 对应能力。
-- 新闻、评级、财报日历、内部人活动：分别调用 get-news-pulse、get-recommendations、get-calendar、get-insider-signal。
-- 同一轮内复用已取得且期间匹配的数据；不要为“完整”机械调用所有工具。
+## 成功检查与逐项回退
 
-## 回退规则
+- 先检查外层 MCP 错误与 envelope 的 `is_success`、错误类型、实际 `data`，再确认字段、日期范围、分辨率和列表完整性。`premium=true` 单独出现不代表全部数据失败；保留已经成功的部分。
+- 先排除视图裁剪：profile 的联系方式用 standard/full，snapshot 的 raw 与原始 candles 用 full；完整新闻、日历或同行列表用 full。只在所需视图能提供字段时升级一次，不因可选空值机械重查。
+- 视图升级仍缺用户必需字段、范围或粒度，或工具不可用、请求失败、数据为空时，只回退对应缺项。新闻固定 7 天、`1y` 价格摘要为周线；不能将它们当作任意日期新闻或一年日线。
+- 瞬时网络或服务错误可重试一次。Premium/403 不重试该端点；429 停止本轮新增 Finnhub 请求，使用已取数据或 global，并报告返回的限额/重置时间（若有）。
+- Finnhub 已满足请求时复用结果，不自动交叉取数。用户要求交叉核对时分别标注来源。global 的回退也仅选择已有、适用且允许使用的来源；缺少等价能力时报告缺口。
+- 空列表只说明本次查询未返回记录；旧时间戳结合其口径说明，不单凭本地时间判定数据失败。SEC Form 4 补充须按目标 CIK 筛选，不拿全市场申报流替代个股信号。
 
-对每个 Finnhub 调用先检查外层 MCP 错误状态和返回 envelope，再检查 is_success、error_type、premium、rate_limit 及实际 data。空的成功 envelope 不算数据成功。
+## 数据与回答
 
-- 工具不可见、MCP 调用错误、is_success=false、Premium/403、429、无可用数据，或用户必需字段为 null/缺失时，针对该数据项回退到 global 中确实支持的同类能力。
-- 瞬时网络/服务错误可用同一工具重试一次；仍失败后回退。遇到 429 或 Premium/403 立即停止该 Finnhub 端点的重试；若有 remaining / reset_at，在回答中报告。
-- 一部分字段成功、一部分缺失时只回退缺失字段；保留已成功的 Finnhub 字段，并分开标注两个来源。
-- Finnhub 已成功返回所需数据时，不为交叉验证而自动再查 global；仅在用户明确要求交叉核对时另取数据并独立标注。
-- 字段缺失不允许从其他字段、模型记忆或新闻标题补造。global 无同类能力或覆盖不足时，明确报告缺失或覆盖范围。
-- 单凭时间戳较旧不判定 Finnhub 失败。若市场已收盘或返回的是最后可用快照，说明时间；不要称为实时。不要仅凭本地时钟推断市场开闭状态。
-- 429 后停止本轮额外 Finnhub 请求。遇到 ticker 歧义或用户参数不合法时先处理输入，不要通过换源掩盖输入问题。
-
-## global-stock-data 来源限制
-
-- 遵守 global 文档中的来源分级、限速、条款和适用市场说明。自动回退只选该用户场景下允许使用的源；来源若要求事先授权，仅在已配置授权时使用。尤其不能默认把 CBOE 数据端点作为无条件回退。
-- SEC 请求必须配置符合要求的真实 SEC_CONTACT；若仍是示例值或配置无效，停止 SEC 调用并报告配置问题。不要在回答中回显联系方式。
-- global 函数中的 0、空数组或占位符可能表示字段不可用；结合函数说明核验后再展示，不能一概当成真实零值。
-- global 数据源间的回退遵循其文档内路由；报告最终实际提供数据的源，不把数据归给中间路由或 Finnhub。
-
-## 回答格式与核验
-
-- 事实与解释分开。市场数据标注来源工具/数据源、返回时间戳或财务期间、币种和单位；源未提供 as-of 时说明未提供。
-- 不混合来源后只写一个笼统来源。Finnhub 成功而 global 只补部分字段时，在相应字段或表格行分别注明来源。
-- 发生回退时简要说明 Finnhub 失败类型，以及哪些字段由 global 的哪个来源补充。
-- 用户请求的字段未返回时标为不可用；不因日历为空就断言没有事件，不因内部人记录就预测股价。
-- 只总结实际查询的数据。不要提供买入/卖出/持有建议、目标价、仓位或确定性预测。涉及投资决策的回答附上：*This is informational research, not investment advice. Data may be delayed, incomplete, or wrong. You are responsible for your own decisions.*
-
-## 参考材料
-
-- 参数、字段、单位与 Finnhub envelope：[Finnhub MCP schema](references/finnhub-mcp-1.21.3-schema.md)
-- global 数据层代码、helper、来源规则：[global-stock-data](references/global-stock-data.md)
-- 迁移前的 Finnhub 路由说明，仅用于追溯：[原 Finnhub skill](references/source-material/finnhub-stock-analysis.md)
+- 每个数据项标注实际来源、行情时间或财务期间、币种及单位；取数时间与来源时间分开。源未提供时间/单位时说明未提供，不猜测。
+- 缺失值保留为不可用，真实零值保持为零。计算指标前核对必需 OHLCV、排序、粒度和足够长度；不要用缺失价格或混合周期计算。
+- XBRL 保留 start/end、单位、申报时间和编号，区分季度、累计、年度与重述。报价、复权口径和财务单位不能混用。
+- 发生回退时简述原因与补充来源。事实、计算值和来源中的分析师观点分别呈现；可以引用来源目标价及其日期/币种，不自行生成目标价、交易指令或确定性预测。
+- SEC 联系信息由环境配置，不在回答或错误中回显；CBOE 必须已有授权配置。详细约束见来源限制。
