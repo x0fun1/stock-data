@@ -1,25 +1,102 @@
 # Stock Data & Quant Research
 
-An installable `stock-data/` Skill that combines market-data collection with auditable quantitative analysis and a post-Quant News/Sentiment layer. Existing Finnhub MCP/global-stock-data routing remains the sole gateway. Direction research freezes one data receipt, evaluates three independent forecast paths plus a diagnostic-only factor IC path, completes consensus and bias-avoidance review, then freezes a separate News result and performs categorical evidence synthesis.
+`stock-data` 是面向美股、港股及相应 ETF 的可安装 Skill，统一行情、基本面、技术指标、新闻情绪、专项事件与量化方向研究。市场数据只经现有 Finnhub MCP / 本包 global-stock-data gateway 获取，研究脚本仅处理已采集的数据。
 
-## What is included
+方向判断遵循 **Quant → 验证/审计 → News/Sentiment → Final Synthesis**：三条独立预测路径、一条因子诊断路径、共识后的偏差审计、独立消息面分析，再做保留原 Quant 概率的分类证据综合。简单事实查询和历史描述只取必要数据。
+
+## 发给 Agent 的一键安装指令
+
+复制以下整段给支持本地 Skill 的 Agent。它是一条自然语言执行指令，无需手工拆分操作；安装目标是仓库中的 `stock-data/`，不是整个仓库。
 
 ```text
-stock-data/
-  SKILL.md
-  scripts/
-    global_stock_data.py             existing data gateway fallback
-    quant_research.py                snapshot/research CLI
-    quant_research/                  snapshot, independent paths, validation, reports
-  references/                        source routing, schemas, PIT/probability/news policies
-source-material/                     archived upstream source materials
-tests/                               offline gateway and News-layer contract tests
-UPSTREAM_REVIEW.md                   implementation research and licensing decisions
+请从 https://github.com/x0fun1/stock-data 安装 stock-data Skill（仓库内路径：stock-data），使用仓库当前默认分支。先读取仓库 README.md 和 stock-data/SKILL.md，并检查当前 Agent 的实际 Skill 安装目录。Codex 优先使用自带的 skill-installer；安装目录使用 $CODEX_HOME/skills，未设置 CODEX_HOME 时用 ~/.codex/skills。其他 Agent 使用其自身支持的 Skill 目录，不猜路径。将 stock-data/ 整个目录连同 scripts/ 和 references/ 完整安装，保留其他 Skill、配置和已有长期 memory。若 stock-data 已存在，不覆盖，改按 README 的升级流程处理。检查 Python 3.10+ 和 requests（global gateway 需要），缺依赖按当前环境权限补齐；量化脚本本身只用标准库。用已安装脚本的 --list、--help 和 schema --kind request 做离线验收，检查 SKILL.md 及 reference 链接可读。报告安装路径、Skill 版本、下载的 commit 和验收结果；按当前 Agent 的加载机制刷新，Codex 安装后提示重启以加载 Skill。此步骤不配置 Finnhub 密钥，不修改长期 memory；长期约束另用 README 的 memory 指令保存。
 ```
 
-## Research workflow
+安装目录应为：
 
-For a direction or probability request, use the Skill's data route once, normalize the gateway results to the collection receipt in `stock-data/references/collection-adapter.md`, then run:
+```text
+<Agent 的 Skill 目录>/stock-data/
+  SKILL.md
+  scripts/
+  references/
+```
+
+Skill 不会自动提供 Finnhub MCP 连接或 API key。已连接的 Finnhub 工具按当前会话 schema 使用；未连接或缺能力时，仅走 gateway 已支持且可用的回退。网络权限、来源授权和限流边界见 [来源限制](stock-data/references/source-policies.md)。
+
+### Codex 终端安装命令（可选）
+
+如当前 Codex 安装含系统 `skill-installer`，也可执行以下命令。它们仅用于首次安装；该安装器遇到已存在的目标目录会拒绝覆盖，没有 `--upgrade` 或 `--force` 参数。`requests` 需在实际执行 gateway 的 Python 环境可用。
+
+PowerShell：
+
+```powershell
+$stockCodexRoot = if ($env:CODEX_HOME) { $env:CODEX_HOME } else { Join-Path $env:USERPROFILE '.codex' }
+python (Join-Path $stockCodexRoot 'skills/.system/skill-installer/scripts/install-skill-from-github.py') --repo x0fun1/stock-data --path stock-data
+```
+
+macOS / Linux（sh/bash）：
+
+```sh
+python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/install-skill-from-github.py" --repo x0fun1/stock-data --path stock-data
+```
+
+安装器默认 ref 为 `main`；固定版本时可加 `--ref <tag 或 branch>`。若默认分支已变更，使用实际分支名。系统安装器不在上述位置时，使用前面的 Agent 指令，由 Agent 定位可用安装能力。安装完成后重启 Codex 以加载 Skill。
+
+## 发给 Agent 的一键升级指令
+
+```text
+请将已安装的 stock-data Skill 升级到 https://github.com/x0fun1/stock-data 当前默认分支的最新版。先定位当前 Agent 实际加载的 stock-data 安装目录，读取本地 SKILL.md 版本并记录旧文件摘要。将上游下载到独立暂存目录，记录新 commit，阅读新版 README.md、SKILL.md 和相关 references，对比文件及本地改动；先验证新版结构、reference 链接、Python 依赖以及 global_stock_data.py --list、quant_research.py --help 和 schema --kind request。验收通过后，把旧 Skill 完整备份到 Skill 扫描目录之外并报告备份路径，再用新版完整目录替换安装目录（不要在旧目录上叠加复制，以免遗留已移除文件）。备份所有本地改动，明确报告哪些改动没有迁入新版；仅迁移与新版契约兼容的用户自定义配置，不保留旧算法或旧路由覆盖新版。不要改动其他 Skill、Finnhub/MCP 配置、密钥、用户 runtime 产物或长期 memory。再次在最终安装路径验收；替换或验收失败时恢复旧版。若内容没有变化则报告已是最新版。报告旧/新 Skill 版本、commit、主要变化、备份与验收结果，按当前 Agent 机制刷新；Codex 提示重启加载。仅安装 stock-data/，不要把 source-material/、tests/ 或仓库根 README 装成额外 Skill。
+```
+
+长期 memory 只保存下面的路由约束。升级通常不需要重写 memory：方法、算法、契约和降级规则随当前 Skill 更新。
+
+## 发给 Agent 的长期 memory 指令
+
+复制以下整段。Agent 应保存到自身支持的长期记忆位置；只有该环境实际使用 `memory.md` 时才写入该文件。仓库内不附带替用户生效的全局 memory。
+
+```text
+请将以下“股票 / ETF 分析约束”合并保存到你实际支持的长期 memory 中（若该环境使用 memory.md，就更新该文件）。保留其他记忆；如已有同主题约束，将其更新为这一版，避免重复或冲突。不要把 stock-data 的算法、数据源清单、路径参数或版本号抄入 memory。保存后报告实际位置与生效范围；若环境不支持长期记忆，如实说明，不声称已跨会话生效。
+
+股票 / ETF 分析约束
+
+- 凡涉及股票或 ETF 的价格趋势、涨跌方向、未来走势、收益概率、技术/量化分析、消息面、新闻情绪、事件影响或综合投资研究，必须优先使用 stock-data Skill，并遵循其当前 SKILL.md 与 references/ 定义的方法和流程。
+- 不自行另建股票趋势、量化预测、新闻情绪或综合判断方法；stock-data Skill 是此类任务的统一研究框架和事实来源路由。
+- 涉及方向判断时，必须按 Skill 完成 Quant → 验证/审计 → News/Sentiment → Final Synthesis；不得跳过消息面直接给出最终判断，也不得用新闻主观修改 Quant 概率。消息数据不可用时，按 Skill 记录未评估并完成降级综合，不把消息缺失当作中性或已验证。
+- ETF 按与股票相同的分析原则处理；根据需要结合 ETF 自身价格数据、相关新闻及其指数/行业/主要成分股背景，但分析方法仍服从 stock-data Skill。背景资料不能替代 ETF 自身行情或凭空补齐基金字段。
+- 简单事实查询（如当前价格、历史价格、基本资料）及纯历史描述只调用 Skill 所需的数据能力，不强制运行完整方向研究；单独查询新闻、评级或日历时按 Skill 专项路由处理，一旦涉及未来方向就转入完整流程。
+- Skill 的具体算法、数据源、输出契约和降级规则以当前版本为准；长期 memory 不重复保存这些实现细节。
+- Skill 未安装、无法读取或所需能力不可用时，明确报告缺口并按 Skill 的可用能力降级；无法读取 Skill 时不自行重建替代研究方法或编造概率。
+```
+
+## 能力与分析路径
+
+| 任务 | 当前路径 / 边界 |
+|---|---|
+| 行情、历史价格、资料 | 最小必要查询，保留来源、时间、单位与缺口 |
+| 基本面、财报、估值 | 资料与财务证据、披露时序、口径核对和按需同行比较 |
+| 历史走势、技术指标 | 原始 OHLCV 与本地指标；历史描述不自动变成预测 |
+| 新闻、情绪、评级、日历、内部人 | 事件事实、观点、发布时间和行情反应分开处理 |
+| 期权、资金流、空头成交量、SEC、宏观、筛选 | 使用已支持数据能力，明确代理值、分页、授权与覆盖限制 |
+| ETF、多标的、综合/深度研究 | 按需组合证据；方向比较按 ticker 分别运行完整流程 |
+
+上述专项的具体入口见 [analysis-paths.md](stock-data/references/analysis-paths.md)。涉及未来方向或上涨概率时，统一执行：
+
+| 量化路径 / 阶段 | 实际实现 | 是否进入概率共识 |
+|---|---|---|
+| A — Quant Research | 固定 20-session 动量假设、非重叠历史条件频率与时间外验证 | 是，有效预测才纳入 |
+| B — Factor Research | OHLCV 因子验证、去冗余、后段频率映射与 holdout | 是，有效预测才纳入 |
+| C — ML Research | L2 Logistic Regression、Purged K-Fold、Embargo、causal walk-forward、可选 Platt 校准与 holdout | 是；当前 baseline 为 partial，披露校准状态 |
+| D — Factor Diagnostic | 单证券时间序列 IC 与 1D/5D/20D forward-return 诊断 | 否，不输出预测概率 |
+| 共识 | 有效 A/B/C 等权概率平均、分歧与证据多样性 | 仅聚合已有概率 |
+| E — Bias / Adversarial Audit | 时序、泄漏、OOS、Brier 基准、多重检验范围及未评估偏差 | 否，可否决方向 |
+| News / Sentiment | Quant 冻结后独立做 PIT 筛选、去重、事件/观点分离、衰减与行情反应 | 否 |
+| Final Synthesis | 验证两份冻结结果后做分类证据综合，保留原 Quant P(up) | 不生成 News 或融合概率 |
+
+代码、门槛、结果字段和交付检查见 [quant-paths.md](stock-data/references/quant-paths.md)。A–E 是流程角色，本地运行器已经执行这些阶段，无需另建五个 Agent。
+
+## 方向研究的运行方式
+
+先按 Skill 完成一次数据采集，将实际 gateway 响应按 [collection-adapter.md](stock-data/references/collection-adapter.md) 映射为规范化输入，再运行以下命令。示例在仓库根目录执行；安装后改用已安装脚本的实际绝对路径，JSON 输入和 `runtime/` 放在用户可写工作目录。
 
 ```text
 python stock-data/scripts/quant_research.py request --input request.json --output normalized-request.json
@@ -28,26 +105,52 @@ python stock-data/scripts/quant_research.py freeze --input collected.json --outp
 python stock-data/scripts/quant_research.py analyze --snapshot-dir runtime/snapshots/<snapshot_id> --output-root runtime/research
 ```
 
-The freezer preserves raw gateway envelopes and provenance. Researchers consume the same snapshot and emit structured probabilities only when their sample and validation conditions are met. The analysis script makes no network calls.
+`<snapshot_id>` 使用 `freeze` 实际返回的目录。可选 `analyze --news-policy <policy.json>` 配置事件衰减，契约见 [news-analysis.md](stock-data/references/news-analysis.md)。
 
-The default directional research window is the latest three calendar years through the latest confirmed closed session. Longer source history stays in the raw envelope; the primary snapshot uses the selected window. If a path lacks enough observations, it reports insufficient data instead of silently widening the period.
+默认主研究窗口为最新已确认收盘交易日前推三个日历年，horizon 支持 `1D/5D/20D` 有效交易 session，默认 `5D`；用户明确指定的区间优先。更长原始响应保留在 raw envelope；样本不足的路径披露缺口，不静默扩窗。短新闻窗口单独报告实际覆盖，不能伪装成三年档案。ETF 使用自身 OHLCV，背景资料不替换标的行情。
 
-## Current implementation scope
+`analyze` 自动完成四路径、共识、E、News 与综合，生成：
 
-- **Research A:** a declared 20-session momentum-sign hypothesis with non-overlapping historical conditional frequencies and a chronological evaluation slice.
-- **Research B:** local OHLCV factor diagnostics across 1D/5D/20D, correlation pruning, later-sample score calibration, and holdout reporting.
-- **Research C:** deterministic L2 Logistic Regression with closed-interval Purged K-Fold, Embargo, causal walk-forward, optional Platt calibration, and a chronological holdout.
-- **Research D:** single-security time-series IC and 1D/5D/20D forward-return diagnostics with a chronological holdout. It does not emit a probability or enter consensus. The full upstream cross-sectional backtest requires a multi-ticker factor panel, point-in-time universe, benchmark, and price/mask matrices.
-- **Consensus/audit:** equal-weight forecast probabilities, disagreement and evidence-family diversity, plus explicit look-ahead, chronological OOS, Brier baseline, multiple-testing, PBO/DSR, cost, and survivorship checks. Missing trial histories, cost inputs, or point-in-time universe data are marked not assessed.
-- **News/Sentiment:** runs only after the complete Quant result and bias audit are frozen. The NewsInput contains timestamped normalized articles and frozen OHLCV, but no Quant fields. It filters by `asof_timestamp`, deduplicates canonical events, separates event facts from analyst/social opinions, applies configurable session decay, and measures next-session price/gap/volume/volatility reaction from the same frozen bars.
-- **Final synthesis:** reads the two digest-verified results, reports agreement/divergence and categorical confidence, preserves the Quant P(up) unchanged, and does not manufacture a News or blended probability. Missing News coverage or timing is marked not assessed.
+```text
+runtime/snapshots/<snapshot_id>/          manifest、规范化各域、raw envelopes
+runtime/research/<analysis_id>/
+  researchers/{quant,factor,ml,factor_backtest}.json
+  quant_result.json + quant_result.freeze.json
+  news_result.json + news_result.freeze.json
+  report.json + report.md
+```
 
-Cross-sectional portfolio backtesting, costed execution/market impact, formal CPCV/PBO/DSR calculations, multi-asset survivorship audit, boosted models, bootstrap uncertainty, long-term path reliability, governed holdout receipts, and forward evidence are not implemented. The bias audit makes these input and calculation gaps explicit. No real-data output is included or fabricated. The native analysis uses Python standard library only; the existing global data fallback still needs Python 3.10+, `requests`, and network access as documented in the Skill references.
+CLI 的 `status: success` 仅表示产物写出。交付前检查路径状态、样本、概率来源、审计 veto、News 覆盖和最终综合；不能把 `partial/insufficient_data/not_assessed` 当成完整验证。审计否决时不使用 `pre_veto_prob_up` 绕过结论抑制。
 
-News is a separate descriptive layer, not a quantitative forecast feature. A short current-news source is not a three-year archive; coverage is reported separately from the default three-calendar-year OHLCV window. Daily-bar reactions indicate timing association and do not establish that news caused a price move. See `stock-data/references/news-analysis.md` for contracts and boundaries.
+## 实现边界与验证
 
-## Data-source and safety boundary
+量化运行使用 Python 标准库；global gateway 另需 Python 3.10+、`requests` 和访问来源所需的网络/授权。`adapt/freeze/analyze` 不调用网络。新闻筛查与情绪为未校准的确定性启发式；日线行情反应仅是时间关联，不证明新闻导致涨跌。消息面不得修改 Quant 概率。
 
-The existing source routing, rate-limit, authorization, data-license and provenance restrictions remain in force. Each provider is accessed only through the current Finnhub MCP or bundled stock-data gateway. A missing timestamp or unavailable field is reported, never inferred. Forecast probabilities are not trade instructions or guarantees.
+当前未实现多资产横截面组合回测、成本后执行/市场冲击、正式 CPCV/PBO/DSR 计算、PIT 多资产幸存者审计、XGBoost/LightGBM、bootstrap 不确定性、长期路径可靠性、受治理的 holdout/forward 凭据存储或专用 ETF 穿透模型。输入缺失和未实现计算须明确标为未评估；未附带或伪造真实行情研究结果。
 
-Read `UPSTREAM_REVIEW.md` for source review and license notes. Detailed contracts are in `stock-data/references/`.
+仓库开发验证（离线）：
+
+```text
+python stock-data/scripts/global_stock_data.py --list
+python stock-data/scripts/quant_research.py --help
+python stock-data/scripts/quant_research.py schema --kind request
+python -m unittest discover -s tests
+```
+
+前三条可在仅安装 `stock-data/` 后运行；测试依赖仓库根的 `tests/`。这些验收不访问市场，也不保证网络数据源当时可用。
+
+## 目录与参考
+
+```text
+stock-data/
+  SKILL.md                            Agent 的统一入口
+  scripts/global_stock_data.py        数据 gateway 的本地回退与指标函数
+  scripts/quant_research.py           请求、适配、冻结与分析 CLI
+  scripts/quant_research/             研究器、验证、审计、News 与报告
+  references/                        专项路由、数据口径与研究契约
+source-material/                     上游迁移档案，不覆盖当前运行规则
+tests/                               离线数据完整性与 News 契约测试
+UPSTREAM_REVIEW.md                    上游调研与许可决策
+```
+
+执行以当前 [SKILL.md](stock-data/SKILL.md) 及其 references 为准。来源授权、许可和限制见 [source-policies.md](stock-data/references/source-policies.md)、[UPSTREAM_REVIEW.md](UPSTREAM_REVIEW.md)；预测概率是研究结果，不是交易指令或收益保证。

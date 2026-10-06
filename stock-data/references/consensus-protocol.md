@@ -22,6 +22,8 @@ The upstream cross-sectional Rank IC / portfolio contract remains unavailable un
 
 ## Adversarial audit
 
+This is stage E (Adversarial / Backtesting Bias Audit), implemented by `scripts/quant_research/audit.py` after consensus. Its output is `quant_result.json.adversarial_audit`, not a fifth researcher probability. See [quant-paths.md](quant-paths.md) for the complete execution mapping.
+
 The audit does not generate a new forecast. It checks snapshot identity and digest, researcher snapshot consistency, probability provenance/range, invalid status, residual train/test interval overlap, declared feature/label timing audits, chronological holdout evidence, OOS Brier versus the base-rate baseline, observed factor-candidate counts, PIT/future-date warnings, sample/validation limitations, diversity and probability disagreement. Timing checks rely on structured researcher audit declarations; they are not a formal proof of every feature implementation.
 
 Veto conditions include invalid/mismatched snapshot identity, a researcher-declared invalid result, a probability without quantitative provenance, an out-of-range probability, or nonzero retained interval overlap in ML validation. A veto suppresses the normal directional conclusion. Low sample, partial domain coverage, stale data, poor calibration and weak diversity create warnings and reduce confidence.

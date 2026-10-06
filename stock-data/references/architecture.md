@@ -13,7 +13,7 @@ User request
       ├─ Research C: logistic baseline + time-series validation
       └─ Research D: single-security time-series factor IC + forward returns (diagnostic only)
   → probability consensus over forecast paths A/B/C only
-  → adversarial + backtest-bias audit
+  → E: adversarial + backtest-bias audit (validation/veto only)
   → freeze Quant Result + digest
   → isolated News / Event and Opinion-Sentiment analysis from the same snapshot
   → freeze News Result + digest
@@ -22,6 +22,8 @@ User request
 ```
 
 ## Collection boundary
+
+User-intent routing for descriptive, fundamental, technical, event, ETF, and comparison tasks is in [analysis-paths.md](analysis-paths.md). The exact A/B/C/D/E code-to-artifact mapping and delivery checks are in [quant-paths.md](quant-paths.md). A–D are the four local researchers; E is the post-consensus audit, not a fifth forecast or a separate agent.
 
 - One request produces one collection receipt and one immutable snapshot.
 - The existing Finnhub/global router stays authoritative for source choice, fallback, permission, rate limit and units.
