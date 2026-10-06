@@ -13,6 +13,7 @@ from .consensus import build_consensus
 from .contracts import RESEARCHERS, researcher_result
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
+from .paths import safe_output_destination
 from .report import render_markdown
 from .researchers import factor, factor_backtest, ml, quant
 from .snapshot import load_snapshot
@@ -40,7 +41,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
         "research_window": market.get("data", {}).get("history_window"),
     }
     analysis_id = f"{manifest['snapshot_id']}_analysis_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
-    destination = output_root / analysis_id
+    destination = safe_output_destination(output_root, analysis_id)
     destination.mkdir(parents=True, exist_ok=False)
     researcher_dir = destination / "researchers"
     researcher_dir.mkdir()

@@ -2,7 +2,7 @@
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
 metadata:
-  version: "2.1.1"
+  version: "2.1.2"
 ---
 
 # Stock Data & Quant Research
@@ -94,6 +94,7 @@ Finnhub 名称以当前 MCP 工具清单为准，详情见 [Finnhub runtime sche
 
 ## 研究硬性约束
 
+- `snapshot_id` 必须是只含 ASCII 字母、数字、点、下划线和连字符的单一非空目录名，且不能为 `.` 或 `..`。加载时同时验证名称和原内容摘要；冻结/分析输出创建前检查解析后路径仍直接位于所选 `output_root` 内，拒绝路径穿越、绝对路径和指向根目录外的既有链接。安装时保留此代码保护，不以文档提醒替代。
 - 每次方向研究只冻结一个快照；Quant、News、情绪和市场反应验证使用相同 `snapshot_id`。
 - 研究期间不得再调用数据 gateway。原始行情为共享基础；因子、信号和特征由各研究路径分别生成。
 - News 只在 Quant 完成并冻结后运行，但它在产出自己的结果前看不到 Quant 方向、概率、因子、ML、回测或偏差审计。News 输入契约没有 Quant 字段。

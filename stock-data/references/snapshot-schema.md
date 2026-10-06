@@ -17,7 +17,13 @@
 
 `snapshot_id` is ticker + UTC creation time + horizon + a prefix of the normalized content digest. Existing directories are never overwritten. The `raw/` directory contains the original receipt per domain; top-level domain files contain the normalized adapter view. Every researcher verifies these hashes before using a snapshot and rejects modified or incomplete files.
 
-The optional `news.json` domain is preserved inside this same content-addressed snapshot. The post-Quant News layer may read only normalized `news.data.articles[]`, the shared manifest request/as-of metadata, and `market.data.bars`. It must not read any researcher/report result before producing and hashing `news_result.json`.
+## Artifact path boundary
+
+`snapshot_id` must be a non-empty string consisting only of ASCII letters, digits, `.`, `_`, and `-`, and must not equal `.` or `..`. The loader validates this before reading domain files and separately verifies the existing content/digest suffix rules. This rejects separators on either platform, absolute/drive/UNC paths, alternate data-stream colons, whitespace, and control characters. A valid digest suffix alone does not make a name safe; hashes are integrity checks, not signatures authenticating an external snapshot.
+
+Both snapshot freezing and analysis call the shared `scripts/quant_research/paths.py` guard before creating output directories. The guard revalidates the output name, resolves the selected root and candidate destination, and requires the resolved destination to be a direct child of that root. Existing symlinks/junctions pointing outside the root are rejected before writing; existing outputs remain subject to no-overwrite checks. A user-selected linked output root is treated as its resolved directory, and returned artifact paths are absolute.
+
+These pre-write checks assume the output root and its directory entries are not concurrently replaced by another process. They do not provide race-proof isolation against a hostile process with write access to those directories.
 
 The optional `news.json` domain is preserved inside this same content-addressed snapshot. The post-Quant News layer may read only normalized `news.data.articles[]`, the shared manifest request/as-of metadata, and `market.data.bars`. It must not read any researcher/report result before producing and hashing `news_result.json`.
 

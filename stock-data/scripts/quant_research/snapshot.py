@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any
 
 from .contracts import normalize_request, parse_timestamp, utc_now
+from .paths import safe_output_destination, validate_path_component
 
 SCHEMA_VERSION = "1.0"
 DOMAINS = (
@@ -200,9 +201,10 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
     content_payload = {"request": request, "asof_timestamp": asof_timestamp, "domains": normalized}
     content_digest = hashlib.sha256(_canonical_bytes(content_payload)).hexdigest()
     snapshot_id = f"{slug}_{stamp}_{request['horizon']}_{content_digest[:10]}"
-    destination = output_root / snapshot_id
+    destination = safe_output_destination(output_root, snapshot_id)
+    output_root = destination.parent
     output_root.mkdir(parents=True, exist_ok=True)
-    if destination.exists():
+    if destination.exists() or destination.is_symlink():
         raise FileExistsError(f"refusing to overwrite frozen snapshot: {destination}")
     available_domains = sum(status in {"complete", "available", "partial"} for status in data_domains.values())
     history_component = min(1.0, bar_count / 504)
@@ -260,6 +262,7 @@ def load_snapshot(snapshot_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     if manifest.get("schema_version") != SCHEMA_VERSION:
         raise ValueError(f"unsupported snapshot schema: {manifest.get('schema_version')!r}")
+    snapshot_id = validate_path_component(manifest.get("snapshot_id"), label="snapshot_id")
     domains: dict[str, Any] = {}
     for name in DOMAINS:
         path = snapshot_dir / f"{name}.json"
@@ -277,7 +280,7 @@ def load_snapshot(snapshot_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         domains[name] = block
     content_payload = {"request": manifest.get("request"), "asof_timestamp": manifest.get("asof_timestamp"), "domains": domains}
     content_digest = hashlib.sha256(_canonical_bytes(content_payload)).hexdigest()
-    if content_digest != manifest.get("snapshot_content_sha256") or not str(manifest.get("snapshot_id", "")).endswith(content_digest[:10]):
+    if content_digest != manifest.get("snapshot_content_sha256") or not snapshot_id.endswith(content_digest[:10]):
         raise ValueError("snapshot content identity mismatch")
     if manifest.get("ticker") != manifest.get("request", {}).get("ticker") or manifest.get("horizon") != manifest.get("request", {}).get("horizon"):
         raise ValueError("snapshot request identity mismatch")

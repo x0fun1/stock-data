@@ -124,6 +124,8 @@ CLI 的 `status: success` 仅表示产物写出。交付前检查路径状态、
 
 ## 实现边界与验证
 
+Skill `2.1.2` / research runtime `0.1.1` 补齐路径保护：加载快照时拒绝不安全的 `snapshot_id`；冻结和分析创建输出前验证解析后路径仍直接位于所选 `output_root` 内，拒绝指向外部目录的既有 symlink/junction。回归测试覆盖 POSIX/Windows 分隔符、绝对/盘符/UNC 路径、非法类型、链接逃逸、正常产物和禁止覆盖。具体契约及并发边界见 [Snapshot Schema](stock-data/references/snapshot-schema.md#artifact-path-boundary)。
+
 量化运行使用 Python 标准库；global gateway 另需 Python 3.10+、`requests` 和访问来源所需的网络/授权。`adapt/freeze/analyze` 不调用网络。新闻筛查与情绪为未校准的确定性启发式；日线行情反应仅是时间关联，不证明新闻导致涨跌。消息面不得修改 Quant 概率。
 
 当前未实现多资产横截面组合回测、成本后执行/市场冲击、正式 CPCV/PBO/DSR 计算、PIT 多资产幸存者审计、XGBoost/LightGBM、bootstrap 不确定性、长期路径可靠性、受治理的 holdout/forward 凭据存储或专用 ETF 穿透模型。输入缺失和未实现计算须明确标为未评估；未附带或伪造真实行情研究结果。
@@ -149,7 +151,7 @@ stock-data/
   scripts/quant_research/             研究器、验证、审计、News 与报告
   references/                        专项路由、数据口径与研究契约
 source-material/                     上游迁移档案，不覆盖当前运行规则
-tests/                               离线数据完整性与 News 契约测试
+tests/                               离线数据完整性、News 契约与路径安全回归测试
 UPSTREAM_REVIEW.md                    上游调研与许可决策
 ```
 
