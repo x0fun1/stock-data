@@ -112,15 +112,22 @@ def _eligibility(cluster: dict[str, Any], news_input: NewsInput, decay: dict[str
     return not reasons, reasons
 
 
-def prepare_news_input(snapshot_dir: Path) -> NewsInput:
+def prepare_news_input(
+    snapshot_dir: Path,
+    loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None,
+    loaded_news_domain: dict[str, Any] | None = None,
+) -> NewsInput:
     """Read only normalized news, snapshot identity and frozen market bars.
 
     This function never opens researcher outputs. Its returned contract has no
     Quant fields or Quant result path.
     """
-    manifest, market = load_snapshot(snapshot_dir)
-    news_path = snapshot_dir / "news.json"
-    news = json.loads(news_path.read_text(encoding="utf-8"))
+    manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
+    if loaded_news_domain is None:
+        news_path = snapshot_dir / "news.json"
+        news = json.loads(news_path.read_text(encoding="utf-8"))
+    else:
+        news = loaded_news_domain
     data = news.get("data") if isinstance(news, dict) and not provider_failed(news) and news.get("status") not in {"unavailable", "failed", "invalid", "empty"} else None
     normalized, excluded, news_warnings = normalize_articles(
         data,

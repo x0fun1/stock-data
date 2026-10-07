@@ -138,9 +138,10 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
     return required
 
 
-def render_final_response(result: dict[str, Any]) -> str:
+def render_final_response(result: dict[str, Any], *, summary: dict[str, Any] | None = None) -> str:
     """Default to a short human-facing summary; detailed evidence remains in the standard/debug artifacts."""
-    required, summary = required_response_lines(result), build_agent_summary(result)
+    required = required_response_lines(result)
+    summary = summary if summary is not None else build_agent_summary(result)
     snapshot, sections = result["snapshot"], summary["sections"]
     price, news = sections["price_time"] or {}, sections["news"]
     lines = [f"# {_cell(snapshot['ticker'])} 简析", "", required["identity"],

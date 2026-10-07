@@ -24,6 +24,20 @@ metadata:
 
 Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参数：事实最小取数，明确描述性任务按需计算，普通简析/分析与方向研究保留现有四路径。`mode=standard/strict` 不改变预测资格或把 OOS、校准、PBO/DSR 变成概率 gate；不足项影响置信度或策略资格。
 
+### 最小阅读集与权威来源
+
+只读取当前任务需要的文件；引用文件是该规则的唯一完整来源，其他文档不复制同一套门槛。
+
+| 任务 | 必须读取 | 按需读取 |
+|---|---|---|
+| 报价/历史/资料 | `references/analysis-paths.md` | `references/source-policies.md`（需要比较来源或解释缺口时） |
+| 通用分析/概率 | `references/researcher-contract.md`、`references/reliability-gates.md`、`references/quant-paths.md`、`references/probability-policy.md` | `references/point-in-time-policy.md`、`references/consensus-protocol.md`、`references/snapshot-schema.md`（遇到对应问题时） |
+| 新闻/事件/情绪 | `references/news-analysis.md`、`references/source-policies.md` | `references/collection-adapter.md`（字段映射时）、`references/point-in-time-policy.md`（历史可用性问题时） |
+| 因子/回测 | `references/quant-paths.md` | `references/consensus-protocol.md`、`references/point-in-time-policy.md` |
+| Finnhub 工具调用 | `references/finnhub-mcp-1.21.3-schema.md` 中所需函数 | 仅在能力未知时浏览完整 schema |
+
+`SKILL.md` 负责路由和顺序；`news-analysis.md`、`quant-paths.md`、`reliability-gates.md`、`probability-policy.md` 分别是 News、量化路径、数据门槛、概率交付的权威规则。不要为报价查询加载完整研究文档，也不要默认把全部 references 发送给模型。
+
 ## 来源路由
 
 - 美股优先使用实际已连接、覆盖该字段的 Finnhub MCP；参数按当前会话 schema。仅在需要时读取 [Finnhub schema](references/finnhub-mcp-1.21.3-schema.md)。本包不提供 Finnhub 连接或密钥。

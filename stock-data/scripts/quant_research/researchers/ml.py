@@ -132,8 +132,8 @@ def _metrics(pairs: list[tuple[float, int]]) -> dict[str, Any]:
     }
 
 
-def run(snapshot_dir: Path) -> dict[str, Any]:
-    manifest, market = load_snapshot(snapshot_dir)
+def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None) -> dict[str, Any]:
+    manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     ticker, horizon_name = manifest["ticker"], manifest["horizon"]
     horizon = HORIZONS[horizon_name]
     bars = market_bars(market)

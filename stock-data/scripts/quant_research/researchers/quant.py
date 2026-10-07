@@ -17,8 +17,10 @@ def _momentum(values: list[float], index: int, window: int) -> float | None:
     return values[index] / values[index - window] - 1.0
 
 
-def run(snapshot_dir: Path) -> dict[str, Any]:
-    manifest, market = load_snapshot(snapshot_dir)
+def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None) -> dict[str, Any]:
+    # The orchestrator may pass the once-validated in-memory snapshot. Keep the
+    # path-only entrypoint for direct use and backward compatibility.
+    manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     ticker, horizon_name = manifest["ticker"], manifest["horizon"]
     horizon = HORIZONS[horizon_name]
     bars = market_bars(market)

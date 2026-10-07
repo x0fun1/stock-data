@@ -153,6 +153,17 @@ class NewsPointInTimeTests(NewsFixture):
         self.assertEqual(normalized[0]["sentiment_score"], -0.44)
         self.assertIsNone(normalized[0]["event_strength"])
 
+    def test_headline_and_summary_truncation_are_reported(self):
+        long_item = article("A" * 450)
+        long_item["summary"] = "B" * 1900
+        normalized, _, warnings = normalize_articles(
+            {"articles": [long_item]}, ticker="INTC", asof_timestamp=ASOF,
+        )
+        self.assertEqual(len(normalized[0]["title"]), 400)
+        self.assertEqual(len(normalized[0]["summary"]), 1800)
+        self.assertTrue(any("headline(s) were truncated" in item for item in warnings))
+        self.assertTrue(any("summary/summaries were truncated" in item for item in warnings))
+
     def test_half_life_can_be_overridden_by_event_type(self):
         decay = time_decay(
             "2024-03-14T21:00:00Z", make_bars(), "GUIDANCE", "5D",
@@ -342,7 +353,7 @@ class OrchestrationTests(NewsFixture):
             self.assertEqual(len(inspect.signature(real_run_news).parameters), 2)
             return real_run_news(news_input, policy)
 
-        with patch.dict(orchestrator.RUNNERS, {key: (lambda _path, value=value: value) for key, value in fake_results.items()}), \
+        with patch.dict(orchestrator.RUNNERS, {key: (lambda _path, _loaded=None, value=value: value) for key, value in fake_results.items()}), \
              patch.object(orchestrator, "build_consensus", return_value=consensus), \
              patch.object(orchestrator, "audit", return_value=audit), \
              patch.object(orchestrator, "run_news", side_effect=fake_news):

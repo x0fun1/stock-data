@@ -62,8 +62,14 @@ class PipelineTests(Fixture):
             self.assertEqual(set(quant["researchers"]), {"quant", "factor", "ml", "factor_backtest"})
             return real_news(news_input, policy)
 
-        with patch.object(orchestrator, "run_news", side_effect=check_news):
+        with patch.object(orchestrator, "run_news", side_effect=check_news), \
+             patch.object(orchestrator, "load_snapshot", wraps=orchestrator.load_snapshot) as snapshot_loader, \
+             patch.object(orchestrator, "build_agent_summary", wraps=orchestrator.build_agent_summary) as summary_builder, \
+             patch.object(orchestrator, "forecast_assessment", wraps=orchestrator.forecast_assessment) as assessment_builder:
             output = run_analysis(snapshot, self.root / "research")
+        self.assertEqual(snapshot_loader.call_count, 1)
+        self.assertEqual(summary_builder.call_count, 1)
+        self.assertEqual(assessment_builder.call_count, 4)
         report = json.loads((output / "report.json").read_text(encoding="utf-8"))
         quant = json.loads((output / "quant_result.json").read_text(encoding="utf-8"))
         summary = json.loads((output / "agent_summary.json").read_text(encoding="utf-8"))
@@ -87,7 +93,7 @@ class PipelineTests(Fixture):
         from quant_research import orchestrator
         self.value["request"]["asof"] = "2026-10-07T00:00:00Z"
         snapshot = self.freeze()
-        with patch.dict(orchestrator.RUNNERS, {name: lambda _: self.fail("stale data must not run a research path") for name in orchestrator.RUNNERS}):
+        with patch.dict(orchestrator.RUNNERS, {name: lambda *_: self.fail("stale data must not run a research path") for name in orchestrator.RUNNERS}):
             output = run_analysis(snapshot, self.root / "research")
         report = json.loads((output / "report.json").read_text(encoding="utf-8"))
         self.assertEqual(report["analysis_status"], "abstain")

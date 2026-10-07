@@ -84,11 +84,16 @@ def normalize_articles(
     cutoff = parse_timestamp(asof_timestamp)
     normalized: list[dict[str, Any]] = []
     excluded = {"invalid_record": 0, "missing_title": 0, "missing_or_invalid_published_at": 0, "after_asof": 0, "updated_after_asof": 0}
+    truncated_titles = 0
+    truncated_summaries = 0
     if len(records) > 500:
         warnings.append("article analysis bounded to 500 most recently published records")
         records = sorted(records, key=lambda row: str(row.get("published_at", "")), reverse=True)[:500]
     for record in records:
-        title = _optional_text(record.get("title")) or ""
+        raw_title = record.get("title")
+        title = _optional_text(raw_title) or ""
+        if raw_title is not None and len(str(raw_title).strip()) > 400:
+            truncated_titles += 1
         if not title:
             excluded["missing_title"] += 1
             continue
@@ -148,11 +153,14 @@ def normalize_articles(
         tickers = record.get("tickers", [])
         if not isinstance(tickers, list):
             tickers = []
+        raw_summary = record.get("summary")
+        if raw_summary is not None and len(str(raw_summary).strip()) > 1800:
+            truncated_summaries += 1
         normalized.append({
             "article_id": _optional_text(record.get("article_id")),
             "url": safe_url(record.get("url")),
             "title": title[:400],
-            "summary": _optional_text(record.get("summary")),
+            "summary": _optional_text(raw_summary),
             "published_at": published.isoformat().replace("+00:00", "Z"),
             "updated_at": updated.isoformat().replace("+00:00", "Z") if updated else None,
             **times,
@@ -171,6 +179,10 @@ def normalize_articles(
     if any(excluded.values()):
         summary = ", ".join(f"{key}={value}" for key, value in excluded.items() if value)
         warnings.append(f"excluded news records at the point-in-time boundary: {summary}")
+    if truncated_titles:
+        warnings.append(f"{truncated_titles} news headline(s) were truncated to 400 characters")
+    if truncated_summaries:
+        warnings.append(f"{truncated_summaries} news summary/summaries were truncated to 1,800 characters")
     if not normalized and records:
         warnings.append("no news records remained after timestamp and schema validation")
     return normalized, excluded, warnings

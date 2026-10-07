@@ -113,8 +113,14 @@ def _confidence_label(score: int) -> str:
     return "high" if score >= 80 else "medium" if score >= 60 else "low" if score >= 40 else "very_low"
 
 
-def build_consensus(researchers: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str, Any]:
-    assessments = {r["researcher_id"]: forecast_assessment(r, manifest) for r in researchers}
+def build_consensus(
+    researchers: list[dict[str, Any]],
+    manifest: dict[str, Any],
+    *,
+    assessments: dict[str, dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    if assessments is None:
+        assessments = {r["researcher_id"]: forecast_assessment(r, manifest) for r in researchers}
     valid = [
         r for r in researchers
         if r.get("result_role", "forecast") == "forecast"

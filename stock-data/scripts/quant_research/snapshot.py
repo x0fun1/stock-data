@@ -294,7 +294,11 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
     return destination
 
 
-def load_snapshot(snapshot_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
+def load_snapshot(
+    snapshot_dir: Path,
+    *,
+    include_news: bool = False,
+) -> tuple[dict[str, Any], dict[str, Any]] | tuple[dict[str, Any], dict[str, Any], dict[str, Any]]:
     manifest_path = snapshot_dir / "manifest.json"
     market_path = snapshot_dir / "market.json"
     if not manifest_path.is_file() or not market_path.is_file():
@@ -342,4 +346,7 @@ def load_snapshot(snapshot_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         raise ValueError("snapshot has no market OHLCV bars")
     if len(market["data"]["bars"]) != manifest.get("market_bar_count"):
         raise ValueError("snapshot market bar count mismatch")
-    return manifest, {**market, "_data_validation": derived["data_validation"]}
+    loaded_market = {**market, "_data_validation": derived["data_validation"]}
+    if include_news:
+        return manifest, loaded_market, domains["news"]
+    return manifest, loaded_market

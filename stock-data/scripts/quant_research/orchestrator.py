@@ -22,7 +22,7 @@ from .snapshot import load_snapshot
 from .synthesis import build_synthesis
 from .security import bounded_text
 
-RUNNERS: dict[str, Callable[[Path], dict[str, Any]]] = {
+RUNNERS: dict[str, Callable[[Path, tuple[dict[str, Any], dict[str, Any]] | None], dict[str, Any]]] = {
     "quant": quant.run,
     "factor": factor.run,
     "ml": ml.run,
@@ -35,7 +35,9 @@ def _write_json(path: Path, value: Any) -> None:
 
 
 def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, Any] | None = None) -> Path:
-    manifest, market = load_snapshot(snapshot_dir)
+    loaded = load_snapshot(snapshot_dir, include_news=True)
+    manifest, market = loaded[:2]
+    news_domain = loaded[2] if len(loaded) == 3 else None
     bars = market.get("data", {}).get("bars", [])
     report_manifest = {
         **manifest,
@@ -50,6 +52,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
     researcher_dir.mkdir()
 
     results: dict[str, dict[str, Any]] = {}
+    path_assessments: dict[str, dict[str, Any]] = {}
     for researcher_id in RESEARCHERS:
         try:
             # Each path receives only the frozen snapshot path. Its result is written
@@ -57,17 +60,19 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
             if not manifest.get("data_validation", {}).get("forecast_eligible", False):
                 result = researcher_result(researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"], status="insufficient_data", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=["Prediction skipped: a fatal prediction-eligibility blocker was detected; non-fatal validation/audit gaps do not skip Quant."])
             else:
-                result = RUNNERS[researcher_id](snapshot_dir)
+                result = RUNNERS[researcher_id](snapshot_dir, (manifest, market))
         except Exception as exc:  # isolate a path failure and continue the ensemble
             result = researcher_result(
                 researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
                 status="failed", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=[f"Research path failed: {type(exc).__name__}: {bounded_text(exc)}"],
             )
-        result.update(forecast_assessment(result, manifest))
+        assessment = forecast_assessment(result, manifest)
+        result.update(assessment)
+        path_assessments[researcher_id] = assessment
         _write_json(researcher_dir / f"{researcher_id}.json", result)
         results[researcher_id] = result
 
-    consensus = build_consensus(list(results.values()), manifest)
+    consensus = build_consensus(list(results.values()), manifest, assessments=path_assessments)
     consensus["horizon_type"] = manifest.get("data_validation", {}).get("horizon_type", "unavailable")
     consensus["session_horizon_verified"] = bool(manifest.get("data_validation", {}).get("session_horizon_verified", False))
     adversarial = audit(manifest, list(results.values()), consensus)
@@ -107,7 +112,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
     try:
         # Snapshot loading is separate from the analyst entrypoint. After this
         # conversion, run_news receives only the restricted in-memory contract.
-        news_input = prepare_news_input(snapshot_dir)
+        news_input = prepare_news_input(snapshot_dir, (manifest, market), loaded_news_domain=news_domain)
         news_result = run_news(news_input, news_policy)
         freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
     except Exception as exc:  # a News-layer error must not erase the completed Quant output
@@ -162,10 +167,11 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
         {"stage": "risk_uncertainty", "status": "aggregated"},
         {"stage": "final", "status": final["analysis_status"]},
     ]
+    summary = build_agent_summary(final)
     _write_json(destination / "report.json", final)
-    _write_json(destination / "agent_summary.json", build_agent_summary(final))
+    _write_json(destination / "agent_summary.json", summary)
     (destination / "report.md").write_text(render_markdown(final), encoding="utf-8")
-    response = render_final_response(final)
+    response = render_final_response(final, summary=summary)
     validate_response_text(final, response)
     (destination / "final_response.md").write_text(response, encoding="utf-8")
     return destination
