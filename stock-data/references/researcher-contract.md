@@ -20,6 +20,8 @@ Optional request fields: `intent` (`forecast`, `descriptive`, `factor_research`)
 
 ## Research result
 
+Final Synthesis retains the reportable consensus fields under `synthesis.quant`: `prob_up/direction/confidence/agreement` plus `diversity` if supplied. Agent summaries and final user replies must expose these fields; see [probability-policy.md](probability-policy.md). Categorical confidence/agreement are not numerical probabilities.
+
 Each path writes the same top-level fields:
 
 ```json

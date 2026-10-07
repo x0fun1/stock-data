@@ -69,6 +69,10 @@ class PipelineTests(Fixture):
         self.assertTrue(report["adversarial_audit"]["may_report_direction"])
         self.assertIsNotNone(report["consensus"]["prob_up"])
         self.assertEqual(report["synthesis"]["quant_prob_up"], quant["consensus"]["prob_up"])
+        for key in ("prob_up", "direction", "confidence", "agreement", "diversity"):
+            self.assertEqual(report["synthesis"]["quant"][key], quant["consensus"][key])
+            self.assertEqual(summary["sections"]["quant"][key], quant["consensus"][key])
+            self.assertEqual(summary["sections"]["final_synthesis"]["quant"][key], quant["consensus"][key])
         self.assertEqual(len(summary["sections"]), 8)
         self.assertLess(len((output / "agent_summary.json").read_bytes()), 30000)
         self.assertNotIn("candles", json.dumps(summary))

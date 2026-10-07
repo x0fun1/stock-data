@@ -131,7 +131,9 @@ CLI 的 `status: success` 仅表示产物写出；另检查 `analysis_status` �
 
 ## 实现边界与验证
 
-Skill `2.2.0` / research runtime `0.2.0` / snapshot schema `1.1` 修复 normalized DATA 被 raw envelope 覆盖，并新增行情身份、日线频率、实际窗口、时区时间、交易日轴、最新收盘和公司行动证据门槛。缺少来源日历或复权证据时弃权；不要制造字段通过检查。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
+Skill `2.2.1` / research runtime `0.2.1` / snapshot schema `1.1` 修复 normalized DATA 被 raw envelope 覆盖，并新增行情身份、日线频率、实际窗口、时区时间、交易日轴、最新收盘和公司行动证据门槛。缺少来源日历或复权证据时弃权；不要制造字段通过检查。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
+
+最终用户回复必须展示可报告的 Quant `prob_up/direction/confidence/agreement` 和存在的 `diversity`。综合结果及有界摘要保留原字段，News 不改变概率；缺失时明确“上涨概率：不可用”。confidence/agreement 的现有分类标签不伪造为百分比，数值来自当前标的的实际运行，规则见 [probability-policy.md](stock-data/references/probability-policy.md)。
 
 旧 1.0 快照可读，但不能自动通过新的预测门槛；应重新采集并生成带实际证据的快照。1.1 manifest 绑定判定元数据，加载时重算门槛。严格模式额外要求 A/B/C 的时间外样本和 C 校准；标准模式披露未校准模型值。新闻相关性、时效、来源与冲突在进入方向前检查，供应商情绪不能覆盖 mixed 事件。hash 只证明完整性，不认证供应商真伪。
 

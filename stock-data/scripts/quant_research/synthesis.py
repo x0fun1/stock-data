@@ -10,20 +10,32 @@ from .security import bounded_text
 CONFIDENCE_ORDER = {"unavailable": -1, "very_low": 0, "low": 1, "medium": 2, "medium_high": 3, "high": 4}
 
 
+def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
+    """Copy Quant's output fields without consulting News or creating a score."""
+    quant = quant_result.get("consensus", {})
+    probability = quant.get("prob_up")
+    direction = str(quant.get("direction", "unavailable"))
+    allowed = (direction in {"bullish", "bearish", "neutral"}
+               and isinstance(probability, (int, float)) and not isinstance(probability, bool)
+               and math.isfinite(probability) and 0 <= probability <= 1
+               and quant_result.get("adversarial_audit", {}).get("may_report_direction") is not False)
+    fields = {key: quant.get(key) for key in ("prob_up", "direction", "confidence", "agreement")}
+    if "diversity" in quant:
+        fields["diversity"] = quant["diversity"]
+    if not allowed:
+        fields.update(prob_up=None, direction="research_invalid")
+    return fields
+
+
 def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -> dict[str, Any]:
     quant = quant_result.get("consensus", {})
     snapshot = quant_result.get("snapshot", {})
     if snapshot and any(news_result.get(key) != snapshot.get(key) for key in ("ticker", "market", "horizon", "snapshot_id", "asof_timestamp")):
         raise ValueError("Quant/News identity or as-of mismatch")
-    q_direction = str(quant.get("direction", "unavailable"))
-    q_probability = quant.get("prob_up")
-    q_reportable = (q_direction in {"bullish", "bearish", "neutral"}
-                    and isinstance(q_probability, (int, float)) and not isinstance(q_probability, bool)
-                    and math.isfinite(q_probability) and 0 <= q_probability <= 1
-                    and quant_result.get("adversarial_audit", {}).get("may_report_direction") is not False)
-    if not q_reportable:
-        q_probability = None
-        q_direction = "research_invalid"
+    quant_fields = reportable_quant_fields(quant_result)
+    q_direction = str(quant_fields["direction"])
+    q_probability = quant_fields["prob_up"]
+    q_reportable = q_probability is not None
     n_direction = str(news_result.get("overall_direction", "unknown"))
     sentiment_direction = str(news_result.get("sentiment", {}).get("consensus_direction", "unknown"))
     alignment_basis = "event"
@@ -73,6 +85,9 @@ def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -
         alignment = "STRONG_DIVERGENCE" if news_confirmed_against_quant and n_confidence == "medium" else "DIVERGENCE"
 
     q_confidence = str(quant.get("confidence", "unavailable"))
+    if q_confidence not in CONFIDENCE_ORDER:
+        # Keep the original field for display; an unknown scale cannot be ranked.
+        q_confidence = "unavailable"
     if alignment in {"DIVERGENCE", "STRONG_DIVERGENCE", "MIXED", "OPINION_ONLY_CROSS_CHECK", "CATALYST_WITH_NEUTRAL_QUANT"}:
         final_confidence = min(
             (q_confidence, n_confidence, "low"),
@@ -111,6 +126,8 @@ def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -
     if alignment == "NOT_ASSESSED":
         warnings.append("News cross-validation is not assessed; the complete evidence chain is unavailable.")
     return {
+        "quant": quant_fields,
+        "quant_field_source": "quant_result.json.consensus",
         "alignment": alignment,
         "quantitative_bias": q_direction,
         "quant_prob_up": q_probability,
@@ -119,7 +136,7 @@ def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -
         "alignment_basis": alignment_basis,
         "news_sentiment": news_result.get("sentiment", {}).get("label", "unknown"),
         "market_confirmation": market_confirmation,
-        "quant_confidence": q_confidence,
+        "quant_confidence": quant_fields["confidence"],
         "news_confidence": n_confidence,
         "overall_confidence": final_confidence,
         "quant_probability_preserved": q_probability == quant.get("prob_up"),

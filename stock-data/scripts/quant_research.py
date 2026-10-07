@@ -33,7 +33,7 @@ def _schema(kind: str) -> dict[str, Any]:
     if kind == "researcher":
         return {"required": ["researcher_id", "result_role", "ticker", "horizon", "snapshot_id", "direction", "prob_up", "prob_down", "expected_return", "confidence", "probability_source", "evidence", "validation", "data_used", "warnings", "status"], "researcher_ids": ["quant", "factor", "ml", "factor_backtest"], "result_roles": ["forecast", "diagnostic"], "statuses": ["success", "partial", "failed", "insufficient_data", "invalid"], "probability_source_required_when_prob_up_is_numeric": True, "diagnostic_paths_enter_consensus": False}
     if kind == "final":
-        return {"schema_version": "1.1", "required": ["analysis_id", "analysis_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json"], "probability_blending": "prohibited"}
+        return {"schema_version": "1.1", "required": ["analysis_id", "analysis_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "agreement"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": "上涨概率：不可用", "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json"], "probability_blending": "prohibited"}
     if kind == "news":
         return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["overall_direction", "event_strength", "sentiment", "source_agreement", "market_confirmation", "major_events", "background_records", "catalysts", "risks", "confidence", "warnings"], "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only"}
     raise ValueError(f"unknown schema kind: {kind}")
@@ -103,7 +103,8 @@ def main(argv: list[str] | None = None) -> int:
             summary = json.loads((location / "agent_summary.json").read_text(encoding="utf-8"))
             print(json.dumps({"status": "success", "analysis_status": summary["analysis_status"], "may_report_direction": summary["sections"]["final_synthesis"]["may_report_direction"], "report_dir": str(location), "json": str(location / "report.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json")}, ensure_ascii=False))
         else:
-            print(json.dumps(_schema(args.kind), ensure_ascii=False, indent=2))
+            # Machine-readable schema must survive Windows console code pages.
+            print(json.dumps(_schema(args.kind), ensure_ascii=True, indent=2))
         return 0
     except Exception as exc:
         print(json.dumps({"status": "error", "error_type": type(exc).__name__, "error": bounded_text(exc)}, ensure_ascii=False), file=sys.stderr)

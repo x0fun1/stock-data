@@ -2,7 +2,7 @@
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
 metadata:
-  version: "2.2.0"
+  version: "2.2.1"
 ---
 
 # Stock Data & Quant Research
@@ -55,6 +55,10 @@ python stock-data/scripts/quant_research.py pipeline --request request.json --re
 ## 最终交付契约
 
 方向研究稳定包含八项：价格/数据时间；Quant 核心；技术/因子证据；Backtest/IC/bias 的实际范围；新闻/消息面；Quant 与消息关系；风险/反方证据；综合结论。不适用或缺失写未评估。展示样本、raw/uncalibrated、单路径及降级状态；路径范围不是置信区间，历史验证不证明未来表现。
+
+Quant 成功生成且通过报告资格的 `prob_up/direction/confidence/agreement` 必须在最终用户回复中展示，`diversity` 存在时也展示。字段直接来自 `quant_result.json.consensus`，通过 `synthesis.quant` 和 `agent_summary.sections.final_synthesis.quant` 保留；不得只说“偏多/看涨”省略有效 P(up)。News 完成后仍展示同一原始上涨概率，说明一致/部分一致/冲突/未评估，区分 Quant confidence 与综合 confidence。
+
+用户回复采用“Quant 数据面 → News / Sentiment → 综合判断”，并保留八项证据。概率用来源数值转为百分比；JSON 保留原值，显示精度不改变模型概率。当前 confidence/agreement/diversity 为分类标签，按原尺度展示，不能编造其百分比。若没有有效且可报告的 `prob_up`，必须写 **上涨概率：不可用**，解释缺失/否决原因。LLM 禁止生成、估算、修正、平滑或由新闻补算概率；所有数值绑定当前用户标的、horizon 与 as-of，不复用文档示例或其他标的的结果。
 
 完整 JSON/Markdown 留作可追踪产物；原始 K 线、新闻正文、中间矩阵和 debug 不进入 LLM。关键驱动解释引用事件 ID/原文链接及 Quant 证据，区分事实、来源观点、推断和未知。
 

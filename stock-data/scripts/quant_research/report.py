@@ -2,8 +2,11 @@
 
 from __future__ import annotations
 
+from decimal import Decimal
+import math
 from typing import Any
 from .security import bounded_text, markdown_text, safe_url
+from .synthesis import reportable_quant_fields
 
 
 def _pct(value: Any) -> str:
@@ -12,6 +15,43 @@ def _pct(value: Any) -> str:
 
 def _cell(value: Any) -> str:
     return markdown_text(value if value not in (None, "") else "Unavailable")
+
+
+def _probability_text(value: Any) -> str:
+    if isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 1:
+        return "Unavailable"
+    text = _pct(value)
+    if 0 < value < 1 and text in {"0.0%", "100.0%"}:
+        # Display rounding must not turn a nonzero/noncertain estimate into 0/100%.
+        return format(Decimal(str(value)) * 100, "f").rstrip("0").rstrip(".") + "%"
+    return text
+
+
+def _quant_lines(fields: dict[str, Any]) -> list[str]:
+    """Presentation only: retain native Quant categories, never invent percent scores."""
+    lines = [f"- 上涨概率 P(up)：{_probability_text(fields['prob_up'])}" if fields["prob_up"] is not None else "- 上涨概率：不可用",
+             f"- 方向：{_cell(fields['direction'])}",
+             f"- Quant Confidence：{_cell(fields['confidence'])}",
+             f"- 模型一致度（agreement）：{_cell(fields['agreement'])}"]
+    if "diversity" in fields:
+        lines.append(f"- 证据多样性（diversity）：{_cell(fields['diversity'])}")
+    return lines
+
+
+def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -> str:
+    if fields["prob_up"] is None:
+        return "上涨概率：不可用。Quant 未提供通过报告资格的有效概率；不得由 LLM 或新闻补算。"
+    probability = _probability_text(fields["prob_up"])
+    return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的上涨概率。"
+            f"新闻仅补充驱动解释、反方证据和综合风险，不改变 Quant 的 {probability} 原始概率。")
+
+
+def _relationship_text(synthesis: dict[str, Any]) -> str:
+    return {"STRONG_ALIGNMENT": "一致（事件方向及日线关联同向）", "ALIGNMENT": "一致",
+            "MIXED": "部分一致或存在冲突，保留混合证据", "DIVERGENCE": "冲突", "STRONG_DIVERGENCE": "冲突（存在反向日线关联）",
+            "CATALYST_WITH_NEUTRAL_QUANT": "Quant 中性，消息存在催化剂",
+            "OPINION_ONLY_CROSS_CHECK": "仅有观点交叉检查，尚无事件验证",
+            "NOT_ASSESSED": "消息面交叉验证未评估", "ABSTAIN": "Quant 概率不可报告，方向交叉判断不可用"}.get(synthesis.get("alignment"), "未评估")
 
 
 def _link(title: Any, url: Any) -> str:
@@ -30,6 +70,7 @@ def _validation_summary(item: dict[str, Any]) -> dict[str, Any]:
 
 def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
     snapshot, quant = result["snapshot"], result["consensus"]
+    quant_fields = reportable_quant_fields(result)
     news, synthesis = result.get("news_result", {}), result.get("synthesis", {})
     paths = [{"id": key, "status": item.get("status"), "role": item.get("result_role"),
               "eligible": item.get("forecast_eligible", False),
@@ -51,18 +92,19 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
             "analysis_status": result["analysis_status"], "stages": result["stages"],
             "sections": {
                 "price_time": snapshot.get("latest_confirmed_close"),
-                "quant": {"direction": quant.get("direction"), "prob_up": quant.get("prob_up"), "confidence": quant.get("confidence"), "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "paths": paths},
+                "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "paths": paths},
                 "technical_factor_evidence": evidence,
                 "backtest_ic_bias": {"audit_status": result["adversarial_audit"]["status"], "checks": {key: value.get("status") for key, value in bias.items() if isinstance(value, dict)}, "diagnostic_examples": ic, "scope": "D: single-security time-series diagnostics; full portfolio backtest/PBO/DSR not computed"},
                 "news": {"status": news.get("status"), "event_bias": news.get("overall_direction"), "events": events, "coverage": {key: news.get("coverage", {}).get(key) for key in ("observed_publication_start", "observed_publication_end", "eligible_event_count", "eligible_opinion_count", "excluded_evidence_count")}},
                 "cross_validation": {key: synthesis.get(key) for key in ("alignment", "alignment_basis", "news_evidence_direction", "overall_confidence", "evidence_links")},
                 "risk_counter_evidence": {"items": selected_risks, "total": len(risks), "omitted": len(risks) - len(selected_risks)},
-                "final_synthesis": {"status": result["analysis_status"], "may_report_direction": result["adversarial_audit"].get("may_report_direction", False), "quant_probability_preserved": synthesis.get("quant_probability_preserved", False), "warnings": [bounded_text(item, 240) for item in synthesis.get("warnings", [])[:5]]},
+                "final_synthesis": {"status": result["analysis_status"], "may_report_direction": result["adversarial_audit"].get("may_report_direction", False), "quant": dict(quant_fields), "quant_field_source": "quant_result.json.consensus", "quant_display": _quant_lines(quant_fields), "probability_note": _final_probability_note(quant_fields, snapshot["ticker"], snapshot["horizon"]), "news_relationship": _relationship_text(synthesis), "quant_probability_preserved": synthesis.get("quant_probability_preserved", False), "warnings": [bounded_text(item, 240) for item in synthesis.get("warnings", [])[:5]]},
             }}
 
 
 def render_markdown(result: dict[str, Any]) -> str:
     manifest, quant, audit = result["snapshot"], result["consensus"], result["adversarial_audit"]
+    quant_fields = reportable_quant_fields(result)
     news, synthesis = result.get("news_result", {}), result.get("synthesis", {})
     price = manifest.get("latest_confirmed_close") or {}
     allowed = audit.get("may_report_direction", False)
@@ -75,16 +117,17 @@ def render_markdown(result: dict[str, Any]) -> str:
              f"- Source: {_cell(price.get('source'))}; bars: {manifest.get('market_bar_count', 0)}; window: {_cell(manifest.get('market_history_start'))} to {_cell(manifest.get('market_history_end'))}",
              f"- Forecast data gates: {_cell(manifest.get('data_validation', {}).get('forecast_eligible'))}; quality: {_cell(manifest.get('data_quality', {}).get('overall'))}",
              "- Bar close is not a live quote. Source authenticity is not independently verified.", "",
-             "## 2. Quant Core", "",
-             f"- Status: {_cell(quant.get('status'))}; direction: {_cell(quant.get('direction'))}; P(up): {_pct(quant.get('prob_up'))}",
-             f"- Agreement: {_cell(quant.get('agreement'))}; diversity: {_cell(quant.get('diversity'))}; confidence: {_cell(quant.get('confidence'))}",
+             "## 2. Quant 数据面", "",
+             *_quant_lines(quant_fields),
+             f"- Status: {_cell(quant.get('status'))}",
+             "- Confidence、agreement 与 diversity 保留 Quant 原值/原尺度；分类标签不换算为百分比。",
              f"- Calibration: {_cell(quant.get('calibration_status'))}; equal-weight mean is not an independently calibrated ensemble probability."]
     probability_range = quant.get("probability_range")
-    lines.append(f"- Range across eligible paths (not a statistical confidence interval): {_pct(probability_range[0])}–{_pct(probability_range[1])}" if probability_range else "- Range across eligible paths: Unavailable")
+    lines.append(f"- Range across eligible paths (not a statistical confidence interval): {_probability_text(probability_range[0])}–{_probability_text(probability_range[1])}" if probability_range else "- Range across eligible paths: Unavailable")
     lines.extend(["", "| Path | Role / status | Eligible | Reportable P(up) | OOS N | Calibration |", "|---|---|---|---:|---:|---|"])
     for name, item in result["researchers"].items():
         validation = _validation_summary(item)
-        lines.append(f"| {_cell(name)} | {_cell(item.get('result_role'))} / {_cell(item.get('status'))} | {_cell(item.get('forecast_eligible'))} | {_pct(item.get('prob_up')) if allowed and item.get('forecast_eligible') else 'Unavailable'} | {_cell(validation['oos_predictions'])} | {_cell(validation['calibration'])} |")
+        lines.append(f"| {_cell(name)} | {_cell(item.get('result_role'))} / {_cell(item.get('status'))} | {_cell(item.get('forecast_eligible'))} | {_probability_text(item.get('prob_up')) if allowed and item.get('forecast_eligible') else 'Unavailable'} | {_cell(validation['oos_predictions'])} | {_cell(validation['calibration'])} |")
     for name, item in result["researchers"].items():
         for reason in item.get("forecast_exclusion_reasons", []):
             lines.append(f"\n{name} exclusion: {_cell(reason)}")
@@ -122,7 +165,7 @@ def render_markdown(result: dict[str, Any]) -> str:
     if not news.get("major_events"):
         lines.append("No eligible event evidence; event cross-validation is not assessed.")
     lines.extend(["", "## Quant / News Cross-Check", "", f"- Relationship: {_cell(synthesis.get('alignment'))}; basis: {_cell(synthesis.get('alignment_basis'))}",
-                  f"- Quant: {_cell(synthesis.get('quantitative_bias'))}; unchanged P(up): {_pct(synthesis.get('quant_prob_up'))}",
+                  f"- Quant: {_cell(quant_fields['direction'])}; unchanged P(up): {_probability_text(quant_fields['prob_up'])}",
                   f"- News event bias: {_cell(synthesis.get('news_event_bias'))}; tone: {_cell(synthesis.get('news_sentiment'))}",
                   "- Events are candidate explanations for observed market behavior; temporal association does not establish causality.", "", "## 7. Risk & Counter-evidence", ""])
     for risk in synthesis.get("key_risks", []):
@@ -130,7 +173,10 @@ def render_markdown(result: dict[str, Any]) -> str:
     for name, item in result["researchers"].items():
         for warning in item.get("warnings", []):
             lines.append(f"- {_cell(name)}: {_cell(warning)}")
-    lines.extend(["", "## 8. Final Synthesis", "", f"- Outcome: {_cell(result.get('analysis_status'))}; relationship: {_cell(synthesis.get('alignment'))}; overall confidence: {_cell(synthesis.get('overall_confidence'))}"])
+    lines.extend(["", "## 8. Final Synthesis", "", *_quant_lines(quant_fields), "",
+                  _final_probability_note(quant_fields, manifest["ticker"], manifest["horizon"]),
+                  f"- 消息面与 Quant 的关系：{_relationship_text(synthesis)}（{_cell(synthesis.get('alignment'))}）；依据：{_cell(synthesis.get('alignment_basis'))}",
+                  f"- Outcome: {_cell(result.get('analysis_status'))}; overall confidence: {_cell(synthesis.get('overall_confidence'))}"])
     for warning in synthesis.get("warnings", []):
         lines.append(f"- {_cell(warning)}")
     lines.extend(["- Missing evidence is not filled with invented probabilities or causal claims. Historical validation does not prove future performance.", "", "Stage receipt:", ""])
