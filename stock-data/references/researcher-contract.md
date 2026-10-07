@@ -49,7 +49,7 @@ Each path writes the same top-level fields:
 
 Unavailable numeric values are JSON `null`. A numeric probability requires a non-empty `probability_source` and must be in `[0,1]`. The `direction` field is derived from 0.5; it is not a vote. `confidence` remains null unless a researcher has a separately defined, validated confidence measure.
 
-The orchestrator adds `forecast_eligible`, exclusion reasons and `probability_calibration`, independently of calculation status. Strict OOS/calibration and dataset gates are in [reliability-gates.md](reliability-gates.md). D never votes. Final output adds analysis_status, stages and eight-section agent_summary.json; CLI success only means artifacts were written.
+The orchestrator adds `forecast_eligible`, exclusion reasons and `probability_calibration`, independently of calculation status. Strict OOS/calibration and dataset gates are in [reliability-gates.md](reliability-gates.md). D never votes. Final output adds analysis_status, stages, eight-section agent_summary.json and a compact final_response.md; CLI success only means artifacts were written. Generic/brief stock or ETF analysis defaults to intent=forecast, not descriptive. Preserve literal bound fields from final_response.md and validate the actual prepared reply with validate-response before delivery, including explicit probability unavailability and its reason.
 
 ## Status meanings
 

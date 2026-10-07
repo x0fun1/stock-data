@@ -2,7 +2,7 @@
 
 `stock-data` 是面向美股、港股及相应 ETF 的可安装 Skill，统一行情、基本面、技术指标、新闻情绪、专项事件与量化方向研究。市场数据只经现有 Finnhub MCP / 本包 global-stock-data gateway 获取，研究脚本仅处理已采集的数据。
 
-方向判断遵循 **数据验证 → Quant → 验证/审计 → News/Sentiment → 交叉验证与风险 → Final Synthesis**：三条独立预测路径、一条因子诊断路径、共识后的偏差审计、独立消息面分析，再做保留可报告 Quant 概率的分类证据综合。简单事实查询和历史描述只取必要数据。
+普通个股/ETF 的“分析、简析、怎么看、综合分析”以及方向判断遵循 **数据验证 → Quant → 验证/审计 → News/Sentiment → 交叉验证与风险 → Final Synthesis**：三条独立预测路径、一条因子诊断路径、共识后的偏差审计、独立消息面分析，再做保留可报告 Quant 概率的分类证据综合。简析只控制篇幅，默认 `intent=forecast` / `5D`，不能变成省略 Quant 的行情与新闻摘要。用户明确的事实查询、纯历史及专项描述才只取必要数据。
 
 ## 发给 Agent 的一键安装指令
 
@@ -61,7 +61,7 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/inst
 
 - 凡涉及股票或 ETF 的价格趋势、涨跌方向、未来走势、收益概率、技术/量化分析、消息面、新闻情绪、事件影响或综合投资研究，必须优先使用 stock-data Skill，并遵循其当前 SKILL.md 与 references/ 定义的方法和流程。
 - 不自行另建股票趋势、量化预测、新闻情绪或综合判断方法；stock-data Skill 是此类任务的统一研究框架和事实来源路由。
-- 涉及方向判断时，必须按 Skill 完成 Quant → 验证/审计 → News/Sentiment → Final Synthesis；不得跳过消息面直接给出最终判断，也不得用新闻主观修改 Quant 概率。消息数据不可用时，按 Skill 记录未评估并完成降级综合，不把消息缺失当作中性或已验证。
+- 普通个股/ETF 的分析、简析、怎么看、综合分析，以及方向判断，必须按 Skill 完成 Quant → 验证/审计 → News/Sentiment → Final Synthesis；简析只缩短篇幅，不能跳过 Quant。最终展示实际 Quant 上涨概率，缺失/无效/否决时明确“上涨概率：不可用”并说明原因，不自行补算或由新闻修改概率。消息数据不可用时，按 Skill 记录未评估并完成降级综合，不把消息缺失当作中性或已验证。
 - ETF 按与股票相同的分析原则处理；根据需要结合 ETF 自身价格数据、相关新闻及其指数/行业/主要成分股背景，但分析方法仍服从 stock-data Skill。背景资料不能替代 ETF 自身行情或凭空补齐基金字段。
 - 简单事实查询（如当前价格、历史价格、基本资料）及纯历史描述只调用 Skill 所需的数据能力，不强制运行完整方向研究；单独查询新闻、评级或日历时按 Skill 专项路由处理，一旦涉及未来方向就转入完整流程。
 - Skill 的具体算法、数据源、输出契约和降级规则以当前版本为准；长期 memory 不重复保存这些实现细节。
@@ -75,9 +75,10 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/inst
 | 行情、历史价格、资料 | 最小必要查询，保留来源、时间、单位与缺口 |
 | 基本面、财报、估值 | 资料与财务证据、披露时序、口径核对和按需同行比较 |
 | 历史走势、技术指标 | 原始 OHLCV 与本地指标；历史描述不自动变成预测 |
+| 个股/ETF 分析、简析、怎么看 | 默认完整 Quant → News → 综合；输出实际概率或明确不可用，交付前校验待发送文本 |
 | 新闻、情绪、评级、日历、内部人 | 事件事实、观点、发布时间和行情反应分开处理 |
 | 期权、资金流、空头成交量、SEC、宏观、筛选 | 使用已支持数据能力，明确代理值、分页、授权与覆盖限制 |
-| ETF、多标的、综合/深度研究 | 按需组合证据；方向比较按 ticker 分别运行完整流程 |
+| ETF、多标的、综合/深度研究 | 按需补充证据；通用分析及方向比较按 ticker 分别运行完整流程 |
 
 上述专项的具体入口见 [analysis-paths.md](stock-data/references/analysis-paths.md)。涉及未来方向或上涨概率时，统一执行：
 
@@ -94,7 +95,7 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/inst
 
 代码、门槛、结果字段和交付检查见 [quant-paths.md](stock-data/references/quant-paths.md)。A–E 是流程角色，本地运行器已经执行这些阶段，无需另建五个 Agent。
 
-## 方向研究的运行方式
+## 通用分析与方向研究的运行方式
 
 先按 Skill 完成一次数据采集，将实际 gateway 响应按 [collection-adapter.md](stock-data/references/collection-adapter.md) 映射为规范化输入。推荐组合入口：
 
@@ -125,13 +126,22 @@ runtime/research/<analysis_id>/
   news_result.json + news_result.freeze.json
   report.json + report.md
   agent_summary.json
+  final_response.md                     三部分简版，保留八项证据及概率/不可用字段
 ```
 
-CLI 的 `status: success` 仅表示产物写出；另检查 `analysis_status` 和 `may_report_direction`。优先读取有界 `agent_summary.json` 与八项 `report.md`，不把原始行情/新闻/矩阵塞入 LLM。交付前检查数据门槛、路径状态、样本、概率来源、审计 veto、News 覆盖和最终综合；不能把 `partial/insufficient_data/not_assessed` 当成完整验证。审计否决时不使用 `pre_veto_prob_up` 绕过结论抑制。
+CLI 的 `status: success` 仅表示产物写出；另检查 `analysis_status` 和 `may_report_direction`。优先读取程序生成的 `final_response.md` 与有界 `agent_summary.json`，完整八项证据在 `report.md`，不把原始行情/新闻/矩阵塞入 LLM。简析以 `final_response.md` 为基础，强制字段原行保留，可补充来源明确的解释。交付前检查数据门槛、路径状态、样本、概率来源、审计 veto、News 覆盖和最终综合；不能把 `partial/insufficient_data/not_assessed` 当成完整验证。审计否决时不使用 `pre_veto_prob_up` 绕过结论抑制。
+
+将实际准备发送的完整回复保存为 UTF-8 Markdown，再校验：
+
+```text
+python stock-data/scripts/quant_research.py validate-response --analysis-dir <实际返回的 report_dir> --response-file <待发送的完整回复.md>
+```
+
+该检查验证 Quant/News 冻结 digest、报告来源绑定、完成阶段和强制原文行；遗漏/篡改概率、原生字段、标的/窗口/时间或未保留不可用原因时返回错误。通过后发送同一文本，不能再次删减强制字段。它不能拦截宿主 Agent 未调用脚本而直接发送的消息，也不核验全部自然语言主张。前置采集/校验失败到无法产生报告时，直接报告“上涨概率：不可用”、失败阶段与实际缺口，明确研究未完成。
 
 ## 实现边界与验证
 
-Skill `2.2.1` / research runtime `0.2.1` / snapshot schema `1.1` 修复 normalized DATA 被 raw envelope 覆盖，并新增行情身份、日线频率、实际窗口、时区时间、交易日轴、最新收盘和公司行动证据门槛。缺少来源日历或复权证据时弃权；不要制造字段通过检查。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
+Skill `2.2.2` / research runtime `0.2.2` / snapshot schema `1.1` 收紧普通简析/分析的默认路由，新增程序生成的最终简版和交付校验；保留 normalized DATA/raw 隔离及行情身份、日线频率、实际窗口、时区时间、交易日轴、最新收盘和公司行动证据门槛。缺少来源日历或复权证据时弃权；不要制造字段通过检查。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
 
 最终用户回复必须展示可报告的 Quant `prob_up/direction/confidence/agreement` 和存在的 `diversity`。综合结果及有界摘要保留原字段，News 不改变概率；缺失时明确“上涨概率：不可用”。confidence/agreement 的现有分类标签不伪造为百分比，数值来自当前标的的实际运行，规则见 [probability-policy.md](stock-data/references/probability-policy.md)。
 

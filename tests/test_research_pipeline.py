@@ -21,6 +21,7 @@ from quant_research.news.normalize import normalize_source_sentiment
 from quant_research.news.pipeline import _source_agreement
 from quant_research.news.reaction import validate_reaction
 from quant_research.orchestrator import run_analysis
+from quant_research.delivery import validate_final_response
 from quant_research.researchers import factor, factor_backtest
 from quant_research.security import sanitize_data
 from quant_research.snapshot import freeze_snapshot, load_snapshot
@@ -79,6 +80,8 @@ class PipelineTests(Fixture):
         self.assertNotIn("gateway_envelope", json.dumps(summary))
         self.assertEqual((output / "report.md").read_text(encoding="utf-8").count("\n## "), 8)
         self.assertTrue(report["synthesis"]["key_risks"])
+        delivery = validate_final_response(output, output / "final_response.md")
+        self.assertEqual(delivery["prob_up"], quant["consensus"]["prob_up"])
 
     def test_stale_strict_data_abstains_and_does_not_run_researchers(self):
         from quant_research import orchestrator
@@ -127,6 +130,7 @@ class PipelineTests(Fixture):
         self.assertEqual(code, 0)
         self.assertTrue(receipt["may_report_direction"])
         self.assertTrue(Path(receipt["agent_summary"]).is_file())
+        self.assertTrue(Path(receipt["final_response"]).is_file())
         self.assertEqual(len(list((self.root / "runtime" / "collections").glob("*.json"))), 1)
 
     def test_factor_diagnostics_labels_stay_before_holdout_and_are_cached(self):

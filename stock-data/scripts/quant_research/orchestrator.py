@@ -11,10 +11,11 @@ from . import __version__
 from .audit import audit
 from .consensus import build_consensus, forecast_assessment
 from .contracts import RESEARCHERS, researcher_result
+from .delivery import validate_response_text
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
 from .paths import safe_output_destination
-from .report import build_agent_summary, render_markdown
+from .report import build_agent_summary, render_final_response, render_markdown
 from .researchers import factor, factor_backtest, ml, quant
 from .snapshot import load_snapshot
 from .synthesis import build_synthesis
@@ -141,4 +142,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
     _write_json(destination / "report.json", final)
     _write_json(destination / "agent_summary.json", build_agent_summary(final))
     (destination / "report.md").write_text(render_markdown(final), encoding="utf-8")
+    response = render_final_response(final)
+    validate_response_text(final, response)
+    (destination / "final_response.md").write_text(response, encoding="utf-8")
     return destination

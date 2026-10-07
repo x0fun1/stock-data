@@ -17,6 +17,10 @@ Display Quant P(up) explicitly in the Quant section and final conclusion. News c
 
 Absent/invalid/vetoed probabilities remain null and must display exactly `上涨概率：不可用`; explain the reason rather than filling a value. Percentage formatting is presentation only: JSON retains the unrounded model value. No LLM-generated, estimated, smoothed, news-adjusted, or other-ticker probability is allowed.
 
+Generic stock/ETF analysis, including a brief analysis, uses the full workflow by default even when the user did not explicitly request a probability. Brevity only changes presentation. Explicit fact/history/specialist-only requests can retain their narrow route. Do not silently substitute a quote/fundamentals/news digest for a generic analysis.
+
+The runtime writes `final_response.md` after both stages are frozen and synthesis completes. Use it for brief delivery, preserving its literal identity, Quant fields, calibration/unavailability, relationship and probability note. Before sending the actual prepared text, run `validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>`. It verifies both frozen digests, report binding, completed stage receipts and required literal lines; missing/conflicting labeled fields fail. It does not intercept host messages or certify every prose claim. On pre-artifact collection/validation failure, explicitly report the unavailable probability and incomplete stage instead of claiming completed research.
+
 ## Disallowed
 
 - An LLM's subjective percentage, expected return or confidence.

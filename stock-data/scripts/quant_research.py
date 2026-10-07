@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from quant_research.contracts import normalize_request, utc_now
+from quant_research.delivery import validate_final_response
 from quant_research.orchestrator import run_analysis
 from quant_research.stock_data_adapter import StockDataAdapter
 from quant_research.snapshot import DOMAINS, freeze_snapshot
@@ -33,7 +34,7 @@ def _schema(kind: str) -> dict[str, Any]:
     if kind == "researcher":
         return {"required": ["researcher_id", "result_role", "ticker", "horizon", "snapshot_id", "direction", "prob_up", "prob_down", "expected_return", "confidence", "probability_source", "evidence", "validation", "data_used", "warnings", "status"], "researcher_ids": ["quant", "factor", "ml", "factor_backtest"], "result_roles": ["forecast", "diagnostic"], "statuses": ["success", "partial", "failed", "insufficient_data", "invalid"], "probability_source_required_when_prob_up_is_numeric": True, "diagnostic_paths_enter_consensus": False}
     if kind == "final":
-        return {"schema_version": "1.1", "required": ["analysis_id", "analysis_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "agreement"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": "上涨概率：不可用", "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json"], "probability_blending": "prohibited"}
+        return {"schema_version": "1.1", "required": ["analysis_id", "analysis_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "agreement"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": "上涨概率：不可用", "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json", "final_response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; preserve literal Quant/identity/relationship fields from final_response.md", "probability_blending": "prohibited"}
     if kind == "news":
         return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["overall_direction", "event_strength", "sentiment", "source_agreement", "market_confirmation", "major_events", "background_records", "catalysts", "risks", "confidence", "warnings"], "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only"}
     raise ValueError(f"unknown schema kind: {kind}")
@@ -62,6 +63,9 @@ def main(argv: list[str] | None = None) -> int:
     pipeline.add_argument("--responses", type=Path, required=True)
     pipeline.add_argument("--output-root", type=Path, default=Path("runtime"))
     pipeline.add_argument("--captured-at-utc")
+    delivery = commands.add_parser("validate-response", help="check a prepared reply against frozen Quant/News results before delivery")
+    delivery.add_argument("--analysis-dir", type=Path, required=True)
+    delivery.add_argument("--response-file", type=Path, required=True)
     schema = commands.add_parser("schema", help="print a machine-readable contract")
     schema.add_argument("--kind", choices=("request", "gateway-responses", "collection", "researcher", "news", "final"), required=True)
     args = parser.parse_args(argv)
@@ -101,7 +105,9 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("news policy file must contain a JSON object")
             location = run_analysis(snapshot_dir, output_root, policy)
             summary = json.loads((location / "agent_summary.json").read_text(encoding="utf-8"))
-            print(json.dumps({"status": "success", "analysis_status": summary["analysis_status"], "may_report_direction": summary["sections"]["final_synthesis"]["may_report_direction"], "report_dir": str(location), "json": str(location / "report.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json")}, ensure_ascii=False))
+            print(json.dumps({"status": "success", "analysis_status": summary["analysis_status"], "may_report_direction": summary["sections"]["final_synthesis"]["may_report_direction"], "report_dir": str(location), "json": str(location / "report.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json"), "final_response": str(location / "final_response.md")}, ensure_ascii=False))
+        elif args.command == "validate-response":
+            print(json.dumps(validate_final_response(args.analysis_dir, args.response_file), ensure_ascii=False))
         else:
             # Machine-readable schema must survive Windows console code pages.
             print(json.dumps(_schema(args.kind), ensure_ascii=True, indent=2))

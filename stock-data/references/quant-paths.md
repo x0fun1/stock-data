@@ -15,7 +15,7 @@
 | 概率共识 | `consensus.py` | `quant_result.json.consensus`，只接受 A/B/C 的有效预测 |
 | E — Adversarial / Backtesting Bias Audit | `audit.py` | `quant_result.json.adversarial_audit`，验证/否决，不预测 |
 | News / Event / Opinion Sentiment | `news/` | 独立 `news_result.json`，不产生概率 |
-| Final Synthesis | `synthesis.py`、`report.py` | `report.json`、`report.md`、有界 `agent_summary.json`，分类证据综合 |
+| Final Synthesis | `synthesis.py`、`report.py`、`delivery.py` | `report.json`、`report.md`、有界 `agent_summary.json`、`final_response.md` 与待发送文本校验，分类证据综合 |
 
 E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执行，覆盖四条研究路径及共识的证据。D 和 E 均不进入预测概率平均。四个研究器的详细结果必须保留，不以报告中的单个方向摘要替代。
 
@@ -67,8 +67,9 @@ News 结果独立冻结后，Final Synthesis 验证两份 digest，再报告对�
 
 ## 交付前检查
 
-1. 先读取 `agent_summary.json` 和八项 `report.md`。CLI 成功不代表研究通过；检查 `analysis_status`、数据资格、路径 `forecast_eligible`/排除原因。完整 `researchers/*.json` 保留用于追踪，按需查看样本和验证，不把完整矩阵加载给 LLM。
+1. 通用分析/简析同样默认运行完整流程。先读取 `final_response.md` 与 `agent_summary.json`，细节在八项 `report.md`。CLI 成功不代表研究通过；检查 `analysis_status`、数据资格、路径 `forecast_eligible`/排除原因。完整 `researchers/*.json` 保留用于追踪，按需查看样本和验证，不把完整矩阵加载给 LLM。
 2. 检查共识可用路径、原始 P(up)、分歧、多样性、E 的 veto/warnings 和未评估项，使用实际报告状态，不自行补概率或修改数值。
 3. 检查独立 `quant_result.json`、`news_result.json` 与两份 `.freeze.json`；缺失/摘要不符时不声称最终综合已验证。
 4. 检查 `news_result.status`、时间覆盖、事件/观点分离、行情反应缺口和 `report.json.synthesis`；缺失字段保留为空或未评估。
 5. 最终报告价格/时间、Quant、技术/因子、IC/bias 实际范围、消息、关系、风险与综合；保留冲突和未评估项，并提供产物位置。输入与运行产物放在用户可写工作目录，不写入只读安装目录。
+6. 简析使用程序生成的 `final_response.md`，保留标的/窗口/as-of、Quant 五字段（diversity 存在时）、概率说明、校准/不可用原因及消息关系原行。保存实际待发送文本并运行 `validate-response --analysis-dir <report_dir> --response-file <完整回复.md>`；失败则按同一实际产物修复后重验。通过后发送同一文本，不能再将概率摘要掉。此检查验证字段与产物绑定，不代表所有自然语言推断均已验证。

@@ -54,6 +54,75 @@ def _relationship_text(synthesis: dict[str, Any]) -> str:
             "NOT_ASSESSED": "消息面交叉验证未评估", "ABSTAIN": "Quant 概率不可报告，方向交叉判断不可用"}.get(synthesis.get("alignment"), "未评估")
 
 
+def _unavailable_reasons(result: dict[str, Any]) -> list[str]:
+    gate = result["snapshot"].get("data_validation", {})
+    reasons = list(gate.get("errors", [])) + list(gate.get("blockers", []))
+    reasons += result["adversarial_audit"].get("vetoes", [])
+    for item in result["researchers"].values():
+        if item.get("result_role") != "diagnostic" and not item.get("forecast_eligible"):
+            reasons += item.get("forecast_exclusion_reasons", []) + item.get("warnings", [])
+    return list(dict.fromkeys(bounded_text(reason, 240) for reason in reasons if reason)) or ["Quant 未生成通过报告资格的有效概率。"]
+
+
+def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
+    """Literal delivery fields generated from this result, never from News values."""
+    snapshot, fields = result["snapshot"], reportable_quant_fields(result)
+    required = {
+        "identity": f"- 标的：{_cell(snapshot['ticker'])}；市场：{_cell(snapshot['market'])}；预测窗口：{_cell(snapshot['horizon'])}（交易 session）；分析截至：{_cell(snapshot['asof_timestamp'])}",
+        "probability_note": _final_probability_note(fields, snapshot["ticker"], snapshot["horizon"]),
+        "news_relationship": f"- 消息面与 Quant 的关系：{_relationship_text(result.get('synthesis', {}))}",
+        "analysis_status": f"- 执行状态：{_cell(result['analysis_status'])}",
+    }
+    names = ["prob_up", "direction", "confidence", "agreement"] + (["diversity"] if "diversity" in fields else [])
+    required.update(zip(names, _quant_lines(fields)))
+    if fields["prob_up"] is None:
+        required["unavailable_reason"] = "- 概率不可用原因：" + _cell(_unavailable_reasons(result)[0])
+    else:
+        required["calibration"] = (f"- 概率校准状态：{_cell(result['consensus'].get('calibration_status'))}；"
+                                   "共识为合格路径等权均值，并非已独立校准的联合概率。")
+    return required
+
+
+def render_final_response(result: dict[str, Any]) -> str:
+    """Compact user-facing delivery: brevity never drops Quant or abstention fields."""
+    required, summary = required_response_lines(result), build_agent_summary(result)
+    snapshot, sections = result["snapshot"], summary["sections"]
+    price, news = sections["price_time"] or {}, sections["news"]
+    lines = [f"# {_cell(snapshot['ticker'])} 简析", "", required["identity"],
+             f"- 最新确认收盘：{_cell(price.get('price'))} {_cell(price.get('currency'))}；行情时间：{_cell(price.get('close_at'))}；来源：{_cell(price.get('source'))}（非实时价）",
+             f"- 行情窗口：{_cell(snapshot.get('market_history_start'))}–{_cell(snapshot.get('market_history_end'))}；日线数量：{snapshot.get('market_bar_count', 0)}",
+             "", "### Quant 数据面", "", *_quant_lines(reportable_quant_fields(result))]
+    if "calibration" in required:
+        lines.append(required["calibration"])
+    else:
+        lines.append(required["unavailable_reason"])
+        lines.extend("- 其他缺口：" + _cell(reason) for reason in _unavailable_reasons(result)[1:4])
+    for row in sections["technical_factor_evidence"][:4]:
+        lines.append(f"- 技术/因子证据：{_cell(row['path'])} / {_cell(row['polarity'])}；{_cell(row['factor'])}；当前贡献 {_cell(row['current_contribution'])}；训练 IC {_cell(row['training_rank_ic'])}")
+    if not sections["technical_factor_evidence"]:
+        lines.append("- 技术/因子证据：不可用或因数据门槛跳过。")
+    for path in sections["quant"]["paths"]:
+        validation = path["validation"]
+        lines.append(f"- 验证：{_cell(path['id'])} {_cell(path['status'])}；样本外 N={_cell(validation['oos_predictions'])}；校准 {_cell(validation['calibration'])}")
+    bias = sections["backtest_ic_bias"]
+    lines.append(f"- Bias 审计：{_cell(bias['audit_status'])}；IC/forward return 是单证券诊断，未完成组合回测、PBO/DSR 或成本验证。")
+    for diagnostic in bias["diagnostic_examples"][:2]:
+        metric = diagnostic["holdout"]
+        lines.append(f"- Holdout IC：{_cell(diagnostic['factor'])} / {_cell(diagnostic['horizon'])} {_cell(metric['spearman_time_series_ic'])}；平均 forward return {_pct(metric['mean_forward_return'])}；N={_cell(metric['observations'])}")
+    lines.extend(["", "### News / Sentiment", "",
+                  f"- 状态：{_cell(news['status'])}；合格事件方向：{_cell(news['event_bias'])}；报道窗口：{_cell(news['coverage'].get('observed_publication_start'))}–{_cell(news['coverage'].get('observed_publication_end'))}"])
+    for event in news["events"][:3]:
+        lines.append(f"- {_cell(event['first_published_at'])} / {_cell(event['event_group'])}：{_link(event['headline'], event['url'])}；来源 {_cell(', '.join(event['sources']))}；事实状态 {_cell(event['fact_status'])}；方向 {_cell(event['direction'])}")
+    if not news["events"]:
+        lines.append("- 没有合格事件证据；观点或报道数量不等于已确认利好/利空。")
+    lines.extend(["", "### 综合判断", "", required["probability_note"], required["news_relationship"], required["analysis_status"]])
+    risks = sections["risk_counter_evidence"]["items"]
+    lines.extend(f"- 风险/反方证据：{_cell(row['source'])}；{_cell(row['detail'])}" for row in risks[:4])
+    lines.extend("- 综合限制：" + _cell(warning) for warning in result.get("synthesis", {}).get("warnings", [])[:2])
+    lines.extend(["- 历史验证不保证未来表现；新闻只提供解释和风险证据，时间关联不证明因果。", ""])
+    return "\n".join(lines)
+
+
 def _link(title: Any, url: Any) -> str:
     url = safe_url(url)
     return f"[{_cell(title)}](<{url.replace('>', '%3E').replace('<', '%3C')}>)" if url else _cell(title)
@@ -98,7 +167,7 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "news": {"status": news.get("status"), "event_bias": news.get("overall_direction"), "events": events, "coverage": {key: news.get("coverage", {}).get(key) for key in ("observed_publication_start", "observed_publication_end", "eligible_event_count", "eligible_opinion_count", "excluded_evidence_count")}},
                 "cross_validation": {key: synthesis.get(key) for key in ("alignment", "alignment_basis", "news_evidence_direction", "overall_confidence", "evidence_links")},
                 "risk_counter_evidence": {"items": selected_risks, "total": len(risks), "omitted": len(risks) - len(selected_risks)},
-                "final_synthesis": {"status": result["analysis_status"], "may_report_direction": result["adversarial_audit"].get("may_report_direction", False), "quant": dict(quant_fields), "quant_field_source": "quant_result.json.consensus", "quant_display": _quant_lines(quant_fields), "probability_note": _final_probability_note(quant_fields, snapshot["ticker"], snapshot["horizon"]), "news_relationship": _relationship_text(synthesis), "quant_probability_preserved": synthesis.get("quant_probability_preserved", False), "warnings": [bounded_text(item, 240) for item in synthesis.get("warnings", [])[:5]]},
+                "final_synthesis": {"status": result["analysis_status"], "may_report_direction": result["adversarial_audit"].get("may_report_direction", False), "quant": dict(quant_fields), "quant_field_source": "quant_result.json.consensus", "quant_display": _quant_lines(quant_fields), "probability_note": _final_probability_note(quant_fields, snapshot["ticker"], snapshot["horizon"]), "news_relationship": _relationship_text(synthesis), "probability_unavailable_reasons": _unavailable_reasons(result)[:5] if quant_fields["prob_up"] is None else [], "quant_probability_preserved": synthesis.get("quant_probability_preserved", False), "warnings": [bounded_text(item, 240) for item in synthesis.get("warnings", [])[:5]]},
             }}
 
 
