@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 
@@ -20,3 +20,4 @@ class NewsInput:
     articles: tuple[dict[str, Any], ...]
     bars: tuple[dict[str, Any], ...]
     warnings: tuple[str, ...] = ()
+    coverage: dict[str, Any] = field(default_factory=dict)

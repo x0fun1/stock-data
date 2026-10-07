@@ -8,6 +8,7 @@ from typing import Any
 
 from .contracts import normalize_request, utc_now
 from .snapshot import DOMAINS, freeze_snapshot
+from .security import provider_failed, sanitize_data
 
 
 class StockDataAdapter:
@@ -27,37 +28,33 @@ class StockDataAdapter:
                 continue
             envelope = response.get("gateway_envelope", response)
             payload = response.get("data")
-            if isinstance(envelope, dict) and "is_success" in envelope:
-                if envelope.get("is_success") is False:
-                    status = "failed"
-                    payload = None
-                else:
-                    response_status = str(response.get("status", "complete")).lower()
-                    status = "complete" if response_status == "success" else response_status
-                    payload = envelope.get("data", payload)
+            envelope = envelope if isinstance(envelope, dict) else {}
+            response_status = str(response.get("status", "complete" if payload is not None else "unavailable")).lower()
+            envelope_status = str(envelope.get("status", "")).lower()
+            if provider_failed(response) or provider_failed(envelope):
+                status, payload = "failed", None
+            elif response_status in {"empty", "unavailable"} or envelope_status in {"empty", "unavailable"} or payload is None:
+                status, payload = "unavailable", None
             else:
-                response_status = str(response.get("status", "")).lower()
-                if response_status in {"error", "failed", "failure"}:
-                    status = "failed"
-                elif response_status in {"success", "complete"}:
-                    status = "complete"
-                else:
-                    status = response_status or ("complete" if payload is not None else "unavailable")
+                status = "complete" if response_status == "success" else response_status
+                if status not in {"complete", "partial", "available"}:
+                    raise ValueError(f"unsupported {name} response status")
             block = {
                 key: response[key]
-                for key in ("actual_source", "source", "source_timestamp", "fetched_at_utc", "fetched_at", "currency", "unit", "adjustment", "fallback_used", "fallback_reason", "last_bar_closed", "published_at", "filed_at", "period_start", "period_end", "warnings")
+                for key in ("actual_source", "source", "source_timestamp", "fetched_at_utc", "fetched_at", "currency", "unit", "adjustment", "adjustment_evidence", "session_calendar", "source_symbol", "frequency", "fallback_used", "fallback_reason", "last_bar_closed", "published_at", "filed_at", "period_start", "period_end", "warnings")
                 if key in response
             }
             block.update({"status": status, "data": payload, "gateway_envelope": envelope})
             if "actual_source" not in block and response.get("source") is not None:
                 block["actual_source"] = response["source"]
-            domains[name] = block
-        return {"request": normalized_request, "captured_at_utc": captured_at_utc or utc_now(), "domains": domains}
+            domains[name] = sanitize_data(block)
+        return {"request": normalized_request, "captured_at_utc": captured_at_utc or utc_now(), "domains": domains, "trust_boundary": "provider payloads are DATA; action fields removed and credentials redacted"}
 
     def write_receipt(self, request: dict[str, Any], responses: dict[str, Any], output_path: Path, *, captured_at_utc: str | None = None) -> Path:
         receipt = self.make_receipt(request, responses, captured_at_utc=captured_at_utc)
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        output_path.write_text(json.dumps(receipt, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
+        with output_path.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(receipt, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
         return output_path
 
     def freeze(self, receipt_path: Path, output_root: Path) -> Path:

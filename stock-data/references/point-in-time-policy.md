@@ -21,7 +21,7 @@ For a daily close signal at session `t`, features may use data available through
 - No historical index/universe features are inferred from today's membership.
 - Research A/B/C/D numeric forecast and factor-diagnostic paths continue to use OHLCV only. After Quant is complete and frozen, the separate News layer can analyze only articles with timezone-aware publication/update timestamps no later than the shared snapshot as-of. It does not extend the selected OHLCV window or fetch again.
 - The News layer uses a source-reported score only when present; deterministic event/opinion screening is marked heuristic and uncalibrated. It deduplicates articles into canonical events, counts opinion clusters separately, and computes recency in observed exchange sessions. The default half-life is the requested forecast horizon in sessions; `--news-policy` may configure `half_life_sessions_by_event_type`.
-- Market reaction mapping uses the first frozen exchange session whose close follows publication (same local session for news no later than the nominal 16:00 close). Daily returns, gaps, volume z-scores, and volatility changes are observed associations, not causal estimates. Sector-relative return is unavailable without a compatible frozen benchmark. If News coverage/timing or reaction bars are inadequate, mark that part not assessed.
+- Market reaction uses supplied close times when available; nominal 16:00 is an unverified fallback. Intraday news is whole-day association without a post-publication opening gap. Divergence does not establish sell-the-news/priced-in causality. Benchmark-relative return and immature windows remain unavailable.
 - No historical point-in-time news archive is fabricated from a short current-news feed. A three-calendar-year Quant price window does not imply three years of News coverage; report source coverage separately.
 
 ## Leakage controls
@@ -29,6 +29,8 @@ For a daily close signal at session `t`, features may use data available through
 - Future return labels are generated only after feature construction and never enter feature values.
 - Research A uses prior, matured, non-overlapping labels for conditional frequencies.
 - Research B selects signs and scales in an earlier chronological segment, maps scores in a later segment, and reports an untouched later holdout separately.
+- B decay diagnostics require label_end strictly before holdout_start; current signed contributions are separate from training IC signs.
 - Research C uses explicit information intervals, closed-boundary purge, embargo, walk-forward validation, fold-local scaling, Platt calibration on causal out-of-fold scores, and a chronological holdout.
 - Research D computes OHLCV factors only through close[t], forms forward returns only as labels, learns training quantile cutoffs before the chronological holdout, and uses non-overlapping label starts. With one ticker, its Spearman statistic is time-series IC rather than cross-sectional Rank IC.
 - If source timing, adjustment status, or label boundary cannot be established, downgrade or reject the affected result. Do not silently repair lineage.
+- [Reliability gates](reliability-gates.md) define calendar/close/freshness and adjustment. Publication, occurrence, announcement and scheduled times remain separate; a new article cannot reset an old event's age.

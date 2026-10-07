@@ -2,6 +2,8 @@
 
 按用户所需维度选择最小必要数据。本文补充事实、描述性和综合研究入口；方向研究统一转入 `SKILL.md` 的方向研究流程，方法和输出仍由 [量化路径](quant-paths.md) 定义。不能用 PE、技术信号、新闻、资金流或评级直接造出上涨概率。
 
+方向研究的数据资格由代码 [reliability-gates.md](reliability-gates.md) 强制：来源身份、日线窗口、最新已闭合 session、完整交易日轴及复权证据必须通过。缺证据或行情过期时输出弃权和缺口，不运行预测器。`pipeline` 只处理采集文件，不保证联网更新；实际采集仍由 Agent 按来源路由完成。
+
 ## 事实与描述性分析
 
 - ticker 已明确时直接使用；公司名称、上市地或证券类型有歧义时，先用当前 Finnhub `search-symbol` 或 global `stock_search` 确认。美股和港股代码转换遵循 [global 来源说明](global-stock-data.md)，不猜东财市场前缀。

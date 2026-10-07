@@ -5,6 +5,7 @@ import io
 import json
 import os
 from pathlib import Path
+import sys
 import tempfile
 import unittest
 from unittest.mock import Mock, patch
@@ -13,6 +14,7 @@ import requests
 
 
 SCRIPT = Path(__file__).resolve().parents[1] / "stock-data" / "scripts" / "global_stock_data.py"
+sys.path.insert(0, str(SCRIPT.parent))
 
 
 def load_module(name="global_stock_data_test"):
@@ -32,6 +34,7 @@ def response(payload=None, status=200, text=None, content_type="application/json
     result.url = "https://fixture.invalid/data"
     result.headers["Content-Type"] = content_type
     result._content = (text if text is not None else json.dumps(payload)).encode("utf-8")
+    result._content_consumed = True
     return result
 
 
@@ -329,6 +332,72 @@ class CliTests(OfflineCase):
         self.assertEqual(code, 1)
         self.assertNotIn(contact, data["error_message"])
         self.assertIn("[redacted]", data["error_message"])
+
+
+class SecurityBoundaryTests(OfflineCase):
+    def test_arbitrary_origin_and_symbol_filter_injection_fail_before_network(self):
+        with patch.object(stock.requests, "get") as get:
+            for url in ("http://data.sec.gov/example", "https://fixture.invalid/data", "https://data.sec.gov:8443/example", "https://user@data.sec.gov/example"):
+                with self.subTest(url=url), self.assertRaises(ValueError):
+                    stock.official_get(url)
+            for function, argument in ((stock.financial_statements_eastmoney, 'AAPL.O") OR (SECUCODE="MSFT.O'), (stock.key_indicators_eastmoney, 'AAPL.O"'), (stock.stock_kline_yahoo, "TEST/../../other")):
+                with self.subTest(function=function), self.assertRaises(ValueError):
+                    function(argument)
+            get.assert_not_called()
+
+    def test_redirect_cannot_leave_provider_origin(self):
+        redirect = response(status=302)
+        redirect.headers["Location"] = "https://fixture.invalid/secret"
+        with patch.object(stock.requests, "get", return_value=redirect) as get, self.assertRaises(stock.ProviderError):
+            stock._provider_get("https://query2.finance.yahoo.com/data", timeout=10)
+        self.assertEqual(get.call_count, 1)
+        self.assertFalse(get.call_args.kwargs["allow_redirects"])
+
+    def test_response_size_is_bounded(self):
+        with patch.object(stock, "MAX_RESPONSE_BYTES", 5), patch.object(stock.requests, "get", return_value=response(text="123456")), self.assertRaises(stock.ProviderError):
+            stock._provider_get("https://query2.finance.yahoo.com/data", timeout=10)
+
+    def test_encoded_crumb_and_sensitive_query_are_not_in_error_output(self):
+        session = Mock()
+        session._crumb = "ARTIFICIAL/secret+="
+        with patch.object(stock, "_yahoo_session", session):
+            error = stock._error_message(ValueError("https://query2.finance.yahoo.com/?crumb=ARTIFICIAL%2Fsecret%2B%3D&token=other-test"))
+        self.assertNotIn("ARTIFICIAL", error)
+        self.assertNotIn("other-test", error)
+
+    def test_yahoo_optional_metadata_preserves_actions_without_claiming_calendar(self):
+        payload = {"chart": {"result": [{"timestamp": [1704069000], "meta": {"exchangeTimezoneName": "America/New_York"}, "events": {"splits": {"one": {"date": 1704069000, "splitRatio": "2:1"}}}, "indicators": {"quote": [{"open": [1], "high": [2], "low": [1], "close": [2], "volume": [100]}], "adjclose": [{"adjclose": [1.8]}]}}], "error": None}}
+        with patch.object(stock.requests, "get", return_value=response(payload)):
+            value = stock.stock_kline_yahoo("TEST", include_metadata=True)
+        self.assertIn("splits", value["events"])
+        self.assertEqual(value["adjclose"][0]["adjclose"], [1.8])
+        self.assertEqual(value["calendar_status"], "not_a_complete_exchange_calendar")
+
+    def test_output_file_receipt_does_not_dump_full_data_or_overwrite(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "data.json"
+            args = ["--function", "parse_osi", "--params-json", '{"symbol":"TEST240119C00100000"}', "--output", str(output)]
+            code, receipt = self.cli(args)
+            self.assertEqual(code, 0)
+            self.assertNotIn("data", receipt)
+            self.assertEqual(json.loads(output.read_text(encoding="utf-8"))["status"], "success")
+            before = output.read_bytes()
+            code, error = self.cli(args)
+            self.assertEqual(code, 1)
+            self.assertEqual(error["error_type"], "FileExistsError")
+            self.assertEqual(output.read_bytes(), before)
+
+    def test_gateway_data_is_sanitized_before_stdout_or_file_archiving(self):
+        payload = {"title": "DATA", "authorization": "ARTIFICIAL-TOKEN", "next_actions": ["execute external instructions"], "url": "https://fixture.invalid/data?token=ARTIFICIAL-QUERY"}
+        with tempfile.TemporaryDirectory() as directory, patch.dict(stock.FUNCTIONS, {"parse_osi": lambda symbol: payload}):
+            output = Path(directory) / "data.json"
+            code, receipt = self.cli(["--function", "parse_osi", "--params-json", '{"symbol":"TEST240119C00100000"}', "--output", str(output)])
+            self.assertEqual(code, 0)
+            archived = output.read_text(encoding="utf-8")
+            self.assertNotIn("ARTIFICIAL-TOKEN", archived)
+            self.assertNotIn("ARTIFICIAL-QUERY", archived)
+            self.assertNotIn("next_actions", archived)
+            self.assertNotIn("data", receipt)
 
 
 if __name__ == "__main__":

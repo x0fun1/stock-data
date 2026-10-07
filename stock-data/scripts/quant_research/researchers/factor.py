@@ -122,19 +122,20 @@ def run(snapshot_dir: Path) -> dict[str, Any]:
     holdout_start = int(n * 0.8)
     train_end = int(n * 0.5)
     calibration_end = holdout_start
+    labels_by_horizon = {h: forward_returns(close, h) for h in (1, 5, 20)}
     # Diagnostics are horizon-specific and use only labels available before the final holdout.
     decay: dict[str, dict[str, Any]] = {}
     for name, (family, formula, values) in factors.items():
         horizons: dict[str, Any] = {}
         for horizon in (1, 5, 20):
-            labels = forward_returns(close, horizon)
-            eligible = [i for i in range(60, holdout_start) if i + horizon < n]
+            labels = labels_by_horizon[horizon]
+            eligible = [i for i in range(60, holdout_start) if i + horizon < holdout_start]
             indices = non_overlapping(eligible, horizon)
             horizons[f"{horizon}D"] = _factor_metrics(values, labels, indices)
         decay[name] = {"family": family, "formula": formula, "horizons": horizons}
 
     # Feature selection and sign are fixed using the first chronological segment.
-    select_labels = forward_returns(close, requested_horizon)
+    select_labels = labels_by_horizon[requested_horizon]
     select_indices = non_overlapping([i for i in range(60, train_end) if i + requested_horizon < train_end], requested_horizon)
     ranked: list[tuple[float, str, str, str, list[float | None], dict[str, Any]]] = []
     for name, (family, formula, values) in factors.items():
@@ -186,7 +187,7 @@ def run(snapshot_dir: Path) -> dict[str, Any]:
         return sum(values) / len(values) if len(values) == len(standardized) and values else None
 
     calibration_indices = non_overlapping([i for i in range(train_end, calibration_end) if i >= 60 and i + requested_horizon < calibration_end], requested_horizon)
-    calibration_pairs = [(float(composite(i)), float(forward_returns(close, requested_horizon)[i])) for i in calibration_indices if composite(i) is not None]
+    calibration_pairs = [(float(composite(i)), float(select_labels[i])) for i in calibration_indices if composite(i) is not None]
     scores = [pair[0] for pair in calibration_pairs]
     low_cut, high_cut = quantile(scores, 1 / 3), quantile(scores, 2 / 3)
     bucket_samples: dict[str, list[float]] = {"low": [], "mid": [], "high": []}
@@ -208,7 +209,7 @@ def run(snapshot_dir: Path) -> dict[str, Any]:
     holdout_indices = non_overlapping(list(range(holdout_start, n - requested_horizon)), requested_horizon)
     for i in holdout_indices:
         score = composite(i)
-        target = forward_returns(close, requested_horizon)[i]
+        target = select_labels[i]
         if score is None or target is None:
             continue
         bucket = "low" if low_cut is not None and score <= low_cut else "high" if high_cut is not None and score >= high_cut else "mid"
@@ -220,16 +221,20 @@ def run(snapshot_dir: Path) -> dict[str, Any]:
     baseline_brier = mean([(calibration_prevalence - y) ** 2 for _, y in holdout_pairs]) if calibration_prevalence is not None else None
 
     lookbacks = {"momentum_5": 5, "momentum_20": 20, "momentum_60": 60, "reversal_1": 1, "trend_sma20": 20, "realized_volatility_20": 20, "volume_z20": 20, "range_position_20": 20, "close_location": 1, "overnight_gap": 1, "volume_return_corr20": 20}
-    selected_factor_rows = [{"factor_name": name, "family": family, "formula": formula, "lookback": lookbacks.get(name), "direction": "positive" if signs.get(name, 1) > 0 else "negative", "training_rank_ic": metrics["rank_ic"], "coverage": metrics["coverage"]} for _, name, family, formula, _, metrics in retained if name in standardized]
+    selected_factor_rows = [{"factor_name": name, "family": family, "formula": formula, "lookback": lookbacks.get(name), "training_direction": "positive" if signs.get(name, 1) > 0 else "negative", "current_contribution": standardized[name][-1] * signs[name] if standardized[name][-1] is not None else None, "training_rank_ic": metrics["rank_ic"], "coverage": metrics["coverage"]} for _, name, family, formula, _, metrics in retained if name in standardized]
     positive, negative = [], []
     for item in selected_factor_rows:
-        group = positive if item["direction"] == "positive" else negative
-        group.append({"family": item["family"], "factor_name": item["factor_name"], "formula": item["formula"], "training_rank_ic": item["training_rank_ic"]})
+        if item["current_contribution"] is None:
+            continue
+        group = positive if item["current_contribution"] >= 0 else negative
+        group.append({key: item[key] for key in ("family", "factor_name", "formula", "training_rank_ic", "training_direction", "current_contribution")})
     diversity = len({item["family"] for item in selected_factor_rows})
     status = "success" if probability is not None and len(holdout_pairs) >= 10 else "partial" if probability is not None else "insufficient_data"
     if len(holdout_pairs) < 10:
         warnings.append("The untouched chronological holdout has fewer than 10 factor-calibration predictions.")
     validation = {"method": "training-segment factor selection + correlation pruning + later empirical bucket calibration", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_base_rate": calibration_prevalence, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True}}
+    validation["diagnostics_label_end_exclusive"] = holdout_start
+    validation["sample_feasibility"] = {"minimum_bucket_observations": 20, "minimum_holdout_predictions": 10, "calibration_available": len(calibration_pairs), "requested_window_preserved": True}
     return researcher_result(
         "factor", ticker, horizon_name, manifest["snapshot_id"], status=status,
         prob_up=probability, expected_return=expected,

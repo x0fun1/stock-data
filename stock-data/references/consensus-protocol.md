@@ -2,7 +2,7 @@
 
 ## Consensus
 
-Consensus reads the A/B/C forecast result files only after all paths finish. Research D (`factor_backtest`) is a diagnostic and is excluded even if a malformed result contains a probability. Valid numeric forecast outputs with quantitative provenance receive equal weight in the MVP. Report:
+Consensus reads A/B/C after all paths return. Reporting gates require matching identity, data eligibility and timing evidence; strict requires chronological OOS/calibration thresholds. D never votes. Eligible outputs receive equal weight; the mean is not independently ensemble-calibrated. Report:
 
 - number and names of available paths;
 - mean probability, range and standard deviation;
@@ -26,7 +26,7 @@ This is stage E (Adversarial / Backtesting Bias Audit), implemented by `scripts/
 
 The audit does not generate a new forecast. It checks snapshot identity and digest, researcher snapshot consistency, probability provenance/range, invalid status, residual train/test interval overlap, declared feature/label timing audits, chronological holdout evidence, OOS Brier versus the base-rate baseline, observed factor-candidate counts, PIT/future-date warnings, sample/validation limitations, diversity and probability disagreement. Timing checks rely on structured researcher audit declarations; they are not a formal proof of every feature implementation.
 
-Veto conditions include invalid/mismatched snapshot identity, a researcher-declared invalid result, a probability without quantitative provenance, an out-of-range probability, or nonzero retained interval overlap in ML validation. A veto suppresses the normal directional conclusion. Low sample, partial domain coverage, stale data, poor calibration and weak diversity create warnings and reduce confidence.
+Veto conditions include failed data gates (stale/unverified sessions), no eligible paths, descriptive-only request, invalid snapshot/path identity, invalid probability provenance/range, or retained ML overlap. Veto suppresses direction and reportable probability. Partial models/optional coverage and weak diversity remain limitations; excluded estimates cannot bypass eligibility.
 
 The anti-overfit audit reports PBO, DSR, realistic costs/market impact, and survivorship as `not_assessed` when the requisite strategy-trial return matrix, trial count, cost model, point-in-time universe or delisted-name history is absent. A count of candidate factors is reported as observed search scope; it is not treated as a complete count of strategy trials. Present PBO/DSR/cost values are labeled unverified unless their inputs and calculation receipts are provided.
 

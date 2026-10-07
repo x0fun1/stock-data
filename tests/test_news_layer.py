@@ -117,8 +117,10 @@ class NewsFixture(unittest.TestCase):
         domains = {name: {"status": "unavailable", "actual_source": None, "data": None} for name in DOMAINS}
         domains["market"] = {
             "status": "complete", "actual_source": "fixture", "adjustment": "adjusted",
-            "last_bar_closed": True,
-        "data": {"bars": make_bars(), "history_window": {"start": "2024-01-22", "end": "2024-03-15", "selection": "fixture"}},
+            "last_bar_closed": True, "source_timestamp": ASOF, "fetched_at_utc": ASOF, "currency": "USD", "unit": "shares",
+            "session_calendar": {"source": "synthetic fixture, not an actual exchange calendar", "timezone": "America/New_York", "coverage_start": make_bars()[0]["date"], "coverage_end": "2024-03-15", "sessions": [{"date": row["date"], "close_at": row["date"] + "T21:00:00Z"} for row in make_bars()]},
+            "adjustment_evidence": {"source": "synthetic fixture", "price_basis": "adjusted", "checked_through": "2024-03-15", "actions": []},
+            "data": {"symbol": "INTC", "frequency": "1d", "bars": make_bars(), "history_window": {"start": make_bars()[0]["date"], "end": "2024-03-15", "selection": "fixture"}},
         }
         news_data: dict[str, object] = {"articles": articles}
         if source_sentiment is not None:
@@ -239,7 +241,7 @@ class NewsIsolationTests(NewsFixture):
         input_names = {item.name for item in fields(NewsInput)}
         self.assertEqual(input_names, {
             "ticker", "market", "horizon", "asof_timestamp", "snapshot_id",
-            "news_status", "source_sentiment", "articles", "bars", "warnings",
+            "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage",
         })
         signature = inspect.signature(analyze_news)
         self.assertEqual(list(signature.parameters), ["news_input", "policy"])

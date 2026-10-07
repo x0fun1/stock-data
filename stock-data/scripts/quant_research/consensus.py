@@ -8,6 +8,33 @@ from typing import Any
 from .math_utils import mean, sample_std
 
 
+def forecast_assessment(result: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any]:
+    reasons = []
+    probability = result.get("prob_up")
+    if result.get("result_role", "forecast") != "forecast":
+        return {"forecast_eligible": False, "forecast_exclusion_reasons": ["diagnostic-only path"], "probability_calibration": "not_applicable"}
+    if not manifest.get("data_validation", {}).get("forecast_eligible", False):
+        reasons.append("market data did not pass reporting gates")
+    if any(result.get(key) != manifest.get(key) for key in ("ticker", "horizon", "snapshot_id")):
+        reasons.append("research path identity differs from the snapshot")
+    if result.get("status") not in {"success", "partial"} or isinstance(probability, bool) or not isinstance(probability, (int, float)) or not math.isfinite(probability) or not 0 <= probability <= 1 or not result.get("probability_source"):
+        reasons.append("no contract-valid quantitative probability")
+    validation = result.get("validation") or {}
+    name = result.get("researcher_id")
+    calibration = "empirical_frequency" if name in {"quant", "factor"} else "calibrated" if validation.get("probability_calibration", {}).get("calibrated") else "uncalibrated"
+    leakage = validation.get("leakage_audit") or {}
+    if leakage.get("features_use_data_through_decision_close_only") is not True or leakage.get("future_returns_used_only_as_labels", leakage.get("target_excluded_from_features")) is not True:
+        reasons.append("feature/label timing evidence missing")
+    count = validation.get("oos_predictions", 0) if name == "quant" else validation.get("holdout_predictions", 0) if name == "factor" else validation.get("final_holdout", {}).get("observations", validation.get("final_holdout", {}).get("n", 0))
+    minimum = 20 if name in {"quant", "ml"} else 10
+    if manifest.get("request", {}).get("mode") == "strict":
+        if not isinstance(count, int) or count < minimum:
+            reasons.append(f"strict mode requires at least {minimum} chronological OOS predictions")
+        if calibration == "uncalibrated":
+            reasons.append("strict mode excludes raw uncalibrated model probabilities")
+    return {"forecast_eligible": not reasons, "forecast_exclusion_reasons": reasons, "probability_calibration": calibration}
+
+
 def _families(result: dict[str, Any]) -> set[str]:
     found: set[str] = set()
     evidence = result.get("evidence") or {}
@@ -43,16 +70,18 @@ def _oos_validation_quality(result: dict[str, Any]) -> float:
 
 
 def build_consensus(researchers: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str, Any]:
+    assessments = {r["researcher_id"]: forecast_assessment(r, manifest) for r in researchers}
     valid = [
         r for r in researchers
         if r.get("result_role", "forecast") == "forecast"
         and r.get("status") in {"success", "partial"}
         and isinstance(r.get("prob_up"), (int, float))
         and r.get("probability_source")
+        and assessments[r["researcher_id"]]["forecast_eligible"]
     ]
     probabilities = [float(r["prob_up"]) for r in valid]
     if not valid:
-        return {"status": "unavailable", "weighting": "equal", "available_paths": 0, "prob_up": None, "direction": "unavailable", "agreement": "unavailable", "diversity": "unavailable", "confidence": "very_low", "warnings": ["No researcher supplied a contract-valid quantitative probability."]}
+        return {"status": "unavailable", "weighting": "equal", "available_paths": 0, "prob_up": None, "direction": "unavailable", "agreement": "unavailable", "diversity": "unavailable", "confidence": "very_low", "path_assessments": assessments, "calibration_status": "not_assessed", "warnings": ["No researcher supplied a reporting-eligible quantitative probability."]}
 
     probability = mean(probabilities)
     spread = max(probabilities) - min(probabilities)
@@ -92,6 +121,8 @@ def build_consensus(researchers: list[dict[str, Any]], manifest: dict[str, Any])
     if agreement in {"high_disagreement", "extreme_disagreement"}:
         confidence = "very_low" if confidence in {"low", "very_low"} else "low"
     warnings: list[str] = []
+    if any(assessments[r["researcher_id"]]["probability_calibration"] == "uncalibrated" for r in valid):
+        warnings.append("Consensus includes raw uncalibrated model probabilities; the equal-weight mean is not calibrated.")
     if len(valid) < 2:
         warnings.append("Only one research path produced a probability; this is a single-path result, not an ensemble consensus.")
     if diversity == "low":
@@ -101,6 +132,8 @@ def build_consensus(researchers: list[dict[str, Any]], manifest: dict[str, Any])
     return {
         "status": "ensemble" if len(valid) >= 2 else "single_path",
         "weighting": "equal",
+        "path_assessments": assessments,
+        "calibration_status": "equal_weight_mean_not_ensemble_calibrated",
         "available_paths": len(valid),
         "path_ids": [r["researcher_id"] for r in valid],
         "prob_up": probability,

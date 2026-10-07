@@ -12,11 +12,14 @@ import tempfile
 from datetime import date
 from pathlib import Path
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from .contracts import normalize_request, parse_timestamp, utc_now
 from .paths import safe_output_destination, validate_path_component
+from .data_checks import ADJUSTMENTS, EXCHANGE_TIMEZONES, calendar_sessions, check_market
+from .security import provider_failed, sanitize_data
 
-SCHEMA_VERSION = "1.0"
+SCHEMA_VERSION = "1.1"
 DOMAINS = (
     "market",
     "fundamentals",
@@ -54,10 +57,11 @@ def _unwrap_domain(block: Any) -> dict[str, Any]:
     data = block.get("data")
     if data is None and "payload" in block:
         data = block.get("payload")
+    failed = provider_failed(block)
     return {
         **block,
-        "data": data,
-        "status": block.get("status", "complete" if data is not None else "unavailable"),
+        "data": None if failed else data,
+        "status": "failed" if failed else block.get("status", "complete" if data is not None else "unavailable"),
         "actual_source": block.get("actual_source", block.get("source")),
     }
 
@@ -67,14 +71,14 @@ def validate_collection(collection: dict[str, Any], request: dict[str, Any]) -> 
     warnings: list[str] = []
     market = _unwrap_domain(collection.get("market"))
     data = market.get("data")
-    if market.get("status") in {"unavailable", "failed", "invalid"} or not isinstance(data, dict):
+    if provider_failed(market) or market.get("status") in {"unavailable", "failed", "invalid", "empty"} or not isinstance(data, dict):
         return ["market OHLCV collection is missing or failed"], warnings, 0
     bars = data.get("bars")
     if not isinstance(bars, list) or not bars:
         return ["market.data.bars must be a non-empty normalized OHLCV array"], warnings, 0
 
     asof = request.get("asof")
-    asof_day = _date_only(asof) if asof else None
+    asof_day = parse_timestamp(asof).astimezone(ZoneInfo(EXCHANGE_TIMEZONES[request["market"]])).date() if asof else None
     previous_day: date | None = None
     seen: set[date] = set()
     kept = 0
@@ -98,6 +102,8 @@ def validate_collection(collection: dict[str, Any], request: dict[str, Any]) -> 
         values: dict[str, float] = {}
         for field in ("open", "high", "low", "close", "volume"):
             try:
+                if isinstance(bar.get(field), bool):
+                    raise ValueError("boolean is not a price/volume")
                 number = float(bar[field])
             except (KeyError, TypeError, ValueError):
                 errors.append(f"market bar {bar_day.isoformat()} is missing numeric {field}")
@@ -129,11 +135,37 @@ def validate_collection(collection: dict[str, Any], request: dict[str, Any]) -> 
         block = _unwrap_domain(collection.get(name))
         if block.get("status") in {"unavailable", "failed", "partial"}:
             warnings.append(f"{name} domain status is {block.get('status')}")
-    return errors, warnings, kept
+    if not errors and asof:
+        semantic = check_market(market, request)
+        errors.extend(semantic["errors"])
+        warnings.extend(semantic["blockers"] + semantic["warnings"])
+    for block in collection.values():
+        if isinstance(block, dict) and isinstance(block.get("warnings"), list):
+            warnings.extend(str(item) for item in block["warnings"])
+    return errors, sorted(set(warnings)), kept
+
+
+def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captured_at: str | None = None, legacy: bool = False) -> dict[str, Any]:
+    errors, warnings, count = validate_collection(domains, request)
+    gate = check_market(domains["market"], request, captured_at=captured_at)
+    if errors or gate["errors"]:
+        raise ValueError("snapshot rejected: " + "; ".join(sorted(set(errors + gate["errors"]))))
+    if legacy:
+        gate["blockers"].append("legacy snapshot schema: re-collect/freeze source evidence before reporting forecasts")
+        gate["forecast_eligible"] = False
+    warnings = sorted(set(warnings + gate["blockers"] + gate["warnings"]))
+    statuses = {name: str(domains[name].get("status", "unavailable")) for name in DOMAINS}
+    sources = {name: {key: block.get(key) for key in ("actual_source", "source_timestamp", "currency", "unit", "adjustment", "fallback_used", "fallback_reason")} | {"fetched_at": block.get("fetched_at_utc", block.get("fetched_at"))} for name, block in domains.items()}
+    depth = min(1.0, count / 504)
+    score = round(0.7 * depth + 0.3 * int(gate["forecast_eligible"]), 4)
+    return {"market_bar_count": count, "data_domains": statuses, "sources": sources, "data_validation": gate,
+            "latest_confirmed_close": gate["latest_confirmed_close"], "warnings": warnings,
+            "data_quality": {"overall": "high" if score >= 0.8 else "medium" if score >= 0.55 else "low", "score": score,
+                             "components": {"history_depth": depth, "forecast_eligible": gate["forecast_eligible"], "required_domains": ["market"]}, "issues": warnings}}
 
 
 def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
-    payload = json.loads(input_path.read_text(encoding="utf-8-sig"))
+    payload = sanitize_data(json.loads(input_path.read_text(encoding="utf-8-sig")))
     if not isinstance(payload, dict) or not isinstance(payload.get("request"), dict):
         raise ValueError("input must be an object containing a request object")
     request = normalize_request(payload["request"])
@@ -159,11 +191,16 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
     market = _unwrap_domain(collection.get("market"))
     market_data = market.get("data")
     if isinstance(market_data, dict) and isinstance(market_data.get("bars"), list):
-        asof_day = _date_only(asof_timestamp)
+        asof_day = parse_timestamp(asof_timestamp).astimezone(ZoneInfo(EXCHANGE_TIMEZONES[request["market"]])).date()
         bars = market_data["bars"]
-        if bars and _date_only(bars[-1].get("date")) == asof_day and market.get("last_bar_closed") is not True:
+        sessions = calendar_sessions(market, request["market"]) if market.get("session_calendar") is not None else []
+        forming = {row["date"] for row in sessions if parse_timestamp(row["close_at"]) > parse_timestamp(asof_timestamp)}
+        exclude = bars and (str(bars[-1]["date"])[:10] in forming if sessions else _date_only(bars[-1].get("date")) == asof_day and market.get("last_bar_closed") is not True)
+        if exclude:
             market_data = dict(market_data)
             market_data["bars"] = bars[:-1]
+            if isinstance(market_data.get("history_window"), dict) and bars[:-1]:
+                market_data["history_window"] = {**market_data["history_window"], "end": bars[-2]["date"]}
             market["data"] = market_data
             market["warnings"] = list(market.get("warnings", [])) + ["excluded same-as-of-date daily bar because the source did not confirm that the session was closed"]
             warnings.append("latest daily bar was excluded because the gateway did not confirm that its as-of-date session had closed")
@@ -173,28 +210,16 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
     normalized_market_data = market
 
     created_at = utc_now()
+    if payload.get("captured_at_utc") and parse_timestamp(payload["captured_at_utc"]) > parse_timestamp(created_at):
+        raise ValueError("collection capture occurs after snapshot creation")
     source_digest = hashlib.sha256(_canonical_bytes(payload)).hexdigest()
     stamp = created_at.replace("-", "").replace(":", "").replace(".", "")
     slug = re.sub(r"[^A-Z0-9._-]+", "_", request["ticker"])
 
-    data_domains: dict[str, str] = {}
-    sources: dict[str, Any] = {}
     normalized: dict[str, dict[str, Any]] = {}
     for domain in DOMAINS:
         block = normalized_market_data if domain == "market" else _unwrap_domain(collection.get(domain))
         normalized[domain] = block
-        status = str(block.get("status", "unavailable")).lower()
-        data_domains[domain] = status if status in {"complete", "partial", "failed", "invalid", "unavailable", "available"} else "available"
-        sources[domain] = {
-            "actual_source": block.get("actual_source"),
-            "source_timestamp": block.get("source_timestamp"),
-            "fetched_at": block.get("fetched_at_utc", block.get("fetched_at")),
-            "currency": block.get("currency"),
-            "unit": block.get("unit"),
-            "adjustment": block.get("adjustment"),
-            "fallback_used": bool(block.get("fallback_used", False)),
-            "fallback_reason": block.get("fallback_reason"),
-        }
     normalized_hashes = {name: hashlib.sha256(_canonical_bytes(block)).hexdigest() for name, block in normalized.items()}
     raw_blocks = {name: collection.get(name) for name in DOMAINS}
     raw_hashes = {name: hashlib.sha256(_canonical_bytes(block)).hexdigest() for name, block in raw_blocks.items()}
@@ -206,19 +231,6 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
     output_root.mkdir(parents=True, exist_ok=True)
     if destination.exists() or destination.is_symlink():
         raise FileExistsError(f"refusing to overwrite frozen snapshot: {destination}")
-    available_domains = sum(status in {"complete", "available", "partial"} for status in data_domains.values())
-    history_component = min(1.0, bar_count / 504)
-    domain_component = available_domains / len(DOMAINS)
-    fallback_count = sum(bool(block.get("fallback_used", False)) for block in normalized.values())
-    stale_market_history = any("market history may be stale" in warning for warning in warnings)
-    quality_score = 0.55 * history_component + 0.45 * domain_component
-    quality_score -= min(0.15, 0.03 * fallback_count)
-    if stale_market_history:
-        quality_score -= 0.15
-    if not valid_adjustment:
-        quality_score *= 0.8
-    quality_score = round(max(0.0, min(1.0, quality_score)), 4)
-    quality = "high" if quality_score >= 0.8 else "medium" if quality_score >= 0.55 else "low"
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "snapshot_id": snapshot_id,
@@ -228,16 +240,14 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
         "request": request,
         "asof_timestamp": asof_timestamp,
         "snapshot_created_at": created_at,
+        "collection_captured_at": payload.get("captured_at_utc"),
         "source_payload_sha256": source_digest,
         "snapshot_content_sha256": content_digest,
         "domain_sha256s": normalized_hashes,
         "raw_domain_sha256s": raw_hashes,
-        "market_bar_count": bar_count,
-        "data_domains": data_domains,
-        "sources": sources,
-        "data_quality": {"overall": quality, "score": quality_score, "components": {"history_depth": round(history_component, 4), "available_domain_fraction": round(domain_component, 4), "fallback_count": fallback_count, "stale_market_history": stale_market_history, "adjustment_known": valid_adjustment}, "issues": warnings},
-        "warnings": warnings,
     }
+    manifest.update(_derived_metadata(normalized, request, captured_at=payload.get("captured_at_utc")))
+    manifest["manifest_sha256"] = hashlib.sha256(_canonical_bytes(manifest)).hexdigest()
 
     temporary = Path(tempfile.mkdtemp(prefix=f".{snapshot_id}.", dir=output_root))
     try:
@@ -260,7 +270,7 @@ def load_snapshot(snapshot_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     if not manifest_path.is_file() or not market_path.is_file():
         raise ValueError("snapshot must include manifest.json and market.json")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") != SCHEMA_VERSION:
+    if manifest.get("schema_version") not in {"1.0", SCHEMA_VERSION}:
         raise ValueError(f"unsupported snapshot schema: {manifest.get('schema_version')!r}")
     snapshot_id = validate_path_component(manifest.get("snapshot_id"), label="snapshot_id")
     domains: dict[str, Any] = {}
@@ -282,11 +292,20 @@ def load_snapshot(snapshot_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     content_digest = hashlib.sha256(_canonical_bytes(content_payload)).hexdigest()
     if content_digest != manifest.get("snapshot_content_sha256") or not snapshot_id.endswith(content_digest[:10]):
         raise ValueError("snapshot content identity mismatch")
-    if manifest.get("ticker") != manifest.get("request", {}).get("ticker") or manifest.get("horizon") != manifest.get("request", {}).get("horizon"):
+    if any(manifest.get(key) != manifest.get("request", {}).get(key) for key in ("ticker", "horizon", "market")) or manifest.get("asof_timestamp") != manifest.get("request", {}).get("asof"):
         raise ValueError("snapshot request identity mismatch")
+    if manifest.get("schema_version") == SCHEMA_VERSION:
+        digest = hashlib.sha256(_canonical_bytes({key: value for key, value in manifest.items() if key != "manifest_sha256"})).hexdigest()
+        if digest != manifest.get("manifest_sha256"):
+            raise ValueError("snapshot manifest digest mismatch")
+        if manifest.get("collection_captured_at") and parse_timestamp(manifest["collection_captured_at"]) > parse_timestamp(manifest["snapshot_created_at"]):
+            raise ValueError("collection capture occurs after snapshot creation")
+    request = normalize_request(manifest["request"])
+    derived = _derived_metadata(domains, request, captured_at=manifest.get("collection_captured_at"), legacy=manifest.get("schema_version") == "1.0")
+    manifest.update(derived)
     market = domains["market"]
     if not market.get("data", {}).get("bars"):
         raise ValueError("snapshot has no market OHLCV bars")
     if len(market["data"]["bars"]) != manifest.get("market_bar_count"):
         raise ValueError("snapshot market bar count mismatch")
-    return manifest, market
+    return manifest, {**market, "_data_validation": derived["data_validation"]}

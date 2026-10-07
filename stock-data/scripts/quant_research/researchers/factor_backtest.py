@@ -120,11 +120,12 @@ def run(snapshot_dir: Path) -> dict[str, Any]:
     metrics: dict[str, Any] = {}
     requested_available = 0
     requested_observations = 0
+    labels_by_horizon = {h: forward_returns(closes, h) for h in (1, 5, 20)}
 
     for name, (family, values) in factors.items():
         horizons: dict[str, Any] = {}
         for horizon in (1, 5, 20):
-            labels = forward_returns(closes, horizon)
+            labels = labels_by_horizon[horizon]
             warmup = 60
             train_indices = non_overlapping(
                 [i for i in range(warmup, split) if i + horizon < split], horizon

@@ -7,6 +7,7 @@ User request
   → request contract
   → stock-data collection pass
   → normalized collection receipt
+  → identity/session/freshness/adjustment gates (failure → abstention)
   → frozen Point-in-Time Snapshot
       ├─ Research A: hypothesis + empirical conditional frequency
       ├─ Research B: factor validation + redundancy removal
@@ -18,7 +19,8 @@ User request
   → isolated News / Event and Opinion-Sentiment analysis from the same snapshot
   → freeze News Result + digest
   → Final Synthesis (the only stage that reads both results; no probability blending)
-  → report.json + report.md
+  → unified risk/uncertainty
+  → report.json + report.md + bounded agent_summary.json + stage receipt
 ```
 
 ## Collection boundary
@@ -27,7 +29,7 @@ User-intent routing for descriptive, fundamental, technical, event, ETF, and com
 
 - One request produces one collection receipt and one immutable snapshot.
 - The existing Finnhub/global router stays authoritative for source choice, fallback, permission, rate limit and units.
-- The analysis code consumes normalized data plus the untouched gateway envelopes. It must not import `global_stock_data.py` or use provider credentials.
+- Analysis consumes normalized DATA and redacted envelopes, never credentials or external instructions. It must not import the provider gateway. `pipeline` composes local request/adapt/freeze/analyze only; collection remains outside Python research.
 - Research A/B/C/D receive only the same snapshot path. They return files with the same result schema and declare whether the result is a forecast or diagnostic. Consensus starts after all four have completed and includes forecast-role outputs only.
 - Quant output, including consensus and bias audit, is serialized and hashed before News starts. A snapshot-only loader prepares the restricted `NewsInput`; the News entrypoint receives only that in-memory contract and an optional decay policy. It has no snapshot, research, or output-directory path and no Quant result, probability, or researcher output.
 - News first applies the common snapshot as-of boundary, then deduplicates into canonical event and opinion clusters. Event direction and opinion sentiment stay in separate fields. Market reaction uses only the frozen OHLCV from that snapshot.
@@ -48,7 +50,7 @@ Implemented locally:
 - Bias-avoidance checks for declared leakage controls, chronological holdout evidence, OOS Brier baselines, observed factor candidate counts, and explicit PBO/DSR/cost/survivorship assessment gaps.
 - Post-Quant News/Sentiment stage with point-in-time filtering, exact/near-duplicate clustering, explicit event/opinion separation, a configurable session-based recency decay, deterministic first-pass event and opinion screening, frozen-OHLCV reaction metrics, independent result digest, and final categorical Quant/News synthesis.
 
-Not yet implemented: multi-asset cross-sectional portfolio backtesting, formal CPCV/PBO/DSR calculation, costed execution and market-impact simulation, point-in-time multi-asset survivorship audit, boosted-tree model integration, bootstrap uncertainty, long-term researcher reliability tracking, a governed one-use holdout store, forward evidence receipts, and a provider-native API adapter. The audit reports these as not assessed unless valid supporting inputs and calculation receipts are supplied; do not imply they are complete.
+Not yet implemented: multi-asset cross-sectional portfolio backtesting, formal CPCV/PBO/DSR calculation, costed execution and market-impact simulation, point-in-time multi-asset survivorship audit, boosted-tree model integration, bootstrap uncertainty, long-term researcher reliability tracking, a governed one-use holdout store, forward evidence receipts, and a provider-native API adapter. The local audit cannot certify these calculations even when extra inputs are supplied; do not imply they are complete.
 
 ## Runtime layout
 
@@ -71,6 +73,7 @@ runtime/
     quant_result.json + quant_result.freeze.json
     news_result.json + news_result.freeze.json
     report.json + report.md
+    agent_summary.json
 ```
 
 These are user-generated artifacts and should live in a writable user workspace, not inside a read-only Skill installation.

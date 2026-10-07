@@ -11,8 +11,9 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-from ..contracts import parse_timestamp
+from ..contracts import HORIZONS, parse_timestamp
 from ..snapshot import load_snapshot
+from ..security import provider_failed
 from .classify import direction_for, event_text, event_type_for, matched_topics, opinion_score
 from .contracts import NewsInput
 from .decay import time_decay
@@ -57,7 +58,7 @@ def _source_agreement(opinions: list[dict[str, Any]]) -> tuple[str, str]:
         if score is not None:
             for source in opinion.get("sources", []):
                 by_source.setdefault(source, []).append(float(score))
-    labels = {_label(mean(scores)) for scores in by_source.values() if scores}
+    labels = {"positive" if mean(scores) > 0.15 else "negative" if mean(scores) < -0.15 else "neutral" for scores in by_source.values() if scores}
     directional = labels - {"neutral", "unknown"}
     if len(directional) > 1:
         divergence = "high"
@@ -78,6 +79,39 @@ def _source_agreement(opinions: list[dict[str, Any]]) -> tuple[str, str]:
     return agreement, divergence
 
 
+def _relevance(rows: list[dict[str, Any]], ticker: str) -> str:
+    tickers = {symbol for row in rows for symbol in row.get("tickers", [])}
+    if ticker in tickers:
+        return "tagged_target"
+    if any(ticker in row.get("exposure_tickers", []) and row.get("exposure_basis") for row in rows):
+        return "documented_exposure"
+    if tickers:
+        return "other_instrument"
+    pattern = re.compile(rf"(?<![A-Za-z0-9]){re.escape(ticker)}(?![A-Za-z0-9])", re.I)
+    return "text_match" if any(pattern.search(" ".join((row.get("title") or "", row.get("summary") or ""))) for row in rows) else "not_explicitly_matched"
+
+
+def _eligibility(cluster: dict[str, Any], news_input: NewsInput, decay: dict[str, Any], policy: dict[str, Any]) -> tuple[bool, list[str]]:
+    rows = cluster["articles"]
+    reasons = []
+    if _relevance(rows, news_input.ticker) not in {"tagged_target", "text_match", "documented_exposure"}:
+        reasons.append("target relevance is unverified or belongs to another instrument")
+    if not any(row.get("source", "unknown").lower() not in {"unknown", "", "none"} for row in rows):
+        reasons.append("news source is untraceable")
+    if any(row.get("source_quality") == 0 or row.get("relevance") == 0 for row in rows):
+        reasons.append("source supplied zero quality/relevance")
+    representative = cluster["representative"]
+    available = representative.get("occurred_at") or representative.get("announcement_at") or cluster["first_published_at"]
+    age = (parse_timestamp(news_input.asof_timestamp) - parse_timestamp(available)).total_seconds() / 86400
+    if age > policy.get("max_age_calendar_days", max(7, HORIZONS[news_input.horizon] * 4)):
+        reasons.append("event/opinion is outside the current evidence window")
+    if float(decay["time_decay"]) < policy.get("minimum_time_decay", 0.0625):
+        reasons.append("event/opinion decay is below the evidence threshold")
+    if news_input.news_status in {"failed", "invalid", "unavailable", "empty"}:
+        reasons.append("news domain is unavailable or failed")
+    return not reasons, reasons
+
+
 def prepare_news_input(snapshot_dir: Path) -> NewsInput:
     """Read only normalized news, snapshot identity and frozen market bars.
 
@@ -87,7 +121,7 @@ def prepare_news_input(snapshot_dir: Path) -> NewsInput:
     manifest, market = load_snapshot(snapshot_dir)
     news_path = snapshot_dir / "news.json"
     news = json.loads(news_path.read_text(encoding="utf-8"))
-    data = news.get("data") if isinstance(news, dict) else None
+    data = news.get("data") if isinstance(news, dict) and not provider_failed(news) and news.get("status") not in {"unavailable", "failed", "invalid", "empty"} else None
     normalized, excluded, news_warnings = normalize_articles(
         data,
         ticker=manifest["ticker"],
@@ -110,11 +144,16 @@ def prepare_news_input(snapshot_dir: Path) -> NewsInput:
         horizon=manifest["horizon"],
         asof_timestamp=manifest["asof_timestamp"],
         snapshot_id=manifest["snapshot_id"],
-        news_status=str(news.get("status", "unavailable")),
+        news_status="failed" if provider_failed(news) else str(news.get("status", "unavailable")),
         source_sentiment=source_sentiment,
         articles=tuple(dict(row) for row in normalized),
         bars=tuple(dict(row) for row in market.get("data", {}).get("bars", [])),
         warnings=tuple(warnings),
+        coverage={"actual_source": news.get("actual_source"), "source_timestamp": news.get("source_timestamp"),
+                  "retrieved_window": data.get("history_window") if isinstance(data, dict) else None,
+                  "excluded_at_normalization": excluded,
+                  "calendar_verification": manifest.get("data_validation", {}).get("calendar_verification", "unverified"),
+                  "session_closes": {row["date"]: row["close_at"] for row in (market.get("session_calendar") or {}).get("sessions", [])}},
     )
 
 
@@ -123,10 +162,23 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
     policy = policy or {}
     if not isinstance(policy, dict):
         raise ValueError("news policy must be an object")
+    if set(policy) - {"half_life_sessions_by_event_type", "max_age_calendar_days", "minimum_time_decay"}:
+        raise ValueError("unsupported news policy fields")
+    half_lives = policy.get("half_life_sessions_by_event_type", {})
+    if not isinstance(half_lives, dict) or any(not isinstance(key, str) or len(key) > 40 or isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 < value <= 366 for key, value in half_lives.items()):
+        raise ValueError("news half-life policy requires bounded names and numeric session counts in (0,366]")
+    age_limit = policy.get("max_age_calendar_days", max(7, HORIZONS[news_input.horizon] * 4))
+    if isinstance(age_limit, bool) or not isinstance(age_limit, int) or not 1 <= age_limit <= 366:
+        raise ValueError("news age window must be an integer in 1..366 days")
+    decay_limit = policy.get("minimum_time_decay", 0.0625)
+    if isinstance(decay_limit, bool) or not isinstance(decay_limit, (int, float)) or not math.isfinite(decay_limit) or not 0 <= decay_limit <= 1:
+        raise ValueError("news minimum_time_decay must be in [0,1]")
     cutoff = parse_timestamp(news_input.asof_timestamp)
     # Recheck the boundary at the analyst contract as defense in depth.
-    articles = [dict(item) for item in news_input.articles
-                if parse_timestamp(item["published_at"]) <= cutoff]
+    articles, _, input_warnings = normalize_articles({"articles": list(news_input.articles)}, ticker=news_input.ticker, asof_timestamp=news_input.asof_timestamp)
+    failed_domain = news_input.news_status in {"failed", "invalid", "unavailable", "empty"}
+    if failed_domain:
+        articles = []
     clusters, duplicates = deduplicate_articles(articles)
     opinion_clusters = [item for item in clusters if item["role"] == "opinion"]
     event_clusters: list[dict[str, Any]] = []
@@ -140,7 +192,9 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             event_clusters.append(cluster)
         else:
             unclassified_clusters.append(cluster)
-    warnings = list(news_input.warnings)
+    warnings = list(news_input.warnings) + input_warnings
+    if failed_domain:
+        warnings.append("failed/unavailable news domain payload excluded from evidence")
     if len(articles) != len(news_input.articles):
         warnings.append("NewsInput contained post-as-of records; they were excluded again before analysis")
     if not articles:
@@ -158,12 +212,15 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         text = event_text(cluster)
         event_type = event_type_for(text, representative.get("event_type_hint"))
         event_direction = direction_for(text)
-        decay = time_decay(cluster["first_published_at"], bars, event_type, news_input.horizon, policy)
+        decay_time = representative.get("occurred_at") or representative.get("announcement_at") or cluster["first_published_at"]
+        decay = time_decay(decay_time, bars, event_type, news_input.horizon, policy, market=news_input.market)
+        eligible, exclusion_reasons = _eligibility(cluster, news_input, decay, policy)
         reaction = validate_reaction(
             published_at=cluster["first_published_at"],
             event_direction=event_direction,
             market=news_input.market,
             bars=bars,
+            session_closes=news_input.coverage.get("session_closes"),
         )
         scores = {
             field: _mean_field(cluster["articles"], field)
@@ -189,17 +246,21 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             ticker_pattern.search(" ".join((row.get("title") or "", row.get("summary") or "")))
             for row in cluster["articles"]
         )
-        ticker_relevance = (
-            "tagged_target" if news_input.ticker in tickers
-            else "macro_context" if event_type == "MACRO"
-            else "text_match" if explicit_ticker_mention
-            else "not_explicitly_matched"
-        )
+        ticker_relevance = _relevance(cluster["articles"], news_input.ticker)
         events.append({
             "event_id": cluster["cluster_id"].replace("cluster_", "event_"),
             "ticker": news_input.ticker,
             "event_type": event_type,
-            "event_group": "macro" if event_type == "MACRO" else "company",
+            "event_group": representative.get("event_group") or ("macro" if event_type == "MACRO" else "company"),
+            "eligible_evidence": eligible,
+            "exclusion_reasons": exclusion_reasons,
+            "fact_status": "reported_event_not_independently_verified",
+            "url": representative.get("url"),
+            "occurred_at": representative.get("occurred_at"),
+            "announcement_at": representative.get("announcement_at"),
+            "scheduled_at": representative.get("scheduled_at"),
+            "source_independence": "reported_lineage" if cluster["independent_reporting_ids"] else "unverified",
+            "independent_reporting_ids": cluster["independent_reporting_ids"],
             "first_published_at": cluster["first_published_at"],
             "article_count": cluster["article_count"],
             "sources": cluster["sources"],
@@ -232,11 +293,15 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         score = _rounded(mean(scores)) if scores else None
         source_scores = [float(row["sentiment_score"]) for row in cluster["articles"] if row.get("sentiment_score") is not None]
         representative = cluster["representative"]
+        decay = time_decay(cluster["first_published_at"], bars, "OPINION", news_input.horizon, policy, market=news_input.market)
+        eligible, exclusion_reasons = _eligibility(cluster, news_input, decay, policy)
         opinions.append({
             "opinion_id": cluster["cluster_id"].replace("cluster_", "opinion_"),
             "published_at": cluster["first_published_at"],
             "article_count": cluster["article_count"],
             "sources": cluster["sources"],
+            "eligible_evidence": eligible, "exclusion_reasons": exclusion_reasons,
+            "url": representative.get("url"), "time_decay": decay["time_decay"],
             "record_type": representative.get("record_type"),
             "sentiment": _label(score),
             "sentiment_score": score,
@@ -254,12 +319,27 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         "reason": "no supported event category and no explicit opinion/social record type",
     } for cluster in unclassified_clusters]
 
+    all_events, all_opinions = events, opinions
+    events = [item for item in all_events if item["eligible_evidence"]]
+    opinions = [item for item in all_opinions if item["eligible_evidence"]]
+    excluded_evidence = [item for item in all_events + all_opinions if not item["eligible_evidence"]]
+    if excluded_evidence:
+        warnings.append(f"{len(excluded_evidence)} canonical records excluded from current bias due to relevance/time/source gates")
     overall_direction = _direction_aggregate([event["direction"] for event in events])
     opinion_scores = [float(item["sentiment_score"]) for item in opinions if item["sentiment_score"] is not None]
     sentiment_score = _rounded(mean(opinion_scores)) if opinion_scores else None
     provider_sentiment = news_input.source_sentiment or {}
-    bullish_percent = provider_sentiment.get("bullish_percent")
-    bearish_percent = provider_sentiment.get("bearish_percent")
+    if provider_sentiment:
+        available = provider_sentiment.get("available_at")
+        if failed_domain or provider_sentiment.get("ticker") != news_input.ticker or not available or parse_timestamp(available) > cutoff or (cutoff - parse_timestamp(available)).total_seconds() / 86400 > age_limit:
+            warnings.append("provider sentiment aggregate is background-only: target/time/domain eligibility unverified")
+            provider_for_bias = {}
+        else:
+            provider_for_bias = provider_sentiment
+    else:
+        provider_for_bias = {}
+    bullish_percent = provider_for_bias.get("bullish_percent")
+    bearish_percent = provider_for_bias.get("bearish_percent")
     provider_direction = (
         "positive" if isinstance(bullish_percent, (int, float)) and isinstance(bearish_percent, (int, float)) and bullish_percent > bearish_percent
         else "negative" if isinstance(bullish_percent, (int, float)) and isinstance(bearish_percent, (int, float)) and bearish_percent > bullish_percent
@@ -272,16 +352,18 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
     source_agreement, cross_source_divergence = _source_agreement(opinions)
     opinion_direction = "positive" if sentiment_score is not None and sentiment_score > 0.15 else "negative" if sentiment_score is not None and sentiment_score < -0.15 else "neutral" if sentiment_score is not None else "unknown"
     sentiment_direction = opinion_direction if opinion_direction != "unknown" else provider_direction
+    if cross_source_divergence == "high" and opinions:
+        sentiment_direction = "mixed"
     if opinion_direction != "unknown" and provider_direction != "unknown":
         if opinion_direction != provider_direction:
             cross_source_divergence = "high" if {opinion_direction, provider_direction} == {"positive", "negative"} else "medium"
             sentiment_direction = "mixed"
-        elif len(opinions) or provider_direction != "unknown":
+        elif cross_source_divergence != "high" and (len(opinions) or provider_direction != "unknown"):
             cross_source_divergence = "low"
     reaction_statuses = [event["market_reaction"].get("status") for event in events
                          if event["market_reaction"].get("status") in {
                              "confirmed_positive", "confirmed_negative",
-                             "sell_the_news_or_expectations_too_high", "bad_news_priced_in_or_relief",
+                             "event_price_divergence_negative", "event_price_divergence_positive",
                          }]
     if not reaction_statuses:
         market_confirmation = "not_assessed"
@@ -290,7 +372,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
     elif all(status == "confirmed_negative" for status in reaction_statuses):
         market_confirmation = "negative"
     elif len(set(reaction_statuses)) == 1 and reaction_statuses[0] in {
-        "sell_the_news_or_expectations_too_high", "bad_news_priced_in_or_relief",
+        "event_price_divergence_negative", "event_price_divergence_positive",
     }:
         market_confirmation = "divergent"
     else:
@@ -298,9 +380,9 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
 
     events.sort(key=lambda item: (item["effective_event_score"] is not None, item["effective_event_score"] or 0, item["first_published_at"]), reverse=True)
     positive = [event for event in events if event["direction"] == "positive"]
-    negative = [event for event in events if event["direction"] == "negative"]
-    source_count = len({source for event in events for source in event["sources"]})
-    confidence = "medium" if len(events) >= 3 and source_count >= 2 and market_confirmation not in {"not_assessed", "mixed"} else "low"
+    negative = [event for event in events if event["direction"] in {"negative", "mixed"}]
+    independent_count = len({identity for event in events for identity in event["independent_reporting_ids"]})
+    confidence = "medium" if len(events) >= 3 and independent_count >= 2 and all(event["source_quality"] is not None and event["source_quality"] >= 0.5 for event in events) and market_confirmation in {"positive", "negative"} and news_input.coverage.get("calendar_verification") == "supplied_source_evidence" else "low"
     limitations = [
         "Event classification and opinion tone use deterministic keyword screening; they are not a calibrated semantic model.",
         "News direction and sentiment are descriptive and do not generate or adjust Quant P(up).",
@@ -308,9 +390,9 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
     ]
     if not events and not opinion_scores and provider_direction == "unknown":
         confidence = "unavailable" if not articles else "low"
-    status = "not_assessed" if not articles and not news_input.source_sentiment else "partial" if warnings else "complete"
+    status = "not_assessed" if not events and not opinions and not provider_for_bias else "partial" if warnings else "complete"
     return {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "status": status,
         "ticker": news_input.ticker,
         "market": news_input.market,
@@ -333,6 +415,12 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             "unclassified_record_count": len(unclassified_records),
             "duplicate_records_merged": duplicates,
             "analyzed_market_bar_count": len(bars),
+            "eligible_event_count": len(events), "eligible_opinion_count": len(opinions),
+            "excluded_evidence_count": len(excluded_evidence),
+            "retrieved_window": news_input.coverage.get("retrieved_window"),
+            "observed_publication_start": min((item["published_at"] for item in articles), default=None),
+            "observed_publication_end": max((item["published_at"] for item in articles), default=None),
+            "evidence_max_age_calendar_days": age_limit,
         },
         "overall_direction": overall_direction,
         "event_strength": _rounded(mean([float(event["event_strength"]) for event in events if event["event_strength"] is not None])) if any(event["event_strength"] is not None for event in events) else None,
@@ -344,7 +432,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             "provider_direction": provider_direction,
             "consensus_direction": sentiment_direction,
             "provider_aggregate": provider_sentiment or None,
-            "confidence": "medium" if len(opinion_scores) >= 5 and len({source for opinion in opinions for source in opinion["sources"]}) >= 2 else "low" if opinion_scores or provider_direction != "unknown" else "unavailable",
+            "confidence": "low" if opinion_scores or provider_direction != "unknown" else "unavailable",
             "dominant_narrative": None,
             "topic_terms": sorted({term for opinion in opinions for term in matched_topics(" ".join((opinion.get("headline") or "", opinion.get("summary") or "")))}),
             "cross_source_divergence": cross_source_divergence,
@@ -352,6 +440,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         "source_agreement": source_agreement,
         "market_confirmation": market_confirmation,
         "major_events": events[:10],
+        "background_records": [{key: item.get(key) for key in ("event_id", "opinion_id", "headline", "url", "first_published_at", "published_at", "ticker_relevance", "exclusion_reasons")} for item in excluded_evidence[:10]],
         "catalysts": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in positive[:5]],
         "risks": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in negative[:5]],
         "opinion_records": opinions[:20],

@@ -46,16 +46,18 @@ def deduplicate_articles(articles: list[dict[str, Any]]) -> tuple[list[dict[str,
     Exact IDs/URLs are removed first. Remaining same-class headlines are merged
     only when they are close in wording and published within 72 hours.
     """
-    exact_seen: set[str] = set()
+    exact_seen: dict[str, set[tuple[Any, ...]]] = {}
     unique: list[dict[str, Any]] = []
     duplicate_count = 0
     for article in sorted(articles, key=lambda row: row.get("published_at", "")):
         role = record_role(article)
         identities = {f"{role}:{identity}" for identity in _exact_keys(article)}
-        if identities & exact_seen:
+        fingerprint = (str(article.get("title", "")).casefold(), str(article.get("summary") or "").casefold(), tuple(article.get("tickers", [])), article.get("occurred_at"), article.get("published_at"))
+        if any(fingerprint in exact_seen.get(identity, set()) for identity in identities):
             duplicate_count += 1
             continue
-        exact_seen.update(identities)
+        for identity in identities:
+            exact_seen.setdefault(identity, set()).add(fingerprint)
         unique.append(dict(article))
 
     clusters: list[dict[str, Any]] = []
@@ -67,6 +69,14 @@ def deduplicate_articles(articles: list[dict[str, Any]]) -> tuple[list[dict[str,
         for cluster in reversed(clusters):
             if cluster["role"] != role:
                 continue
+            previous = cluster["articles"][0]
+            if set(article.get("tickers", [])) != set(previous.get("tickers", [])):
+                continue
+            if article.get("occurred_at") and previous.get("occurred_at") and article["occurred_at"][:10] != previous["occurred_at"][:10]:
+                continue
+            if article.get("canonical_event_id") and article.get("canonical_event_id") == previous.get("canonical_event_id"):
+                match = cluster
+                break
             delta = abs((published - cluster["first_published"]).total_seconds())
             if delta > timedelta(hours=72).total_seconds():
                 continue
@@ -100,6 +110,7 @@ def deduplicate_articles(articles: list[dict[str, Any]]) -> tuple[list[dict[str,
             "representative": representative,
             "articles": rows,
             "sources": sorted({str(row.get("source", "unknown")) for row in rows}),
+            "independent_reporting_ids": sorted({row["original_reporting_id"] for row in rows if row.get("original_reporting_id")}),
             "article_count": len(rows),
             "role": cluster["role"],
             "is_opinion": cluster["role"] == "opinion",

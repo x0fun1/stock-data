@@ -7,6 +7,8 @@
 - Research C: the native logistic model's `predict_proba`-equivalent sigmoid output; apply Platt scaling only when enough causal walk-forward predictions exist. Mark uncalibrated output explicitly.
 - Consensus: equal-weight arithmetic mean of valid, provenance-bearing path probabilities. It is not a majority vote.
 
+All sources require [reporting gates](reliability-gates.md). Strict excludes raw model probabilities and missing/insufficient OOS. Consensus is equal_weight_mean_not_ensemble_calibrated; path range is not a statistical interval. Excluded/vetoed numeric artifacts cannot be delivered as forecasts.
+
 ## Disallowed
 
 - An LLM's subjective percentage, expected return or confidence.

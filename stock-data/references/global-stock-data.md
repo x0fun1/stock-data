@@ -1,5 +1,7 @@
 # global-stock-data 运行与来源说明
 
+`stock_kline_yahoo(..., include_metadata=true)` 保留 chart meta、events 和 adjclose；默认仍为 candles 列表。metadata 不证明完整交易日历或复权口径。News 保留 article ID/相关 ticker tags，不能从查询词伪造文章关联。HTTP 固定来源、同 origin redirect、20 MiB 上限；可用 `--output <new-file>` 避免全量 stdout。
+
 global 是本包自带的 Python 回退实现，覆盖美股和港股。执行代码位于 [global_stock_data.py](../scripts/global_stock_data.py)，不再从文档拼接代码片段。函数保留原有能力；各函数只查询一个来源，来源间回退由调用者按下表逐项执行。
 
 ## 运行

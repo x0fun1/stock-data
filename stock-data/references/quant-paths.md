@@ -4,7 +4,7 @@
 
 ## 执行映射
 
-`scripts/quant_research.py analyze` 调用 `quant_research/orchestrator.py`，依次执行四个隔离研究器，再形成共识和审计。所有路径只读取同一冻结 Snapshot，当前特征只来自 OHLCV。
+`scripts/quant_research.py analyze` 调用 `quant_research/orchestrator.py`，先重验 Snapshot 的 [来源与数据门槛](reliability-gates.md)，再依次执行四个隔离研究器、共识和审计。缺失/过期/未闭合数据跳过研究器，输出弃权结果；直接调用研究器也受数据资格检查。所有路径只读取同一冻结 Snapshot，当前特征只来自 OHLCV。
 
 | 路径 / 阶段 | 当前代码（位于 `scripts/quant_research/`） | 运行输出 / 角色 |
 |---|---|---|
@@ -15,7 +15,7 @@
 | 概率共识 | `consensus.py` | `quant_result.json.consensus`，只接受 A/B/C 的有效预测 |
 | E — Adversarial / Backtesting Bias Audit | `audit.py` | `quant_result.json.adversarial_audit`，验证/否决，不预测 |
 | News / Event / Opinion Sentiment | `news/` | 独立 `news_result.json`，不产生概率 |
-| Final Synthesis | `synthesis.py`、`report.py` | `report.json`、`report.md`，分类证据综合 |
+| Final Synthesis | `synthesis.py`、`report.py` | `report.json`、`report.md`、有界 `agent_summary.json`，分类证据综合 |
 
 E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执行，覆盖四条研究路径及共识的证据。D 和 E 均不进入预测概率平均。四个研究器的详细结果必须保留，不以报告中的单个方向摘要替代。
 
@@ -31,6 +31,8 @@ E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执
 
 核对 `validation.selected_factors`、`factor_decay`、`calibration_observations`、`calibration_bucket_counts`、`holdout_brier` 和基准。当前概率分桶至少需要 20 个校准观察，holdout 预测不足 10 个时数值结果为 `partial`。单 ticker 的 Rank/Spearman IC 是时间序列统计；代码的 `top_quantile_turnover` 是信号换组诊断，不能称为组合实际换手或成本后业绩。
 
+B 的选择/衰减诊断要求 `index + horizon < diagnostics_label_end_exclusive`，不读取 holdout 标签；1D/5D/20D forward 数组各算一次。当前证据极性来自符号校正后的 `current_contribution`，训练 IC 方向另列，不能用训练正 IC 替代当前信号。`sample_feasibility` 披露校准/holdout 样本预算，不为满足阈值扩窗。
+
 ## C — 逻辑回归与防泄漏验证
 
 使用路径内独立 OHLCV 特征和确定性 L2 Logistic Regression。验证包含闭区间 Purged K-Fold、Embargo、仅用过去数据的 causal walk-forward、fold 内标准化和最后的 chronological holdout。当前预测可在验证固定后用已成熟标签重拟合，但不使用 holdout 指标调整特征或参数。
@@ -38,6 +40,8 @@ E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执
 核对 `validation.purged_kfold`、`causal_walk_forward`、`probability_calibration`、`final_holdout` 和两类 leakage 声明。当前前 holdout 训练至少需 160 个成熟样本且包含两类标签；Platt 校准至少需 40 个有效 walk-forward 预测且有两类标签。没有校准时保留 raw logistic probability 并标 `partial`，不能称为校准概率；残留 train/test 区间重叠时为 `invalid`，概率置空。
 
 当前不含 XGBoost/LightGBM 比较，因此即使本地计算与校准完成，C 仍标为 `partial`。不得把基线称为完整 boosted-model 验证，也不得把交叉验证 AUC 单独作为方向结论。
+
+严格模式的共识要求 A 时间外预测至少 20、B holdout 至少 10、C holdout 至少 20 且已校准；标准模式可以纳入明确标为 raw/uncalibrated 的值。`forecast_eligible` 与 `forecast_exclusion_reasons` 决定是否纳入，不仅看 `status=partial`。所有模式仍要求行情门槛与特征/标签时序声明。
 
 ## D — 时间序列因子 IC / forward-return 诊断
 
@@ -47,7 +51,7 @@ D 自行构造固定因子，按时间 70/30 划分训练和 holdout，分位切
 
 ## 共识与 E — 偏差审计
 
-共识只纳入有定量来源且状态为 `success/partial` 的 A/B/C 数值预测，当前采用等权概率平均，报告 range、dispersion、证据家族重叠和分类 confidence，不采用简单多数方向投票。单路径称为 `single_path`；两路径结果披露缺失路径。详见 [consensus-protocol.md](consensus-protocol.md) 与 [probability-policy.md](probability-policy.md)。
+共识只纳入通过 `forecast_assessment()`、身份匹配、有定量来源且状态为 `success/partial` 的 A/B/C 数值预测，当前采用等权概率平均，报告 range、dispersion、证据家族重叠和分类 confidence。等权均值不等于经过独立校准的 ensemble 概率。单路径称为 `single_path`；两路径结果披露缺失路径。详见 [consensus-protocol.md](consensus-protocol.md) 与 [probability-policy.md](probability-policy.md)。
 
 E 检查快照身份/digest、路径快照一致性、概率来源和范围、invalid 状态、残留区间重叠、结构化特征/标签时间声明、chronological OOS、Brier 基准与已观察的候选因子数量。声明检查不等于对每个特征实现的形式证明。
 
@@ -63,8 +67,8 @@ News 结果独立冻结后，Final Synthesis 验证两份 digest，再报告对�
 
 ## 交付前检查
 
-1. CLI 成功不代表研究通过。逐项检查四个 `researchers/*.json` 的 `status`、`result_role`、`snapshot_id`、`probability_source`、样本和验证信息。
+1. 先读取 `agent_summary.json` 和八项 `report.md`。CLI 成功不代表研究通过；检查 `analysis_status`、数据资格、路径 `forecast_eligible`/排除原因。完整 `researchers/*.json` 保留用于追踪，按需查看样本和验证，不把完整矩阵加载给 LLM。
 2. 检查共识可用路径、原始 P(up)、分歧、多样性、E 的 veto/warnings 和未评估项，使用实际报告状态，不自行补概率或修改数值。
 3. 检查独立 `quant_result.json`、`news_result.json` 与两份 `.freeze.json`；缺失/摘要不符时不声称最终综合已验证。
 4. 检查 `news_result.status`、时间覆盖、事件/观点分离、行情反应缺口和 `report.json.synthesis`；缺失字段保留为空或未评估。
-5. 最终按 Skill 的数据面、消息面、情绪面、行情验证、交叉判断顺序解释，提供实际报告位置。输入与运行产物放在用户可写工作目录，不写入只读安装目录。
+5. 最终报告价格/时间、Quant、技术/因子、IC/bias 实际范围、消息、关系、风险与综合；保留冲突和未评估项，并提供产物位置。输入与运行产物放在用户可写工作目录，不写入只读安装目录。

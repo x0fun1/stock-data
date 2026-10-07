@@ -9,15 +9,16 @@ from typing import Any, Callable
 
 from . import __version__
 from .audit import audit
-from .consensus import build_consensus
+from .consensus import build_consensus, forecast_assessment
 from .contracts import RESEARCHERS, researcher_result
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
 from .paths import safe_output_destination
-from .report import render_markdown
+from .report import build_agent_summary, render_markdown
 from .researchers import factor, factor_backtest, ml, quant
 from .snapshot import load_snapshot
 from .synthesis import build_synthesis
+from .security import bounded_text
 
 RUNNERS: dict[str, Callable[[Path], dict[str, Any]]] = {
     "quant": quant.run,
@@ -51,12 +52,16 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
         try:
             # Each path receives only the frozen snapshot path. Its result is written
             # after completion and is not passed to any later researcher.
-            result = RUNNERS[researcher_id](snapshot_dir)
+            if not manifest.get("data_validation", {}).get("forecast_eligible", False):
+                result = researcher_result(researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"], status="insufficient_data", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=["Research skipped: market data failed reporting gates; no compressed-session or stale-data computation."])
+            else:
+                result = RUNNERS[researcher_id](snapshot_dir)
         except Exception as exc:  # isolate a path failure and continue the ensemble
             result = researcher_result(
                 researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
-                status="failed", warnings=[f"Research path failed: {type(exc).__name__}: {exc}"],
+                status="failed", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=[f"Research path failed: {type(exc).__name__}: {bounded_text(exc)}"],
             )
+        result.update(forecast_assessment(result, manifest))
         _write_json(researcher_dir / f"{researcher_id}.json", result)
         results[researcher_id] = result
 
@@ -73,7 +78,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
             "direction_suppressed": True,
         }
     quant_result = {
-        "schema_version": "1.0",
+        "schema_version": "1.1",
         "analysis_id": analysis_id,
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "engine": {"name": "stock-data-quant-research", "version": __version__},
@@ -103,7 +108,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
             "overall_direction": "unknown",
             "sentiment": {"label": "unknown", "score": None, "confidence": "unavailable", "cross_source_divergence": "unknown"},
             "market_confirmation": "not_assessed",
-            "major_events": [], "catalysts": [], "risks": [], "warnings": [f"News layer failed: {type(exc).__name__}: {exc}"],
+            "major_events": [], "catalysts": [], "risks": [], "warnings": [f"News layer failed: {type(exc).__name__}: {bounded_text(exc)}"],
             "confidence": "unavailable",
         }
         freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
@@ -119,6 +124,21 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
         "news_result_freeze": news_freeze,
         "synthesis": synthesis,
     }
+    final["analysis_status"] = "abstain" if not adversarial.get("may_report_direction") else "degraded" if any(row.get("status") != "success" for row in results.values()) or news_frozen.get("status") != "complete" else "complete_with_limitations"
+    final["stages"] = [
+        {"stage": "request", "status": "validated"},
+        {"stage": "collection", "status": "source_receipt_loaded", "fresh_fetch_performed_by_analyze": False},
+        {"stage": "data_validation", "status": "pass" if manifest["data_validation"]["forecast_eligible"] else "blocked"},
+        {"stage": "quant", "status": "returned", "paths": {key: row["status"] for key, row in results.items()}},
+        {"stage": "audit", "status": adversarial["status"]},
+        {"stage": "quant_freeze", "status": "verified"},
+        {"stage": "news", "status": news_frozen.get("status", "not_assessed")},
+        {"stage": "news_freeze", "status": "verified"},
+        {"stage": "cross_validation", "status": synthesis["alignment"]},
+        {"stage": "risk_uncertainty", "status": "aggregated"},
+        {"stage": "final", "status": final["analysis_status"]},
+    ]
     _write_json(destination / "report.json", final)
+    _write_json(destination / "agent_summary.json", build_agent_summary(final))
     (destination / "report.md").write_text(render_markdown(final), encoding="utf-8")
     return destination

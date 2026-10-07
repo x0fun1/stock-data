@@ -65,6 +65,8 @@ def event_type_for(text: str, hint: str | None = None) -> str:
 
 def direction_for(text: str) -> str:
     normalized = text.casefold()
+    if re.search(r"\b(?:denies?|denied|no|not|rumou?r(?:ed)?|unconfirmed|may|might|could)\b|否认|传闻|未经证实|未发生|没有|可能", normalized):
+        return "unknown"
     positive = any(_contains(normalized, phrase) for phrase in POSITIVE_TERMS)
     negative = any(_contains(normalized, phrase) for phrase in NEGATIVE_TERMS)
     if positive and negative:
@@ -77,6 +79,8 @@ def direction_for(text: str) -> str:
 
 
 def opinion_score(text: str) -> float | None:
+    if direction_for(text) == "unknown":
+        return None
     normalized = text.casefold()
     positive_hits = sum(1 for phrase in POSITIVE_TERMS if _contains(normalized, phrase))
     negative_hits = sum(1 for phrase in NEGATIVE_TERMS if _contains(normalized, phrase))

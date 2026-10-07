@@ -31,9 +31,9 @@ def _reaction_status(event_direction: str, price_direction: str) -> str:
     if event_direction == "positive" and price_direction == "positive":
         return "confirmed_positive"
     if event_direction == "positive" and price_direction == "negative":
-        return "sell_the_news_or_expectations_too_high"
+        return "event_price_divergence_negative"
     if event_direction == "negative" and price_direction == "positive":
-        return "bad_news_priced_in_or_relief"
+        return "event_price_divergence_positive"
     if event_direction == "negative" and price_direction == "negative":
         return "confirmed_negative"
     return "not_classifiable"
@@ -41,6 +41,7 @@ def _reaction_status(event_direction: str, price_direction: str) -> str:
 
 def validate_reaction(
     *, published_at: str, event_direction: str, market: str, bars: list[dict[str, Any]],
+    session_closes: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     if market not in EXCHANGE:
         return {"status": "unavailable", "warning": f"no session-time mapping for market {market!r}"}
@@ -50,7 +51,8 @@ def validate_reaction(
     exchange = EXCHANGE[market]
     local = parse_timestamp(published_at).astimezone(ZoneInfo(exchange["timezone"]))
     local_day = local.date()
-    same_session_eligible = local.timetz().replace(tzinfo=None) <= exchange["close"]
+    close_at = (session_closes or {}).get(local_day.isoformat())
+    same_session_eligible = parse_timestamp(published_at) <= parse_timestamp(close_at) if close_at else local.timetz().replace(tzinfo=None) <= exchange["close"]
     dates = [str(row["date"])[:10] for row in bars]
     if dates and local_day.isoformat() < dates[0]:
         return {
@@ -75,6 +77,7 @@ def validate_reaction(
             "warning": "no frozen market session follows this news item within the snapshot",
         }
     index = candidate_indices[0]
+    intraday = dates[index] == local_day.isoformat() and local.timetz().replace(tzinfo=None) > time(9, 30)
     warning = "daily OHLCV cannot isolate intraday reaction or establish causality"
     previous_close: float | None = None
     daily_return: float | None = None
@@ -85,7 +88,7 @@ def validate_reaction(
         current_open = float(bars[index]["open"])
         if previous_close > 0:
             daily_return = current_close / previous_close - 1
-            opening_gap = current_open / previous_close - 1
+            opening_gap = None if intraday else current_open / previous_close - 1
 
     past_volumes = [float(row["volume"]) for row in bars[max(0, index - 20):index]]
     abnormal_volume_z: float | None = None
@@ -105,9 +108,11 @@ def validate_reaction(
     vol_change = post_vol - pre_vol if post_vol is not None and pre_vol is not None else None
     price_direction = _price_direction(daily_return)
     return {
-        "status": _reaction_status(event_direction, price_direction),
+        "status": "intraday_daily_association" if intraday else _reaction_status(event_direction, price_direction),
+        "reaction_window": "whole_session_includes_pre_publication" if intraday else "first_session_after_publication",
+        "calendar_mapping": "source_close_timestamp" if close_at else "nominal_close_estimate",
         "market_session_date": dates[index],
-        "session_mapping_rule": "same local exchange session if published by 16:00; otherwise first later frozen session",
+        "session_mapping_rule": "source close timestamp when supplied, otherwise nominal local 16:00; first eligible frozen session",
         "daily_close_return": daily_return,
         "opening_gap_return": opening_gap,
         "price_direction": price_direction,

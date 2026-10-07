@@ -19,9 +19,69 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from urllib.parse import urlparse
+from urllib.parse import quote, quote_plus, urljoin, urlparse
 
 import requests
+
+from quant_research.security import sanitize_data
+
+PROVIDER_HOSTS = frozenset({"hq.sinajs.cn", "qt.gtimg.cn", "stock.finance.sina.com.cn", "push2.eastmoney.com", "push2his.eastmoney.com", "datacenter-web.eastmoney.com", "searchapi.eastmoney.com", "fc.yahoo.com", "query2.finance.yahoo.com", "www.sec.gov", "sec.gov", "data.sec.gov", "efts.sec.gov", "cdn.cboe.com", "cdn.finra.org", "home.treasury.gov", "publicreporting.cftc.gov", "api.nasdaq.com"})
+MAX_RESPONSE_BYTES = 20 * 1024 * 1024
+
+
+def _validated_origin(url: str):
+    origin = urlparse(url)
+    if origin.scheme != "https" or origin.hostname not in PROVIDER_HOSTS or origin.username or origin.password or origin.port not in (None, 443):
+        raise ValueError("Network origin is outside the configured provider allowlist.")
+    return origin
+
+
+def _provider_get(url: str, *, session=None, **kwargs):
+    """Fixed origins, same-origin redirects and bounded decoded response bodies."""
+    origin = _validated_origin(url)
+    getter = session.get if session is not None else requests.get
+    for attempt in range(4):
+        response = getter(url, allow_redirects=False, stream=True, **kwargs)
+        if 300 <= response.status_code < 400:
+            target = urljoin(url, response.headers.get("Location", ""))
+            destination = urlparse(target)
+            response.close()
+            if attempt == 3 or destination.scheme != "https" or destination.hostname != origin.hostname or destination.username or destination.password or destination.port not in (None, 443):
+                raise ProviderError("Provider redirect left the original HTTPS origin or exceeded the limit.")
+            url = target
+            kwargs.pop("params", None)
+            continue
+        size = response.headers.get("Content-Length")
+        if size and int(size) > MAX_RESPONSE_BYTES:
+            response.close()
+            raise ProviderError("Provider response exceeds the size limit.")
+        if response._content is False:
+            chunks, count = [], 0
+            try:
+                for chunk in response.iter_content(65536):
+                    count += len(chunk)
+                    if count > MAX_RESPONSE_BYTES:
+                        raise ProviderError("Provider response exceeds the size limit.")
+                    chunks.append(chunk)
+                response._content = b"".join(chunks)
+                response._content_consumed = True
+            finally:
+                response.close()
+        elif len(response.content) > MAX_RESPONSE_BYTES:
+            response.close()
+            raise ProviderError("Provider response exceeds the size limit.")
+        return response
+    raise ProviderError("Provider redirect limit exceeded.")
+
+
+def _session_get(session, url: str, **kwargs):
+    return _provider_get(url, session=session, **kwargs)
+
+
+def _symbol_text(value: str, name: str = "symbol") -> str:
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9.^][A-Za-z0-9._^-]{0,63}", value):
+        raise ValueError(f"{name} contains unsupported symbol/path/filter characters.")
+    return value
 
 
 class ConfigurationError(RuntimeError):
@@ -43,8 +103,8 @@ def _nonempty_text(value, name: str) -> str:
 
 
 def _positive_int(value, name: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool) or value <= 0:
-        raise ValueError(f"{name} must be a positive integer.")
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 < value <= 10000:
+        raise ValueError(f"{name} must be a positive integer no larger than 10000.")
     return value
 
 
@@ -127,7 +187,7 @@ def _periods(values, name: str = "periods") -> None:
 def _bootstrap_yahoo(session: requests.Session) -> None:
     # The cookie bootstrap endpoint can return 404 while setting valid cookies.
     # That documented handshake status is accepted; all other errors propagate.
-    response = session.get("https://fc.yahoo.com", timeout=10)
+    response = _session_get(session, "https://fc.yahoo.com", timeout=10)
     if response.status_code != 404:
         response.raise_for_status()
 
@@ -147,7 +207,7 @@ def get_yahoo_session() -> requests.Session:
     _bootstrap_yahoo(s)
 
     # Step 2: 获取 crumb
-    r = s.get('https://query2.finance.yahoo.com/v1/test/getcrumb', timeout=10)
+    r = _session_get(s, 'https://query2.finance.yahoo.com/v1/test/getcrumb', timeout=10)
     r.raise_for_status()
     if not r.text.strip() or "<" in r.text or "\n" in r.text:
         raise ProviderError("Yahoo returned an invalid crumb.")
@@ -158,12 +218,12 @@ def get_yahoo_session() -> requests.Session:
 
 def yahoo_quote_summary(symbol: str, modules: list[str]) -> dict:
     """Yahoo quoteSummary 统一查询"""
-    _nonempty_text(symbol, "symbol")
+    _symbol_text(symbol, "symbol")
     if (not isinstance(modules, list) or not modules
             or any(not isinstance(m, str) or not m.strip() for m in modules)):
         raise ValueError("modules must be a nonempty list of module names.")
     s = get_yahoo_session()
-    r = s.get(f'https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}', params={
+    r = _session_get(s, f'https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}', params={
         'modules': ','.join(modules),
         'crumb': s._crumb,
     }, timeout=15)
@@ -190,7 +250,7 @@ def eastmoney_datacenter(report_name: str, columns: str = "ALL",
         "sortColumns": sort_columns, "sortTypes": sort_types,
         "source": "WEB", "client": "WEB",
     }
-    r = requests.get(DATACENTER_URL, params=params, headers={"User-Agent": UA}, timeout=15)
+    r = _provider_get(DATACENTER_URL, params=params, headers={"User-Agent": UA}, timeout=15)
     r.raise_for_status()
     d = r.json()
     if d.get("success") is False:
@@ -269,7 +329,7 @@ def _is_object_missing(resp) -> bool:
 def official_get(url: str, params: dict = None, headers: dict = None,
                  timeout: int = 30, as_json: bool = False):
     """Rate limited HTTP; only confirmed absent resources become DataNotAvailable."""
-    host = (urlparse(url).hostname or "").lower()
+    host = (_validated_origin(url).hostname or "").lower()
     is_sec = host == "sec.gov" or host.endswith(".sec.gov")
     is_cboe = host == "cboe.com" or host.endswith(".cboe.com")
     if is_cboe and os.environ.get("CBOE_AUTHORIZED") != "1":
@@ -291,7 +351,7 @@ def official_get(url: str, params: dict = None, headers: dict = None,
         h["User-Agent"] = contact
 
     _limiter_for(url).wait()
-    response = requests.get(url, params=params, headers=h, timeout=timeout)
+    response = _provider_get(url, params=params, headers=h, timeout=timeout)
     try:
         response.raise_for_status()
     except requests.HTTPError as exc:
@@ -335,7 +395,7 @@ def us_stock_quote_sina(ticker: str) -> dict:
     """
     ticker = assert_us_ticker(ticker)
     url = f"https://hq.sinajs.cn/list=gb_{ticker.lower()}"
-    r = requests.get(url, headers={
+    r = _provider_get(url, headers={
         "Referer": "https://finance.sina.com.cn/",
         "User-Agent": UA,
     }, timeout=10)
@@ -376,7 +436,7 @@ def us_stock_quote_tencent(ticker: str) -> dict:
     """
     ticker = assert_us_ticker(ticker)
     url = f"https://qt.gtimg.cn/q=us{ticker.upper()}"
-    r = requests.get(url, timeout=10)
+    r = _provider_get(url, timeout=10)
     r.raise_for_status()
     r.encoding = "gbk"
     text = r.text
@@ -422,7 +482,7 @@ def hk_stock_quote_tencent(code: str) -> dict:
         raise ValueError("code must contain 4 or 5 Hong Kong code digits.")
     code = code.zfill(5)
     url = f"https://qt.gtimg.cn/q=r_hk{code}"
-    r = requests.get(url, timeout=10)
+    r = _provider_get(url, timeout=10)
     r.raise_for_status()
     r.encoding = "gbk"
     text = r.text
@@ -469,7 +529,7 @@ def hk_stock_quote_sina(code: str) -> dict:
         raise ValueError("code must contain 4 or 5 Hong Kong code digits.")
     code = code.zfill(5)
     url = f"https://hq.sinajs.cn/list=rt_hk{code}"
-    r = requests.get(url, headers={
+    r = _provider_get(url, headers={
         "Referer": "https://finance.sina.com.cn/",
         "User-Agent": UA,
     }, timeout=10)
@@ -519,7 +579,7 @@ def stock_quote_eastmoney(ticker_or_code: str, secid_prefix: int = 105) -> dict:
         "secid": f"{secid_prefix}.{ticker_or_code}",
         "fields": "f43,f44,f45,f46,f47,f48,f55,f57,f58,f59,f60,f170",
     }
-    r = requests.get(url, params=params, timeout=10)
+    r = _provider_get(url, params=params, timeout=10)
     r.raise_for_status()
     d = r.json().get("data")
     if not d:
@@ -562,7 +622,7 @@ def us_stock_kline_sina(ticker: str, num: int = 120) -> list[dict]:
     ticker = assert_us_ticker(ticker)
     url = "https://stock.finance.sina.com.cn/usstock/api/jsonp.php/var/US_MinKService.getDailyK"
     params = {"symbol": ticker.upper(), "num": num}
-    r = requests.get(url, params=params, headers={"Referer": "https://finance.sina.com.cn/"}, timeout=15)
+    r = _provider_get(url, params=params, headers={"Referer": "https://finance.sina.com.cn/"}, timeout=15)
     r.raise_for_status()
     text = r.text
 
@@ -587,21 +647,21 @@ def us_stock_kline_sina(ticker: str, num: int = 120) -> list[dict]:
 
 
 def stock_kline_yahoo(symbol: str, interval: str = "1d",
-                       range_: str = "6mo") -> list[dict]:
+                       range_: str = "6mo", include_metadata: bool = False) -> list[dict] | dict:
     """Yahoo OHLCV with unchanged precision, source epoch and UTC timestamps.
 
     date is the UTC calendar date. Use timestamp_utc for intraday ordering;
     no field uses the execution host's local timezone.
     Null or absent fields remain None for callers to assess.
     """
-    _nonempty_text(symbol, "symbol")
+    _symbol_text(symbol, "symbol")
     if interval not in {"1m", "2m", "5m", "15m", "30m", "60m", "90m", "1h", "1d", "5d", "1wk", "1mo", "3mo"}:
         raise ValueError("Unsupported Yahoo candle interval.")
     if range_ not in {"1d", "5d", "1mo", "3mo", "6mo", "1y", "2y", "5y", "10y", "ytd", "max"}:
         raise ValueError("Unsupported Yahoo candle range.")
-    response = requests.get(
+    response = _provider_get(
         f"https://query2.finance.yahoo.com/v8/finance/chart/{symbol}",
-        params={"interval": interval, "range": range_},
+        params={"interval": interval, "range": range_, "events": "div,splits", "includeAdjustedClose": "true"},
         headers={"User-Agent": UA}, timeout=15)
     response.raise_for_status()
     payload = response.json().get("chart") or {}
@@ -627,6 +687,10 @@ def stock_kline_yahoo(symbol: str, interval: str = "1d",
             values = quote.get(field) or []
             candle[field] = _num(values[index]) if index < len(values) else None
         result.append(candle)
+    if include_metadata:
+        return {"bars": result, "meta": chart.get("meta") or {}, "adjclose": (chart.get("indicators") or {}).get("adjclose"),
+                "events": chart.get("events") or {}, "frequency": interval, "symbol": symbol,
+                "price_basis": "provider_quote_OHLCV_adjustment_unverified", "calendar_status": "not_a_complete_exchange_calendar"}
     return result
 
 
@@ -845,7 +909,7 @@ def financial_statements_eastmoney(secucode: str, statement: str = "balance",
     注意: 数据按科目行展开，每行一个科目（如"流动资产合计"、"营业收入"等），
     同一期报告有多行。用 REPORT_DATE 分组可还原整张报表。
     """
-    _nonempty_text(secucode, "secucode")
+    _symbol_text(secucode, "secucode")
     if statement not in ("balance", "income", "cashflow"):
         raise ValueError("statement must be balance, income or cashflow.")
     # 报表名映射（注意命名不统一：balance/income 用 F10，cashflow 用 SK）
@@ -889,7 +953,7 @@ def key_indicators_eastmoney(secucode: str, page_size: int = 4) -> list[dict]:
       HOLDER_PROFIT(股东应占溢利), OCF_SALES(经营现金流/营收%), DPS_HKD(每股股息),
       DIVI_RATIO(股息率%), PER_NETCASH_OPERATE(每股经营现金流)
     """
-    _nonempty_text(secucode, "secucode")
+    _symbol_text(secucode, "secucode")
     market = "hk" if secucode.endswith(".HK") else "us"
     report_name = f"RPT_{'HK' if market == 'hk' else 'US'}F10_FN_GMAININDICATOR"
 
@@ -1114,7 +1178,7 @@ def fund_flow_daily(ticker_or_code: str, secid_prefix: int = 105,
         "fields2": "f51,f52,f53,f54,f55,f56,f57",
         "lmt": limit,
     }
-    r = requests.get(url, params=params, timeout=15)
+    r = _provider_get(url, params=params, timeout=15)
     r.raise_for_status()
     d = r.json()
     data = d.get("data")
@@ -1325,7 +1389,7 @@ def options_chain(symbol: str, expiration: int = None) -> dict:
     if expiration:
         params["date"] = expiration
 
-    r = s.get(f"https://query2.finance.yahoo.com/v7/finance/options/{symbol}",
+    r = _session_get(s, f"https://query2.finance.yahoo.com/v7/finance/options/{symbol}",
               params=params, timeout=15)
     r.raise_for_status()
 
@@ -1462,7 +1526,7 @@ def stock_search(keyword: str, count: int = 10) -> list[dict]:
         "token": "D43BF722C8E33BDC906FB84D85E326E8",
         "count": count,
     }
-    r = requests.get(url, params=params, timeout=10)
+    r = _provider_get(url, params=params, timeout=10)
     r.raise_for_status()
     d = r.json()
 
@@ -1494,13 +1558,13 @@ def stock_news(keyword: str, count: int = 10) -> list[dict]:
     """
     _nonempty_text(keyword, "keyword")
     _positive_int(count, "count")
-    s = requests.Session()
-    s.headers["User-Agent"] = "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
-    _bootstrap_yahoo(s)
+    if count > 100 or len(keyword) > 200:
+        raise ValueError("News search is limited to 100 records and a 200-character query.")
+    s = get_yahoo_session()
 
     url = "https://query2.finance.yahoo.com/v1/finance/search"
     params = {"q": keyword, "quotesCount": 0, "newsCount": count}
-    r = s.get(url, params=params, timeout=10)
+    r = _session_get(s, url, params=params, timeout=10)
     r.raise_for_status()
 
     news = r.json().get("news", [])
@@ -1511,6 +1575,8 @@ def stock_news(keyword: str, count: int = 10) -> list[dict]:
             "publisher": n.get("publisher"),
             "link": n.get("link"),
             "publish_time": n.get("providerPublishTime"),
+            "article_id": n.get("uuid"),
+            "tickers": n.get("relatedTickers"),
             "thumbnail": n.get("thumbnail", {}).get("resolutions", [{}])[0].get("url") if n.get("thumbnail") else None,
         })
     return result
@@ -1575,7 +1641,7 @@ def market_stock_list(market: str = "us_nasdaq", sort_field: str = "f3",
         "fid": sort_field,
         "po": 1 if sort_desc else 0,
     }
-    r = requests.get(url, params=params, timeout=15)
+    r = _provider_get(url, params=params, timeout=15)
     r.raise_for_status()
     d = r.json()
     data = d.get("data") or {}
@@ -2033,11 +2099,14 @@ def _error_message(error: Exception) -> str:
     message = str(error)
     contact = os.environ.get("SEC_CONTACT", "").strip()
     if contact:
-        message = message.replace(contact, "[redacted]")
+        for value in {contact, quote(contact, safe=""), quote_plus(contact)}:
+            message = message.replace(value, "[redacted]")
     crumb = getattr(_yahoo_session, "_crumb", None)
     if crumb:
-        message = message.replace(crumb, "[redacted]")
-    return message
+        for value in {crumb, quote(crumb, safe=""), quote_plus(crumb)}:
+            message = message.replace(value, "[redacted]")
+    message = re.sub(r"https?://[^\s<>\"']+", "[provider-url]", message)
+    return re.sub(r"(?i)\b(token|api[_-]?key|password|secret|crumb|authorization)\s*[:=]\s*[^\s,;]+", r"\1=[redacted]", message)[:1000]
 
 
 def main(argv: list[str] | None = None) -> int:
@@ -2049,6 +2118,7 @@ def main(argv: list[str] | None = None) -> int:
     parameters = parser.add_mutually_exclusive_group()
     parameters.add_argument("--params-json", help="JSON object of keyword arguments.")
     parameters.add_argument("--params-file", help="UTF-8 JSON file, or - for stdin.")
+    parser.add_argument("--output", type=Path, help="Write full envelope to a new file; stdout contains only a receipt.")
     function_name = None
     source = None
     try:
@@ -2073,7 +2143,13 @@ def main(argv: list[str] | None = None) -> int:
             "fetched_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "data": data,
         }
+        envelope = sanitize_data(envelope)
         output = json.dumps(envelope, ensure_ascii=False, allow_nan=False)
+        if args.output:
+            args.output.parent.mkdir(parents=True, exist_ok=True)
+            with args.output.open("x", encoding="utf-8") as handle:
+                handle.write(output + "\n")
+            output = json.dumps({key: envelope[key] for key in ("status", "source", "function", "fetched_at_utc")} | {"envelope_file": str(args.output.resolve()), "record_count": len(data) if isinstance(data, (dict, list)) else None}, ensure_ascii=False)
         exit_code = 0
     except Exception as exc:
         envelope = {

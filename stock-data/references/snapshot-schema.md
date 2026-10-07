@@ -1,5 +1,7 @@
 # Frozen Snapshot Schema
 
+Current schema is **1.1**. [Reliability gates](reliability-gates.md) define source-calendar, identity, frequency, freshness and adjustment evidence. Missing evidence blocks forecasting; legacy 1.0 remains readable without new reporting eligibility.
+
 ## Identity
 
 `manifest.json` is the authoritative identity record. The freezer writes:
@@ -7,15 +9,17 @@
 - `schema_version`
 - `snapshot_id`, `ticker`, `market`, `horizon`, normalized `request`
 - `asof_timestamp`, `snapshot_created_at`
-- `source_payload_sha256` over the complete collection receipt
+- `source_payload_sha256` over the redacted collection receipt
 - `snapshot_content_sha256`, incorporating the normalized request, as-of time and domains
 - `domain_sha256s` and `raw_domain_sha256s`, covering every normalized and raw domain file
 - `market_bar_count`
 - `data_domains` availability states
 - `sources` with actual source, source time, fetch time, units/currency and fallback evidence
 - `data_quality.overall`, `data_quality.score`, and quantified warnings
+- `manifest_sha256` binds metadata; gates/quality/sources are recalculated from verified domains on load
+- `data_validation.forecast_eligible`, blockers, latest confirmed close and source-authentication limits
 
-`snapshot_id` is ticker + UTC creation time + horizon + a prefix of the normalized content digest. Existing directories are never overwritten. The `raw/` directory contains the original receipt per domain; top-level domain files contain the normalized adapter view. Every researcher verifies these hashes before using a snapshot and rejects modified or incomplete files.
+`snapshot_id` is ticker + UTC creation time + horizon + a prefix of the normalized content digest. Existing directories are never overwritten. `raw/` contains redacted source receipts with action fields and credentials removed. Top-level files contain normalized adapter views. Every researcher verifies hashes before use. Hashes do not authenticate a supplier.
 
 ## Artifact path boundary
 
@@ -29,11 +33,11 @@ The optional `news.json` domain is preserved inside this same content-addressed 
 
 ## Market validation
 
-Before freezing, the builder rejects missing bars, duplicate or unsorted session dates, post-as-of bars, non-finite or non-positive OHLC values, negative volume, and inconsistent high/low values. Missing adjustment convention and thin histories are retained as warnings. The builder never fills missing prices or volume.
+The builder rejects missing bars, duplicate/unsorted/future dates, invalid OHLCV, booleans, provider failure and contradictory symbol/frequency/provenance/window metadata. Missing source evidence and session gaps block forecasting. It never fills prices/volume or compresses missing sessions; actual window/freshness is recalculated after excluding a forming bar using source close timestamps.
 
 ## Data quality
 
-The current score is a transparent availability/history heuristic: 55% history depth capped at 504 bars and 45% fraction of available domains, less 0.03 per fallback (capped at 0.15), less 0.15 when the latest market bar is more than seven calendar days old, then multiplied by 0.8 when the adjustment convention is unknown. It is not a probability that the data is correct. Report the score and its components alongside underlying issues; do not interpret it as a statistical confidence interval. `mode: strict` rejects an unknown adjustment convention.
+The score is 70% history depth capped at 504 bars plus 30% source-evidence eligibility. OHLCV requires only market; optional-domain absence no longer mechanically lowers its score. This is a heuristic, not correctness probability or statistical interval. Reporting eligibility is a separate gate. Unknown adjustment blocks forecasting in both modes; strict also rejects its snapshot as before.
 
 ## Point-in-time data
 

@@ -6,6 +6,7 @@ import math
 from typing import Any
 
 from ..contracts import parse_timestamp
+from ..security import bounded_text, safe_url
 
 
 EVENT_SCORE_FIELDS = ("event_strength", "relevance", "magnitude", "novelty", "source_quality")
@@ -15,7 +16,7 @@ OPINION_TYPES = {"opinion", "analyst_opinion", "social", "social_post", "comment
 def _optional_text(value: Any) -> str | None:
     if value is None:
         return None
-    normalized = str(value).strip()
+    normalized = bounded_text(value, 1800)
     return normalized or None
 
 
@@ -35,27 +36,42 @@ def normalize_source_sentiment(
     """Preserve a provider aggregate only when its point-in-time is verifiable."""
     if not isinstance(data, dict) or not isinstance(data.get("source_sentiment"), dict):
         return None, []
+    value = data["source_sentiment"]
     try:
-        available = parse_timestamp(available_at)
+        available = parse_timestamp(value.get("available_at") or available_at)
     except (TypeError, ValueError):
         return None, ["provider sentiment aggregate excluded because no timezone-aware availability timestamp was supplied"]
     if available > parse_timestamp(asof_timestamp):
         return None, ["provider sentiment aggregate excluded because it was fetched or timestamped after the snapshot as-of"]
-    value = data["source_sentiment"]
     result: dict[str, Any] = {
         "source": str(value.get("source", "unknown")),
         "period": value.get("period"),
         "sentiment_source": value.get("sentiment_source"),
         "available_at": available.isoformat().replace("+00:00", "Z"),
     }
+    warnings = []
+    percent_scale = value.get("percent_scale", "fraction")
+    upper = 1 if percent_scale == "fraction" else 100 if percent_scale == "percent" else None
+    result["percent_scale"] = percent_scale
     for field in ("sentiment_score", "bullish_percent", "bearish_percent"):
         raw = value.get(field)
         try:
             score = float(raw) if raw is not None and not isinstance(raw, bool) else None
         except (TypeError, ValueError):
             score = None
-        result[field] = score if score is not None and math.isfinite(score) else None
-    return result, []
+        valid = score is not None and math.isfinite(score)
+        if field != "sentiment_score":
+            valid = valid and upper is not None and 0 <= score <= upper
+        elif value.get("sentiment_score_scale") == "minus_one_to_one":
+            valid = valid and -1 <= score <= 1
+        result[field] = score if valid else None
+        if raw is not None and not valid:
+            warnings.append(f"provider {field} excluded: invalid or unspecified scale/range")
+    if upper is not None and result["bullish_percent"] is not None and result["bearish_percent"] is not None and result["bullish_percent"] + result["bearish_percent"] > upper + 1e-6:
+        result["bullish_percent"] = result["bearish_percent"] = None
+        warnings.append("provider bullish/bearish shares exceed the declared scale")
+    result["ticker"] = _optional_text(value.get("ticker"))
+    return result, warnings
 
 
 def normalize_articles(
@@ -68,6 +84,9 @@ def normalize_articles(
     cutoff = parse_timestamp(asof_timestamp)
     normalized: list[dict[str, Any]] = []
     excluded = {"invalid_record": 0, "missing_title": 0, "missing_or_invalid_published_at": 0, "after_asof": 0, "updated_after_asof": 0}
+    if len(records) > 500:
+        warnings.append("article analysis bounded to 500 most recently published records")
+        records = sorted(records, key=lambda row: str(row.get("published_at", "")), reverse=True)[:500]
     for record in records:
         title = _optional_text(record.get("title")) or ""
         if not title:
@@ -82,6 +101,7 @@ def normalize_articles(
             excluded["after_asof"] += 1
             continue
         updated_at = record.get("updated_at")
+        updated = None
         if updated_at not in (None, ""):
             try:
                 updated = parse_timestamp(updated_at)
@@ -91,6 +111,22 @@ def normalize_articles(
             if updated > cutoff:
                 excluded["updated_after_asof"] += 1
                 continue
+        times = {}
+        invalid_time = False
+        for field in ("occurred_at", "announcement_at", "scheduled_at"):
+            if record.get(field) in (None, ""):
+                times[field] = None
+                continue
+            try:
+                stamp = parse_timestamp(record[field])
+                if field != "scheduled_at" and stamp > cutoff:
+                    raise ValueError("occurred/announcement after as-of")
+                times[field] = stamp.isoformat().replace("+00:00", "Z")
+            except (TypeError, ValueError):
+                invalid_time = True
+        if invalid_time:
+            excluded["missing_or_invalid_published_at"] += 1
+            continue
         scores: dict[str, float | None] = {}
         for field in EVENT_SCORE_FIELDS:
             raw_score = record.get(field)
@@ -114,15 +150,22 @@ def normalize_articles(
             tickers = []
         normalized.append({
             "article_id": _optional_text(record.get("article_id")),
-            "url": _optional_text(record.get("url")),
-            "title": title,
+            "url": safe_url(record.get("url")),
+            "title": title[:400],
             "summary": _optional_text(record.get("summary")),
             "published_at": published.isoformat().replace("+00:00", "Z"),
+            "updated_at": updated.isoformat().replace("+00:00", "Z") if updated else None,
+            **times,
             "source": _optional_text(record.get("source")) or "unknown",
             "source_type": (_optional_text(record.get("source_type")) or "news").lower(),
             "record_type": record_type,
             "tickers": sorted({str(item).strip().upper() for item in tickers if str(item).strip()}),
-            "event_type_hint": (_optional_text(record.get("event_type")) or "").upper() or None,
+            "event_type_hint": (_optional_text(record.get("event_type", record.get("event_type_hint"))) or "").upper() or None,
+            "canonical_event_id": _optional_text(record.get("canonical_event_id")),
+            "original_reporting_id": _optional_text(record.get("original_reporting_id")),
+            "event_group": record.get("event_group") if record.get("event_group") in {"company", "industry", "macro"} else None,
+            "exposure_tickers": sorted({str(item).upper() for item in record.get("exposure_tickers", [])}) if isinstance(record.get("exposure_tickers"), list) else [],
+            "exposure_basis": _optional_text(record.get("exposure_basis")),
             **scores,
         })
     if any(excluded.values()):

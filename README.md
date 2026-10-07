@@ -2,7 +2,7 @@
 
 `stock-data` 是面向美股、港股及相应 ETF 的可安装 Skill，统一行情、基本面、技术指标、新闻情绪、专项事件与量化方向研究。市场数据只经现有 Finnhub MCP / 本包 global-stock-data gateway 获取，研究脚本仅处理已采集的数据。
 
-方向判断遵循 **Quant → 验证/审计 → News/Sentiment → Final Synthesis**：三条独立预测路径、一条因子诊断路径、共识后的偏差审计、独立消息面分析，再做保留原 Quant 概率的分类证据综合。简单事实查询和历史描述只取必要数据。
+方向判断遵循 **数据验证 → Quant → 验证/审计 → News/Sentiment → 交叉验证与风险 → Final Synthesis**：三条独立预测路径、一条因子诊断路径、共识后的偏差审计、独立消息面分析，再做保留可报告 Quant 概率的分类证据综合。简单事实查询和历史描述只取必要数据。
 
 ## 发给 Agent 的一键安装指令
 
@@ -96,7 +96,13 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/inst
 
 ## 方向研究的运行方式
 
-先按 Skill 完成一次数据采集，将实际 gateway 响应按 [collection-adapter.md](stock-data/references/collection-adapter.md) 映射为规范化输入，再运行以下命令。示例在仓库根目录执行；安装后改用已安装脚本的实际绝对路径，JSON 输入和 `runtime/` 放在用户可写工作目录。
+先按 Skill 完成一次数据采集，将实际 gateway 响应按 [collection-adapter.md](stock-data/references/collection-adapter.md) 映射为规范化输入。推荐组合入口：
+
+```text
+python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
+```
+
+`pipeline` 顺序完成请求规范化、adapt、freeze、analyze；它只消费已采集文件，不自动拉取最新数据。Agent 仍负责实际工具采集、来源字段映射和授权边界。逐阶段命令也可用。示例在仓库根目录执行；安装后改用已安装脚本的实际绝对路径，JSON 输入和 `runtime/` 放在用户可写工作目录。
 
 ```text
 python stock-data/scripts/quant_research.py request --input request.json --output normalized-request.json
@@ -109,7 +115,7 @@ python stock-data/scripts/quant_research.py analyze --snapshot-dir runtime/snaps
 
 默认主研究窗口为最新已确认收盘交易日前推三个日历年，horizon 支持 `1D/5D/20D` 有效交易 session，默认 `5D`；用户明确指定的区间优先。更长原始响应保留在 raw envelope；样本不足的路径披露缺口，不静默扩窗。短新闻窗口单独报告实际覆盖，不能伪装成三年档案。ETF 使用自身 OHLCV，背景资料不替换标的行情。
 
-`analyze` 自动完成四路径、共识、E、News 与综合，生成：
+`analyze` 先检查数据资格；通过后完成四路径、共识、E、News 与综合，未通过则跳过研究器并输出弃权报告。生成：
 
 ```text
 runtime/snapshots/<snapshot_id>/          manifest、规范化各域、raw envelopes
@@ -118,15 +124,20 @@ runtime/research/<analysis_id>/
   quant_result.json + quant_result.freeze.json
   news_result.json + news_result.freeze.json
   report.json + report.md
+  agent_summary.json
 ```
 
-CLI 的 `status: success` 仅表示产物写出。交付前检查路径状态、样本、概率来源、审计 veto、News 覆盖和最终综合；不能把 `partial/insufficient_data/not_assessed` 当成完整验证。审计否决时不使用 `pre_veto_prob_up` 绕过结论抑制。
+CLI 的 `status: success` 仅表示产物写出；另检查 `analysis_status` 和 `may_report_direction`。优先读取有界 `agent_summary.json` 与八项 `report.md`，不把原始行情/新闻/矩阵塞入 LLM。交付前检查数据门槛、路径状态、样本、概率来源、审计 veto、News 覆盖和最终综合；不能把 `partial/insufficient_data/not_assessed` 当成完整验证。审计否决时不使用 `pre_veto_prob_up` 绕过结论抑制。
 
 ## 实现边界与验证
 
-Skill `2.1.2` / research runtime `0.1.1` 补齐路径保护：加载快照时拒绝不安全的 `snapshot_id`；冻结和分析创建输出前验证解析后路径仍直接位于所选 `output_root` 内，拒绝指向外部目录的既有 symlink/junction。回归测试覆盖 POSIX/Windows 分隔符、绝对/盘符/UNC 路径、非法类型、链接逃逸、正常产物和禁止覆盖。具体契约及并发边界见 [Snapshot Schema](stock-data/references/snapshot-schema.md#artifact-path-boundary)。
+Skill `2.2.0` / research runtime `0.2.0` / snapshot schema `1.1` 修复 normalized DATA 被 raw envelope 覆盖，并新增行情身份、日线频率、实际窗口、时区时间、交易日轴、最新收盘和公司行动证据门槛。缺少来源日历或复权证据时弃权；不要制造字段通过检查。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
 
-量化运行使用 Python 标准库；global gateway 另需 Python 3.10+、`requests` 和访问来源所需的网络/授权。`adapt/freeze/analyze` 不调用网络。新闻筛查与情绪为未校准的确定性启发式；日线行情反应仅是时间关联，不证明新闻导致涨跌。消息面不得修改 Quant 概率。
+旧 1.0 快照可读，但不能自动通过新的预测门槛；应重新采集并生成带实际证据的快照。1.1 manifest 绑定判定元数据，加载时重算门槛。严格模式额外要求 A/B/C 的时间外样本和 C 校准；标准模式披露未校准模型值。新闻相关性、时效、来源与冲突在进入方向前检查，供应商情绪不能覆盖 mixed 事件。hash 只证明完整性，不认证供应商真伪。
+
+保留已有路径保护：输出必须直接位于解析后的 `output_root`，拒绝路径穿越、外部 symlink/junction 和覆盖。具体契约及并发边界见 [Snapshot Schema](stock-data/references/snapshot-schema.md#artifact-path-boundary)。外部文本仅作 DATA；网络限定既有来源 HTTPS 主机、同主机重定向和大小边界，密钥/动作字段在落盘前脱敏移除。
+
+量化运行使用 Python 3.10+ 标准库，并需可用的 IANA 时区数据库（Windows 缺数据库时可使用 `tzdata`）；global gateway 另需 `requests` 和访问来源所需的网络/授权。`adapt/freeze/analyze/pipeline` 不调用网络。新闻筛查与情绪为未校准的确定性启发式；日线行情反应仅是时间关联，不证明新闻导致涨跌。消息面不得修改 Quant 概率。
 
 当前未实现多资产横截面组合回测、成本后执行/市场冲击、正式 CPCV/PBO/DSR 计算、PIT 多资产幸存者审计、XGBoost/LightGBM、bootstrap 不确定性、长期路径可靠性、受治理的 holdout/forward 凭据存储或专用 ETF 穿透模型。输入缺失和未实现计算须明确标为未评估；未附带或伪造真实行情研究结果。
 

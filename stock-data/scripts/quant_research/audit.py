@@ -171,6 +171,15 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
     vetoes: list[str] = []
     warnings: list[str] = []
     snapshot_id = manifest.get("snapshot_id")
+    gate = manifest.get("data_validation") or {}
+    if not gate.get("forecast_eligible", False):
+        vetoes.extend("Data reporting gate: " + item for item in gate.get("errors", []) + gate.get("blockers", []))
+        if not vetoes:
+            vetoes.append("Market data reporting gates have not been verified.")
+    if consensus.get("available_paths", 0) == 0:
+        vetoes.append("No forecast path meets reporting eligibility.")
+    if manifest.get("request", {}).get("intent") in {"descriptive", "factor_research"}:
+        vetoes.append("Request intent does not authorize a future-direction probability.")
     if not snapshot_id or not manifest.get("source_payload_sha256"):
         vetoes.append("Snapshot identity or source payload digest is missing.")
     if manifest.get("data_quality", {}).get("overall") == "low":
@@ -236,4 +245,4 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
     if any(not check["beats_base_rate"] for check in bias_checks["oos_brier_vs_base_rate"]):
         warnings.append("At least one reported forecast OOS Brier score does not beat its base-rate benchmark.")
     status = "veto" if vetoes else "pass_with_warnings" if warnings else "pass"
-    return {"status": status, "vetoes": sorted(set(vetoes)), "warnings": sorted(set(warnings)), "may_report_direction": not vetoes, "bias_audit": bias_checks}
+    return {"status": status, "vetoes": sorted(set(vetoes)), "warnings": sorted(set(warnings)), "may_report_direction": not vetoes, "bias_audit": bias_checks, "verification_scope": "source metadata gates + path declarations and reported OOS metrics; not an independent proof or full upstream bias engine"}

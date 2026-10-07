@@ -5,8 +5,10 @@ from __future__ import annotations
 import math
 from datetime import date
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from ..contracts import HORIZONS, parse_timestamp
+from ..data_checks import EXCHANGE_TIMEZONES
 
 
 def half_life_for(event_type: str, horizon: str, policy: dict[str, Any]) -> float:
@@ -21,9 +23,9 @@ def half_life_for(event_type: str, horizon: str, policy: dict[str, Any]) -> floa
     return number
 
 
-def time_decay(event_published_at: str, bars: list[dict[str, Any]], event_type: str, horizon: str, policy: dict[str, Any]) -> dict[str, float | int]:
+def time_decay(event_published_at: str, bars: list[dict[str, Any]], event_type: str, horizon: str, policy: dict[str, Any], *, market: str = "US") -> dict[str, float | int]:
     half_life = half_life_for(event_type, horizon, policy)
-    event_day = parse_timestamp(event_published_at).date()
+    event_day = parse_timestamp(event_published_at).astimezone(ZoneInfo(EXCHANGE_TIMEZONES[market])).date()
     session_dates = [date.fromisoformat(str(row["date"])[:10]) for row in bars]
     age_sessions = sum(session_day > event_day for session_day in session_dates)
     decay = 0.5 ** (age_sessions / half_life)
