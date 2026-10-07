@@ -41,7 +41,7 @@ class StockDataAdapter:
                     raise ValueError(f"unsupported {name} response status")
             block = {
                 key: response[key]
-                for key in ("actual_source", "source", "source_timestamp", "fetched_at_utc", "fetched_at", "currency", "unit", "adjustment", "adjustment_evidence", "session_calendar", "source_symbol", "frequency", "fallback_used", "fallback_reason", "last_bar_closed", "published_at", "filed_at", "period_start", "period_end", "warnings")
+                for key in ("actual_source", "source", "source_timestamp", "fetched_at_utc", "fetched_at", "currency", "unit", "adjustment", "adjustment_evidence", "session_calendar", "latest_price_observations", "source_symbol", "frequency", "fallback_used", "fallback_reason", "last_bar_closed", "published_at", "filed_at", "period_start", "period_end", "warnings")
                 if key in response
             }
             block.update({"status": status, "data": payload, "gateway_envelope": envelope})

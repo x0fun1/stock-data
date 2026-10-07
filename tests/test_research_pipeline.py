@@ -157,11 +157,20 @@ class PipelineTests(Fixture):
         self.assertEqual(result["validation"]["diagnostics_label_end_exclusive"], 604)
         self.assertLess(result["validation"]["sample_feasibility"]["calibration_available"], 60)
 
-    def test_strict_unvalidated_probability_is_excluded_from_consensus(self):
+    def test_strict_mode_keeps_valid_raw_probability_when_oos_or_calibration_is_missing(self):
+        self.value["request"]["mode"] = "strict"
         manifest, _ = load_snapshot(self.freeze())
         result = {"researcher_id": "ml", "ticker": "INTC", "horizon": "5D", "snapshot_id": manifest["snapshot_id"], "status": "partial", "prob_up": .9, "probability_source": "raw logistic", "validation": {"leakage_audit": {"features_use_data_through_decision_close_only": True, "target_excluded_from_features": True}}}
-        self.assertFalse(forecast_assessment(result, manifest)["forecast_eligible"])
-        self.assertIsNone(build_consensus([result], manifest)["prob_up"])
+        assessment = forecast_assessment(result, manifest)
+        self.assertTrue(assessment["forecast_eligible"])
+        self.assertIn("OOS_INSUFFICIENT", assessment["reason_codes"])
+        self.assertIn("CALIBRATION_MISSING", assessment["reason_codes"])
+        consensus = build_consensus([result], manifest)
+        self.assertEqual(consensus["prob_up"], .9)
+        self.assertEqual(consensus["raw_probability"], .9)
+        self.assertIsNone(consensus["calibrated_probability"])
+        self.assertEqual(consensus["status"], "single_path")
+        self.assertIn("oos_validation_insufficient", consensus["confidence_reasons"])
 
     def test_direct_researcher_cannot_bypass_stale_data_gate(self):
         self.value["request"]["asof"] = "2026-10-07T00:00:00Z"

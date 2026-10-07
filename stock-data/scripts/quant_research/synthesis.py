@@ -19,11 +19,11 @@ def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
                and isinstance(probability, (int, float)) and not isinstance(probability, bool)
                and math.isfinite(probability) and 0 <= probability <= 1
                and quant_result.get("adversarial_audit", {}).get("may_report_direction") is not False)
-    fields = {key: quant.get(key) for key in ("prob_up", "direction", "confidence", "agreement")}
+    fields = {key: quant.get(key) for key in ("prob_up", "direction", "confidence", "agreement", "raw_probability", "calibrated_probability", "reportable_probability", "reporting_status", "confidence_score", "confidence_reasons", "calibration_status", "probability_basis", "horizon_type") if key in quant}
     if "diversity" in quant:
         fields["diversity"] = quant["diversity"]
     if not allowed:
-        fields.update(prob_up=None, direction="research_invalid")
+        fields.update(prob_up=None, raw_probability=None, calibrated_probability=None, reportable_probability=None, direction="research_invalid", reporting_status="veto")
     return fields
 
 

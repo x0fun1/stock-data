@@ -16,8 +16,9 @@ def validate_response_text(result: dict[str, Any], text: str) -> None:
     expected = required_response_lines(result)
     lines = {line.strip() for line in text.splitlines()}
     missing = [name for name, value in expected.items() if value not in lines]
-    prefixes = ("- 上涨概率", "- 方向：", "- Quant Confidence：", "- 模型一致度", "- 证据多样性")
-    quant_lines = {expected[name] for name in ("prob_up", "direction", "confidence", "agreement", "diversity") if name in expected}
+    prefixes = ("- 上涨概率", "- 方向：", "- Quant Confidence：", "- 置信度评分：", "- 报告状态：", "- 模型一致度", "- 原始路径估计均值：", "- 校准概率：", "- 联合概率校准：", "- 低置信度原因：", "- 证据多样性", "- 预测窗口：")
+    quant_names = ("prob_up", "direction", "confidence", "confidence_score", "reporting_status", "agreement", "raw_probability", "calibrated_probability", "ensemble_calibration_status", "confidence_reasons", "diversity", "horizon_type")
+    quant_lines = {expected[name] for name in quant_names if name in expected}
     conflicting = any(line.startswith(prefixes) and line not in quant_lines for line in lines)
     if missing or conflicting:
         raise ValueError("Final response failed Quant delivery contract: " + ", ".join(missing + (["conflicting Quant field"] if conflicting else [])))

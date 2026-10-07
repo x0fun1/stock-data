@@ -2,31 +2,44 @@
 
 ## Allowed quantitative sources
 
-- Research A: historical conditional hit frequency among non-overlapping, matured labels that match the predeclared signal condition. Report sample count and Wilson interval.
+- Research A: historical conditional hit frequency among non-overlapping, matured labels matching the predeclared signal condition. Report sample count and Wilson interval.
 - Research B: empirical future-return frequency in a score bucket fixed from a later calibration segment, with the selection segment and bucket counts reported.
-- Research C: the native logistic model's `predict_proba`-equivalent sigmoid output; apply Platt scaling only when enough causal walk-forward predictions exist. Mark uncalibrated output explicitly.
-- Consensus: equal-weight arithmetic mean of valid, provenance-bearing path probabilities. It is not a majority vote.
+- Research C: logistic model `predict_proba`-equivalent output; apply Platt scaling only when enough causal walk-forward predictions exist. Mark uncalibrated raw output explicitly.
+- Consensus: equal-weight arithmetic mean of valid, provenance-bearing path estimates. It is not a majority vote or an independently calibrated ensemble.
 
-All sources require [reporting gates](reliability-gates.md). Strict excludes raw model probabilities and missing/insufficient OOS. Consensus is equal_weight_mean_not_ensemble_calibrated; path range is not a statistical interval. Excluded/vetoed numeric artifacts cannot be delivered as forecasts.
+All sources require [prediction-integrity and reporting checks](reliability-gates.md). Strict mode does not exclude raw probabilities or require a minimum OOS/calibration threshold for prediction eligibility. Insufficient OOS, calibration or strategy audit lowers confidence/reporting status; detected leakage, fatal data conflict or an absent valid prediction still vetoes. `forecast_eligible` means prediction-computable, not full research or strategy validation.
+
+## Probability fields
+
+Keep these separate:
+
+- `raw_probability`: the model/path estimate before any calibration layer, when available;
+- `calibrated_probability`: an explicitly calibrated path probability, if valid; the consensus ensemble value stays null without a separately validated ensemble calibrator;
+- `reportable_probability`: value passed through the reporting gate; on fatal VETO it is null and hidden from user-facing output;
+- `probability_basis` and `calibration_status`: identify exactly how the displayed number was formed.
+
+A valid generated raw probability remains available when calibration is missing; report it with low confidence and `DEGRADED` status. Calibration absence is not a numerical failure. An equal-weight path mean must not be called calibrated simply because one contributing path used Platt scaling.
 
 ## Mandatory Quant → final-response fields
 
-For a valid, reportable Quant result, Final Synthesis and the user reply retain `prob_up`, `direction`, `confidence`, `agreement`, and `diversity` when present, copied from the same ticker/horizon/as-of `quant_result.json.consensus`. Synthesis stores them in `synthesis.quant`; the bounded Agent summary repeats them in `sections.quant` and `sections.final_synthesis.quant`. Never substitute a direction adjective for an available numerical probability.
+For a valid reportable Quant result, Final Synthesis and the user reply retain `prob_up`, `direction`, `confidence`, `agreement`, report status, numerical confidence score and probability basis; include `diversity` where present. These are copied from the same ticker/horizon/as-of `quant_result.json.consensus`, and are preserved in `synthesis.quant` and `agent_summary.sections.final_synthesis.quant`. News cannot change Quant probability; divergence can change integrated conviction/risk, not the numerical estimate.
 
-Display Quant P(up) explicitly in the Quant section and final conclusion. News cannot change it; divergence can change the synthesis confidence/risk assessment, not Quant's probability or metadata. The current confidence/agreement/diversity fields are categorical, not percentages. Preserve native values/scales and distinguish Quant confidence from overall confidence. Numeric examples are not defaults or model outputs.
+The default chat response is concise Summary. The standard `report.md` shows validation, factors, OOS/calibration and audit scope. JSON/debug artifacts retain source proofs, reason codes, raw path outputs and manifests; do not expose these details as ordinary prose unless requested.
 
-Absent/invalid/vetoed probabilities remain null and must display exactly `上涨概率：不可用`; explain the reason rather than filling a value. Percentage formatting is presentation only: JSON retains the unrounded model value. No LLM-generated, estimated, smoothed, news-adjusted, or other-ticker probability is allowed.
+The relationship between Quant and News must be described as aligned/mildly aligned/neutral/conflicting/unavailable. Probability stays unchanged. Distinguish Quant confidence from integrated conviction and explain risk offsets.
 
-Generic stock/ETF analysis, including a brief analysis, uses the full workflow by default even when the user did not explicitly request a probability. Brevity only changes presentation. Explicit fact/history/specialist-only requests can retain their narrow route. Do not silently substitute a quote/fundamentals/news digest for a generic analysis.
+Absent/invalid/vetoed probabilities remain null and the final response must say exactly `上涨概率：不可用`, explain the fatal reason, and mark the analysis incomplete/abstained. Percentage formatting is presentation only: JSON retains unrounded numeric values. No LLM-generated, estimated, smoothed, news-adjusted, or other-ticker probability is allowed.
 
-The runtime writes `final_response.md` after both stages are frozen and synthesis completes. Use it for brief delivery, preserving its literal identity, Quant fields, calibration/unavailability, relationship and probability note. Before sending the actual prepared text, run `validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>`. It verifies both frozen digests, report binding, completed stage receipts and required literal lines; missing/conflicting labeled fields fail. It does not intercept host messages or certify every prose claim. On pre-artifact collection/validation failure, explicitly report the unavailable probability and incomplete stage instead of claiming completed research.
+Generic stock/ETF analysis, including brief analysis, uses the full workflow by default even when no probability was explicitly requested. Brevity changes presentation only. Explicit fact/history/specialist-only requests can retain their narrow route. Do not substitute a quote/fundamentals/news digest for generic analysis.
+
+The runtime writes `final_response.md` after both stages freeze and synthesis completes. Preserve its literal identity, Quant fields, reporting status, calibration/unavailability, Quant-News relationship and probability note. Before sending the actual prepared text, run `validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>`. It verifies frozen digests, report binding, completed stage receipts and required literal lines; missing/conflicting labeled fields fail. It does not intercept host messages or certify every prose claim. On pre-artifact collection/validation failure, explicitly report unavailable probability and the incomplete stage instead of claiming completed research.
 
 ## Disallowed
 
 - An LLM's subjective percentage, expected return or confidence.
-- A value filled from an unavailable path or missing data.
-- Treating `raw model score` as calibrated probability.
-- Hiding sample size, calibration status, horizon, label rule, or holdout behavior.
-- Showing precision beyond what the underlying sample and model justify.
+- A number filled from an unavailable path or missing data.
+- Treating a raw model score as a calibrated probability.
+- Hiding sample size, calibration status, horizon, label rule or holdout behavior in standard/debug reports.
+- Showing precision beyond what the sample/model justifies.
 
-When a probability is not supported, emit `null`, explain the missing condition, and continue with descriptive evidence only. Do not convert a factor score, sentiment label or directional majority into a probability without a documented historical mapping.
+When a probability is unsupported, emit `null`, explain the missing condition and continue with descriptive evidence only. Do not convert a factor score, sentiment label or directional majority into probability without a documented historical mapping.

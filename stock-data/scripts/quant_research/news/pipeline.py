@@ -392,7 +392,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         confidence = "unavailable" if not articles else "low"
     status = "not_assessed" if not events and not opinions and not provider_for_bias else "partial" if warnings else "complete"
     return {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "status": status,
         "ticker": news_input.ticker,
         "market": news_input.market,

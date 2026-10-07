@@ -25,7 +25,7 @@ class QuantOutputTests(unittest.TestCase):
         output = subprocess.run([sys.executable, str(script), "schema", "--kind", "final"], check=True, capture_output=True)
         contract = json.loads(output.stdout.decode("utf-8"))["synthesis_quant"]
         self.assertEqual(contract["missing_probability_display"], "上涨概率：不可用")
-        self.assertEqual(contract["required"], ["prob_up", "direction", "confidence", "agreement"])
+        self.assertEqual(contract["required"], ["prob_up", "direction", "confidence", "confidence_score", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"])
         self.assertFalse(contract["news_may_change_prob_up"])
 
     def assert_quant_fields(self, value):

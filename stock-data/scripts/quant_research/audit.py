@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from .gate_policy import classify_reasons
+
 
 def _has_non_null_key(value: Any, keys: set[str]) -> bool:
     if isinstance(value, dict):
@@ -170,79 +172,134 @@ def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]]) -> 
 def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus: dict[str, Any]) -> dict[str, Any]:
     vetoes: list[str] = []
     warnings: list[str] = []
+    reason_codes: list[str] = []
+
+    def warn(code: str, message: str) -> None:
+        reason_codes.append(code)
+        warnings.append(message)
+
+    def veto(code: str, message: str) -> None:
+        reason_codes.append(code)
+        vetoes.append(message)
+
     snapshot_id = manifest.get("snapshot_id")
     gate = manifest.get("data_validation") or {}
-    if not gate.get("forecast_eligible", False):
-        vetoes.extend("Data reporting gate: " + item for item in gate.get("errors", []) + gate.get("blockers", []))
+    prediction_gate = gate.get("prediction_eligibility", {})
+    prediction_state = prediction_gate.get("status")
+    if prediction_state is None:  # Legacy snapshots used a single boolean gate.
+        prediction_state = "eligible" if gate.get("forecast_eligible", False) else "blocked"
+    if prediction_state != "eligible":
+        blocked_codes = prediction_gate.get("blockers", [])
+        reason_codes.extend(blocked_codes)
+        if not blocked_codes:
+            reason_codes.append("PREDICTION_FAILED")
+        for item in gate.get("blockers", []) + gate.get("errors", []):
+            vetoes.append("Prediction eligibility: " + str(item))
         if not vetoes:
-            vetoes.append("Market data reporting gates have not been verified.")
+            vetoes.append("Prediction eligibility is blocked by a fatal market-data integrity condition.")
     if consensus.get("available_paths", 0) == 0:
-        vetoes.append("No forecast path meets reporting eligibility.")
+        veto("PREDICTION_FAILED", "No quantitative path produced a valid probability.")
     if manifest.get("request", {}).get("intent") in {"descriptive", "factor_research"}:
-        vetoes.append("Request intent does not authorize a future-direction probability.")
+        veto("DESCRIPTIVE_REQUEST", "Request intent does not authorize a future-direction probability.")
     if not snapshot_id or not manifest.get("source_payload_sha256"):
-        vetoes.append("Snapshot identity or source payload digest is missing.")
-    if manifest.get("data_quality", {}).get("overall") == "low":
-        warnings.append("Snapshot quality is low; any forecast should be treated as exploratory.")
+        veto("SNAPSHOT_IDENTITY_INVALID", "Snapshot identity or source payload digest is missing.")
+
+    reason_codes.extend(gate.get("reason_codes", []))
+    for item in gate.get("warnings", []):
+        warn("DATA_WARNING", "Data quality: " + str(item))
     for item in manifest.get("warnings", []):
-        if any(word in str(item).lower() for word in ("future", "timestamp mismatch", "invalid", "after the requested")):
-            vetoes.append(f"Snapshot integrity issue: {item}")
-        else:
-            warnings.append(f"Snapshot: {item}")
+        warn("DATA_WARNING", "Snapshot: " + str(item))
+    if manifest.get("data_quality", {}).get("overall") in {"low", "very_low"}:
+        warn("OOS_INSUFFICIENT", "Snapshot quality score is low; interpret the forecast as exploratory.")
+
     for result in researchers:
-        name = result.get("researcher_id", "unknown")
-        if result.get("snapshot_id") != snapshot_id:
-            vetoes.append(f"{name} researcher used a different snapshot identity.")
-        if result.get("status") == "invalid":
-            vetoes.append(f"{name} researcher declared its output invalid.")
+        name = str(result.get("researcher_id", "unknown"))
         probability = result.get("prob_up")
+        if result.get("snapshot_id") != snapshot_id:
+            veto("SNAPSHOT_IDENTITY_INVALID", f"{name} researcher used a different snapshot identity.")
         if result.get("result_role") == "diagnostic" and probability is not None:
-            vetoes.append(f"{name} is diagnostic-only and must not emit a consensus probability.")
+            veto("PREDICTION_FAILED", f"{name} is diagnostic-only and must not emit a consensus probability.")
         if probability is not None:
-            if not isinstance(probability, (int, float)) or not 0 <= probability <= 1:
-                vetoes.append(f"{name} produced an invalid probability value.")
+            if isinstance(probability, bool) or not isinstance(probability, (int, float)) or not 0 <= probability <= 1:
+                veto("PREDICTION_FAILED", f"{name} produced an invalid probability value.")
             if not result.get("probability_source"):
-                vetoes.append(f"{name} probability has no quantitative provenance.")
+                veto("PREDICTION_FAILED", f"{name} probability has no quantitative provenance.")
         elif result.get("result_role", "forecast") != "diagnostic" and result.get("status") in {"success", "partial"}:
-            warnings.append(f"{name} status is {result.get('status')} but probability is unavailable.")
+            warn("PATH_FAILED", f"{name} status is {result.get('status')} but its probability is unavailable.")
+        elif result.get("status") in {"failed", "invalid", "insufficient_data"}:
+            warn("PATH_FAILED", f"{name} path did not produce a usable probability ({result.get('status')}).")
         for warning in result.get("warnings", []):
-            warnings.append(f"{name}: {warning}")
+            warn("PATH_WARNING", f"{name}: {warning}")
+
         validation = result.get("validation", {})
         leakage = validation.get("leakage_audit", {}) if isinstance(validation, dict) else {}
-        if probability is not None:
-            if leakage.get("features_use_data_through_decision_close_only") is not True:
-                vetoes.append(f"{name} has no passing feature-availability audit.")
+        if result.get("result_role", "forecast") == "forecast":
+            feature_check = leakage.get("features_use_data_through_decision_close_only")
             label_check = leakage.get("future_returns_used_only_as_labels", leakage.get("target_excluded_from_features"))
-            if label_check is not True:
-                vetoes.append(f"{name} has no passing target/label leakage audit.")
+            if feature_check is False or label_check is False:
+                veto("LEAKAGE_DETECTED", f"{name} declared a failing feature-availability or target/label timing check.")
+            elif feature_check is not True or label_check is not True:
+                warn("LEAKAGE_AUDIT_INCOMPLETE", f"{name} has incomplete leakage audit evidence; its probability is retained with lower confidence.")
         purged = validation.get("purged_kfold", {}) if isinstance(validation, dict) else {}
-        if purged and purged.get("retained_interval_overlaps", 0) != 0:
-            vetoes.append(f"{name} retained overlapping training/test information intervals.")
-        if result.get("status") == "insufficient_data":
-            warnings.append(f"{name} path has insufficient data.")
+        if isinstance(purged, dict) and purged.get("retained_interval_overlaps", 0) not in (None, 0):
+            veto("LEAKAGE_DETECTED", f"{name} retained overlapping training/test information intervals.")
+
     if consensus.get("available_paths", 0) < 2:
-        warnings.append("Cross-validation by independent paths is unavailable; do not call this an ensemble consensus.")
+        warn("PATH_FAILED", "Cross-validation by independent paths is unavailable; do not call this an ensemble consensus.")
     if consensus.get("agreement") in {"high_disagreement", "extreme_disagreement"}:
-        warnings.append("Consensus probability is unstable across research paths.")
+        warn("LOW_FACTOR_AGREEMENT", "Consensus probability is unstable across research paths.")
     bias_checks = _bias_audit(manifest, researchers)
     if bias_checks["look_ahead_and_label_timing"]["status"] == "warning":
-        warnings.append("At least one research path lacks a complete declared feature/label timing audit.")
+        warn("LEAKAGE_AUDIT_INCOMPLETE", "At least one research path lacks a complete declared feature/label timing audit.")
     if bias_checks["chronological_out_of_sample"]["status"] == "warning":
-        warnings.append("At least one research path lacks a chronological out-of-sample marker.")
+        warn("OOS_INSUFFICIENT", "At least one research path lacks a chronological out-of-sample marker.")
     overfit_status = bias_checks["multiple_testing_and_overfitting"]["status"]
+    strategy_limitations: list[str] = []
     if overfit_status == "warning":
-        warnings.append("Overfitting is not fully quantified: candidate selection was observed, but a complete strategy-trial history for selection-adjusted significance/PBO/DSR is unavailable.")
+        strategy_limitations.extend(["PBO_NOT_ASSESSED", "DSR_NOT_ASSESSED"])
+        warn("PBO_NOT_ASSESSED", "Overfitting is not fully quantified: a complete strategy-trial history for selection-adjusted significance/PBO/DSR is unavailable.")
+        warn("DSR_NOT_ASSESSED", "Deflated Sharpe Ratio is not assessed without a complete, reproducible strategy-trial return universe.")
     elif overfit_status == "partial":
-        warnings.append("PBO/DSR-related values are present but their trial universe and assumptions have not been independently verified.")
-    elif overfit_status == "not_assessed":
-        warnings.append("Overfitting is not quantified because a complete strategy-trial history is unavailable.")
+        strategy_limitations.extend(["PBO_NOT_ASSESSED", "DSR_NOT_ASSESSED"])
+        warn("PBO_NOT_ASSESSED", "PBO/DSR-related values are present but their trial universe and assumptions have not been independently verified.")
+        warn("DSR_NOT_ASSESSED", "Deflated Sharpe Ratio inputs and strategy-trial assumptions have not been independently verified.")
+    else:
+        strategy_limitations.extend(["PBO_NOT_ASSESSED", "DSR_NOT_ASSESSED"])
+        warn("PBO_NOT_ASSESSED", "PBO/DSR are not assessed; this does not cancel the direction probability.")
+        warn("DSR_NOT_ASSESSED", "DSR is not assessed without a strategy-trial return matrix.")
     if bias_checks["transaction_costs_and_market_impact"]["status"] == "not_assessed":
-        warnings.append("Transaction costs and market impact are not assessed; reported returns are gross diagnostics.")
+        strategy_limitations.append("TRANSACTION_COST_NOT_ASSESSED")
+        warn("TRANSACTION_COST_NOT_ASSESSED", "Transaction costs and market impact are not assessed; reported returns are gross diagnostics.")
     elif bias_checks["transaction_costs_and_market_impact"]["status"] == "present_unverified":
-        warnings.append("Cost/market-impact fields are present but have not been independently verified.")
+        strategy_limitations.append("TRANSACTION_COST_NOT_ASSESSED")
+        warn("TRANSACTION_COST_NOT_ASSESSED", "Cost/market-impact fields are present but have not been independently verified.")
+    strategy_limitations.append("PORTFOLIO_BACKTEST_MISSING")
+    warn("PORTFOLIO_BACKTEST_MISSING", "No portfolio-level backtest was supplied; do not infer strategy profitability from a single-security probability.")
     if str(bias_checks["survivorship_bias"]["status"]).startswith("not_assessed"):
-        warnings.append("Survivorship bias is not independently assessed because point-in-time universe and delisted-name history are unavailable.")
+        warn("PBO_NOT_ASSESSED", "Survivorship bias is not independently assessed because point-in-time universe and delisted-name history are unavailable.")
     if any(not check["beats_base_rate"] for check in bias_checks["oos_brier_vs_base_rate"]):
-        warnings.append("At least one reported forecast OOS Brier score does not beat its base-rate benchmark.")
-    status = "veto" if vetoes else "pass_with_warnings" if warnings else "pass"
-    return {"status": status, "vetoes": sorted(set(vetoes)), "warnings": sorted(set(warnings)), "may_report_direction": not vetoes, "bias_audit": bias_checks, "verification_scope": "source metadata gates + path declarations and reported OOS metrics; not an independent proof or full upstream bias engine"}
+        warn("OOS_INSUFFICIENT", "At least one reported forecast OOS Brier score does not beat its base-rate benchmark.")
+
+    bias_checks["prediction_veto"] = "LEAKAGE_DETECTED" in reason_codes
+    bias_checks["strategy_veto"] = bool(strategy_limitations)
+    classification = classify_reasons(reason_codes)
+    # Invalid paths that were excluded do not cancel valid independent paths; detected leakage does.
+    has_probability = consensus.get("available_paths", 0) > 0
+    status = "veto" if vetoes or not has_probability else classification["status"]
+    strategy_status = "not_validated" if strategy_limitations else "validated"
+    return {
+        "status": "veto" if status == "veto" else "pass_with_warnings" if warnings else "pass",
+        "reporting_status": status,
+        "reason_codes": list(dict.fromkeys(reason_codes)),
+        "vetoes": sorted(set(vetoes)),
+        "warnings": sorted(set(warnings)),
+        "may_report_direction": status != "veto" and has_probability,
+        "prediction_eligibility": {"status": "eligible" if has_probability and status != "veto" else "blocked",
+                                   "blockers": classification["blockers"]},
+        "reporting_eligibility": {"status": status, "warnings": classification["warnings"],
+                                  "informational": classification["informational"]},
+        "strategy_eligibility": {"status": strategy_status, "blockers": [], "limitations": list(dict.fromkeys(strategy_limitations)),
+                                 "required_for_probability": False, "required_for_strategy_claim": True},
+        "bias_audit": bias_checks,
+        "verification_scope": "data and path declarations plus reported OOS metrics; not independent proof of provider authenticity or a full strategy audit",
+    }

@@ -7,20 +7,22 @@ User request
   → request contract
   → stock-data collection pass
   → normalized collection receipt
-  → identity/session/freshness/adjustment gates (failure → abstention)
-  → frozen Point-in-Time Snapshot
+  → data-integrity checks (fatal errors block; nonfatal evidence gaps degrade)
+  → frozen Point-in-Time Snapshot with prediction/reporting eligibility
+  → Quant attempt when prediction-eligible
       ├─ Research A: hypothesis + empirical conditional frequency
       ├─ Research B: factor validation + redundancy removal
       ├─ Research C: logistic baseline + time-series validation
       └─ Research D: single-security time-series factor IC + forward returns (diagnostic only)
   → probability consensus over forecast paths A/B/C only
-  → E: adversarial + backtest-bias audit (validation/veto only)
+  → OOS/calibration validation + E adversarial/strategy audit (separate from probability eligibility)
+  → PASS / DEGRADED / VETO reporting gate
   → freeze Quant Result + digest
   → isolated News / Event and Opinion-Sentiment analysis from the same snapshot
   → freeze News Result + digest
   → Final Synthesis (the only stage that reads both results; no probability blending)
   → unified risk/uncertainty
-  → report.json + report.md + bounded agent_summary.json + stage receipt
+  → Summary in chat + standard report.md + debug report.json + stage receipt
 ```
 
 ## Collection boundary

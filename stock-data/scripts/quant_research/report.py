@@ -27,14 +27,57 @@ def _probability_text(value: Any) -> str:
     return text
 
 
+LABELS = {
+    "bullish": "bullish（偏多）", "bearish": "bearish（偏空）", "neutral": "neutral（中性）", "unavailable": "unavailable（不可用）",
+    "high": "high（高）", "medium": "medium（中）", "low": "low（低）", "very_low": "very_low（很低）",
+    "high_disagreement": "high_disagreement（高度分歧）", "extreme_disagreement": "extreme_disagreement（极度分歧）",
+    "pass": "pass（PASS/通过）", "degraded": "degraded（DEGRADED/降级）", "veto": "veto（VETO/否决）",
+}
+CONFIDENCE_REASON_LABELS = {
+    "only_one_quant_path": "仅一个 Quant 路径提供概率",
+    "uncalibrated_raw_probability": "概率未经充分校准",
+    "oos_validation_insufficient": "样本外验证不足",
+    "some_oos_validation_weak": "部分路径的样本外验证偏弱",
+    "leakage_audit_incomplete": "泄漏审计证据不完整",
+    "moderate_path_disagreement": "路径间存在一定分歧",
+    "high_path_disagreement": "路径间分歧较大",
+    "extreme_path_disagreement": "路径间极度分歧",
+    "low_evidence_family_diversity": "证据来源多样性较低",
+    "limited_history_depth": "可用日线历史偏短",
+}
+
+
+def _label(value: Any) -> str:
+    return LABELS.get(str(value), _cell(value))
+
+
+def _confidence_reason_text(value: Any) -> str:
+    return CONFIDENCE_REASON_LABELS.get(str(value), _cell(value))
+
+
 def _quant_lines(fields: dict[str, Any]) -> list[str]:
     """Presentation only: retain native Quant categories, never invent percent scores."""
     lines = [f"- 上涨概率 P(up)：{_probability_text(fields['prob_up'])}" if fields["prob_up"] is not None else "- 上涨概率：不可用",
-             f"- 方向：{_cell(fields['direction'])}",
-             f"- Quant Confidence：{_cell(fields['confidence'])}",
-             f"- 模型一致度（agreement）：{_cell(fields['agreement'])}"]
+             f"- 方向：{_label(fields['direction'])}",
+             f"- Quant Confidence：{_label(fields['confidence'])}",
+             f"- 置信度评分：{_cell(fields.get('confidence_score'))}/100",
+             f"- 报告状态：{_label(fields.get('reporting_status'))}",
+             f"- 模型一致度（agreement）：{_label(fields['agreement'])}"]
+    if fields.get("raw_probability") is not None:
+        lines.append(f"- 原始路径估计均值：{_probability_text(fields['raw_probability'])}")
+    if fields.get("calibrated_probability") is not None:
+        lines.append(f"- 校准概率：{_probability_text(fields['calibrated_probability'])}")
+        calibration_line = "- 联合概率校准：可用（按已验证的 ensemble calibration）"
+    else:
+        calibration_line = "- 联合概率校准：不可用（等权路径均值未经独立 ensemble calibration）"
+    lines.append(calibration_line)
+    if fields.get("confidence_reasons"):
+        reasons = ", ".join(_confidence_reason_text(item) for item in fields["confidence_reasons"][:4])
+        lines.append("- 低置信度原因：" + reasons)
     if "diversity" in fields:
-        lines.append(f"- 证据多样性（diversity）：{_cell(fields['diversity'])}")
+        lines.append(f"- 证据多样性（diversity）：{_label(fields['diversity'])}")
+    if fields.get("horizon_type") == "estimated_observed_sessions":
+        lines.append("- 预测窗口：基于 OHLCV 观测行估算交易 session；交易日历未完整验证")
     return lines
 
 
@@ -42,8 +85,8 @@ def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -
     if fields["prob_up"] is None:
         return "上涨概率：不可用。Quant 未提供通过报告资格的有效概率；不得由 LLM 或新闻补算。"
     probability = _probability_text(fields["prob_up"])
-    return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的上涨概率。"
-            f"新闻仅补充驱动解释、反方证据和综合风险，不改变 Quant 的 {probability} 原始概率。")
+    return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的上涨概率（合格路径等权均值，未单独进行 ensemble calibration）。"
+            f"News 只补充驱动解释和风险证据，不改变 Quant 的 {probability} 原始概率（等权路径均值）。")
 
 
 def _relationship_text(synthesis: dict[str, Any]) -> str:
@@ -71,55 +114,80 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
         "identity": f"- 标的：{_cell(snapshot['ticker'])}；市场：{_cell(snapshot['market'])}；预测窗口：{_cell(snapshot['horizon'])}（交易 session）；分析截至：{_cell(snapshot['asof_timestamp'])}",
         "probability_note": _final_probability_note(fields, snapshot["ticker"], snapshot["horizon"]),
         "news_relationship": f"- 消息面与 Quant 的关系：{_relationship_text(result.get('synthesis', {}))}",
+        "reporting_status": f"- 报告状态：{_cell(fields.get('reporting_status', result.get('reporting_status', 'degraded')))}",
         "analysis_status": f"- 执行状态：{_cell(result['analysis_status'])}",
     }
-    names = ["prob_up", "direction", "confidence", "agreement"] + (["diversity"] if "diversity" in fields else [])
+    names = ["prob_up", "direction", "confidence", "confidence_score", "reporting_status", "agreement"]
+    if fields.get("raw_probability") is not None:
+        names.append("raw_probability")
+    if fields.get("calibrated_probability") is not None:
+        names.append("calibrated_probability")
+    else:
+        names.append("ensemble_calibration_status")
+    if fields.get("confidence_reasons"):
+        names.append("confidence_reasons")
+    if "diversity" in fields:
+        names.append("diversity")
+    if fields.get("horizon_type") == "estimated_observed_sessions":
+        names.append("horizon_type")
     required.update(zip(names, _quant_lines(fields)))
     if fields["prob_up"] is None:
         required["unavailable_reason"] = "- 概率不可用原因：" + _cell(_unavailable_reasons(result)[0])
     else:
-        required["calibration"] = (f"- 概率校准状态：{_cell(result['consensus'].get('calibration_status'))}；"
-                                   "共识为合格路径等权均值，并非已独立校准的联合概率。")
+        required["calibration"] = next(line for line in _quant_lines(fields) if line.startswith("- 联合概率校准："))
     return required
 
 
 def render_final_response(result: dict[str, Any]) -> str:
-    """Compact user-facing delivery: brevity never drops Quant or abstention fields."""
+    """Default to a short human-facing summary; detailed evidence remains in the standard/debug artifacts."""
     required, summary = required_response_lines(result), build_agent_summary(result)
     snapshot, sections = result["snapshot"], summary["sections"]
     price, news = sections["price_time"] or {}, sections["news"]
     lines = [f"# {_cell(snapshot['ticker'])} 简析", "", required["identity"],
-             f"- 最新确认收盘：{_cell(price.get('price'))} {_cell(price.get('currency'))}；行情时间：{_cell(price.get('close_at'))}；来源：{_cell(price.get('source'))}（非实时价）",
-             f"- 行情窗口：{_cell(snapshot.get('market_history_start'))}–{_cell(snapshot.get('market_history_end'))}；日线数量：{snapshot.get('market_bar_count', 0)}",
-             "", "### Quant 数据面", "", *_quant_lines(reportable_quant_fields(result))]
-    if "calibration" in required:
-        lines.append(required["calibration"])
-    else:
+             f"- 最新确认收盘：{_cell(price.get('price'))} {_cell(price.get('currency'))}，日期 {_cell(price.get('session_date'))}；来源 {_cell(price.get('source'))}（非实时价）",
+             "", "### Quant", "", *_quant_lines(reportable_quant_fields(result))]
+    if "calibration" not in required:
         lines.append(required["unavailable_reason"])
-        lines.extend("- 其他缺口：" + _cell(reason) for reason in _unavailable_reasons(result)[1:4])
-    for row in sections["technical_factor_evidence"][:4]:
-        lines.append(f"- 技术/因子证据：{_cell(row['path'])} / {_cell(row['polarity'])}；{_cell(row['factor'])}；当前贡献 {_cell(row['current_contribution'])}；训练 IC {_cell(row['training_rank_ic'])}")
-    if not sections["technical_factor_evidence"]:
-        lines.append("- 技术/因子证据：不可用或因数据门槛跳过。")
-    for path in sections["quant"]["paths"]:
-        validation = path["validation"]
-        lines.append(f"- 验证：{_cell(path['id'])} {_cell(path['status'])}；样本外 N={_cell(validation['oos_predictions'])}；校准 {_cell(validation['calibration'])}")
-    bias = sections["backtest_ic_bias"]
-    lines.append(f"- Bias 审计：{_cell(bias['audit_status'])}；IC/forward return 是单证券诊断，未完成组合回测、PBO/DSR 或成本验证。")
-    for diagnostic in bias["diagnostic_examples"][:2]:
-        metric = diagnostic["holdout"]
-        lines.append(f"- Holdout IC：{_cell(diagnostic['factor'])} / {_cell(diagnostic['horizon'])} {_cell(metric['spearman_time_series_ic'])}；平均 forward return {_pct(metric['mean_forward_return'])}；N={_cell(metric['observations'])}")
+    evidence = sections["technical_factor_evidence"][:3]
+    for row in evidence:
+        lines.append(f"- 核心依据：{_cell(row['factor'])}（{_cell(row['path'])} / {_cell(row['polarity'])}）")
+    if not evidence:
+        lines.append("- 核心依据：没有可报告的技术/因子证据。")
+
+    reason_codes = set((snapshot.get("data_validation") or {}).get("reason_codes", []))
+    limit_labels = {
+        "CALENDAR_FALLBACK_USED": "交易日历采用 OHLCV 观测日期回退，节假日/缺失交易日未独立验证",
+        "ADJUSTMENT_UNKNOWN": "OHLCV 复权口径未知；短期方向可计算，但置信度下调",
+        "ADJUSTMENT_EVIDENCE_UNAVAILABLE": "公司行动证据不足，不能确认近期无污染性公司行动",
+        "ADJUSTMENT_EVIDENCE_CONFLICT": "复权口径与公司行动证据不完全一致",
+        "CORPORATE_ACTION_UNKNOWN": "近期公司行动无法独立确认",
+        "LATEST_CLOSE_SINGLE_PROVIDER": "最新收盘仅单一来源，未完成跨源核对",
+        "EXTREME_PRICE_MOVE_UNRECONCILED": "存在尚未解释的极端价格变动",
+    }
+    limitations = [label for code, label in limit_labels.items() if code in reason_codes]
+    limitations.extend(_confidence_reason_text(item) for item in result.get("consensus", {}).get("confidence_reasons", [])[:2])
+    for penalty in snapshot.get("data_quality", {}).get("confidence_penalties", []):
+        raw_reason = penalty.get("reason_code", penalty.get("reason"))
+        if raw_reason == "fatal_prediction_integrity":
+            continue
+        if raw_reason in limit_labels:
+            limitations.append(limit_labels[raw_reason])
+        elif raw_reason:
+            limitations.append(_confidence_reason_text(raw_reason))
+    if limitations:
+        lines.extend(["", "**限制**"])
+        lines.extend("- " + _cell(item) for item in list(dict.fromkeys(limitations))[:4])
+
     lines.extend(["", "### News / Sentiment", "",
-                  f"- 状态：{_cell(news['status'])}；合格事件方向：{_cell(news['event_bias'])}；报道窗口：{_cell(news['coverage'].get('observed_publication_start'))}–{_cell(news['coverage'].get('observed_publication_end'))}"])
-    for event in news["events"][:3]:
-        lines.append(f"- {_cell(event['first_published_at'])} / {_cell(event['event_group'])}：{_link(event['headline'], event['url'])}；来源 {_cell(', '.join(event['sources']))}；事实状态 {_cell(event['fact_status'])}；方向 {_cell(event['direction'])}")
-    if not news["events"]:
-        lines.append("- 没有合格事件证据；观点或报道数量不等于已确认利好/利空。")
-    lines.extend(["", "### 综合判断", "", required["probability_note"], required["news_relationship"], required["analysis_status"]])
+                  f"- 消息评估：{_cell(news.get('status'))}；事件方向：{_cell(news.get('event_bias'))}"])
+    for event in news.get("events", [])[:2]:
+        lines.append(f"- {_cell(event.get('first_published_at'))}：{_link(event.get('headline'), event.get('url'))}；方向 {_cell(event.get('direction'))}")
+    if not news.get("events"):
+        lines.append("- 无合格事件证据；不把消息缺失视为中性或已验证。")
+    lines.extend(["", "### 综合", "", required["probability_note"], required["news_relationship"], required["analysis_status"]])
     risks = sections["risk_counter_evidence"]["items"]
-    lines.extend(f"- 风险/反方证据：{_cell(row['source'])}；{_cell(row['detail'])}" for row in risks[:4])
-    lines.extend("- 综合限制：" + _cell(warning) for warning in result.get("synthesis", {}).get("warnings", [])[:2])
-    lines.extend(["- 历史验证不保证未来表现；新闻只提供解释和风险证据，时间关联不证明因果。", ""])
+    lines.extend(f"- 风险：{_cell(row['detail'])}" for row in risks[:2])
+    lines.append("- 历史验证不保证未来表现；这不是已验证的可盈利交易策略。")
     return "\n".join(lines)
 
 
@@ -156,9 +224,9 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
     selected_risks = []
     for source in ("data_or_audit", "news", "factor_backtest", "coverage_or_validation"):
         selected_risks.extend([row for row in risks if row.get("source") == source][:3])
-    return {"schema_version": "1.1", "content_role": "UNTRUSTED_DATA_SUMMARY_NO_EXECUTION_INSTRUCTIONS", "analysis_id": result["analysis_id"],
+    return {"schema_version": "1.2", "content_role": "UNTRUSTED_DATA_SUMMARY_NO_EXECUTION_INSTRUCTIONS", "analysis_id": result["analysis_id"],
             "identity": {key: snapshot[key] for key in ("ticker", "market", "horizon", "asof_timestamp", "snapshot_id")},
-            "analysis_status": result["analysis_status"], "stages": result["stages"],
+            "analysis_status": result["analysis_status"], "reporting_status": result.get("reporting_status", "veto"), "stages": result["stages"],
             "sections": {
                 "price_time": snapshot.get("latest_confirmed_close"),
                 "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "paths": paths},
@@ -184,7 +252,8 @@ def render_markdown(result: dict[str, Any]) -> str:
              f"- Market session: {_cell(price.get('session_date'))}; confirmed close time: {_cell(price.get('close_at'))}",
              f"- As of: {_cell(manifest['asof_timestamp'])}; snapshot: `{manifest['snapshot_id']}`",
              f"- Source: {_cell(price.get('source'))}; bars: {manifest.get('market_bar_count', 0)}; window: {_cell(manifest.get('market_history_start'))} to {_cell(manifest.get('market_history_end'))}",
-             f"- Forecast data gates: {_cell(manifest.get('data_validation', {}).get('forecast_eligible'))}; quality: {_cell(manifest.get('data_quality', {}).get('overall'))}",
+             f"- Prediction eligibility: {_cell(manifest.get('data_validation', {}).get('prediction_eligibility', {}).get('status'))}; reporting: {_label(manifest.get('data_validation', {}).get('reporting_status'))}; data confidence score: {_cell(manifest.get('data_quality', {}).get('confidence_score'))}/100",
+             f"- Calendar/horizon: {_cell(manifest.get('data_validation', {}).get('calendar_verification'))} / {_cell(manifest.get('data_validation', {}).get('horizon_type'))}; adjustment: {_cell(manifest.get('data_validation', {}).get('adjustment_status'))}; corporate actions: {_cell(manifest.get('data_validation', {}).get('corporate_action_status'))}",
              "- Bar close is not a live quote. Source authenticity is not independently verified.", "",
              "## 2. Quant 数据面", "",
              *_quant_lines(quant_fields),

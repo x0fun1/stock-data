@@ -12,6 +12,7 @@ from .audit import audit
 from .consensus import build_consensus, forecast_assessment
 from .contracts import RESEARCHERS, researcher_result
 from .delivery import validate_response_text
+from .gate_policy import aggregate_gate_telemetry
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
 from .paths import safe_output_destination
@@ -54,7 +55,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
             # Each path receives only the frozen snapshot path. Its result is written
             # after completion and is not passed to any later researcher.
             if not manifest.get("data_validation", {}).get("forecast_eligible", False):
-                result = researcher_result(researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"], status="insufficient_data", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=["Research skipped: market data failed reporting gates; no compressed-session or stale-data computation."])
+                result = researcher_result(researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"], status="insufficient_data", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=["Prediction skipped: a fatal prediction-eligibility blocker was detected; non-fatal validation/audit gaps do not skip Quant."])
             else:
                 result = RUNNERS[researcher_id](snapshot_dir)
         except Exception as exc:  # isolate a path failure and continue the ensemble
@@ -67,19 +68,31 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
         results[researcher_id] = result
 
     consensus = build_consensus(list(results.values()), manifest)
+    consensus["horizon_type"] = manifest.get("data_validation", {}).get("horizon_type", "unavailable")
+    consensus["session_horizon_verified"] = bool(manifest.get("data_validation", {}).get("session_horizon_verified", False))
     adversarial = audit(manifest, list(results.values()), consensus)
     if not adversarial.get("may_report_direction", False):
+        prediction = {**(consensus.get("prediction") or {}), "status": "veto", "reportable_probability": None}
         consensus = {
             **consensus,
             "pre_veto_prob_up": consensus.get("prob_up"),
             "pre_veto_probability_range": consensus.get("probability_range"),
             "prob_up": None,
+            "reportable_probability": None,
+            "prediction": prediction,
+            "probability": prediction,
             "probability_range": None,
             "direction": "research_invalid",
             "direction_suppressed": True,
+            "reporting_status": "veto",
         }
+    else:
+        consensus["reporting_status"] = adversarial.get("reporting_status", "degraded")
+        consensus["reportable_probability"] = consensus.get("prob_up")
+        consensus["prediction"] = {**(consensus.get("prediction") or {}), "reportable_probability": consensus.get("prob_up")}
+        consensus["probability"] = consensus["prediction"]
     quant_result = {
-        "schema_version": "1.1",
+        "schema_version": "1.2",
         "analysis_id": analysis_id,
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
         "engine": {"name": "stock-data-quant-research", "version": __version__},
@@ -99,7 +112,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
         freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
     except Exception as exc:  # a News-layer error must not erase the completed Quant output
         news_result = {
-            "schema_version": "1.0",
+            "schema_version": "1.2",
             "status": "not_assessed",
             "ticker": manifest["ticker"],
             "market": manifest["market"],
@@ -125,11 +138,21 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
         "news_result_freeze": news_freeze,
         "synthesis": synthesis,
     }
-    final["analysis_status"] = "abstain" if not adversarial.get("may_report_direction") else "degraded" if any(row.get("status") != "success" for row in results.values()) or news_frozen.get("status") != "complete" else "complete_with_limitations"
+    final["reporting_status"] = adversarial.get("reporting_status", "veto")
+    final["gate_telemetry"] = aggregate_gate_telemetry([{
+        "prediction_available": bool(adversarial.get("may_report_direction")) and final.get("consensus", {}).get("reportable_probability") is not None,
+        "reporting_status": final["reporting_status"],
+    }])
+    if not adversarial.get("may_report_direction"):
+        final["analysis_status"] = "abstain"
+    elif final["reporting_status"] == "degraded" or any(row.get("status") not in {"success", "partial"} for row in results.values()) or news_frozen.get("status") != "complete":
+        final["analysis_status"] = "degraded"
+    else:
+        final["analysis_status"] = "complete_with_limitations"
     final["stages"] = [
         {"stage": "request", "status": "validated"},
         {"stage": "collection", "status": "source_receipt_loaded", "fresh_fetch_performed_by_analyze": False},
-        {"stage": "data_validation", "status": "pass" if manifest["data_validation"]["forecast_eligible"] else "blocked"},
+        {"stage": "data_validation", "status": manifest["data_validation"].get("reporting_status", "veto"), "prediction_eligible": manifest["data_validation"].get("forecast_eligible", False)},
         {"stage": "quant", "status": "returned", "paths": {key: row["status"] for key, row in results.items()}},
         {"stage": "audit", "status": adversarial["status"]},
         {"stage": "quant_freeze", "status": "verified"},

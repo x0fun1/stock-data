@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime, timezone
+import math
 import re
 from typing import Any
 
@@ -105,6 +106,8 @@ def researcher_result(
     data_used: list[str] | None = None,
     warnings: list[str] | None = None,
     probability_source: str | None = None,
+    raw_probability: float | None = None,
+    calibrated_probability: float | None = None,
 ) -> dict[str, Any]:
     if researcher_id not in RESEARCHERS:
         raise ValueError(f"unknown researcher_id: {researcher_id}")
@@ -116,6 +119,12 @@ def researcher_result(
         raise ValueError("prob_up must be between 0 and 1")
     if prob_up is None and probability_source is not None:
         raise ValueError("probability_source requires a numeric probability")
+    raw_probability = prob_up if raw_probability is None else raw_probability
+    for name, value in (("raw_probability", raw_probability), ("calibrated_probability", calibrated_probability)):
+        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 1):
+            raise ValueError(f"{name} must be a finite probability between 0 and 1")
+    if prob_up is None and (raw_probability is not None or calibrated_probability is not None):
+        raise ValueError("raw/calibrated probabilities require a reportable path probability")
     direction = "unavailable"
     if prob_up is not None:
         direction = "bullish" if prob_up > 0.5 else "bearish" if prob_up < 0.5 else "neutral"
@@ -128,6 +137,9 @@ def researcher_result(
         "direction": direction,
         "prob_up": prob_up,
         "prob_down": (1 - prob_up) if prob_up is not None else None,
+        "raw_probability": raw_probability,
+        "calibrated_probability": calibrated_probability,
+        "reportable_probability": prob_up,
         "expected_return": expected_return,
         "confidence": confidence,
         "probability_source": probability_source,

@@ -9,7 +9,7 @@ from typing import Any
 
 def market_bars(block: dict[str, Any]) -> list[dict[str, Any]]:
     if not block.get("_data_validation", {}).get("forecast_eligible", False):
-        raise ValueError("research requires source-verified daily session/data gates; use an abstention report for unverified data")
+        raise ValueError("prediction eligibility is blocked by fatal data gates; non-fatal calendar/adjustment/audit gaps are reported as degraded")
     bars = block.get("data", {}).get("bars")
     if not isinstance(bars, list):
         raise ValueError("market data must contain normalized daily bars")

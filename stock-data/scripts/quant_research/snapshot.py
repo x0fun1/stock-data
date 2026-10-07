@@ -16,10 +16,11 @@ from zoneinfo import ZoneInfo
 
 from .contracts import normalize_request, parse_timestamp, utc_now
 from .paths import safe_output_destination, validate_path_component
-from .data_checks import ADJUSTMENTS, EXCHANGE_TIMEZONES, calendar_sessions, check_market
+from .data_checks import EXCHANGE_TIMEZONES, calendar_sessions, check_market
+from .gate_policy import classify_reasons
 from .security import provider_failed, sanitize_data
 
-SCHEMA_VERSION = "1.1"
+SCHEMA_VERSION = "1.2"
 DOMAINS = (
     "market",
     "fundamentals",
@@ -135,33 +136,55 @@ def validate_collection(collection: dict[str, Any], request: dict[str, Any]) -> 
         block = _unwrap_domain(collection.get(name))
         if block.get("status") in {"unavailable", "failed", "partial"}:
             warnings.append(f"{name} domain status is {block.get('status')}")
-    if not errors and asof:
-        semantic = check_market(market, request)
-        errors.extend(semantic["errors"])
-        warnings.extend(semantic["blockers"] + semantic["warnings"])
+
     for block in collection.values():
         if isinstance(block, dict) and isinstance(block.get("warnings"), list):
             warnings.extend(str(item) for item in block["warnings"])
     return errors, sorted(set(warnings)), kept
 
 
-def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captured_at: str | None = None, legacy: bool = False) -> dict[str, Any]:
+def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captured_at: str | None = None, legacy: bool = False,
+                      resolved_calendar_evidence: dict[str, Any] | None = None,
+                      allow_library_calendar: bool = False) -> dict[str, Any]:
     errors, warnings, count = validate_collection(domains, request)
-    gate = check_market(domains["market"], request, captured_at=captured_at)
+    gate = check_market(domains["market"], request, captured_at=captured_at,
+                        resolved_calendar_evidence=resolved_calendar_evidence,
+                        allow_library_calendar=allow_library_calendar)
     if errors or gate["errors"]:
         raise ValueError("snapshot rejected: " + "; ".join(sorted(set(errors + gate["errors"]))))
     if legacy:
-        gate["blockers"].append("legacy snapshot schema: re-collect/freeze source evidence before reporting forecasts")
+        gate["reason_codes"].append("SNAPSHOT_IDENTITY_INVALID")
+        classification = classify_reasons(gate["reason_codes"])
+        gate["blockers"] = classification["blockers"]
+        gate["prediction_eligibility"] = {"status": "blocked", "blockers": classification["blockers"]}
+        gate["reporting_eligibility"] = {"status": "veto", "warnings": classification["warnings"]}
+        gate["reporting_status"] = "veto"
         gate["forecast_eligible"] = False
     warnings = sorted(set(warnings + gate["blockers"] + gate["warnings"]))
     statuses = {name: str(domains[name].get("status", "unavailable")) for name in DOMAINS}
-    sources = {name: {key: block.get(key) for key in ("actual_source", "source_timestamp", "currency", "unit", "adjustment", "fallback_used", "fallback_reason")} | {"fetched_at": block.get("fetched_at_utc", block.get("fetched_at"))} for name, block in domains.items()}
-    depth = min(1.0, count / 504)
-    score = round(0.7 * depth + 0.3 * int(gate["forecast_eligible"]), 4)
+    sources = {name: {key: block.get(key) for key in ("actual_source", "source_timestamp", "currency", "unit", "adjustment", "adjustment_evidence", "session_calendar", "latest_price_observations", "fallback_used", "fallback_reason")} | {"fetched_at": block.get("fetched_at_utc", block.get("fetched_at"))} for name, block in domains.items()}
+    penalties = {
+        "CALENDAR_FALLBACK_USED": 10, "ADJUSTMENT_UNKNOWN": 10,
+        "CORPORATE_ACTION_UNKNOWN": 5, "LATEST_CLOSE_SINGLE_PROVIDER": 10,
+        "EXTREME_PRICE_MOVE_UNRECONCILED": 10,
+    }
+    history_penalty = round(min(20.0, max(0.0, (504 - count) / 504 * 20.0)))
+    reason_penalties = [{"reason_code": code, "points": penalties[code]} for code in sorted(set(gate["reason_codes"])) if code in penalties]
+    confidence_score = 100.0 - history_penalty - sum(item["points"] for item in reason_penalties)
+    confidence_penalties = ([{"reason": "limited_history_depth", "points": history_penalty}] if history_penalty else []) + reason_penalties
+    if not gate["forecast_eligible"]:
+        confidence_score = min(confidence_score, 39.0)
+        if not any(item.get("reason") == "fatal_prediction_integrity" for item in confidence_penalties):
+            confidence_penalties.append({"reason": "fatal_prediction_integrity", "points": 60})
+    confidence_score = max(0.0, min(100.0, confidence_score))
+    quality = "high" if confidence_score >= 80 else "medium" if confidence_score >= 60 else "low" if confidence_score >= 40 else "very_low"
+    score = round(confidence_score / 100.0, 4)
     return {"market_bar_count": count, "data_domains": statuses, "sources": sources, "data_validation": gate,
             "latest_confirmed_close": gate["latest_confirmed_close"], "warnings": warnings,
-            "data_quality": {"overall": "high" if score >= 0.8 else "medium" if score >= 0.55 else "low", "score": score,
-                             "components": {"history_depth": depth, "forecast_eligible": gate["forecast_eligible"], "required_domains": ["market"]}, "issues": warnings}}
+            "data_quality": {"overall": quality, "score": score, "confidence_score": round(confidence_score),
+                             "confidence_penalties": confidence_penalties,
+                             "components": {"history_depth": min(1.0, count / 504), "prediction_eligible": gate["forecast_eligible"], "required_domains": ["market"]},
+                             "issues": warnings, "reason_codes": gate["reason_codes"]}}
 
 
 def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
@@ -180,10 +203,7 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
     errors, warnings, bar_count = validate_collection(collection, request)
     if errors:
         raise ValueError("snapshot rejected: " + "; ".join(errors))
-    market_metadata = _unwrap_domain(collection.get("market"))
-    valid_adjustment = market_metadata.get("adjustment") in {"adjusted", "unadjusted", "split_adjusted", "total_return"}
-    if request["mode"] == "strict" and not valid_adjustment:
-        raise ValueError("strict snapshot rejected: OHLCV adjustment convention is missing or unrecognized")
+
 
     # A daily bar dated on the as-of day may still be forming. Unless the gateway
     # confirms the session close, keep its original payload in raw/ but exclude it
@@ -193,7 +213,10 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
     if isinstance(market_data, dict) and isinstance(market_data.get("bars"), list):
         asof_day = parse_timestamp(asof_timestamp).astimezone(ZoneInfo(EXCHANGE_TIMEZONES[request["market"]])).date()
         bars = market_data["bars"]
-        sessions = calendar_sessions(market, request["market"]) if market.get("session_calendar") is not None else []
+        try:
+            sessions = calendar_sessions(market, request["market"]) if market.get("session_calendar") is not None else []
+        except (KeyError, TypeError, ValueError):
+            sessions = []  # Invalid/missing calendar evidence degrades to source close status.
         forming = {row["date"] for row in sessions if parse_timestamp(row["close_at"]) > parse_timestamp(asof_timestamp)}
         exclude = bars and (str(bars[-1]["date"])[:10] in forming if sessions else _date_only(bars[-1].get("date")) == asof_day and market.get("last_bar_closed") is not True)
         if exclude:
@@ -220,6 +243,13 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
     for domain in DOMAINS:
         block = normalized_market_data if domain == "market" else _unwrap_domain(collection.get(domain))
         normalized[domain] = block
+    captured_at = payload.get("captured_at_utc")
+    derived = _derived_metadata(normalized, request, captured_at=captured_at, allow_library_calendar=True)
+    resolved_calendar = derived["data_validation"].get("resolved_calendar_evidence")
+    if resolved_calendar is not None:
+        # Persist the optional-library schedule in the signed manifest so snapshot reloads are deterministic.
+        derived = _derived_metadata(normalized, request, captured_at=captured_at,
+                                    resolved_calendar_evidence=resolved_calendar)
     normalized_hashes = {name: hashlib.sha256(_canonical_bytes(block)).hexdigest() for name, block in normalized.items()}
     raw_blocks = {name: collection.get(name) for name in DOMAINS}
     raw_hashes = {name: hashlib.sha256(_canonical_bytes(block)).hexdigest() for name, block in raw_blocks.items()}
@@ -240,13 +270,13 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
         "request": request,
         "asof_timestamp": asof_timestamp,
         "snapshot_created_at": created_at,
-        "collection_captured_at": payload.get("captured_at_utc"),
+        "collection_captured_at": captured_at,
         "source_payload_sha256": source_digest,
         "snapshot_content_sha256": content_digest,
         "domain_sha256s": normalized_hashes,
         "raw_domain_sha256s": raw_hashes,
     }
-    manifest.update(_derived_metadata(normalized, request, captured_at=payload.get("captured_at_utc")))
+    manifest.update(derived)
     manifest["manifest_sha256"] = hashlib.sha256(_canonical_bytes(manifest)).hexdigest()
 
     temporary = Path(tempfile.mkdtemp(prefix=f".{snapshot_id}.", dir=output_root))
@@ -270,7 +300,7 @@ def load_snapshot(snapshot_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     if not manifest_path.is_file() or not market_path.is_file():
         raise ValueError("snapshot must include manifest.json and market.json")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") not in {"1.0", SCHEMA_VERSION}:
+    if manifest.get("schema_version") not in {"1.0", "1.1", SCHEMA_VERSION}:
         raise ValueError(f"unsupported snapshot schema: {manifest.get('schema_version')!r}")
     snapshot_id = validate_path_component(manifest.get("snapshot_id"), label="snapshot_id")
     domains: dict[str, Any] = {}
@@ -301,7 +331,11 @@ def load_snapshot(snapshot_dir: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         if manifest.get("collection_captured_at") and parse_timestamp(manifest["collection_captured_at"]) > parse_timestamp(manifest["snapshot_created_at"]):
             raise ValueError("collection capture occurs after snapshot creation")
     request = normalize_request(manifest["request"])
-    derived = _derived_metadata(domains, request, captured_at=manifest.get("collection_captured_at"), legacy=manifest.get("schema_version") == "1.0")
+    schema_version = manifest.get("schema_version")
+    resolved_calendar = (manifest.get("data_validation") or {}).get("resolved_calendar_evidence")
+    derived = _derived_metadata(domains, request, captured_at=manifest.get("collection_captured_at"),
+                                legacy=schema_version in {"1.0", "1.1"},
+                                resolved_calendar_evidence=resolved_calendar)
     manifest.update(derived)
     market = domains["market"]
     if not market.get("data", {}).get("bars"):

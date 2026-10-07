@@ -67,12 +67,17 @@ class CollectionTests(unittest.TestCase):
                 self.freeze()
             self.value = original
 
-    def test_missing_calendar_or_adjustment_evidence_blocks_forecast(self):
+    def test_missing_calendar_or_adjustment_evidence_degrades_but_does_not_block_forecast(self):
         for field in ("session_calendar", "adjustment_evidence"):
             value = copy.deepcopy(self.value)
             value["domains"]["market"].pop(field)
             manifest, _ = load_snapshot(self.freeze(value))
-            self.assertFalse(manifest["data_validation"]["forecast_eligible"])
+            self.assertTrue(manifest["data_validation"]["forecast_eligible"])
+            self.assertEqual(manifest["data_validation"]["reporting_status"], "degraded")
+            if field == "session_calendar":
+                self.assertEqual(manifest["data_validation"]["horizon_type"], "estimated_observed_sessions")
+            if field == "adjustment_evidence":
+                self.assertEqual(manifest["data_validation"]["adjustment_status"], "provider_declared")
 
     def test_capture_timestamp_cannot_be_missing_or_after_snapshot_creation(self):
         value = copy.deepcopy(self.value)
@@ -90,7 +95,7 @@ class CollectionTests(unittest.TestCase):
                 value["domains"]["market"]["source_timestamp"] = "2024-03-15T19:00:00Z"
             manifest, _ = load_snapshot(self.freeze(value))
             self.assertFalse(manifest["data_validation"]["forecast_eligible"])
-            self.assertEqual(manifest["latest_confirmed_close"]["kind"], "historical_bar_close_unverified")
+            self.assertEqual(manifest["latest_confirmed_close"]["kind"], "unverified")
 
     def test_missing_session_is_not_compressed_into_daily_horizon(self):
         self.value["domains"]["market"]["data"]["bars"].pop(20)
