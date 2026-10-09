@@ -2,7 +2,9 @@
 
 按用户所需维度选择必要数据。本文补充事实、描述性和综合研究入口；普通个股/ETF 分析、简析、怎么看及方向研究统一转入 `SKILL.md` 的完整流程，方法和输出仍由 [量化路径](quant-paths.md) 定义。不能用 PE、技术信号、新闻、资金流或评级直接造出上涨概率。
 
-方向研究的数据资格由代码 [reliability-gates.md](reliability-gates.md) 强制：来源身份、日线窗口、最新已闭合 session、完整交易日轴及复权证据必须通过。缺证据或行情过期时输出弃权和缺口，不运行预测器。`pipeline` 只处理采集文件，不保证联网更新；实际采集仍由 Agent 按来源路由完成。
+方向研究的数据资格由中央 [reliability-gates.md](reliability-gates.md) 强制：复权/日历证据未知仅降级并保留缺口，不一律致命；明确污染、身份冲突、闭合价格冲突等按原 gate 阻断。不得假定收盘已确认。`pipeline` 只处理采集文件，不保证联网更新；实际采集按来源路由完成。
+
+Yahoo 结构化数据默认使用 [yfinance-data.md](yfinance-data.md) 的 `yahoo_*`，不是网页摘要或旧直连。美股仍优先实际已连接且覆盖字段的 Finnhub，只补缺项。`yahoo_collect.py` 生成 market/news response map，可只采缺域，既有 adapt/freeze/analyze 与 schema 1.2 不变。研究采集精确日期日线与有依据的 adjusted 视图，保留 provider OHLC/Adj Close/行动/变换，repair 默认关闭；用户窗口不足不扩窗。新闻失败记 not_assessed，不能当 neutral 或改 Quant 概率。
 
 ## 事实与描述性分析
 
@@ -11,6 +13,8 @@
 - 明确区分已发生的收益、波动与未来走势。历史走势概述可直接描述所取区间，不必运行预测；一旦将观察推演成未来方向，就运行完整方向研究流程。
 
 ## 基本面与估值
+
+Yahoo 新 gateway 执行需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA_YAHOO_CACHE_DIR`；collector 要求 `--cache-dir`。保留日线 `bar_label_not_trade_time` 的真实源时间、来源未确认 unit=null；即使取得行情文件，现有 24h/source_before_close 等 gate 仍可能阻断，不能补造收盘时间/单位或称已具备有效预测输入。以实际审计结果为准，详见 [yfinance-data.md](yfinance-data.md)。
 
 1. 美股优先 `get-company-profile`、`get-financials-snapshot`；三表、更多关键指标、预期或机构持仓按缺项调用 global 已支持函数。港股按 global 的实际能力取用。
 2. 比较前核对币种、金额单位、TTM/年度/季度、会计科目、报告期、披露时间和重述版本。Finnhub 市值的 USD millions 不可直接与其他来源原始金额拼接。SEC 使用 `filed` 判断历史可得性，不用财务期末日替代。
@@ -30,9 +34,9 @@
 
 | 问题 | 首选能力 / 补缺 | 解释边界 |
 |---|---|---|
-| 最近消息、催化剂 | Finnhub `get-news-pulse` → global `stock_news` | Finnhub 基线固定 7 天，不能传自造日期参数或声称完整档案 |
-| 分析师评级、预期 | `get-recommendations`；更多字段按需 global `analyst_estimates` | 评级是观点；预期与实际业绩分开；不生成来源未提供的情绪分 |
-| 财报、经济或 IPO 日历 | `get-calendar`；美股缺项按需 `earnings_calendar` | 核对 kind、范围、目标 symbol；空结果不等于已确认无事件 |
+| 最近消息、催化剂 | Finnhub `get-news-pulse` → global `yahoo_news` | Finnhub 基线固定 7 天；Yahoo stream/Search 分开映射，不造 tags 或完整档案 |
+| 分析师评级、预期 | `get-recommendations`；更多字段按需 global `yahoo_analysis` | 评级是观点；预期与实际业绩分开；不生成来源未提供的情绪分 |
+| 财报、经济或 IPO 日历 | `get-calendar`；缺项按需 `earnings_calendar` / `yahoo_earnings` | 后者指定证券；核对 kind、范围、目标 symbol；空结果不等于已确认无事件 |
 | 内部人活动 | `get-insider-signal`；按需 SEC 原始申报 | 交易日与申报日分开；申报索引不等于已解析 Form 4；买卖不保证价格方向 |
 
 单独问“有什么新闻”“分析师怎么看”“何时财报”时取对应数据并描述，不必运行 Quant。事件影响解释须给出原始标题/摘要、来源、发布时间，区分事件事实、明确观点和待验证的作用机制；没有因果证据，不能断言新闻导致涨跌。
@@ -64,6 +68,6 @@
 
 先确认 ETF 上市市场与 ticker。价格、历史走势、技术因子和方向研究以 ETF 自身价格为输入，遵循与股票相同的证据、隔离、时序、审计和降级规则。
 
-按问题补充有来源和日期的跟踪指数、行业、主要成分股与相关新闻；代码能取得什么就报告什么。没有专用持仓、NAV、费用、跟踪误差或杠杆信息来源时写明缺口，不假定公司 profile 或 financials 适用于基金，也不以指数/成分股的价格替代 ETF OHLCV。
+按问题补充有来源和日期的跟踪指数、行业、主要成分股与相关新闻；Yahoo `yahoo_funds` 按需读取基金说明/费用/权重/主要持仓，缺持仓日期明示，不回填历史。代码能取得什么就报告什么。没有 NAV、跟踪误差或杠杆信息来源时写明缺口，不假定公司 profile 或 financials 适用于基金，也不以指数/成分股价格替代 ETF OHLCV。
 
 ETF 背景不得越过 NewsInput 契约进入模型或生成新概率。指数或成分股新闻只有明确关联该 ETF 的主题/敞口时才解释相关性，不能自动归因为 ETF 催化剂。当前没有专用穿透、跟踪误差、折溢价或杠杆/反向 ETF 路径模型，不能声称已经验证这些风险。

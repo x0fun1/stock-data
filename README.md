@@ -9,7 +9,7 @@
 复制以下整段给支持本地 Skill 的 Agent。它是一条自然语言执行指令，无需手工拆分操作；安装目标是仓库中的 `stock-data/`，不是整个仓库。
 
 ```text
-请从 https://github.com/x0fun1/stock-data 安装 stock-data Skill（仓库内路径：stock-data），使用仓库当前默认分支。先读取仓库 README.md 和 stock-data/SKILL.md，并检查当前 Agent 的实际 Skill 安装目录。Codex 优先使用自带的 skill-installer；安装目录使用 $CODEX_HOME/skills，未设置 CODEX_HOME 时用 ~/.codex/skills。其他 Agent 使用其自身支持的 Skill 目录，不猜路径。将 stock-data/ 整个目录连同 scripts/ 和 references/ 完整安装，保留其他 Skill、配置和已有长期 memory。若 stock-data 已存在，不覆盖，改按 README 的升级流程处理。检查 Python 3.10+ 和 requests（global gateway 需要），缺依赖按当前环境权限补齐；量化脚本本身只用标准库。用已安装脚本的 --list、--help 和 schema --kind request 做离线验收，检查 SKILL.md 及 reference 链接可读。报告安装路径、Skill 版本、下载的 commit 和验收结果；按当前 Agent 的加载机制刷新，Codex 安装后提示重启以加载 Skill。此步骤不配置 Finnhub 密钥，不修改长期 memory；长期约束另用 README 的 memory 指令保存。
+请从 https://github.com/x0fun1/stock-data 安装 stock-data Skill（仓库内路径：stock-data），使用仓库当前默认分支。先读取仓库 README.md 和 stock-data/SKILL.md，并检查当前 Agent 的实际 Skill 安装目录。Codex 优先使用自带的 skill-installer；安装目录使用 $CODEX_HOME/skills，未设置 CODEX_HOME 时用 ~/.codex/skills。其他 Agent 使用其自身支持的 Skill 目录，不猜路径。将 stock-data/ 整个目录连同 scripts/ 和 references/ 完整安装，保留其他 Skill、配置和已有长期 memory。若 stock-data 已存在，不覆盖，改按 README 的升级流程处理。检查 Python 3.10+；在实际执行 gateway 的 Python 环境中检查并按权限补齐 requests（global gateway 需要）。同时在用户授权且隔离的 Python 环境中安装 Yahoo 可选依赖：先阅读 stock-data/requirements-yahoo.txt 和 README 中的 Yahoo 安全/来源说明，再执行 `python -m pip install -r stock-data/requirements-yahoo.txt`（使用与 gateway 相同的实际 Python 解释器；不得跟随未固定的上游分支、不得自动改装其他全局环境）。如用户环境不需要 Yahoo、无安装权限、网络不可用或该固定依赖安装失败，保留 Skill 安装并如实报告 Yahoo 依赖未就绪，不要改写 requirements 或用其他传输后端替代。量化脚本本身只用标准库。用已安装脚本的 --list、--help 和 schema --kind request 做离线验收，检查 SKILL.md 及 reference 链接可读；Yahoo 依赖安装成功时另做 Yahoo provider 的离线验收，不把离线通过表述为实时连通成功。报告安装路径、Skill 版本、下载的 commit、依赖安装及验收结果；按当前 Agent 的加载机制刷新，Codex 安装后提示重启以加载 Skill。此步骤不配置 Finnhub 密钥，不修改长期 memory；长期约束另用 README 的 memory 指令保存。
 ```
 
 安装目录应为：
@@ -138,6 +138,31 @@ python stock-data/scripts/quant_research.py validate-response --analysis-dir <�
 ```
 
 该检查验证 Quant/News 冻结 digest、报告来源绑定、完成阶段和强制原文行；遗漏/篡改概率、原生字段、标的/窗口/时间或未保留不可用原因时返回错误。通过后发送同一文本，不能再次删减强制字段。它不能拦截宿主 Agent 未调用脚本而直接发送的消息，也不核验全部自然语言主张。前置采集/校验失败到无法产生报告时，直接报告“上涨概率：不可用”、失败阶段与实际缺口，明确研究未完成。
+
+## Yahoo 可选 yfinance 接入（2.4.0）
+
+选 Yahoo 时结构化数据默认 `yahoo_*`；美股仍优先实际已连接且覆盖字段的 Finnhub。P0/P1 覆盖历史/批量行情、报价/资料、三表、搜索/新闻、统计/分析师/持仓、期权/财报日程、基金/筛选；详见 [yfinance-data.md](stock-data/references/yfinance-data.md)。旧 Yahoo 保留原契约，仅显式兼容。Quant、中央 gate、News 时序和 schema 1.2 不变。
+
+Yahoo 依赖仅调用时加载。离线发现与其他来源不要求安装 Yahoo：
+
+```text
+python stock-data/scripts/global_stock_data.py --list
+python stock-data/scripts/yahoo_collect.py --help
+# 在授权的隔离环境核对来源和约束后，再安装可选依赖：
+python -m pip install -r stock-data/requirements-yahoo.txt
+```
+
+适配基线为 spec 的 yfinance 1.7.0 / 固定 commit。仓库本次已在 Python 3.14.6 隔离环境解析并安装 `requirements-yahoo.txt`，验证 yfinance 1.7.0 使用 curl_cffi 0.15.0 后端；这不代表用户实际 gateway 解释器已配置，也不保证 Yahoo 持续可访问。生产 provider 严格要求 curl_cffi 后端，不提供 requests 替代。使用实际执行解释器、固定发布版本或明确源码 commit，记录来源/库版本；不跟随 main、不自动 pip install。安装后使用实际脚本路径，cache-dir 与输出指向用户可写目录，cookie 缓存不进快照/仓库；不自动修改已安装 Skill、用户 runtime/bench 或全局配置。
+
+Yahoo gateway 执行必须传 `--cache-dir` 或设置 `STOCK_DATA_YAHOO_CACHE_DIR`；collector 必须传 `--cache-dir`。以下是调用设计，不是实时验收结果：
+
+```text
+python stock-data/scripts/global_stock_data.py --function yahoo_history --params-file history-request.json --output history-envelope.json --cache-dir runtime/yfinance-cache
+```
+
+日线 source timestamp 保留 `bar_label_not_trade_time`，不是收盘/报价时间，可能触发现有 24h/source_before_close gate。来源未确认 unit 留 null；不得补造时间或单位绕过检查。生成 response map 不代表预测有效，须完成实际 adapter/freeze/研究审计；详见 Yahoo 参考的当前限制。
+
+`yahoo_collect.py --request request.json --domains market news --output gateway-responses.json --cache-dir runtime/yfinance-cache` 可生成既有 pipeline 的 `--responses` 文件，只采所需缺域，不重复已成功 Finnhub。离线 fixture、transport、adapt/freeze/analyze 验收与有限联网检查分别报告；注册能力不是连通性成功，不宣称已取得有效研究数据。实际参数以 `--list`/`--help` 为准。
 
 ## 实现边界与验证
 

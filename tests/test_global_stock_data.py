@@ -261,7 +261,7 @@ class CliTests(OfflineCase):
         code, data = self.cli(["--list"])
         self.assertEqual(code, 0)
         self.assertEqual(data["status"], "success")
-        self.assertEqual(len(data["data"]), 44)
+        self.assertEqual(len(data["data"]), 44 + len(stock.YFINANCE_FUNCTIONS))
         names = {item["function"] for item in data["data"]}
         self.assertNotIn("official_get", names)
         self.assertNotIn("get_yahoo_session", names)
@@ -398,6 +398,46 @@ class SecurityBoundaryTests(OfflineCase):
             self.assertNotIn("ARTIFICIAL-QUERY", archived)
             self.assertNotIn("next_actions", archived)
             self.assertNotIn("data", receipt)
+
+
+class YFinanceGatewayTests(OfflineCase):
+    def test_new_routes_discover_offline_and_do_not_load_dependency(self):
+        import sys
+        before = "yfinance" in sys.modules
+        code, result = self.cli(["--list"])
+        self.assertEqual(code, 0)
+        self.assertTrue(stock.YFINANCE_FUNCTIONS <= {item["function"] for item in result["data"]})
+        self.assertEqual("yfinance" in sys.modules, before)
+
+    def test_provider_partial_envelope_is_not_nested_or_marked_complete(self):
+        payload = {"status": "partial", "actual_source": "Yahoo Finance",
+                   "data": {"bars": [{"date": "2026-01-01", "close": 10}]},
+                   "warnings": ["coverage gap"], "error": None}
+        with patch.dict(stock.FUNCTIONS, {"yahoo_history": lambda **params: payload}):
+            code, value = self.cli(["--function", "yahoo_history", "--params-json", '{"symbol":"TEST"}'])
+        self.assertEqual(code, 0)
+        self.assertEqual(value["status"], "partial")
+        self.assertEqual(value["data"], payload["data"])
+        self.assertEqual(value["function"], "yahoo_history")
+
+    def test_provider_error_is_error_even_when_result_object_is_nonempty(self):
+        with patch.dict(stock.FUNCTIONS, {"yahoo_quote": lambda **params: {
+            "status": "error", "data": None, "error": "DependencyUnavailable",
+            "error_type": "DependencyUnavailable"}}):
+            code, value = self.cli(["--function", "yahoo_quote", "--params-json", '{"symbol":"TEST"}'])
+        self.assertEqual(code, 1)
+        self.assertEqual(value["status"], "error")
+
+    def test_output_receipt_counts_yahoo_bars_not_envelope_fields(self):
+        payload = {"status": "success", "actual_source": "Yahoo Finance",
+                   "data": {"bars": [{"date": "2026-01-01"}, {"date": "2026-01-02"}, {"date": "2026-01-03"}]}}
+        with tempfile.TemporaryDirectory() as directory, patch.dict(stock.FUNCTIONS, {"yahoo_history": lambda **params: payload}):
+            output = Path(directory) / "history.json"
+            code, receipt = self.cli(["--function", "yahoo_history", "--params-json", '{"symbol":"TEST"}', "--output", str(output)])
+            archived_count = len(json.loads(output.read_text(encoding="utf-8"))["data"]["bars"])
+        self.assertEqual(code, 0)
+        self.assertEqual(receipt["record_count"], 3)
+        self.assertEqual(archived_count, 3)
 
 
 if __name__ == "__main__":

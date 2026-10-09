@@ -19,6 +19,7 @@ import threading
 import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from typing import Any
 from urllib.parse import quote, quote_plus, urljoin, urlparse
 
 import requests
@@ -1969,7 +1970,91 @@ def earnings_calendar(date: str = None) -> dict:
                       "market_cap": r.get("marketCap")} for r in rows]}
 
 
-# Explicit data/analysis entry points. Low-level HTTP and session helpers are
+YAHOO_JOB_CONFIG = {}
+
+
+def _yfinance_call(function: str, **params) -> dict:
+    """Optional Yahoo route; discovery never imports yfinance or creates caches."""
+    from yfinance_provider import YahooProvider
+    provider = YahooProvider(**YAHOO_JOB_CONFIG)
+    try:
+        return provider.call(function, **{key: value for key, value in params.items() if value is not None})
+    finally:
+        provider.close()
+
+
+def yahoo_history(symbol: str, start: str | None = None, end: str | None = None,
+                  period: str | None = None, interval: str = "1d",
+                  price_basis: str = "provider", prepost: bool = False,
+                  repair: bool = False, timeout: float = 15) -> dict:
+    return _yfinance_call("yahoo_history", **locals())
+
+
+def yahoo_history_batch(symbols: list[str], start: str | None = None,
+                        end: str | None = None, period: str | None = None,
+                        interval: str = "1d", price_basis: str = "provider",
+                        prepost: bool = False, repair: bool = False,
+                        timeout: float = 15, concurrency: int = 1) -> dict:
+    return _yfinance_call("yahoo_history_batch", **locals())
+
+
+def yahoo_quote(symbol: str, fields: list[str] | None = None) -> dict:
+    return _yfinance_call("yahoo_quote", **locals())
+
+
+def yahoo_profile(symbol: str) -> dict:
+    return _yfinance_call("yahoo_profile", **locals())
+
+
+def yahoo_financials(symbol: str, frequency: str = "yearly",
+                     statements: list[str] | None = None) -> dict:
+    return _yfinance_call("yahoo_financials", **locals())
+
+
+def yahoo_news(symbol: str | None = None, query: str | None = None,
+               count: int = 10, tab: str = "news") -> dict:
+    return _yfinance_call("yahoo_news", **locals())
+
+
+def yahoo_search(query: str, count: int = 8, lookup_type: str | None = None) -> dict:
+    return _yfinance_call("yahoo_search", **locals())
+
+
+def yahoo_statistics(symbol: str, valuation: bool = False) -> dict:
+    return _yfinance_call("yahoo_statistics", **locals())
+
+
+def yahoo_analysis(symbol: str, modules: list[str] | None = None) -> dict:
+    return _yfinance_call("yahoo_analysis", **locals())
+
+
+def yahoo_holders(symbol: str, modules: list[str] | None = None) -> dict:
+    return _yfinance_call("yahoo_holders", **locals())
+
+
+def yahoo_options(symbol: str, expiration: str | None = None) -> dict:
+    return _yfinance_call("yahoo_options", **locals())
+
+
+def yahoo_earnings(symbol: str, modules: list[str] | None = None, limit: int = 12) -> dict:
+    return _yfinance_call("yahoo_earnings", **locals())
+
+
+def yahoo_funds(symbol: str, modules: list[str] | None = None) -> dict:
+    return _yfinance_call("yahoo_funds", **locals())
+
+
+def yahoo_screen(query: dict, query_type: str = "equity", size: int = 25,
+                 max_pages: int = 1, max_results: int = 250) -> dict:
+    return _yfinance_call("yahoo_screen", **locals())
+
+
+YFINANCE_FUNCTIONS = {
+    "yahoo_history", "yahoo_history_batch", "yahoo_quote", "yahoo_profile",
+    "yahoo_financials", "yahoo_news", "yahoo_search", "yahoo_statistics",
+    "yahoo_analysis", "yahoo_holders", "yahoo_options", "yahoo_earnings",
+    "yahoo_funds", "yahoo_screen",
+}# Explicit data/analysis entry points. Low-level HTTP and session helpers are
 # importable library functions, but are intentionally unavailable to the CLI.
 FUNCTION_SOURCES = {
     "yahoo_quote_summary": "Yahoo Finance",
@@ -2017,6 +2102,8 @@ FUNCTION_SOURCES = {
     "cftc_cot": "CFTC",
     "earnings_calendar": "Nasdaq",
 }
+FUNCTION_SOURCES.update({name: "Yahoo Finance" for name in YFINANCE_FUNCTIONS})
+
 FUNCTIONS = {name: globals()[name] for name in FUNCTION_SOURCES}
 
 
@@ -2109,6 +2196,35 @@ def _error_message(error: Exception) -> str:
     return re.sub(r"(?i)\b(token|api[_-]?key|password|secret|crumb|authorization)\s*[:=]\s*[^\s,;]+", r"\1=[redacted]", message)[:1000]
 
 
+def _yahoo_record_count(result: Any) -> int | None:
+    """Count normalized Yahoo records for the CLI receipt, not object fields."""
+    if not isinstance(result, dict):
+        return len(result) if isinstance(result, list) else None
+    payload = result.get("data") if "status" in result and "data" in result else result
+    if payload is None:
+        return 0
+    if isinstance(payload, list):
+        return len(payload)
+    if not isinstance(payload, dict) or not payload:
+        return 0
+    for key in ("bars", "articles", "records", "quotes"):
+        if isinstance(payload.get(key), list):
+            return len(payload[key])
+    if isinstance(payload.get("calls"), list) or isinstance(payload.get("puts"), list):
+        return sum(len(payload.get(key, [])) for key in ("calls", "puts") if isinstance(payload.get(key, []), list))
+    if isinstance(payload.get("symbols"), dict):
+        return len(payload["symbols"])
+    if isinstance(payload.get("pages"), list):
+        total = 0
+        for page in payload["pages"]:
+            quotes = page.get("result", {}).get("quotes", []) if isinstance(page, dict) else []
+            total += len(quotes) if isinstance(quotes, list) else 0
+        return total
+    if isinstance(result.get("module_status"), dict):
+        return sum(status == "success" for status in result["module_status"].values())
+    return 1
+
+
 def main(argv: list[str] | None = None) -> int:
     """Emit a single JSON envelope; return 0 on success/empty, 1 on error."""
     parser = _JsonArgumentParser(description=__doc__)
@@ -2119,6 +2235,7 @@ def main(argv: list[str] | None = None) -> int:
     parameters.add_argument("--params-json", help="JSON object of keyword arguments.")
     parameters.add_argument("--params-file", help="UTF-8 JSON file, or - for stdin.")
     parser.add_argument("--output", type=Path, help="Write full envelope to a new file; stdout contains only a receipt.")
+    parser.add_argument("--cache-dir", help="Explicit writable yfinance cookie/timezone cache (Yahoo routes only).")
     function_name = None
     source = None
     try:
@@ -2135,6 +2252,10 @@ def main(argv: list[str] | None = None) -> int:
                 raise ValueError("Function is not in the allowed list; use --list.")
             params = _load_parameters(args)
             _validate_parameters(function, params)
+            if function_name in YFINANCE_FUNCTIONS:
+                YAHOO_JOB_CONFIG.clear()
+                if args.cache_dir:
+                    YAHOO_JOB_CONFIG["cache_dir"] = args.cache_dir
             data = function(**params)
         envelope = {
             "status": "empty" if data is None or data == [] or data == {} else "success",
@@ -2143,19 +2264,23 @@ def main(argv: list[str] | None = None) -> int:
             "fetched_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
             "data": data,
         }
+        if function_name in YFINANCE_FUNCTIONS and isinstance(data, dict):
+            envelope.update(data)
+            envelope.update(source=source, function=function_name)
         envelope = sanitize_data(envelope)
         output = json.dumps(envelope, ensure_ascii=False, allow_nan=False)
         if args.output:
             args.output.parent.mkdir(parents=True, exist_ok=True)
             with args.output.open("x", encoding="utf-8") as handle:
                 handle.write(output + "\n")
-            output = json.dumps({key: envelope[key] for key in ("status", "source", "function", "fetched_at_utc")} | {"envelope_file": str(args.output.resolve()), "record_count": len(data) if isinstance(data, (dict, list)) else None}, ensure_ascii=False)
-        exit_code = 0
+            record_count = _yahoo_record_count(data) if function_name in YFINANCE_FUNCTIONS else len(data) if isinstance(data, (dict, list)) else None
+            output = json.dumps({key: envelope[key] for key in ("status", "source", "function", "fetched_at_utc")} | {"envelope_file": str(args.output.resolve()), "record_count": record_count}, ensure_ascii=False)
+        exit_code = 1 if envelope["status"] in {"error", "failed"} else 0
     except Exception as exc:
         envelope = {
             "status": "error", "source": source, "function": function_name,
             "fetched_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "error_type": type(exc).__name__, "error_message": _error_message(exc),
+            "error_type": getattr(exc, "code", type(exc).__name__), "error_message": _error_message(exc),
         }
         output = json.dumps(envelope, ensure_ascii=False, allow_nan=False)
         exit_code = 1

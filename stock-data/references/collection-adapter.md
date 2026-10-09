@@ -4,6 +4,23 @@ Schema 1.2 source evidence, reason codes and the three-level reporting gate are 
 
 The adapter is a file contract, not another data fetcher. Collect data with this Skill's Finnhub/global route, preserve every gateway response, normalize only the fields required for research, then pass the response map through `quant_research.py adapt` and the receipt to `quant_research.py freeze`.
 
+## Yahoo collector response map
+
+Optional `yahoo_collect.py` collects only market/news (default both; `--domains market` or `--domains news` supplements a missing domain). It does not rerun Finnhub or execute research. Keep the existing request schema; provider-specific settings belong to collection CLI/config, not research parameters. The host reuses successful Finnhub responses. See [yfinance-data.md](yfinance-data.md) and current CLI help.
+
+```text
+python stock-data/scripts/yahoo_collect.py --request request.json --domains market news --output gateway-responses.json --cache-dir runtime/yfinance-cache
+python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
+```
+
+Each top-level market/news domain uses complete/partial/unavailable/failed, actual_source `Yahoo Finance`, distinct source identity/time and fetched_at_utc, confirmed currency/unit/frequency, and data.bars/data.articles. Market retains actual history_window, adjustment/evidence and evidenced last_bar_closed/session_calendar. gateway_envelope retains sanitized provider-native results, library/version, parameters and transformations; raw HTTP provenance is claimed only when captured. Missing evidence stays unknown. In particular, history `source_timestamp_kind=bar_label_not_trade_time` is an index label, not a close/quote update; it may fail the existing 24h freshness/source_before_close gates even for a calendar-confirmed closed bar. Unconfirmed source `unit` remains null. Never replace these with fetched_at, an invented close time or currency-derived unit. Response-file generation is not proof of valid predictive input; actual audit must pass unchanged gates. Provenance additions are optional; schema 1.2 gains no required fields.
+
+Bars use exchange session dates with UTC timestamp/timezone preserved. Inclusive research end becomes next local day's exclusive provider end. Keep provider OHLC/Adj Close/actions and explicit adjusted ratios; do not fill absent bars or volume. Current metadata/empty actions do not prove complete calendar/action coverage. Compare matching session/currency/price basis only; old Yahoo direct access and yfinance are one source.
+
+Stream and Search news are independently mapped. Query symbol is not an article ticker tag; source publication time and explicit related-ticker evidence follow existing NewsInput rules. Updated time is not publication time; advertisements excluded, unverified type unknown, absent sentiment/relevance scores not invented. Short feeds disclose limited coverage, not historical PIT availability.
+
+Domain failures are independent: failed news does not erase valid bars; network failure is not successful empty data. Partial exposes gaps even with exit 0. Freeze gates and Quant → audit → News → synthesis unchanged; news unavailable becomes not_assessed, never neutral. Existing non-Yahoo normalization remains supported.
+
 ## Receipt shape
 
 ```json
