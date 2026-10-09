@@ -1,6 +1,6 @@
 # Published yfinance 1.7.0 verified via PyPI metadata (2026-10-08).
 # Source adaptation baseline: 5cae563642b59f49adf6a04a5ad6744f8b0e084d.
-# Optional Yahoo environment only; no runtime installation.
+# Required Yahoo yfinance-first backend; install through requirements.txt.
 yfinance==1.7.0
 # Streaming content_callback transport inspected at upstream v0.15.0.
 curl_cffi==0.15.0

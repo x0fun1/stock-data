@@ -2,11 +2,11 @@
 
 `stock_kline_yahoo(..., include_metadata=true)` 保留 chart meta、events 和 adjclose；默认仍为 candles 列表。metadata 不证明完整交易日历或复权口径。News 保留 article ID/相关 ticker tags，不能从查询词伪造文章关联。HTTP 固定来源、同 origin redirect、20 MiB 上限；可用 `--output <new-file>` 避免全量 stdout。
 
-global 是本包自带的 Python 回退实现，覆盖美股和港股。执行代码位于 [global_stock_data.py](../scripts/global_stock_data.py)，不再从文档拼接代码片段。函数保留原有能力；各函数只查询一个来源，来源间回退由调用者按下表逐项执行。
+global 是本包自带的 Python 回退实现，覆盖美股和港股。执行代码位于 [global_stock_data.py](../scripts/global_stock_data.py)，不再从文档拼接代码片段。函数保留原有能力；常规来源选择由调用者按下表执行，Yahoo `yahoo_*` 入口则统一先试 yfinance，再按已登记映射自动使用旧兼容接口。
 
 ## 运行
 
-需要 Python 3.10+；原来源使用 `requests`，Yahoo 新路径使用可选 `requirements-yahoo.txt`，仅调用时懒加载。先用 `--list` 检查函数、参数和来源；它不访问网络或创建 Yahoo 缓存，缺 Yahoo 依赖不阻断其他来源与离线研究。下面命令在 `stock-data/` 目录运行；其他目录使用脚本实际路径。
+需要 Python 3.10+；原来源和 Yahoo 兼容接口使用 `requests`，Yahoo yfinance 优先路由依赖 `requirements.txt` 中的必需组件，并仅在调用 Yahoo 时懒加载。yfinance 请求失败、空结果或依赖/能力不可用时自动尝试语义兼容的旧接口；没有安全映射时明确失败。`--list` 不访问网络或创建 Yahoo 缓存。下面命令在 `stock-data/` 目录运行；其他目录使用脚本实际路径。
 
 ```text
 python scripts/global_stock_data.py --list
@@ -22,7 +22,7 @@ python scripts/global_stock_data.py --function calc_rsi --params-file candles.js
 
 也可用 `--params-json` 传同一对象，或 `--params-file -` 从标准输入读取。技术指标参数是 `{"klines":[...], ...}`，每根 K 线使用函数要求的 OHLCV 键。直接导入模块也可复用函数，不会在导入时发网络请求。依赖缺失时使用已有可用执行环境；安装依赖遵循用户授权和当前环境规则。
 
-CLI 的 JSON 外层包含 `status`、`source`、`function`、`fetched_at_utc` 与 `data`；失败时包含 `error_type`、`error_message`。取数时间不代表行情时间。新 Yahoo 入口可返回 `partial`，缺失明细必须可见；退出 0 不意味着研究覆盖完整。`empty` 须有无数据依据，嵌套全空和网络失败不能包装成成功。脚本不自动切换数据源、不保证接口持续可用。
+CLI 的 JSON 外层包含 `status`、`source`、`function`、`fetched_at_utc` 与 `data`；失败时包含 `error_type`、`error_message`。取数时间不代表行情时间。新 Yahoo 入口可返回 `partial`，缺失明细必须可见；退出 0 不意味着研究覆盖完整。`empty` 须有无数据依据，嵌套全空和网络失败不能包装成成功。除强制的 yfinance→旧兼容路由外，脚本不自动切换来源；也不保证接口持续可用。
 
 ## 市场代码
 
@@ -39,7 +39,7 @@ CLI 的 JSON 外层包含 `status`、`source`、`function`、`fetched_at_utc` �
 
 ## 函数与来源路由
 
-查看 `--list` 取得当前精确签名；下表给出常用参数与适用边界。**美股所有字段首先使用实际已连接且覆盖该能力的 Finnhub**；下表为其不可用/缺项后的路由，不能仅因脚本可用跳过 Finnhub。选 Yahoo 时默认 yfinance，详见 [yfinance-data.md](yfinance-data.md)；不默认网页抓取，不因新入口失败自动切旧直连。
+查看 `--list` 取得当前精确签名；下表给出常用参数与适用边界。**美股所有字段首先使用实际已连接且覆盖该能力的 Finnhub**；下表为其不可用/缺项后的路由，不能仅因脚本可用跳过 Finnhub。选 Yahoo 时强制 yfinance 优先，并在失败时自动回退到兼容接口，详见 [yfinance-data.md](yfinance-data.md)；不默认网页抓取。
 
 | 能力 | 来源及函数顺序 | 参数 / 边界 |
 |---|---|---|

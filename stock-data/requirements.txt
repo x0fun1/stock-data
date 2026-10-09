@@ -1,0 +1,3 @@
+# Required gateway and Yahoo Finance collection dependencies.
+requests>=2.31,<3
+-r requirements-yahoo.txt

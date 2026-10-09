@@ -209,6 +209,11 @@ def bounded_session_class(base):
     return BoundedSession
 
 
+def _legacy_yahoo_fallback(function, params, reason):
+    from yahoo_compat_fallback import fallback
+    return fallback(function, params, reason)
+
+
 class YahooProvider:
     NAMES = frozenset('yahoo_history yahoo_history_batch yahoo_quote yahoo_profile yahoo_financials yahoo_news yahoo_search yahoo_statistics yahoo_analysis yahoo_holders yahoo_options yahoo_earnings yahoo_funds yahoo_screen'.split())
 
@@ -265,6 +270,27 @@ class YahooProvider:
         return self._tickers[symbol]
 
     def call(self, name, **params):
+        """Use yfinance first, then automatically try the registered legacy route."""
+        if name not in self.NAMES:
+            raise GatewayError('UnsupportedCapability', 'Unregistered Yahoo capability')
+        try:
+            result = self._call_yfinance(name, **params)
+        except GatewayError as exc:
+            if exc.code == 'InvalidParameters' and exc.message != 'Unsupported parameters or upstream signature':
+                raise
+            reason = {'category': exc.code, 'exception_type': type(exc).__name__}
+            return _legacy_yahoo_fallback(name, params, reason)
+        except Exception as exc:
+            return _legacy_yahoo_fallback(name, params, {
+                'category': 'DataUnavailable', 'exception_type': type(exc).__name__})
+        if isinstance(result, dict) and result.get('status') in {'empty', 'unavailable', 'error', 'failed'}:
+            error = result.get('error')
+            reason = {'category': error.get('category', 'DataUnavailable') if isinstance(error, dict) else 'DataUnavailable',
+                      'exception_type': error.get('exception_type', 'EmptyYahooResult') if isinstance(error, dict) else 'EmptyYahooResult'}
+            return _legacy_yahoo_fallback(name, params, reason)
+        return result
+
+    def _call_yfinance(self, name, **params):
         if name not in self.NAMES:
             raise GatewayError('UnsupportedCapability', 'Unregistered Yahoo capability')
         if not self._ready:
@@ -297,7 +323,7 @@ class YahooProvider:
         except Exception:
             if self.policy.blocked:
                 raise GatewayError(*self.policy.blocked) from None
-            raise GatewayError('DataUnavailable', 'Yahoo capability failed; no legacy or web fallback used') from None
+            raise GatewayError('DataUnavailable', 'Yahoo capability failed') from None
         data, extra = result if isinstance(result, tuple) else (result, {})
         # Canonical normalizers may themselves return a gateway-like envelope.
         if isinstance(data, dict) and 'data' in data and 'status' in data:

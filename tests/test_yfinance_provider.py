@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'stock-data' / 'scripts'))
+import yfinance_provider
 from yfinance_provider import GatewayError, TransportPolicy, YahooProvider, bounded_session_class
 
 
@@ -147,11 +148,41 @@ class ProviderTests(unittest.TestCase):
         with patch('yfinance_provider.importlib.import_module', side_effect=AssertionError('import called')):
             YahooProvider('/path/not/created')
 
-    def test_missing_dependency_is_explicit(self):
+    def test_missing_dependency_automatically_uses_legacy_fallback(self):
         with patch('yfinance_provider.importlib.import_module', side_effect=ImportError()):
-            with self.assertRaises(GatewayError) as cm:
-                YahooProvider('/tmp/unused').call('yahoo_quote', symbol='AAPL')
-            self.assertEqual(cm.exception.code, 'DependencyUnavailable')
+            with patch.object(yfinance_provider, '_legacy_yahoo_fallback', return_value={
+                    'status': 'partial', 'fallback_used': True, 'fallback_route': 'yahoo_quote_summary'}) as fallback:
+                result = YahooProvider('/tmp/unused').call('yahoo_quote', symbol='AAPL')
+        self.assertTrue(result['fallback_used'])
+        self.assertEqual(result['fallback_route'], 'yahoo_quote_summary')
+        self.assertEqual(fallback.call_args.args[0], 'yahoo_quote')
+        self.assertEqual(fallback.call_args.args[2]['category'], 'DependencyUnavailable')
+
+    def test_failed_yfinance_request_falls_back_but_invalid_parameters_do_not(self):
+        p = YahooProvider()
+        with patch.object(p, '_call_yfinance', side_effect=GatewayError('NetworkError', 'redacted')):
+            with patch('yfinance_provider._legacy_yahoo_fallback', return_value={'status': 'partial', 'fallback_used': True}) as fallback:
+                result = p.call('yahoo_history', symbol='AAPL', start='2026-01-01', end='2026-01-03')
+        self.assertTrue(result['fallback_used'])
+        self.assertEqual(fallback.call_args.args[2]['category'], 'NetworkError')
+
+        with patch.object(p, '_call_yfinance', side_effect=GatewayError('InvalidParameters', 'bad user input')):
+            with patch('yfinance_provider._legacy_yahoo_fallback') as fallback:
+                with self.assertRaises(GatewayError):
+                    p.call('yahoo_history', symbol='AAPL', start='bad', end='input')
+        fallback.assert_not_called()
+
+    def test_empty_yfinance_result_falls_back_and_partial_result_is_kept(self):
+        p = YahooProvider()
+        with patch.object(p, '_call_yfinance', return_value={'status': 'empty', 'data': None}):
+            with patch('yfinance_provider._legacy_yahoo_fallback', return_value={'status': 'partial', 'fallback_used': True}) as fallback:
+                self.assertTrue(p.call('yahoo_news', symbol='AAPL')['fallback_used'])
+        fallback.assert_called_once()
+        with patch.object(p, '_call_yfinance', return_value={'status': 'partial', 'data': {'bars': [{'close': 10}]}}):
+            with patch('yfinance_provider._legacy_yahoo_fallback') as fallback:
+                result = p.call('yahoo_history', symbol='AAPL')
+        self.assertEqual(result['status'], 'partial')
+        fallback.assert_not_called()
 
     def test_unknown_capability_never_initializes(self):
         p = YahooProvider()

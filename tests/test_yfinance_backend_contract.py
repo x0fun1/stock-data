@@ -3,6 +3,7 @@ import importlib.util
 import sys
 from pathlib import Path
 from types import SimpleNamespace
+from unittest.mock import patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "stock-data/scripts"))
@@ -86,7 +87,14 @@ def configured_provider():
 def test_registered_p1_module_calls_do_not_eagerly_require_unrequested_methods():
     value = configured_provider()
     assert value.call('yahoo_analysis', symbol='TEST', modules=['earnings_estimate'])['status'] == 'success'
-    assert value.call('yahoo_holders', symbol='TEST', modules=['major'])['status'] == 'empty'
+    with patch.object(provider, '_legacy_yahoo_fallback', return_value={
+            'status': 'empty', 'data': None, 'fallback_attempted': True, 'fallback_used': True,
+            'fallback_route': 'institutional_holders'}) as fallback:
+        result = value.call('yahoo_holders', symbol='TEST', modules=['major'])
+    assert result['status'] == 'empty'
+    fallback.assert_called_once()
+    assert fallback.call_args.args[0] == 'yahoo_holders'
+    assert fallback.call_args.args[2]['category'] == 'DataUnavailable'
     assert value.call('yahoo_earnings', symbol='TEST', modules=['calendar'])['status'] == 'success'
     result = value.call('yahoo_funds', symbol='TEST', modules=['operations'])
     assert result['data']['operations']['expenseRatio'] == 0

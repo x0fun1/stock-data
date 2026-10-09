@@ -1,6 +1,6 @@
 # stock-data yfinance 验收记录
 
-工作区：`/data/stock-data-skill`。验收日期：2026-10-10（Asia/Shanghai；2026-10-09 UTC）。Skill 版本：2.4.0。
+工作区：`/data/stock-data-skill`。验收日期：2026-10-10（Asia/Shanghai；2026-10-09 UTC）。当前 Skill 版本：2.5.0；下方首段实时联网记录为升级前 2.4.0 主路由验收。
 
 ## 验收结果
 
@@ -21,3 +21,9 @@
 - 结果代表 2026-10-09 UTC 的一次有限联网检查，不保证后续 Yahoo 可用性、完整数据覆盖或策略表现。
 
 接口说明与运行边界见 [yfinance-data.md](stock-data/references/yfinance-data.md) 和 [README.md](README.md)。
+
+## yfinance 强制优先与兼容回退验收（2026-10-09 UTC）
+
+Yahoo 路由改为强制 yfinance 优先。Yahoo 主依赖合并到 `stock-data/requirements.txt`；yfinance 请求错误、空结果、缺依赖或缺能力时会自动调用登记的旧兼容接口，不提供用户切换项。已返回的 yfinance `partial` 数据保留。collector 与 adapter 保留 `fallback_attempted`、`fallback_used`、`fallback_route` 和 `fallback_reason`。没有语义等价入口时返回 `NoLegacyRoute`；包括结构化筛选和带类型约束的搜索。普通搜索回退到 `stock_search`，并报告实际来源 Eastmoney search。
+
+验证结果：完整 pytest 为 195 passed、119 subtests passed；改动相关 provider、fallback、collector 和 adapter 用例为 45 passed。Python 3.14.6 隔离环境中 requests 2.34.2、yfinance 1.7.0、curl_cffi 0.15.0、pandas 3.0.6、SciPy 1.18.1 均可导入，`pip check` 无依赖冲突。`global_stock_data.py --list`、collector `--help`、`quant_research.py schema --kind request`、51 个 Python 文件 AST 解析、57 个 Markdown 本地链接及 `git diff --check` 均通过。自动回退、各路由映射、失败 provenance 以及 collector → adapter 的来源信息以离线 fixture 验证；本次没有联网触发旧接口回退。之前记录的 NVDA 实时检查验证的是 yfinance 主路由，不代表本次旧接口实时回退验收。

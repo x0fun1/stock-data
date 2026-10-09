@@ -1974,7 +1974,7 @@ YAHOO_JOB_CONFIG = {}
 
 
 def _yfinance_call(function: str, **params) -> dict:
-    """Optional Yahoo route; discovery never imports yfinance or creates caches."""
+    """Mandatory yfinance-first Yahoo route with automatic legacy fallback."""
     from yfinance_provider import YahooProvider
     provider = YahooProvider(**YAHOO_JOB_CONFIG)
     try:

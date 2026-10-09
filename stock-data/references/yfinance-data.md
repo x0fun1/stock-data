@@ -1,12 +1,12 @@
 # Yahoo Finance / yfinance 数据路由
 
-选择 Yahoo 后，结构化取数默认调用 `global_stock_data.py` 的 `yahoo_*` 入口；不默认用 web fetch、网页摘要或旧直连接口。美股仍优先使用实际已连接且覆盖所需字段的 Finnhub；只补缺项，不重复拉取已有成功结果。原文网页仅作补充核对证据，明确来源和用途。数据范围仍为 US/HK 股票和 ETF；接入不增加预测模型、交易执行或数据授权。
+选择 Yahoo 后，结构化取数必须先调用 `global_stock_data.py` 的 `yahoo_*` yfinance 路由。请求错误、空结果、缺依赖或能力不可用时自动尝试登记的旧兼容接口；不提供后端选择开关。yfinance 已返回的 partial 结果保留，不被回退响应覆盖；回退的实际接口、来源和触发原因写入 provenance。没有安全等价旧接口时返回 `NoLegacyRoute`。不默认用 web fetch 或网页摘要。美股仍优先使用实际已连接且覆盖所需字段的 Finnhub；只补缺项，不重复拉取已有成功结果。原文网页仅作补充核对证据，明确来源和用途。数据范围仍为 US/HK 股票和 ETF；接入不增加预测模型、交易执行或数据授权。
 
 ## 环境与离线发现
 
-Python 3.10+；Yahoo 使用可选 `requirements-yahoo.txt`。只在调用 Yahoo 时懒加载 yfinance，导入、`--list`、`--help` 和离线 Quant 不联网、不创建 Yahoo 缓存。缺依赖报告 `DependencyUnavailable`，缺版本能力报告 `UnsupportedCapability`；运行时不自动安装、不静默换后端或改用旧接口。
+Python 3.10+；Yahoo 路由必需依赖统一由 `requirements.txt` 声明，底层 yfinance 只在调用 Yahoo 时懒加载。导入、`--list`、`--help` 和离线 Quant 不联网、不创建 Yahoo 缓存。缺依赖或能力时先自动尝试兼容旧接口；若兼容路由也不可用，则保留 `DependencyUnavailable` / `UnsupportedCapability` 触发原因和回退失败状态。运行时不自动安装依赖、不切换到 requests 后端或网页接口。
 
-适配目标为 spec 的 yfinance `1.7.0` / commit `5cae563642b59f49adf6a04a5ad6744f8b0e084d`；生产 provider 严格检查版本及 curl_cffi 后端，不提供 requests 诊断后端切换。`requirements-yahoo.txt` 声明固定适配来源及 `curl_cffi==0.15.0`（已阅读 streaming callback 实现），SciPy 为修复可选环境依赖；源码阅读/依赖声明不等于已验证安装。安装前核对依赖文件中的实际发布 pin 或固定 commit、执行解释器与可安装来源，记录实际版本/来源，不跟随 main。依赖安装、联网验收和已安装 Skill 替换需遵循用户授权，不读取浏览器 cookie。
+适配目标为 spec 的 yfinance `1.7.0` / commit `5cae563642b59f49adf6a04a5ad6744f8b0e084d`；生产 provider 严格检查版本及 curl_cffi 后端，不提供 requests 诊断后端切换。`requirements-yahoo.txt` 声明固定适配来源及 `curl_cffi==0.15.0`（已阅读 streaming callback 实现），SciPy 是调用 repair 时需要的可选能力依赖；Yahoo 主路由依赖本身由 `requirements.txt` 强制声明。源码阅读/依赖声明不等于已验证安装。安装前核对依赖文件中的实际发布 pin 或固定 commit、执行解释器与可安装来源，记录实际版本/来源，不跟随 main。依赖安装、联网验收和已安装 Skill 替换需遵循用户授权，不读取浏览器 cookie。
 
 在仓库根目录运行（安装后使用实际脚本路径，输入和输出放用户可写目录）：
 
@@ -18,7 +18,7 @@ python stock-data/scripts/yahoo_collect.py --request request.json --domains mark
 python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
 ```
 
-新 Yahoo gateway CLI 必须传 `--cache-dir runtime/yfinance-cache`，或明确设置 `STOCK_DATA_YAHOO_CACHE_DIR`；不传时无法执行 Yahoo 调用。collector 必须显式传 `--cache-dir`，不以 gateway 环境变量替代。目录需用户可写；仅实际 Yahoo 调用初始化缓存，离线发现不会创建缓存。示例中的 `python` 指已配置 gateway 通用依赖和 Yahoo 可选依赖的实际解释器。
+新 Yahoo gateway CLI 必须传 `--cache-dir runtime/yfinance-cache`，或明确设置 `STOCK_DATA_YAHOO_CACHE_DIR`；不传时无法执行 Yahoo 调用。collector 必须显式传 `--cache-dir`，不以 gateway 环境变量替代。目录需用户可写；仅实际 Yahoo 调用初始化缓存，离线发现不会创建缓存。示例中的 `python` 指已安装 `requirements.txt` 必需依赖的实际 gateway 解释器。
 
 精确参数及可配置预算以当前 `--list` / `--help` 为准；不要假定 yfinance 的全部参数可原样透传。gateway 输出单个 JSON envelope；collector 输出按 market/news 组织的 response map，而非 receipt 或研究报告。
 
@@ -89,7 +89,7 @@ Ticker stream 按已确认结构读取 `content.pubDate`/`displayTime` 等；Sea
 
 首次 Yahoo 调用前将内置时区/cookie 缓存指向显式用户可写 cache-dir，缓存与快照分开，不写安装目录。无 requests_cache，不将 cookie/timezone 或内存缓存称长期业务缓存。复用已有文件保留原 fetched_at、源时间和参数指纹，复核 freshness/覆盖，不改时间掩盖过期。
 
-错误类别：DependencyUnavailable、UnsupportedCapability、InvalidParameters、RateLimited、AccessDenied、NetworkError、InvalidResponse、DataUnavailable、InsufficientCoverage、BudgetExceeded。gateway 保留 success/empty/error 并支持 partial；全部成功、有依据无数据及可用部分成功退出 0，依赖/请求错误或核心全部失败退出 1。退出 0 不代表研究完整。网络失败不改成成功空数组；market/news 独立失败，不清空合格另一域。无隐式旧接口/网页 fallback。
+错误类别：DependencyUnavailable、UnsupportedCapability、InvalidParameters、RateLimited、AccessDenied、NetworkError、InvalidResponse、DataUnavailable、InsufficientCoverage、BudgetExceeded、NoLegacyRoute、LegacyFallbackFailed。gateway 保留 success/empty/error 并支持 partial；全部成功、有依据无数据及可用部分成功退出 0，依赖/请求错误或核心全部失败退出 1。退出 0 不代表研究完整。网络失败不会包装成成功空数组；market/news 独立失败，不清空合格另一域。兼容旧接口只在 yfinance 失败/空结果时自动调用，不调用网页 fallback。
 
 ## 研究衔接与兼容
 
@@ -99,6 +99,6 @@ Ticker stream 按已确认结构读取 `content.pubDate`/`displayTime` 等；Sea
 
 **当前采集不是已审计合格预测输入的承诺。** 单标的 history 的 `source_timestamp_kind=bar_label_not_trade_time` 明示日线索引时间，不是收盘/行情更新时间；即使交易日历确认该 bar 已闭合，仍不能把此标签改写为收盘时刻或 fetched_at。该真实源时间可能触发现有 24h freshness / `source_before_close` gate；保持 gate 不变，审计失败时报告阻断而非伪造时间。来源未确认的 `unit` 留 null，不从 currency 猜补；缺 unit、calendar-backed closure、身份或覆盖时 collector 记录 partial，后续 adapter/freezer/审计仍可能拒绝。`fast_info` 报价当前不提供可靠源时间；batch 的对齐轴、空位来源、交易所身份/币种/时区及修复覆盖也不能视为已证实。只有实际数据通过既有完整验证后才可称为有效研究输入。
 
-旧 `stock_kline_yahoo`、`yahoo_quote_summary`、`financial_statements_yahoo`、`key_statistics`、`analyst_estimates`、`institutional_holders`、`options_chain`、`stock_news` 保留原签名/返回结构，作为显式兼容调用，不作为新默认路径。特别是旧 K 线 date 仍为 UTC 日期、range_ 仍非精确 start/end，不能与新交易所日期混同。失败不自动转兼容入口。
+旧 `stock_kline_yahoo`、`yahoo_quote_summary`、`financial_statements_yahoo`、`key_statistics`、`analyst_estimates`、`institutional_holders`、`options_chain`、`stock_news` 保留原签名/返回结构，并作为 yfinance 失败后的强制自动回退路径。历史、报价/资料、财报、统计、预期、持仓、期权、财报事件、基金和新闻有明确映射；`yahoo_search` 自动映射到旧 `stock_search`，因此 provenance 标记其实际来源为 Eastmoney search。结构化筛选没有语义等价旧入口，返回 `NoLegacyRoute`。特别是旧 K 线 date 仍为 UTC 日期、range_ 仍非精确 start/end，不能与新交易所日期混同；结果标 partial 并保留窗口覆盖警告。
 
 离线 fixture/transport/管道验收与实时连通性分开报告；文档和注册表不是联网成功、依赖已验证安装或有效研究数据的证明。不含 WebSocket、登录/Premium、任意 URL/方法、长期全市场爬取或 PIT 新闻档案。

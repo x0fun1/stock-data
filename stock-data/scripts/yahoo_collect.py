@@ -20,7 +20,7 @@ from quant_research.security import provider_failed, sanitize_data
 
 _METADATA = ("currency", "unit", "frequency", "source_symbol", "source_timestamp", "source_timestamp_kind",
              "fetched_at_utc", "adjustment", "adjustment_evidence", "provider_library",
-             "provider_version", "fallback_used", "fallback_reason")
+             "provider_version", "fallback_attempted", "fallback_used", "fallback_reason", "fallback_route")
 
 
 def _json_safe(value: Any) -> Any:

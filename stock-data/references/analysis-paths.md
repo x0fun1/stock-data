@@ -4,7 +4,7 @@
 
 方向研究的数据资格由中央 [reliability-gates.md](reliability-gates.md) 强制：复权/日历证据未知仅降级并保留缺口，不一律致命；明确污染、身份冲突、闭合价格冲突等按原 gate 阻断。不得假定收盘已确认。`pipeline` 只处理采集文件，不保证联网更新；实际采集按来源路由完成。
 
-Yahoo 结构化数据默认使用 [yfinance-data.md](yfinance-data.md) 的 `yahoo_*`，不是网页摘要或旧直连。美股仍优先实际已连接且覆盖字段的 Finnhub，只补缺项。`yahoo_collect.py` 生成 market/news response map，可只采缺域，既有 adapt/freeze/analyze 与 schema 1.2 不变。研究采集精确日期日线与有依据的 adjusted 视图，保留 provider OHLC/Adj Close/行动/变换，repair 默认关闭；用户窗口不足不扩窗。新闻失败记 not_assessed，不能当 neutral 或改 Quant 概率。
+Yahoo 结构化数据强制先使用 [yfinance-data.md](yfinance-data.md) 的 `yahoo_*`，失败时自动调用语义兼容的旧接口并保留回退 provenance，不提供用户切换选项；yfinance partial 结果不被覆盖。没有安全映射时明确失败，不改用网页摘要。美股仍优先实际已连接且覆盖字段的 Finnhub，只补缺项。`yahoo_collect.py` 生成 market/news response map，可只采缺域，既有 adapt/freeze/analyze 与 schema 1.2 不变。研究采集精确日期日线与有依据的 adjusted 视图，保留 provider OHLC/Adj Close/行动/变换，repair 默认关闭；用户窗口不足不扩窗。新闻失败记 not_assessed，不能当 neutral 或改 Quant 概率。
 
 ## 事实与描述性分析
 

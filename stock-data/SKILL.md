@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.4.0"}
+metadata: {version: "2.5.0"}
 ---
 
 # Stock Data & Quant Research
@@ -12,11 +12,11 @@ metadata: {version: "2.4.0"}
 
 ## Yahoo 结构化数据入口
 
-选择 Yahoo 时默认使用 `global_stock_data.py` 的 `yahoo_*` yfinance 路由；先读 [yfinance-data.md](references/yfinance-data.md)，用 `--list` 确认参数。美股仍优先实际已连接且覆盖所需字段的 Finnhub，只补缺项并复用已有成功响应；不默认 web fetch/网页摘要，也不在新入口失败后静默调用旧直连。P0/P1 覆盖行情、报价、资料、三表、新闻/搜索、统计、预期、持仓、期权、财报日程、基金和筛选，每项按需调用。
+选择 Yahoo 时必须优先使用 `global_stock_data.py` 的 `yahoo_*` yfinance 路由；先读 [yfinance-data.md](references/yfinance-data.md)，用 `--list` 确认参数。yfinance 请求失败、返回空结果、依赖或能力不可用时自动调用有语义映射的旧兼容接口；这是强制路由，不提供可选开关。已取得的 partial 结果不被回退结果覆盖，输出保留实际来源、回退接口和原因。没有安全等价映射时明确报 `NoLegacyRoute`。美股仍优先实际已连接且覆盖所需字段的 Finnhub，只补缺项并复用已有成功响应；不默认 web fetch/网页摘要。P0/P1 覆盖行情、报价、资料、三表、新闻/搜索、统计、预期、持仓、期权、财报日程、基金和筛选，每项按需调用。
 
 新 Yahoo gateway 需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA_YAHOO_CACHE_DIR`；collector 必须显式传 `--cache-dir`。保留 bar-label 源时间及未知 unit；response map 不自动等于合格预测输入，24h/source_before_close 等现有审计可能阻断，不能伪造字段或更改 gate。
 
-`yahoo_collect.py` 可只采缺失的 market/news 域，生成现有 adapter 接受的 response map；pipeline 仍离线，schema 1.2、Quant 算法、中央 gate、Quant → 审计 → News → 综合时序不变。Yahoo 依赖可选且懒加载，缺依赖/能力明确报告；`--list`/`--help` 不联网。版本/可安装来源、缓存、日期/复权和网络边界以参考与实际实现为准，不把声明当联网验收。旧 Yahoo 签名与结构保留，仅显式兼容；不修改已安装 Skill 或长期 memory。
+`yahoo_collect.py` 可只采缺失的 market/news 域，生成现有 adapter 接受的 response map；pipeline 仍离线，schema 1.2、Quant 算法、中央 gate、Quant → 审计 → News → 综合时序不变。yfinance 是 Yahoo 路由的必需依赖并按需懒加载；缺依赖时自动尝试旧兼容接口，失败或无映射时如实报告。`--list`/`--help` 不联网。版本/可安装来源、缓存、日期/复权和网络边界以参考与实际实现为准，不把声明当联网验收。旧 Yahoo 签名与结构保留，作为强制自动回退路径；不修改已安装 Skill 或长期 memory。
 
 ## 任务路由与按需阅读
 

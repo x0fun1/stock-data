@@ -54,6 +54,21 @@ class CollectionTests(unittest.TestCase):
         self.assertEqual(result["currency"], "USD")
         self.assertEqual(result["fetched_at_utc"], fetched)
 
+    def test_fallback_provenance_survives_collection_and_adapter(self):
+        request, market, cal = fixture()
+        market.update(fallback_attempted=True, fallback_used=True,
+                      fallback_route="stock_kline_yahoo",
+                      fallback_reason={"category": "NetworkError"})
+        with patch("yahoo_collect._calendar", return_value=cal):
+            result = collect(request, provider=Provider(market), domains=["market"])
+        block = result["market"]
+        self.assertEqual(block["fallback_route"], "stock_kline_yahoo")
+        self.assertEqual(block["fallback_reason"]["category"], "NetworkError")
+        receipt = StockDataAdapter().make_receipt(request, result)
+        self.assertTrue(receipt["domains"]["market"]["fallback_attempted"])
+        self.assertTrue(receipt["domains"]["market"]["fallback_used"])
+        self.assertEqual(receipt["domains"]["market"]["fallback_route"], "stock_kline_yahoo")
+
     def test_cli_news_failure_is_partial_success_not_market_failure(self):
         request, market, cal = fixture()
         with tempfile.TemporaryDirectory() as tmp:
