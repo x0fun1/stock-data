@@ -2,6 +2,8 @@
 
 Current schema is **1.2**. [`reliability-gates.md`](reliability-gates.md) defines the separated prediction, reporting, and strategy policies. Missing nonfatal validation evidence degrades confidence; only fatal data/model-integrity conditions block prediction.
 
+The 2.6 research runtime adds optional analysis-result fields (`oos_forecasts`, OOS probability-quality metrics, temporal Brier Skill diagnostics, factor IC inference and `economic_viability`). These are not required fields in `manifest.json` or the frozen snapshot; schema remains 1.2. New consumers treat absent result fields in older analyses as `not_assessed` and keep equal weighting. Existing 1.2 snapshots continue through the same loader and data gates. Any future change to snapshot identity, input enums or required fields requires a separate schema version decision.
+
 ## Identity and integrity
 
 `manifest.json` is the authoritative snapshot identity record. It contains:

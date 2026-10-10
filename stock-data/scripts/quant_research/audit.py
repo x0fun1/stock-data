@@ -275,6 +275,50 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
         warn("PATH_FAILED", "Cross-validation by independent paths is unavailable; do not call this an ensemble consensus.")
     if consensus.get("agreement") in {"high_disagreement", "extreme_disagreement"}:
         warn("LOW_FACTOR_AGREEMENT", "Consensus probability is unstable across research paths.")
+    weight_validation = consensus.get("skill_weight_validation") or {}
+    evaluation = weight_validation.get("evaluation") or {}
+    evaluation_path_brier = evaluation.get("path_brier") or {}
+    baseline_brier = evaluation.get("baseline_brier")
+    equal_brier = evaluation.get("equal_weight_brier")
+    evaluation_samples = evaluation.get("evaluation_samples", 0)
+    all_paths_fail_baseline = (
+        isinstance(baseline_brier, (int, float))
+        and bool(evaluation_path_brier)
+        and all(isinstance(value, (int, float)) and value >= baseline_brier
+                for value in evaluation_path_brier.values())
+    )
+    independently_unreliable = (
+        evaluation.get("status") == "available"
+        and isinstance(evaluation_samples, int) and evaluation_samples >= 20
+        and isinstance(equal_brier, (int, float)) and isinstance(baseline_brier, (int, float))
+        and equal_brier >= baseline_brier and all_paths_fail_baseline
+    )
+    extreme_disagreement = consensus.get("agreement") == "extreme_disagreement"
+    probability_range = consensus.get("probability_range")
+    spread = (float(probability_range[1]) - float(probability_range[0])
+              if isinstance(probability_range, list) and len(probability_range) == 2
+              and all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in probability_range)
+              else None)
+    consensus_validation = {
+        "disagreement_status": "extreme_risk_signal" if extreme_disagreement else consensus.get("agreement", "not_assessed"),
+        "probability_spread": spread,
+        "existing_descriptive_extreme_threshold": 0.30,
+        "threshold_validation_status": "inherited_descriptive_threshold_not_recalibrated_without_real_development_snapshots",
+        "common_oos_samples": weight_validation.get("common_oos_samples", 0),
+        "weight_estimation_start": weight_validation.get("weight_estimation_start"),
+        "weight_estimation_end": weight_validation.get("weight_estimation_end"),
+        "evaluation_start": weight_validation.get("evaluation_start"),
+        "evaluation_end": weight_validation.get("evaluation_end"),
+        "equal_weight_brier": equal_brier,
+        "baseline_brier": baseline_brier,
+        "path_brier": evaluation_path_brier,
+        "current_weighting_enabled": False,
+        "reliability_outcome": "all_paths_and_equal_weight_fail_common_oos_base_rate" if independently_unreliable else "not_conclusively_failed",
+    }
+    if extreme_disagreement and independently_unreliable:
+        veto("PREDICTION_FAILED", "Extreme path disagreement coincides with independently evaluated common OOS Brier scores that do not beat the base-rate benchmark; the Quant report is withheld.")
+    elif extreme_disagreement:
+        warn("LOW_FACTOR_AGREEMENT", "Extreme disagreement is treated as an independent risk signal. Common OOS support does not establish a validated automatic override threshold, so the existing equal-weight probability remains subject to ordinary reporting gates.")
     bias_checks = _bias_audit(manifest, researchers, consensus)
     if bias_checks["look_ahead_and_label_timing"]["status"] == "warning":
         warn("LEAKAGE_AUDIT_INCOMPLETE", "At least one research path lacks a complete declared feature/label timing audit.")
@@ -328,5 +372,8 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
         "strategy_eligibility": {"status": strategy_status, "blockers": [], "limitations": list(dict.fromkeys(strategy_limitations)),
                                  "required_for_probability": False, "required_for_strategy_claim": True},
         "bias_audit": bias_checks,
+        "consensus_validation": consensus_validation,
+        "oos_probability_quality": consensus.get("oos_probability_quality", {"status": "not_assessed"}),
+        "skill_weight_validation": weight_validation,
         "verification_scope": "data and path declarations plus reported OOS metrics; not independent proof of provider authenticity or a full strategy audit",
     }

@@ -9,6 +9,8 @@
 
 `economic_viability` is a separate optional result. If path expected returns are available, the report shows gross expected return and simple 5/10/20 bp assumed round-trip cost scenarios. These are sensitivity assumptions only, not broker fees, slippage, market impact, or a strategy net-return backtest. They never modify `prob_up`, raw/calibrated probabilities, OOS probability metrics, or forecast confidence. Older results without this field are treated as `not_assessed`.
 
+OOS probability-quality diagnostics separately report Brier, Log Loss, 10-bin reliability data, ECE, sample count, coverage and abstain rate. Comparisons include each path's own dated OOS rows, the exact shared date/label intersection, and the same rows where every path predicted. Reliability bins expose their counts; insufficient samples are marked and no calibration interval is implied. ECE is auxiliary. Brier Skill weights use a separate early-estimation/later-evaluation split and remain experimental; the current forecast uses equal path weights until independent OOS and runtime acceptance is recorded.
+
 All sources require [prediction-integrity and reporting checks](reliability-gates.md). Strict mode does not exclude raw probabilities or require a minimum OOS/calibration threshold for prediction eligibility. Insufficient OOS, calibration or strategy audit lowers confidence/reporting status; detected leakage, fatal data conflict or an absent valid prediction still vetoes. `forecast_eligible` means prediction-computable, not full research or strategy validation.
 
 ## Probability fields

@@ -97,6 +97,43 @@ def _economic_lines(value: dict[str, Any] | None) -> list[str]:
     ]
 
 
+def _probability_validation_lines(consensus: dict[str, Any]) -> list[str]:
+    quality = consensus.get("oos_probability_quality") or {}
+    common = quality.get("common_oos") or {}
+    path_metrics = quality.get("paths") or {}
+    common_metrics = common.get("path_metrics_on_common_oos") or {}
+    complete_metrics = common.get("path_metrics_on_same_complete_samples") or {}
+    weighting = consensus.get("skill_weight_validation") or {}
+    lines = ["", "### OOS Probability Quality"]
+    lines.append(f"- Method: {_cell(quality.get('method'))}; status: {_cell(quality.get('status'))}.")
+    lines.extend(["| Path | Own OOS N | Valid predictions | Coverage | Abstain | Brier | Log Loss | ECE |",
+                  "|---|---:|---:|---:|---:|---:|---:|---:|"])
+    for name, metrics in path_metrics.items():
+        lines.append(f"| {_cell(name)} | {_cell(metrics.get('all_evaluable_oos_samples'))} | {_cell(metrics.get('valid_probability_predictions'))} | {_pct(metrics.get('oos_coverage'))} | {_pct(metrics.get('abstain_rate'))} | {_cell(metrics.get('brier_score'))} | {_cell(metrics.get('log_loss'))} | {_cell(metrics.get('expected_calibration_error'))} |")
+    lines.append(f"- Common OOS date intersection: N={_cell(common.get('common_oos_samples'))}; {_cell(common.get('common_oos_start'))} to {_cell(common.get('common_oos_end'))}; every available target label is included, while model-specific abstentions remain visible.")
+    lines.extend(["| Path | Valid common predictions | Coverage | Brier | Log Loss | ECE |",
+                  "|---|---:|---:|---:|---:|---:|"])
+    for name, metrics in common_metrics.items():
+        lines.append(f"| {_cell(name)} | {_cell(metrics.get('valid_probability_predictions'))}/{_cell(metrics.get('all_evaluable_oos_samples'))} | {_pct(metrics.get('oos_coverage'))} | {_cell(metrics.get('brier_score'))} | {_cell(metrics.get('log_loss'))} | {_cell(metrics.get('expected_calibration_error'))} |")
+    lines.append(f"- Same-sample comparison across paths: N={_cell(common.get('all_paths_valid_prediction_samples'))}; metrics below use only dates where every path predicted.")
+    for name, metrics in complete_metrics.items():
+        lines.append(f"- {_cell(name)} same-sample Brier {_cell(metrics.get('brier_score'))}; Log Loss {_cell(metrics.get('log_loss'))}; ECE {_cell(metrics.get('expected_calibration_error'))}.")
+    lines.extend(["- Reliability bins use 10 equal-width probability intervals. Counts and observed rates are reported below; ECE is auxiliary and no calibration confidence interval is claimed.",
+                  "| Path | Probability interval | N | Mean predicted | Observed positive rate |",
+                  "|---|---|---:|---:|---:|"])
+    for name, metrics in common_metrics.items():
+        for bucket in metrics.get("reliability_diagram", []):
+            lines.append(f"| {_cell(name)} | {_cell(bucket.get('lower_bound'))}–{_cell(bucket.get('upper_bound'))} | {_cell(bucket.get('count'))} | {_cell(bucket.get('mean_probability'))} | {_cell(bucket.get('observed_positive_rate'))} |")
+    lines.extend(["", "### Brier Skill Weight Validation"])
+    lines.append(f"- Status: {_cell(weighting.get('status'))}; current weighting: {_cell(weighting.get('weighting'))}; skill weighting enabled: {_cell(weighting.get('current_weighting_enabled'))}; deployment: {_cell(weighting.get('deployment_status'))}.")
+    lines.append(f"- Common OOS samples: {_cell(weighting.get('common_oos_samples'))}; weight estimation: {_cell(weighting.get('weight_estimation_start'))} to {_cell(weighting.get('weight_estimation_end'))}; evaluation: {_cell(weighting.get('evaluation_start'))} to {_cell(weighting.get('evaluation_end'))}; fallback: {_cell(weighting.get('fallback_reason'))}.")
+    if weighting.get("candidate_weights"):
+        lines.append("- Experimental candidate weights estimated only on the earlier window: " + ", ".join(f"{_cell(name)} {_cell(value)}" for name, value in weighting["candidate_weights"].items()) + ".")
+    evaluation = weighting.get("evaluation") or {}
+    lines.append(f"- Later-window Brier: experimental weighted {_cell(evaluation.get('weighted_brier'))}; default equal-weight {_cell(evaluation.get('equal_weight_brier'))}; estimation-window base-rate {_cell(evaluation.get('baseline_brier'))}. Experimental weights do not change the current equal-weight forecast.")
+    return lines
+
+
 def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -> str:
     if fields["prob_up"] is None:
         return "上涨概率：不可用。Quant 未提供通过报告资格的有效概率；不得由 LLM 或新闻补算。"
@@ -238,6 +275,9 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
     diagnostic = result["researchers"].get("factor_backtest", {}).get("validation") or {}
     factor_validation = result["researchers"].get("factor", {}).get("validation") or {}
     factor_inference = factor_validation.get("oos_factor_inference") or {}
+    oos_quality = quant.get("oos_probability_quality") or {}
+    oos_common = oos_quality.get("common_oos") or {}
+    skill_weight = quant.get("skill_weight_validation") or {}
     ic = [{"factor": bounded_text(name, 100), "horizon": diagnostic.get("requested_horizon"), "holdout": {key: value.get("horizons", {}).get(diagnostic.get("requested_horizon"), {}).get("holdout", {}).get(key) for key in ("spearman_time_series_ic", "mean_forward_return", "observations", "status")}} for name, value in list(diagnostic.get("factor_metrics", {}).items())[:3]]
     bias = result["adversarial_audit"].get("bias_audit", {})
     risks = synthesis.get("key_risks", [])
@@ -249,7 +289,7 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
             "analysis_status": result["analysis_status"], "reporting_status": result.get("reporting_status", "veto"), "stages": result["stages"],
             "sections": {
                 "price_time": snapshot.get("latest_confirmed_close"),
-                "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "economic_viability": quant.get("economic_viability"), "paths": paths},
+                "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "economic_viability": quant.get("economic_viability"), "oos_probability_quality": {"status": oos_quality.get("status"), "method": oos_quality.get("method"), "common_oos_samples": oos_common.get("common_oos_samples"), "all_paths_valid_prediction_samples": oos_common.get("all_paths_valid_prediction_samples"), "path_metrics": {name: {key: row.get(key) for key in ("all_evaluable_oos_samples", "valid_probability_predictions", "oos_coverage", "abstain_rate", "brier_score", "log_loss", "expected_calibration_error")} for name, row in oos_quality.get("paths", {}).items()}}, "skill_weight_validation": {key: skill_weight.get(key) for key in ("status", "weighting", "current_weighting_enabled", "deployment_status", "common_oos_samples", "common_complete_prediction_samples", "weight_estimation_start", "weight_estimation_end", "evaluation_start", "evaluation_end", "candidate_weights", "fallback_reason", "evaluation")}, "paths": paths},
                 "technical_factor_evidence": evidence,
                 "backtest_ic_bias": {"audit_status": result["adversarial_audit"]["status"], "checks": {key: value.get("status") for key, value in bias.items() if isinstance(value, dict)}, "diagnostic_examples": ic, "factor_oos_inference": {key: factor_inference.get(key) for key in ("status", "method", "data_start", "data_end", "sample_count", "trials", "tests_with_p_value", "p_adjustment_method", "factor_selection_used_this_window")}, "scope": "D: single-security time-series diagnostics; B: OOS time-series IC inference; full portfolio backtest/PBO/DSR not computed"},
                 "news": {"status": news.get("status"), "event_bias": news.get("overall_direction"), "events": events, "coverage": {key: news.get("coverage", {}).get(key) for key in ("observed_publication_start", "observed_publication_end", "eligible_event_count", "eligible_opinion_count", "excluded_evidence_count")}},
@@ -306,6 +346,7 @@ def render_markdown(result: dict[str, Any]) -> str:
         elif isinstance(check, list):
             for row in check:
                 lines.append(f"- OOS {_cell(row.get('researcher_id'))}: Brier {_cell(row.get('brier'))} vs base rate {_cell(row.get('base_rate_brier'))}")
+    lines.extend(_probability_validation_lines(quant))
     diagnostics = result["researchers"].get("factor_backtest", {}).get("validation") or {}
     factor_validation = result["researchers"].get("factor", {}).get("validation") or {}
     factor_inference = factor_validation.get("oos_factor_inference") or {}

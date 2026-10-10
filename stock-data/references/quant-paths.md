@@ -53,7 +53,7 @@ D 自行构造固定因子，按时间 70/30 划分训练和 holdout，分位切
 
 ## 共识与 E — 偏差审计
 
-共识只纳入通过 `forecast_assessment()`、身份匹配、有定量来源且状态为 `success/partial` 的 A/B/C 数值预测，当前采用等权概率平均，报告 range、dispersion、证据家族重叠和分类 confidence。等权均值不等于经过独立校准的 ensemble 概率。单路径称为 `single_path`；两路径结果披露缺失路径。详见 [consensus-protocol.md](consensus-protocol.md) 与 [probability-policy.md](probability-policy.md)。
+共识只纳入通过 `forecast_assessment()`、身份匹配、有定量来源且状态为 `success/partial` 的 A/B/C 数值预测，当前采用等权概率平均，报告 range、dispersion、证据家族重叠和分类 confidence。新增 `oos_probability_quality` 报告每路径、共同日期交集和共同完整预测样本的 Brier、Log Loss、可靠性分箱、ECE、覆盖率及弃权率。新增 `skill_weight_validation` 仅做严格先早后晚的实验性 Brier Skill 估计/评价；当前 `weighting` 仍为 equal，不能把实验权重用于当前预测。等权均值不等于经过独立校准的 ensemble 概率。单路径称为 `single_path`；两路径结果披露缺失路径。详见 [consensus-protocol.md](consensus-protocol.md) 与 [probability-policy.md](probability-policy.md)。
 
 E 检查快照身份/digest、路径快照一致性、概率来源和范围、invalid 状态、残留区间重叠、结构化特征/标签时间声明、chronological OOS、Brier 基准与已观察的候选因子数量。声明检查不等于对每个特征实现的形式证明。
 

@@ -6,6 +6,8 @@ import math
 from typing import Any
 
 from .math_utils import mean, sample_std
+from .validation.probability_quality import (DEFAULT_BRIER_SKILL_EPSILON,
+                                             build_probability_validation)
 
 
 ROUND_TRIP_COST_SCENARIOS_BPS = (5, 10, 20)
@@ -163,9 +165,13 @@ def build_consensus(
     manifest: dict[str, Any],
     *,
     assessments: dict[str, dict[str, Any]] | None = None,
+    skill_epsilon: float = DEFAULT_BRIER_SKILL_EPSILON,
 ) -> dict[str, Any]:
     if assessments is None:
         assessments = {r["researcher_id"]: forecast_assessment(r, manifest) for r in researchers}
+    oos_probability_quality, skill_weight_validation = build_probability_validation(
+        researchers, manifest, skill_epsilon=skill_epsilon,
+    )
     valid = [
         r for r in researchers
         if r.get("result_role", "forecast") == "forecast"
@@ -180,6 +186,8 @@ def build_consensus(
         return {
             "status": "unavailable", "weighting": "equal", "available_paths": 0,
             "economic_viability": _economic_viability([]),
+            "oos_probability_quality": oos_probability_quality,
+            "skill_weight_validation": skill_weight_validation,
             "prob_up": None, "direction": "unavailable", "agreement": "unavailable",
             "diversity": "unavailable", "confidence": "very_low", "confidence_score": 0,
             "path_assessments": assessments, "calibration_status": "not_assessed",
@@ -279,6 +287,8 @@ def build_consensus(
         "status": "ensemble" if len(valid) >= 2 else "single_path",
         "weighting": "equal",
         "economic_viability": economic,
+        "oos_probability_quality": oos_probability_quality,
+        "skill_weight_validation": skill_weight_validation,
         "path_assessments": assessments,
         "calibration_status": "equal_weight_mean_not_ensemble_calibrated",
         "available_paths": len(valid),

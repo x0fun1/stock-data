@@ -176,6 +176,20 @@ def _oos_factor_inference(
     }
 
 
+def _empty_oos_forecasts(
+    indices: list[int], bars: list[dict[str, Any]], labels: list[float | None], horizon: int,
+) -> list[dict[str, Any]]:
+    target_definition = f"close[t+{horizon}] / close[t] - 1 > 0"
+    return [{
+        "decision_session": bars[index]["date"],
+        "label_end_session": bars[index + horizon]["date"],
+        "target": int(float(labels[index]) > 0),
+        "probability": None,
+        "training_label_end_session": None,
+        "target_definition": target_definition,
+    } for index in indices if labels[index] is not None]
+
+
 def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None) -> dict[str, Any]:
     manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     ticker, horizon_name = manifest["ticker"], manifest["horizon"]
@@ -234,7 +248,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     warnings: list[str] = ["Returns are gross close-to-close observations; this factor path does not model execution, spreads, slippage or fees."]
     if not retained:
         warnings.append("No candidate factor passed the minimum absolute Rank IC screen in the training segment.")
-        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"factor_decay": decay, "oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors)}, data_used=["daily raw OHLCV"], warnings=warnings)
+        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"factor_decay": decay, "oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon), "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"}, data_used=["daily raw OHLCV"], warnings=warnings)
 
     # Standardize each selected factor using the selection segment only.
     standardized: dict[str, list[float | None]] = {}
@@ -247,7 +261,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         signs[name] = 1 if (metrics["rank_ic"] or 0) >= 0 else -1
         standardized[name] = [max(-3.0, min(3.0, (float(value) - center) / scale)) if value is not None else None for value in values]
     if not standardized:
-        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", warnings=["Selected factors had no stable scale in the training segment."])
+        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon), "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"}, warnings=["Selected factors had no stable scale in the training segment."])
 
     def composite(index: int) -> float | None:
         values = [standardized[name][index] * signs[name] for name in standardized if standardized[name][index] is not None]
@@ -273,15 +287,34 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             warnings.append(f"Calibration bucket {current_bucket!r} has {len(selected_returns)} observations; at least 20 are required for a probability.")
 
     holdout_pairs: list[tuple[float, int]] = []
+    oos_forecasts: list[dict[str, Any]] = []
+    calibration_label_end = max((i + requested_horizon for i in calibration_indices if select_labels[i] is not None), default=None)
     for i in holdout_indices:
         score = composite(i)
         target = select_labels[i]
-        if score is None or target is None:
+        if target is None:
+            continue
+        if score is None:
+            oos_forecasts.append({"decision_session": bars[i]["date"], "label_end_session": bars[i + requested_horizon]["date"],
+                                  "target": int(target > 0), "probability": None,
+                                  "training_label_end_session": bars[calibration_label_end]["date"] if calibration_label_end is not None else None,
+                                  "training_sample_count": 0,
+                                  "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"})
             continue
         bucket = "low" if low_cut is not None and score <= low_cut else "high" if high_cut is not None and score >= high_cut else "mid"
         sample = bucket_samples[bucket]
-        if len(sample) >= 20:
-            holdout_pairs.append((sum(value > 0 for value in sample) / len(sample), int(target > 0)))
+        forecast_probability = sum(value > 0 for value in sample) / len(sample) if len(sample) >= 20 else None
+        oos_forecasts.append({
+            "decision_session": bars[i]["date"],
+            "label_end_session": bars[i + requested_horizon]["date"],
+            "target": int(target > 0),
+            "probability": forecast_probability,
+            "training_label_end_session": bars[calibration_label_end]["date"] if calibration_label_end is not None else None,
+            "training_sample_count": len(sample),
+            "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0",
+        })
+        if forecast_probability is not None:
+            holdout_pairs.append((forecast_probability, int(target > 0)))
     brier = mean([(p - y) ** 2 for p, y in holdout_pairs])
     calibration_prevalence = mean([float(target > 0) for _, target in calibration_pairs])
     baseline_brier = mean([(calibration_prevalence - y) ** 2 for _, y in holdout_pairs]) if calibration_prevalence is not None else None
@@ -298,7 +331,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     status = "success" if probability is not None and len(holdout_pairs) >= 10 else "partial" if probability is not None else "insufficient_data"
     if len(holdout_pairs) < 10:
         warnings.append("The untouched chronological holdout has fewer than 10 factor-calibration predictions.")
-    validation = {"method": "training-segment factor selection + correlation pruning + later empirical bucket calibration", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_base_rate": calibration_prevalence, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True, "oos_inference_did_not_select_or_modify_probability": True}}
+    validation = {"method": "training-segment factor selection + correlation pruning + later empirical bucket calibration", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "oos_factor_inference": oos_factor_inference, "oos_forecasts": oos_forecasts, "oos_evaluable_samples": len(oos_forecasts), "oos_predictions": len(holdout_pairs), "oos_coverage": len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else 0.0, "oos_abstain_rate": 1 - len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else None, "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0", "candidate_factor_count": len(factors), "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_base_rate": calibration_prevalence, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True, "oos_inference_did_not_select_or_modify_probability": True}}
     validation["diagnostics_label_end_exclusive"] = holdout_start
     validation["sample_feasibility"] = {"minimum_bucket_observations": 20, "minimum_holdout_predictions": 10, "calibration_available": len(calibration_pairs), "requested_window_preserved": True}
     return researcher_result(

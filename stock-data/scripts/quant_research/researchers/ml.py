@@ -5,6 +5,7 @@ from __future__ import annotations
 import math
 from dataclasses import dataclass
 from pathlib import Path
+import time
 from typing import Any
 
 from ..contracts import HORIZONS, researcher_result
@@ -153,6 +154,19 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     if len(train_rows) < 160 or len({row.target for row in train_rows}) < 2:
         return researcher_result("ml", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", warnings=[f"The pre-holdout training sample has {len(train_rows)} matured rows; the native logistic baseline requires at least 160 and both labels."])
 
+    training_metrics = {"attempts": 0, "successful_fits": 0, "rows_seen": 0, "wall_seconds": 0.0}
+
+    def fit(rows: list[Observation]) -> LogisticModel:
+        started = time.perf_counter()
+        training_metrics["attempts"] += 1
+        training_metrics["rows_seen"] += len(rows)
+        try:
+            model = _fit(rows)
+            training_metrics["successful_fits"] += 1
+            return model
+        finally:
+            training_metrics["wall_seconds"] += time.perf_counter() - started
+
     intervals = [SampleInterval(row.decision, row.information_start, row.label_end) for row in train_rows]
     purged_folds = purged_kfold(intervals, n_splits=5, embargo_sessions=horizon)
     cv_prediction_rows: list[tuple[Observation, float]] = []
@@ -166,7 +180,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         if len(train) < 100 or len({row.target for row in train}) < 2:
             continue
         try:
-            model = _fit(train)
+            model = fit(train)
         except ValueError:
             continue
         score_decisions = set(non_overlapping([row.decision for row in test], horizon))
@@ -178,6 +192,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
 
     wf_folds = causal_walk_forward(intervals, n_splits=4, minimum_train=100, pre_test_gap_sessions=horizon)
     wf_predictions: list[tuple[Observation, float]] = []
+    wf_fit_boundaries: dict[int, dict[str, Any]] = {}
     wf_purged, wf_gap = 0, 0
     for fold in wf_folds:
         train = [train_rows[i] for i in fold.train]
@@ -187,17 +202,32 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         if len({row.target for row in train}) < 2:
             continue
         try:
-            model = _fit(train)
+            model = fit(train)
         except ValueError:
             continue
-        wf_predictions.extend((row, model.predict(row)) for row in test)
+        boundary = {
+            "training_rows": len(train),
+            "training_decision_start_session": bars[min(row.decision for row in train)]["date"],
+            "training_decision_end_session": bars[max(row.decision for row in train)]["date"],
+            "training_label_end_session": bars[max(row.label_end for row in train)]["date"],
+        }
+        for row in test:
+            wf_predictions.append((row, model.predict(row)))
+            wf_fit_boundaries[row.decision] = boundary
 
     wf_predictions.sort(key=lambda pair: pair[0].decision)
     wf_decisions = set(non_overlapping([row.decision for row, _ in wf_predictions], horizon))
     wf_predictions = [(row, prediction) for row, prediction in wf_predictions if row.decision in wf_decisions]
+    calibration_oos_predictions = [
+        {"decision_session": bars[row.decision]["date"], "label_end_session": bars[row.label_end]["date"],
+         "target": row.target, "raw_probability": prediction,
+         **wf_fit_boundaries[row.decision]}
+        for row, prediction in wf_predictions if row.decision in wf_fit_boundaries
+    ]
     calibration = _fit_platt([math.log(max(1e-6, min(1 - 1e-6, p)) / (1 - max(1e-6, min(1 - 1e-6, p)))) for _, p in wf_predictions], [row.target for row, _ in wf_predictions])
-    holdout_model = _fit(train_rows)
+    holdout_model = fit(train_rows)
     holdout_pairs: list[tuple[float, int]] = []
+    holdout_oos_forecasts: list[dict[str, Any]] = []
     holdout_decisions = set(non_overlapping([row.decision for row in holdout_rows], horizon))
     for row in holdout_rows:
         if row.decision not in holdout_decisions:
@@ -205,11 +235,23 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         raw_probability = holdout_model.predict(row)
         probability = logistic(calibration[1] + calibration[0] * holdout_model.score(row)) if calibration else raw_probability
         holdout_pairs.append((probability, row.target))
+        holdout_oos_forecasts.append({
+            "decision_session": bars[row.decision]["date"],
+            "label_end_session": bars[row.label_end]["date"],
+            "target": row.target,
+            "probability": probability,
+            "raw_probability": raw_probability,
+            "training_rows": len(train_rows),
+            "training_decision_start_session": bars[min(item.decision for item in train_rows)]["date"],
+            "training_decision_end_session": bars[max(item.decision for item in train_rows)]["date"],
+            "training_label_end_session": bars[max(item.label_end for item in train_rows)]["date"],
+            "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
+        })
 
     # No final-holdout metric is used to select features or hyperparameters. Once its
     # one-time report is fixed, refit the frozen baseline on all matured labels for today.
     current_rows = [row for row in observations if row.label_end <= n - 1]
-    current_model = _fit(current_rows) if len(current_rows) >= 160 and len({row.target for row in current_rows}) == 2 else holdout_model
+    current_model = fit(current_rows) if len(current_rows) >= 160 and len({row.target for row in current_rows}) == 2 else holdout_model
     current_vector = features[-1] if features else None
     raw_current = current_model.predict(current_vector) if current_vector is not None else None
     if raw_current is None:
@@ -249,8 +291,33 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "purged_kfold": {**_metrics(cv_predictions), "folds": len(purged_folds), "purged_train_rows": purged_count, "embargoed_train_rows": embargo_count, "retained_interval_overlaps": overlap_count},
         "causal_walk_forward": {**_metrics([(p, row.target) for row, p in wf_predictions]), "folds": len(wf_folds), "purged_train_rows": wf_purged, "pre_test_gap_rows": wf_gap},
         "probability_calibration": {"method": "Platt scaling on causal walk-forward logits" if calibration else "none", "calibrated": bool(calibration), "calibration_observations": len(wf_predictions)},
-        "final_holdout": {**holdout_metrics, "start_session": bars[holdout_start]["date"] if holdout_start < n else None, "one_time_chronological_holdout": True},
+        "calibration_training": {
+            "input": "strict causal walk-forward OOS predictions from the pre-holdout training range",
+            "observations": len(wf_predictions),
+            "prediction_start_session": bars[min((row.decision for row, _ in wf_predictions))]["date"] if wf_predictions else None,
+            "prediction_end_session": bars[max((row.decision for row, _ in wf_predictions))]["date"] if wf_predictions else None,
+            "latest_label_end_session": bars[max((row.label_end for row, _ in wf_predictions))]["date"] if wf_predictions else None,
+            "final_holdout_used": False,
+            "training_row_boundary": bars[max((row.label_end for row in train_rows), default=holdout_start)]["date"],
+            "status": "calibrated" if calibration else "uncalibrated",
+            "prediction_records": calibration_oos_predictions,
+        },
+        "final_holdout": {**holdout_metrics, "oos_forecasts": holdout_oos_forecasts, "oos_evaluable_samples": len(holdout_oos_forecasts), "all_oos_label_observations": len(holdout_rows), "oos_coverage": 1.0 if holdout_oos_forecasts else 0.0, "oos_abstain_rate": 0.0 if holdout_oos_forecasts else None, "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0", "training_rows": len(train_rows), "training_decision_start_session": bars[min(row.decision for row in train_rows)]["date"], "training_decision_end_session": bars[max(row.decision for row in train_rows)]["date"], "training_label_end_session": bars[max(row.label_end for row in train_rows)]["date"], "start_session": bars[holdout_start]["date"] if holdout_start < n else None, "one_time_chronological_holdout": True},
+        "oos_forecasts": holdout_oos_forecasts,
+        "oos_evaluable_samples": len(holdout_oos_forecasts),
+        "oos_predictions": len(holdout_oos_forecasts),
+        "oos_coverage": 1.0 if holdout_oos_forecasts else 0.0,
+        "oos_abstain_rate": 0.0 if holdout_oos_forecasts else None,
+        "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
+        "model_training_performance": {**training_metrics, "calibration_fit_calls": int(bool(calibration))},
+        "model_selection": {"configured_default": "native deterministic L2 logistic regression", "xgboost_status": "not_implemented_not_loaded", "lightgbm_status": "not_implemented_not_loaded", "boosted_models_enabled": False},
         "current_prediction_model_fit_rows": len(current_rows),
+        "current_prediction_model_training_boundary": {
+            "training_decision_start_session": bars[min(row.decision for row in current_rows)]["date"] if current_rows else None,
+            "training_decision_end_session": bars[max(row.decision for row in current_rows)]["date"] if current_rows else None,
+            "training_label_end_session": bars[max(row.label_end for row in current_rows)]["date"] if current_rows else None,
+            "latest_prediction_session": bars[-1]["date"] if bars else None,
+        },
         "accelerated_models": {"xgboost": "unavailable", "lightgbm": "unavailable"},
     }
     predicted_return = mean([row.forward_return for row in current_rows if row.target == 1])

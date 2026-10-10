@@ -212,6 +212,40 @@ class PredictionReportingGateTests(unittest.TestCase):
         self.assertEqual(synthesis["quant"]["prob_up"], .41)
         self.assertEqual(synthesis["economic_viability"], consensus["economic_viability"])
 
+    def test_extreme_disagreement_with_independently_poor_common_oos_reliability_vetoes(self):
+        manifest, _ = load_snapshot(self.freeze())
+        paths = [researcher_result(
+            name, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
+            status="partial", prob_up=probability, probability_source="synthetic test score",
+            validation={"holdout_start_session": "2023-08-17", "final_holdout": {"observations": 30, "one_time_chronological_holdout": True},
+                        "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True}},
+        ) for name, probability in (("quant", .1), ("factor", .5), ("ml", .9))]
+        consensus = {"available_paths": 3, "agreement": "extreme_disagreement", "probability_range": [.1, .9],
+                     "skill_weight_validation": {"common_oos_samples": 50, "current_weighting_enabled": False,
+                         "evaluation": {"status": "available", "evaluation_samples": 25, "baseline_brier": .25,
+                                        "equal_weight_brier": .30, "path_brier": {"quant": .31, "factor": .29, "ml": .28}}}}
+        reviewed = audit(manifest, paths, consensus)
+        self.assertFalse(reviewed["may_report_direction"])
+        self.assertEqual(reviewed["reporting_status"], "veto")
+        self.assertIn("PREDICTION_FAILED", reviewed["reason_codes"])
+        self.assertEqual(reviewed["consensus_validation"]["reliability_outcome"], "all_paths_and_equal_weight_fail_common_oos_base_rate")
+
+    def test_extreme_disagreement_without_enough_independent_oos_support_is_not_auto_vetoed(self):
+        manifest, _ = load_snapshot(self.freeze())
+        paths = [researcher_result(
+            name, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
+            status="partial", prob_up=probability, probability_source="synthetic test score",
+            validation={"holdout_start_session": "2023-08-17", "final_holdout": {"observations": 30, "one_time_chronological_holdout": True},
+                        "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True}},
+        ) for name, probability in (("quant", .1), ("factor", .5), ("ml", .9))]
+        consensus = {"available_paths": 3, "agreement": "extreme_disagreement", "probability_range": [.1, .9],
+                     "skill_weight_validation": {"status": "fallback_equal_weight", "common_oos_samples": 12,
+                         "current_weighting_enabled": False, "evaluation": {"status": "not_assessed"}}}
+        reviewed = audit(manifest, paths, consensus)
+        self.assertTrue(reviewed["may_report_direction"])
+        self.assertNotEqual(reviewed["reporting_status"], "veto")
+        self.assertIn("LOW_FACTOR_AGREEMENT", reviewed["reason_codes"])
+
     def test_unknown_reason_code_fails_closed_and_batch_telemetry_counts_abstentions(self):
         self.assertEqual(classify_reasons(["UNREGISTERED_GATE_CODE"])["status"], "veto")
         self.assertEqual(classify_reasons(["PBO_NOT_ASSESSED", "DSR_NOT_ASSESSED"])["status"], "pass")
