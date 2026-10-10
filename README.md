@@ -86,7 +86,7 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/inst
 |---|---|---|
 | A — Quant Research | 固定 20-session 动量假设、非重叠历史条件频率与时间外验证 | 是，有效预测才纳入 |
 | B — Factor Research | OHLCV 因子验证、去冗余、后段频率映射与 holdout | 是，有效预测才纳入 |
-| C — ML Research | L2 Logistic Regression、Purged K-Fold、Embargo、causal walk-forward、可选 Platt 校准与 holdout | 是；当前 baseline 为 partial，披露校准状态 |
+| C — ML Research | 标准库 L2 Logistic Regression、Purged K-Fold、Embargo、causal walk-forward；Platt 只用预留 holdout 之前的严格 OOS 预测，最终 holdout 独立评价 | 是；当前 baseline 为 partial，披露校准状态；XGBoost/LightGBM 未实现且不加载 |
 | D — Factor Diagnostic | 单证券时间序列 IC 与 1D/5D/20D forward-return 诊断 | 否，不输出预测概率 |
 | 共识 | 有效 A/B/C 等权概率平均、分歧与证据多样性 | 仅聚合已有概率 |
 | E — Bias / Adversarial Audit | 时序、泄漏、OOS、Brier 基准、多重检验范围及未评估偏差 | 否，可否决方向 |

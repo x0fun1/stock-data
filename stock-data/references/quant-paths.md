@@ -39,9 +39,9 @@ B 的选择/衰减诊断要求 `index + horizon < diagnostics_label_end_exclusiv
 
 使用路径内独立 OHLCV 特征和确定性 L2 Logistic Regression。验证包含闭区间 Purged K-Fold、Embargo、仅用过去数据的 causal walk-forward、fold 内标准化和最后的 chronological holdout。当前预测可在验证固定后用已成熟标签重拟合，但不使用 holdout 指标调整特征或参数。
 
-核对 `validation.purged_kfold`、`causal_walk_forward`、`probability_calibration`、`final_holdout` 和两类 leakage 声明。当前前 holdout 训练至少需 160 个成熟样本且包含两类标签；Platt 校准至少需 40 个有效 walk-forward 预测且有两类标签。没有校准时保留 raw logistic probability 并标 `partial`，不能称为校准概率；残留 train/test 区间重叠时为 `invalid`，概率置空。
+核对 `validation.purged_kfold`、`causal_walk_forward`、`probability_calibration`、`calibration_training`、`final_holdout` 和两类 leakage 声明。当前前 holdout 训练至少需 160 个成熟样本且包含两类标签；Platt 校准至少需 40 个有效 walk-forward 预测且有两类标签。校准记录逐条保留预测时训练标签边界，训练标签必须早于对应决策日；校准范围限定在预留 holdout 之前，`final_holdout_used` 必须为 false。最终 holdout 只评价冻结训练/校准方案，不用于校准或选择参数。没有校准时保留 raw logistic probability 并明确标 `uncalibrated`、`partial`，不能称为校准概率；残留 train/test 区间重叠时为 `invalid`，概率置空。
 
-当前不含 XGBoost/LightGBM 比较，因此即使本地计算与校准完成，C 仍标为 `partial`。不得把基线称为完整 boosted-model 验证，也不得把交叉验证 AUC 单独作为方向结论。
+当前仓库没有 `_xgb_estimator.py`，也没有嵌套时序早停实现；Research C 只运行标准库确定性 L2 Logistic Regression。`model_selection` 将 XGBoost/LightGBM 标为 `not_implemented_not_loaded`，不会探测、导入、安装或重试这些可选依赖。即使本地计算与 Platt 校准完成，C 仍标为 `partial`。不得把基线称为完整 boosted-model 验证，也不得把交叉验证 AUC 单独作为方向结论。要引入 boosted 模型，必须先实现嵌套训练/早停、逐折 Purge/Embargo、隔离最终 holdout，并在独立 OOS 与性能验收通过前保持关闭。
 
 `mode=standard/strict` 不改变预测资格；A/B/C 在各自预定义样本/计算条件满足时生成概率。严格模式不会因 OOS 数不足或未校准而排除已成功生成的路径，缺口降低 confidence 并使报告 `DEGRADED`；显式时间泄漏、无效目标或预测失败仍不可报告。`forecast_eligible` 是路径预测资格，`reporting_status` 说明最终展示状态。
 

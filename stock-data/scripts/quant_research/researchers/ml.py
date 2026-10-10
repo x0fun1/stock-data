@@ -224,7 +224,9 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
          **wf_fit_boundaries[row.decision]}
         for row, prediction in wf_predictions if row.decision in wf_fit_boundaries
     ]
+    calibration_started = time.perf_counter()
     calibration = _fit_platt([math.log(max(1e-6, min(1 - 1e-6, p)) / (1 - max(1e-6, min(1 - 1e-6, p)))) for _, p in wf_predictions], [row.target for row, _ in wf_predictions])
+    calibration_wall_seconds = time.perf_counter() - calibration_started
     holdout_model = fit(train_rows)
     holdout_pairs: list[tuple[float, int]] = []
     holdout_oos_forecasts: list[dict[str, Any]] = []
@@ -309,7 +311,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "oos_coverage": 1.0 if holdout_oos_forecasts else 0.0,
         "oos_abstain_rate": 0.0 if holdout_oos_forecasts else None,
         "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
-        "model_training_performance": {**training_metrics, "calibration_fit_calls": int(bool(calibration))},
+        "model_training_performance": {**training_metrics, "calibration_fit_calls": int(bool(calibration)), "calibration_wall_seconds": calibration_wall_seconds},
         "model_selection": {"configured_default": "native deterministic L2 logistic regression", "xgboost_status": "not_implemented_not_loaded", "lightgbm_status": "not_implemented_not_loaded", "boosted_models_enabled": False},
         "current_prediction_model_fit_rows": len(current_rows),
         "current_prediction_model_training_boundary": {
@@ -318,7 +320,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             "training_label_end_session": bars[max(row.label_end for row in current_rows)]["date"] if current_rows else None,
             "latest_prediction_session": bars[-1]["date"] if bars else None,
         },
-        "accelerated_models": {"xgboost": "unavailable", "lightgbm": "unavailable"},
+        "accelerated_models": {"xgboost": "not_implemented_not_loaded", "lightgbm": "not_implemented_not_loaded"},
     }
     predicted_return = mean([row.forward_return for row in current_rows if row.target == 1])
     down_return = mean([row.forward_return for row in current_rows if row.target == 0])
