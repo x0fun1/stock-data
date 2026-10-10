@@ -27,7 +27,7 @@ For a daily close signal at session `t`, features may use data available through
 ## Leakage controls
 
 - Future return labels are generated only after feature construction and never enter feature values.
-- Research A uses prior, matured, non-overlapping labels for conditional frequencies.
+- Research A uses prior, matured, non-overlapping labels for conditional frequencies. At decision session `t`, a label from `i` is available only when its `label_end = i + h <= t`; each walk-forward prediction rebuilds its matching history from that boundary. The current implementation has no Bayesian prior or time decay.
 - Research B selects signs and scales in an earlier chronological segment, maps scores in a later segment, and reports an untouched later holdout separately.
 - B decay diagnostics require label_end strictly before holdout_start; current signed contributions are separate from training IC signs.
 - Research C uses explicit information intervals, closed-boundary purge, embargo, walk-forward validation, fold-local scaling, Platt calibration on causal out-of-fold scores, and a chronological holdout.

@@ -292,7 +292,7 @@ def render_markdown(result: dict[str, Any]) -> str:
     for name, item in result["researchers"].items():
         for polarity in ("positive", "negative"):
             for row in item.get("evidence", {}).get(polarity, []):
-                lines.append(f"- {_cell(name)} / {polarity}: {_cell(row.get('factor_name', row.get('hypothesis', row.get('family'))))}; current contribution {_cell(row.get('current_contribution'))}; training IC {_cell(row.get('training_rank_ic'))}; samples {_cell(row.get('non_overlapping_samples'))}; Wilson 95% interval {_cell(row.get('wilson_95_interval'))}")
+                lines.append(f"- {_cell(name)} / {polarity}: {_cell(row.get('factor_name', row.get('hypothesis', row.get('family'))))}; current contribution {_cell(row.get('current_contribution'))}; training IC {_cell(row.get('training_rank_ic'))}; samples {_cell(row.get('non_overlapping_samples'))}; Wilson IID-approximate interval {_cell(row.get('wilson_95_interval'))}")
     if not any(item.get("evidence", {}).get(polarity) for item in result["researchers"].values() for polarity in ("positive", "negative")):
         lines.append("Evidence unavailable or computation skipped by data gates.")
     lines.extend(["", "## 4. Backtest / IC / Bias", "", f"- Audit: {_cell(audit.get('status'))}; verification scope: {_cell(audit.get('verification_scope'))}"])

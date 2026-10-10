@@ -2,7 +2,7 @@
 
 ## Allowed quantitative sources
 
-- Research A: historical conditional hit frequency among non-overlapping, matured labels matching the predeclared signal condition. Report sample count and Wilson interval.
+- Research A: historical conditional hit frequency among non-overlapping, matured labels matching the predeclared signal condition. Report `n_raw`, `n_effective`, `n_oos`, history span, and label boundaries. Its current unweighted empirical frequency has no Bayesian prior or time decay, so `n_effective = n_raw`. A displayed Wilson score interval is a nominal IID approximation; time-series coverage has not been validated and it must not be described as a strict confidence interval.
 - Research B: empirical future-return frequency in a score bucket fixed from a later calibration segment, with the selection segment and bucket counts reported.
 - Research C: logistic model `predict_proba`-equivalent output; apply Platt scaling only when enough causal walk-forward predictions exist. Mark uncalibrated raw output explicitly.
 - Consensus: equal-weight arithmetic mean of valid, provenance-bearing path estimates. It is not a majority vote or an independently calibrated ensemble.

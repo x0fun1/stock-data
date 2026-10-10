@@ -21,9 +21,9 @@ E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执
 
 ## A — 假设与历史条件频率
 
-固定检验“20 个 session 动量符号与未来 H-session 收益”的假设，用同符号、非重叠历史标签计算上涨频率、均值收益和 Wilson 区间；后段时间序列采用扩展窗口预测并报告 Brier / 基准。
+固定检验“20 个 session 动量符号与未来 H-session 收益”的假设，用同符号、非重叠历史标签计算上涨频率和均值收益；扩展窗口在每个决策日只使用标签结束日期不晚于该决策日的历史样本。OOS 决策和标签也按 horizon 非重叠，输出决策日、标签结束日、训练标签边界及 Brier / 基准。
 
-查看 `probability_source`、匹配样本数和 `validation.oos_predictions`。当前至少 21 根收盘才能形成信号，至少 30 个非重叠匹配才报告条件概率；无可用时间外预测时数值结果仅为 `partial`。这是固定动量假设 baseline，不是任意策略发现或成本后收益预测。
+查看 `probability_source`、`n_raw`、`n_effective`、`n_oos`、历史跨度及 `validation.oos_forecasts`。当前至少 21 根收盘才能形成信号，至少 30 个非重叠成熟匹配才报告条件概率；当前不使用 Bayesian prior 或时间衰减，故等权时 `n_effective = n_raw`。Wilson 值仅为 IID 近似区间，时间相关下的覆盖率尚未验证。无可用时间外预测时数值结果仅为 `partial`。这是固定动量假设 baseline，不是任意策略发现或成本后收益预测。
 
 ## B — 因子验证、去冗余与频率映射
 
