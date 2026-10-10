@@ -166,17 +166,19 @@ python stock-data/scripts/global_stock_data.py --function yahoo_history --params
 
 ## 实现边界与验证
 
-Skill `2.2.2` / research runtime `0.2.2` / snapshot schema `1.1` 收紧普通简析/分析的默认路由，新增程序生成的最终简版和交付校验；保留 normalized DATA/raw 隔离及行情身份、日线频率、实际窗口、时区时间、交易日轴、最新收盘和公司行动证据门槛。缺少来源日历或复权证据时弃权；不要制造字段通过检查。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
+当前仓库版本：Skill `2.6.0` / research runtime `0.3.0` / snapshot schema `1.2`。保留原有 Quant→冻结→News 流程、中央 gate 和 `validate-response`；新增的 OOS 质量、因子 IC 推断、成本敏感性、权重实验诊断和性能数据均为可选分析结果字段，不改变冻结输入契约或 NewsInput。A 路径仍是无先验/无衰减的条件频率；skill 权重保持实验性且不启用；XGBoost/LightGBM 未实现、不探测、不加载。新旧分析兼容测试确认旧的可选字段缺失时采用等权、经济性为 `not_assessed`。
+
+预测概率与经济性分开：5/10/20 bp 仅是假设成本敏感性。因子 OOS IC 使用 BY-FDR、moving-block bootstrap 和 circular-shift 探索性检验；时序平稳性和区间覆盖率尚未验证，DSR 保持 `not_assessed`。没有真实、独立、可配对市场快照，本次合成 fixture 仅用于边界、兼容和运行性能工程验收，不构成预测改善证据。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
 
 最终用户回复必须展示可报告的 Quant `prob_up/direction/confidence/agreement` 和存在的 `diversity`。综合结果及有界摘要保留原字段，News 不改变概率；缺失时明确“上涨概率：不可用”。confidence/agreement 的现有分类标签不伪造为百分比，数值来自当前标的的实际运行，规则见 [probability-policy.md](stock-data/references/probability-policy.md)。
 
-旧 1.0 快照可读，但不能自动通过新的预测门槛；应重新采集并生成带实际证据的快照。1.1 manifest 绑定判定元数据，加载时重算门槛。严格模式额外要求 A/B/C 的时间外样本和 C 校准；标准模式披露未校准模型值。新闻相关性、时效、来源与冲突在进入方向前检查，供应商情绪不能覆盖 mixed 事件。hash 只证明完整性，不认证供应商真伪。
+旧 1.0/1.1 快照可读用于诊断，但不能自动通过当前预测门槛；重新采集并生成带实际证据的 1.2 快照。1.2 manifest 绑定判定元数据，加载时重算门槛。standard/strict 不因 OOS 或校准不足排除已生成概率；缺口降低置信度/报告状态，显式泄漏和数据完整性错误仍按现有 gate 限制报告。新闻相关性、时效、来源与冲突在进入方向前检查，供应商情绪不能覆盖 mixed 事件。hash 只证明完整性，不认证供应商真伪。
 
 保留已有路径保护：输出必须直接位于解析后的 `output_root`，拒绝路径穿越、外部 symlink/junction 和覆盖。具体契约及并发边界见 [Snapshot Schema](stock-data/references/snapshot-schema.md#artifact-path-boundary)。外部文本仅作 DATA；网络限定既有来源 HTTPS 主机、同主机重定向和大小边界，密钥/动作字段在落盘前脱敏移除。
 
 量化运行使用 Python 3.10+ 标准库，并需可用的 IANA 时区数据库（Windows 缺数据库时可使用 `tzdata`）；global gateway 另需 `requests` 和访问来源所需的网络/授权。`adapt/freeze/analyze/pipeline` 不调用网络。新闻筛查与情绪为未校准的确定性启发式；日线行情反应仅是时间关联，不证明新闻导致涨跌。消息面不得修改 Quant 概率。
 
-当前未实现多资产横截面组合回测、成本后执行/市场冲击、正式 CPCV/PBO/DSR 计算、PIT 多资产幸存者审计、XGBoost/LightGBM、bootstrap 不确定性、长期路径可靠性、受治理的 holdout/forward 凭据存储或专用 ETF 穿透模型。输入缺失和未实现计算须明确标为未评估；未附带或伪造真实行情研究结果。
+当前未实现多资产横截面组合回测、成本后执行/市场冲击、正式 CPCV/PBO/DSR 计算、PIT 多资产幸存者审计、XGBoost/LightGBM、概率校准覆盖率区间、长期路径可靠性、受治理的 holdout/forward 凭据存储或专用 ETF 穿透模型。因子 IC 区块 bootstrap 只给探索性近似区间，不是经过覆盖率验证的概率区间。输入缺失和未实现计算须明确标为未评估；不附带或伪造真实行情研究结果。
 
 仓库开发验证（离线）：
 

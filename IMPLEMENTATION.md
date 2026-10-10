@@ -1,6 +1,6 @@
-# stock-data yfinance 验收记录
+# stock-data yfinance 验收记录（Skill 2.5.0 历史记录）
 
-工作区：`/data/stock-data-skill`。验收日期：2026-10-10（Asia/Shanghai；2026-10-09 UTC）。当前 Skill 版本：2.5.0；下方首段实时联网记录为升级前 2.4.0 主路由验收。
+工作区：`/data/stock-data-skill`。该记录针对 Skill 2.5.0，验收日期：2026-10-10（Asia/Shanghai；2026-10-09 UTC）；首段实时联网记录为升级前 2.4.0 主路由验收。当前仓库 Quant 修订版的最终版本和 Phase 6 结果见本文末尾。
 
 ## 验收结果
 
@@ -27,3 +27,71 @@
 Yahoo 路由改为强制 yfinance 优先。Yahoo 主依赖合并到 `stock-data/requirements.txt`；yfinance 请求错误、空结果、缺依赖或缺能力时会自动调用登记的旧兼容接口，不提供用户切换项。已返回的 yfinance `partial` 数据保留。collector 与 adapter 保留 `fallback_attempted`、`fallback_used`、`fallback_route` 和 `fallback_reason`。没有语义等价入口时返回 `NoLegacyRoute`；包括结构化筛选和带类型约束的搜索。普通搜索回退到 `stock_search`，并报告实际来源 Eastmoney search。
 
 验证结果：完整 pytest 为 195 passed、119 subtests passed；改动相关 provider、fallback、collector 和 adapter 用例为 45 passed。Python 3.14.6 隔离环境中 requests 2.34.2、yfinance 1.7.0、curl_cffi 0.15.0、pandas 3.0.6、SciPy 1.18.1 均可导入，`pip check` 无依赖冲突。`global_stock_data.py --list`、collector `--help`、`quant_research.py schema --kind request`、51 个 Python 文件 AST 解析、57 个 Markdown 本地链接及 `git diff --check` 均通过。自动回退、各路由映射、失败 provenance 以及 collector → adapter 的来源信息以离线 fixture 验证；另在真实联网集成中注入受控 yfinance `NetworkError`，由旧 `stock_kline_yahoo` 成功取得 NVDA 754 根日线（2023-10-09 至 2026-10-09），回退 provenance 经 collector 和 adapter 保留，`quant_research.py pipeline` 返回 success。分析因单位/收盘证据不足而 abstain，`may_report_direction=false`；这是预期的安全降级，不构成可报告预测。该验证覆盖真实旧接口回退路径，但 yfinance 失败由测试注入，不是上游实际故障。
+
+## Quant 改进计划实施与 Phase 6 验收（2026-10-10）
+
+本次把修订计划落地为 Skill **2.6.0**、research runtime **0.3.0**；冻结 Snapshot schema 仍为 **1.2**。未删除已有 JSON 字段或改变 reason/status 枚举；新增分析结果字段均为可选，旧结果缺字段时降级为 `not_assessed` 并保持等权。没有修改 Quant → 冻结 → News 单向流或 `NewsInput`。
+
+### 五项量化修订
+
+| 项目 | 实施结果 |
+|---|---|
+| 经济性与信心 | 5/10/20 bp 假设成本写入独立 `economic_viability`，不修改概率或 confidence；不是实际费用、滑点、冲击或净收益回测。 |
+| A 路径时序 | OOS 与历史匹配样本标签必须在决策日成熟；保留原有 30 个样本报告基线。Bayesian prior、`alpha=20` 与 252-session 衰减未实现/未验证，现行估计仍为未收缩、无衰减频率。 |
+| C 路径防泄漏 | Platt 只拟合 holdout 前 causal walk-forward OOS 分数，并逐行保留训练标签边界；最终 holdout 独立评价。仓库没有 `_xgb_estimator.py` 或嵌套早停实现，XGBoost/LightGBM 明确为未实现、未探测、未加载；原生 L2 Logistic Regression 仍是唯一 ML 路径。 |
+| B 路径统计推断 | 对全部候选做 OOS 时间序列 IC 诊断、300 次循环 block bootstrap、circular-shift 检验和 BY-FDR；选择与评估窗口分开。平稳性与区间覆盖率未验证，DSR 保持 `not_assessed`。 |
+| 共识权重 | 在共同 OOS 日期和标签上估计较早窗口、评价较晚窗口；有效样本不足、任何路径弃权或无法时间隔离时回退等权。当前预测始终使用等权，Skill 权重没有启用。极端分歧单独报告，并只在独立公共 OOS 证据足够且表现失败时交给现有 veto。 |
+
+### 固定合成快照的 OOS 对照
+
+比较基线为提交 `b3f529cec08074a5577b01e952e79b2406263a16`（Skill 2.5.0 / runtime 0.2.2）；新版本在同一 `tests/research_fixture.py` 756 根合成 OHLCV 快照上运行。数据明确是合成波形，不是实际交易所日历或市场行情。旧版只落汇总 OOS 指标，因此临时基线副本仅额外暴露原预测日期/标签供配对；临时观测字段不改变模型公式、参数或概率。
+
+| 路径 | 基线原生 OOS | 新版原生 OOS | 同日期/标签配对结果（基线 → 新版） |
+|---|---:|---:|---|
+| Quant | N=147；Brier 0.252944；Log Loss 0.699039；ECE 0.066837 | N=25；Brier 0.254566；Log Loss 0.702284；ECE 0.109359 | N=25；Brier 0.254566 → 0.254566，Log Loss 0.702284 → 0.702284，ECE 0.109359 → 0.109359。新版按 5-session 间隔使用非重叠标签；25 是评分时点数，不代表弃权。 |
+| Factor | N=0，有效校准桶不足 | N=0，有效校准桶不足 | 共同标签日期 25，完整预测 0；两版均弃权，误差指标不可计算。 |
+| ML | N=25；Brier 0.002485；Log Loss 0.022327；ECE 0.020947 | N=25；相同指标 | N=25；配对指标一致。此人工波形令预测几乎完美，不能外推到市场数据。 |
+| 两路径等权（Quant + ML；Factor 弃权） | N=25；Brier 0.069527；Log Loss 0.305246；ECE 0.262686 | N=25；相同指标 | 决策日 2023-08-17 至 2024-03-06；配对 Brier 差为 0。按 5 个 session 的 circular moving-block bootstrap、500 次重采样，得到 `[0, 0]`；该区间只反映本合成样本，未验证覆盖率。 |
+
+三路径完整预测样本为 0，所以权重估计和后续评价均为 `not_assessed`，`skill_weight_validation.status=fallback_equal_weight`。覆盖率按各自预定义评分 cohort 计算：Quant 25/25、ML 25/25、Factor 0/25；新版 Quant 改用非重叠决策节奏，不能把基线每日 147 个重叠标签直接当作同一评价基数。没有足够的真实共同 OOS 样本支持准确率改善结论。
+
+### 运行性能
+
+使用相同 Python 环境、固定快照和 `tracemalloc` 跟踪，端到端时间包含研究、Quant/News 冻结、综合、报告和交付校验。测量是各一轮，包含运行噪声；新版时间还包含新增日期化 OOS 结果与报告字段。
+
+| 指标 | v2.5.0 / runtime 0.2.2 | v2.6.0 / runtime 0.3.0 | 变化 |
+|---|---:|---:|---:|
+| Quant + News 全流程 | 31.95 s | 34.02 s | +2.07 s（+6.5%） |
+| 峰值 traced 内存 | 2,196,096 B（2.09 MiB） | 2,974,556 B（2.84 MiB） | +778,460 B（+35.5%） |
+| Snapshot 读取 | 1 次 | 1 次 | 无变化；4 条 Research path 复用已加载数据 |
+| ML 训练 telemetry | 基线没有拟合计数/耗时字段 | 11/11 次成功；3,622 行训练输入；拟合合计约 2.55 s（不启用 tracemalloc） | 新增记录；基线没有同口径 counter，XGBoost/LightGBM 加载次数为 0 |
+
+单路径耗时（同一 traced pipeline 中）：Quant 0.257→0.028 s、Factor 0.343→1.119 s、ML 31.012→32.444 s、factor diagnostic 0.120→0.130 s。因子推断新增约 0.78 s，端到端增加约 2.07 s；峰值总量仍低于 3 MB。运行报告现在记录各路径、Quant/News 墙钟时间、快照读取次数、ML 拟合次数，以及常规运行未开启内存跟踪这一事实。没有 XGBoost 相关安装、导入或失败重试。该测试规模不足以证明更长历史或其他主机的内存预算。
+
+### Schema、News 与最终交付
+
+- 当前 Snapshot schema 保持 1.2；测试确认新 1.2 可读取、旧 1.0/1.1 可读取但不升级为预测合格。
+- 缺少新增 OOS/经济性字段的旧分析结果可被新 consensus/synthesis 消费：默认等权、经济性 `not_assessed`；现有 `validate-response` 必填字段保持不变。
+- Quant 预测、概率质量和成本字段不进入 `NewsInput`；集成测试覆盖 Quant 与 News 同向、背向、Quant 弃权、News 缺失，以及新增字段不污染 Quant 概率。
+- `report.json`/`agent_summary.json` 记录执行性能；`report.md` 显示耗时、快照加载和 ML 训练状态。常规运行不使用 `tracemalloc`，因此 `peak_memory_bytes=null`；峰值数据只在本节的外部验收基准记录。
+
+### Phase commits
+
+| Phase | Commit |
+|---|---|
+| 1 — 成本与预测置信度分离 | `7fa1744` |
+| 2 — Quant 标签成熟时间边界 | `66656dd` |
+| 3 — 因子 OOS IC 推断 | `9e7571e` |
+| 4 — 共识公共 OOS 与时间隔离权重 | `3dec51c` |
+| 5 — ML Platt 校准与 Holdout 隔离 | `0b6d86f` |
+| 6 — Schema、性能及端到端验收 | Phase 6 交付提交（本报告所在提交） |
+
+### Phase 6 最终验收结果
+
+- `python -m unittest discover -s tests -v`：203 tests passed，28.389 s，退出码 0。尾部 JSON `FileExistsError` 是既有 CLI no-overwrite 用例的预期输出，不是 suite failure。
+- `global_stock_data.py --list`、`quant_research.py --help`、`schema --kind request`、`schema --kind final` 均返回成功；两份 schema 声明 1.2。
+- 57 个 Python 文件 AST 解析通过；README、IMPLEMENTATION、Skill 入口和 references 共 19 份文档的相对链接无缺失；`git diff --check` 通过。
+- 主要代码：`consensus.py`、`audit.py`、`report.py`、`synthesis.py`、`orchestrator.py`、A/B/C researchers、`math_utils.py`、`validation/probability_quality.py`。新增兼容/防泄漏测试：`test_ml_temporal_integrity.py`、`test_schema_compatibility.py`；既有 pipeline、OOS、审计和 News 隔离测试扩展。
+- 文档：更新仓库 `README.md`、`stock-data/SKILL.md`、`probability-policy.md`、`quant-paths.md`、`snapshot-schema.md` 和本实施报告。没有删除文件；没有安装、发布或修改用户目录中的 Skill。
+
+`tracemalloc` 性能数字来自单轮固定合成快照对照；常规 runtime 不开内存跟踪。所有 OOS 数值和时间性能都仅是工程验收证据，不是市场预测结论。没有真实独立历史快照，因此 accuracy improvement、概率校准覆盖率和可部署 Skill 权重均未获验证。

@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 from pathlib import Path
+import time
 from typing import Any, Callable
 
 from . import __version__
@@ -35,7 +36,10 @@ def _write_json(path: Path, value: Any) -> None:
 
 
 def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, Any] | None = None) -> Path:
+    pipeline_started = time.perf_counter()
+    snapshot_load_started = time.perf_counter()
     loaded = load_snapshot(snapshot_dir, include_news=True)
+    snapshot_load_seconds = time.perf_counter() - snapshot_load_started
     manifest, market = loaded[:2]
     news_domain = loaded[2] if len(loaded) == 3 else None
     bars = market.get("data", {}).get("bars", [])
@@ -53,7 +57,10 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
 
     results: dict[str, dict[str, Any]] = {}
     path_assessments: dict[str, dict[str, Any]] = {}
+    researcher_wall_seconds: dict[str, float] = {}
+    quant_started = time.perf_counter()
     for researcher_id in RESEARCHERS:
+        path_started = time.perf_counter()
         try:
             # Each path receives only the frozen snapshot path. Its result is written
             # after completion and is not passed to any later researcher.
@@ -66,6 +73,8 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
                 researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
                 status="failed", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=[f"Research path failed: {type(exc).__name__}: {bounded_text(exc)}"],
             )
+        finally:
+            researcher_wall_seconds[researcher_id] = time.perf_counter() - path_started
         assessment = forecast_assessment(result, manifest)
         result.update(assessment)
         path_assessments[researcher_id] = assessment
@@ -109,6 +118,8 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
     # Seal the full Quant result before News begins. The News runner receives
     # only the snapshot path and policy; it is never passed this object or file.
     freeze_result(destination / "quant_result.json", quant_result, result_name="quant_result.json")
+    quant_wall_seconds = time.perf_counter() - quant_started
+    news_started = time.perf_counter()
     try:
         # Snapshot loading is separate from the analyst entrypoint. After this
         # conversion, run_news receives only the restricted in-memory contract.
@@ -131,6 +142,7 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
             "confidence": "unavailable",
         }
         freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
+    news_wall_seconds = time.perf_counter() - news_started
 
     # Synthesis is the only stage that loads both independently frozen results.
     quant_frozen, quant_freeze_verified = load_frozen_result(destination / "quant_result.json")
@@ -167,7 +179,24 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
         {"stage": "risk_uncertainty", "status": "aggregated"},
         {"stage": "final", "status": final["analysis_status"]},
     ]
+    ml_validation = results.get("ml", {}).get("validation") or {}
+    performance = {
+        "measurement": "wall_clock_perf_counter; runtime memory tracing disabled",
+        "analysis_through_synthesis_wall_seconds": time.perf_counter() - pipeline_started,
+        "snapshot_loads": 1,
+        "snapshot_load_wall_seconds": snapshot_load_seconds,
+        "researcher_snapshot_reads": 0,
+        "researcher_wall_seconds": researcher_wall_seconds,
+        "quant_through_frozen_result_wall_seconds": quant_wall_seconds,
+        "news_through_frozen_result_wall_seconds": news_wall_seconds,
+        "ml_training": ml_validation.get("model_training_performance", {"status": "not_assessed"}),
+        "ml_model_selection": ml_validation.get("model_selection", {"status": "not_assessed"}),
+        "peak_memory_bytes": None,
+        "peak_memory_status": "not_measured_in_normal_runtime",
+    }
+    final["performance"] = performance
     summary = build_agent_summary(final)
+    summary["sections"]["quant"]["performance"] = performance
     _write_json(destination / "report.json", final)
     _write_json(destination / "agent_summary.json", summary)
     (destination / "report.md").write_text(render_markdown(final), encoding="utf-8")

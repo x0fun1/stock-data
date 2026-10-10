@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.5.0"}
+metadata: {version: "2.6.0"}
 ---
 
 # Stock Data & Quant Research
@@ -16,7 +16,7 @@ metadata: {version: "2.5.0"}
 
 新 Yahoo gateway 需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA_YAHOO_CACHE_DIR`；collector 必须显式传 `--cache-dir`。保留 bar-label 源时间及未知 unit；response map 不自动等于合格预测输入，24h/source_before_close 等现有审计可能阻断，不能伪造字段或更改 gate。
 
-`yahoo_collect.py` 可只采缺失的 market/news 域，生成现有 adapter 接受的 response map；pipeline 仍离线，schema 1.2、Quant 算法、中央 gate、Quant → 审计 → News → 综合时序不变。yfinance 是 Yahoo 路由的必需依赖并按需懒加载；缺依赖时自动尝试旧兼容接口，失败或无映射时如实报告。`--list`/`--help` 不联网。版本/可安装来源、缓存、日期/复权和网络边界以参考与实际实现为准，不把声明当联网验收。旧 Yahoo 签名与结构保留，作为强制自动回退路径；不修改已安装 Skill 或长期 memory。
+`yahoo_collect.py` 可只采缺失的 market/news 域，生成现有 adapter 接受的 response map；pipeline 仍离线，snapshot schema 1.2、Quant 中央 gate、Quant → 审计 → News → 综合时序保持不变。Research A/B 的时序 OOS、IC 推断和共识概率质量字段是可选研究输出，Skill 加权保持关闭；成本情景与预测置信度分离。Research C 继续使用标准库逻辑回归，只用 holdout 前的因果 OOS 预测拟合 Platt；XGBoost/LightGBM 未实现且不加载。yfinance 是 Yahoo 路由的必需依赖并按需懒加载；缺依赖时自动尝试旧兼容接口，失败或无映射时如实报告。`--list`/`--help` 不联网。版本/可安装来源、缓存、日期/复权和网络边界以参考与实际实现为准，不把声明当联网验收。旧 Yahoo 签名与结构保留，作为强制自动回退路径；不修改已安装 Skill 或长期 memory。
 
 ## 任务路由与按需阅读
 

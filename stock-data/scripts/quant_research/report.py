@@ -347,6 +347,13 @@ def render_markdown(result: dict[str, Any]) -> str:
             for row in check:
                 lines.append(f"- OOS {_cell(row.get('researcher_id'))}: Brier {_cell(row.get('brier'))} vs base rate {_cell(row.get('base_rate_brier'))}")
     lines.extend(_probability_validation_lines(quant))
+    performance = result.get("performance") or {}
+    if performance:
+        lines.extend(["", "Runtime measurements (this analysis run; wall clock):",
+                      f"- Quant through frozen result: {_cell(performance.get('quant_through_frozen_result_wall_seconds'))} s; News through frozen result: {_cell(performance.get('news_through_frozen_result_wall_seconds'))} s; through synthesis: {_cell(performance.get('analysis_through_synthesis_wall_seconds'))} s.",
+                      f"- Snapshot loads: {_cell(performance.get('snapshot_loads'))}; researcher snapshot reads: {_cell(performance.get('researcher_snapshot_reads'))}; peak memory: {_cell(performance.get('peak_memory_status'))}.",
+                      f"- ML training: {_cell(performance.get('ml_training', {}).get('successful_fits'))}/{_cell(performance.get('ml_training', {}).get('attempts'))} successful/attempted fits; XGBoost: {_cell(performance.get('ml_model_selection', {}).get('xgboost_status'))}."])
+        lines.append("- Per-path wall seconds: " + ", ".join(f"{_cell(name)} {_cell(seconds)}" for name, seconds in performance.get("researcher_wall_seconds", {}).items()) + ".")
     diagnostics = result["researchers"].get("factor_backtest", {}).get("validation") or {}
     factor_validation = result["researchers"].get("factor", {}).get("validation") or {}
     factor_inference = factor_validation.get("oos_factor_inference") or {}
