@@ -236,6 +236,8 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 for key, item in result["researchers"].items() for polarity in ("positive", "negative") for row in item.get("evidence", {}).get(polarity, [])[:2]]
     events = [{key: event.get(key) for key in ("event_id", "event_type", "event_group", "first_published_at", "occurred_at", "updated_at", "direction", "url", "fact_status", "source_independence")} | {"headline": bounded_text(event.get("headline"), 300), "sources": [bounded_text(source, 100) for source in event.get("sources", [])[:3]], "reaction_status": event.get("market_reaction", {}).get("status")} for event in news.get("major_events", [])[:5]]
     diagnostic = result["researchers"].get("factor_backtest", {}).get("validation") or {}
+    factor_validation = result["researchers"].get("factor", {}).get("validation") or {}
+    factor_inference = factor_validation.get("oos_factor_inference") or {}
     ic = [{"factor": bounded_text(name, 100), "horizon": diagnostic.get("requested_horizon"), "holdout": {key: value.get("horizons", {}).get(diagnostic.get("requested_horizon"), {}).get("holdout", {}).get(key) for key in ("spearman_time_series_ic", "mean_forward_return", "observations", "status")}} for name, value in list(diagnostic.get("factor_metrics", {}).items())[:3]]
     bias = result["adversarial_audit"].get("bias_audit", {})
     risks = synthesis.get("key_risks", [])
@@ -249,7 +251,7 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "price_time": snapshot.get("latest_confirmed_close"),
                 "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "economic_viability": quant.get("economic_viability"), "paths": paths},
                 "technical_factor_evidence": evidence,
-                "backtest_ic_bias": {"audit_status": result["adversarial_audit"]["status"], "checks": {key: value.get("status") for key, value in bias.items() if isinstance(value, dict)}, "diagnostic_examples": ic, "scope": "D: single-security time-series diagnostics; full portfolio backtest/PBO/DSR not computed"},
+                "backtest_ic_bias": {"audit_status": result["adversarial_audit"]["status"], "checks": {key: value.get("status") for key, value in bias.items() if isinstance(value, dict)}, "diagnostic_examples": ic, "factor_oos_inference": {key: factor_inference.get(key) for key in ("status", "method", "data_start", "data_end", "sample_count", "trials", "tests_with_p_value", "p_adjustment_method", "factor_selection_used_this_window")}, "scope": "D: single-security time-series diagnostics; B: OOS time-series IC inference; full portfolio backtest/PBO/DSR not computed"},
                 "news": {"status": news.get("status"), "event_bias": news.get("overall_direction"), "events": events, "coverage": {key: news.get("coverage", {}).get(key) for key in ("observed_publication_start", "observed_publication_end", "eligible_event_count", "eligible_opinion_count", "excluded_evidence_count")}},
                 "cross_validation": {key: synthesis.get(key) for key in ("alignment", "alignment_basis", "news_evidence_direction", "overall_confidence", "evidence_links")},
                 "risk_counter_evidence": {"items": selected_risks, "total": len(risks), "omitted": len(risks) - len(selected_risks)},
@@ -305,6 +307,19 @@ def render_markdown(result: dict[str, Any]) -> str:
             for row in check:
                 lines.append(f"- OOS {_cell(row.get('researcher_id'))}: Brier {_cell(row.get('brier'))} vs base rate {_cell(row.get('base_rate_brier'))}")
     diagnostics = result["researchers"].get("factor_backtest", {}).get("validation") or {}
+    factor_validation = result["researchers"].get("factor", {}).get("validation") or {}
+    factor_inference = factor_validation.get("oos_factor_inference") or {}
+    if factor_inference:
+        lines.extend(["", "Factor OOS IC inference (evaluation only; no factor selection): "
+                      f"{_cell(factor_inference.get('method'))}; window {_cell(factor_inference.get('data_start'))} to "
+                      f"{_cell(factor_inference.get('data_end'))}; N={_cell(factor_inference.get('sample_count'))}; "
+                      f"trials={_cell(factor_inference.get('trials'))}; adjustment={_cell(factor_inference.get('p_adjustment_method'))}."])
+        lines.extend(["| Candidate factor | OOS time-series IC | Approx. block-bootstrap interval | Raw p | Adjusted p | N |",
+                      "|---|---:|---:|---:|---:|---:|"])
+        for name, item in factor_inference.get("factors", {}).items():
+            interval = (item.get("block_bootstrap") or {}).get("interval")
+            interval_text = f"{interval[0]:.4f} to {interval[1]:.4f}" if isinstance(interval, list) and len(interval) == 2 and all(isinstance(v, (int, float)) for v in interval) else "Not assessed"
+            lines.append(f"| {_cell(name)} | {_cell(item.get('oos_time_series_ic'))} | {interval_text} | {_cell(item.get('p_value'))} | {_cell(item.get('p_value_adjusted'))} | {_cell(item.get('observations'))} |")
     lines.extend(["", "D is single-security time-series IC/forward-return diagnostics. Full cross-sectional portfolio backtest, PBO, DSR, actual execution costs/market impact, and survivorship verification are not supplied by this engine; the economic table is assumed-cost sensitivity only.", "",
                   "| Factor | Holdout IC | Mean forward return | N | Status |", "|---|---:|---:|---:|---|"])
     for name, value in diagnostics.get("factor_metrics", {}).items():

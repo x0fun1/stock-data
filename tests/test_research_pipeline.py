@@ -79,6 +79,14 @@ class PipelineTests(Fixture):
         self.assertEqual(report["synthesis"]["economic_viability"], quant["consensus"]["economic_viability"])
         self.assertEqual(summary["sections"]["quant"]["economic_viability"], quant["consensus"]["economic_viability"])
         self.assertIn("交易经济性不改变上涨概率、原始预测或 Quant 置信度", (output / "final_response.md").read_text(encoding="utf-8"))
+        factor_inference = quant["researchers"]["factor"]["validation"]["oos_factor_inference"]
+        self.assertEqual(factor_inference["trials"], quant["researchers"]["factor"]["validation"]["candidate_factor_count"])
+        self.assertEqual(len(factor_inference["factors"]), factor_inference["trials"])
+        self.assertFalse(factor_inference["factor_selection_used_this_window"])
+        self.assertFalse(factor_inference["stationarity_assumption_validated"])
+        self.assertEqual(report["adversarial_audit"]["bias_audit"]["multiple_testing_and_overfitting"]["oos_factor_inference"]["trials"], factor_inference["trials"])
+        self.assertEqual(report["adversarial_audit"]["bias_audit"]["deflated_sharpe_ratio"]["status"], "not_assessed")
+        self.assertIn("Benjamini-Yekutieli", (output / "report.md").read_text(encoding="utf-8"))
         for key in ("prob_up", "direction", "confidence", "agreement", "diversity"):
             self.assertEqual(report["synthesis"]["quant"][key], quant["consensus"][key])
             self.assertEqual(summary["sections"]["quant"][key], quant["consensus"][key])

@@ -95,6 +95,11 @@ def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], con
         if isinstance(selected, int) and str(result.get("researcher_id")) not in candidate_counts:
             candidate_counts[str(result.get("researcher_id"))] = selected
     candidate_total = len(observed_factor_names) if observed_factor_names else sum(candidate_counts.values())
+    factor_inference = next((
+        (result.get("validation") or {}).get("oos_factor_inference")
+        for result in researchers
+        if isinstance((result.get("validation") or {}).get("oos_factor_inference"), dict)
+    ), None)
 
     oos_checks = _oos_baseline_checks(researchers)
     pbo_available = _has_non_null_key(manifest, {"pbo", "pbo_estimate"}) or any(
@@ -128,10 +133,18 @@ def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], con
         overfit_detail = "a PBO or DSR value is present but its trial universe and assumptions are not independently verified"
     elif candidate_total > 1:
         overfit_status = "warning"
-        overfit_detail = (
-            f"{candidate_total} distinct factor candidates were inspected; selection-adjusted significance is not computed, "
-            "and no complete strategy-trial return matrix is available for PBO/DSR"
-        )
+        if factor_inference:
+            overfit_detail = (
+                f"{candidate_total} factor candidates were inspected; OOS time-series IC inference reports "
+                f"{factor_inference.get('p_adjustment_method', 'no adjusted method')} across "
+                f"{factor_inference.get('trials', 0)} attempted factors. This does not correct strategy-level "
+                "selection or replace the missing strategy-trial return matrix for PBO/DSR."
+            )
+        else:
+            overfit_detail = (
+                f"{candidate_total} distinct factor candidates were inspected; selection-adjusted factor inference "
+                "is unavailable, and no complete strategy-trial return matrix is available for PBO/DSR"
+            )
     else:
         overfit_status = "not_assessed"
         overfit_detail = "no complete strategy-trial return matrix or registered parameter-search count is available"
@@ -157,6 +170,7 @@ def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], con
             "candidate_factor_counts_by_path": candidate_counts,
             "distinct_factor_candidates_observed": candidate_total,
             "detail": overfit_detail,
+            "oos_factor_inference": factor_inference or {"status": "not_assessed", "method": "none"},
         },
         "pbo": {
             "status": "present_unverified" if pbo_available else "not_assessed",

@@ -8,7 +8,9 @@ from typing import Any
 
 from ..contracts import HORIZONS, researcher_result
 from ..market_data import forward_returns, market_bars, non_overlapping
-from ..math_utils import mean, pearson, quantile, sample_std, spearman
+from ..math_utils import (benjamini_yekutieli, circular_block_bootstrap_spearman,
+                          circular_shift_spearman_p_value, mean, pearson,
+                          quantile, sample_std, spearman)
 from ..snapshot import load_snapshot
 
 
@@ -111,6 +113,69 @@ def _factor_metrics(values: list[float | None], labels: list[float | None], indi
     }
 
 
+def _oos_factor_inference(
+    factors: dict[str, tuple[str, str, list[float | None]]],
+    labels: list[float | None],
+    indices: list[int],
+    bars: list[dict[str, Any]],
+    horizon: int,
+) -> dict[str, Any]:
+    """Evaluate every attempted factor on the untouched final window; never select from this output."""
+    rows: dict[str, dict[str, Any]] = {}
+    raw_p_values: dict[str, float | None] = {}
+    for name, (family, formula, values) in factors.items():
+        x, y, used = _valid_pairs(values, labels, indices)
+        observations = len(used)
+        block_length = max(horizon, int(round(observations ** (1 / 3)))) if observations else horizon
+        bootstrap = circular_block_bootstrap_spearman(
+            x, y, block_length=block_length, replicates=300, seed=1701 + len(rows),
+        )
+        shift_test = circular_shift_spearman_p_value(x, y, block_length=block_length)
+        split = len(used) // 2
+        first_ic = spearman(x[:split], y[:split]) if split >= 10 else None
+        second_ic = spearman(x[split:], y[split:]) if len(used) - split >= 10 else None
+        raw_p_values[name] = shift_test.get("p_value") if isinstance(shift_test.get("p_value"), (int, float)) else None
+        rows[name] = {
+            "family": family,
+            "formula": formula,
+            "oos_time_series_ic": spearman(x, y),
+            "observations": observations,
+            "data_start": bars[used[0]]["date"] if used else None,
+            "data_end": bars[used[-1] + horizon]["date"] if used else None,
+            "block_bootstrap": bootstrap,
+            "null_test": shift_test,
+            "partwise_ic": {"first_half": first_ic, "second_half": second_ic},
+            "direction_consistent_across_halves": (
+                first_ic is not None and second_ic is not None
+                and (first_ic >= 0) == (second_ic >= 0)
+            ) if first_ic is not None and second_ic is not None else None,
+            "p_value": raw_p_values[name],
+            "p_value_adjusted": None,
+        }
+    adjusted = benjamini_yekutieli(raw_p_values, trials=len(factors))
+    for name, value in adjusted.items():
+        rows[name]["p_value_adjusted"] = value
+    available_tests = sum(value is not None for value in raw_p_values.values())
+    return {
+        "status": "exploratory" if available_tests else "insufficient_samples",
+        "universe_type": "single_security_time_series",
+        "method": "OOS Spearman IC; circular moving-block bootstrap percentile interval; circular-shift null diagnostic; Benjamini-Yekutieli FDR",
+        "p_value_method": "circular_shift_test_stationarity_assumption",
+        "p_adjustment_method": "Benjamini-Yekutieli FDR; conservative under arbitrary test dependence",
+        "trials": len(factors),
+        "tests_with_p_value": available_tests,
+        "sample_count": len(indices),
+        "horizon_sessions": horizon,
+        "data_start": bars[indices[0]]["date"] if indices else None,
+        "data_end": bars[min(len(bars) - 1, indices[-1] + horizon)]["date"] if indices else None,
+        "factor_selection_used_this_window": False,
+        "stationarity_assumption_validated": False,
+        "bootstrap_coverage_validated": False,
+        "market_regime_stability": "not_assessed_no_frozen_regime_definition",
+        "factors": rows,
+    }
+
+
 def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None) -> dict[str, Any]:
     manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     ticker, horizon_name = manifest["ticker"], manifest["horizon"]
@@ -120,9 +185,12 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     factors = _factors(bars)
     n = len(bars)
     holdout_start = int(n * 0.8)
+    holdout_indices = non_overlapping(list(range(holdout_start, n - requested_horizon)), requested_horizon)
     train_end = int(n * 0.5)
     calibration_end = holdout_start
     labels_by_horizon = {h: forward_returns(close, h) for h in (1, 5, 20)}
+    select_labels = labels_by_horizon[requested_horizon]
+    oos_factor_inference = _oos_factor_inference(factors, select_labels, holdout_indices, bars, requested_horizon)
     # Diagnostics are horizon-specific and use only labels available before the final holdout.
     decay: dict[str, dict[str, Any]] = {}
     for name, (family, formula, values) in factors.items():
@@ -135,7 +203,6 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         decay[name] = {"family": family, "formula": formula, "horizons": horizons}
 
     # Feature selection and sign are fixed using the first chronological segment.
-    select_labels = labels_by_horizon[requested_horizon]
     select_indices = non_overlapping([i for i in range(60, train_end) if i + requested_horizon < train_end], requested_horizon)
     ranked: list[tuple[float, str, str, str, list[float | None], dict[str, Any]]] = []
     for name, (family, formula, values) in factors.items():
@@ -167,7 +234,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     warnings: list[str] = ["Returns are gross close-to-close observations; this factor path does not model execution, spreads, slippage or fees."]
     if not retained:
         warnings.append("No candidate factor passed the minimum absolute Rank IC screen in the training segment.")
-        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"factor_decay": decay}, data_used=["daily raw OHLCV"], warnings=warnings)
+        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"factor_decay": decay, "oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors)}, data_used=["daily raw OHLCV"], warnings=warnings)
 
     # Standardize each selected factor using the selection segment only.
     standardized: dict[str, list[float | None]] = {}
@@ -206,7 +273,6 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             warnings.append(f"Calibration bucket {current_bucket!r} has {len(selected_returns)} observations; at least 20 are required for a probability.")
 
     holdout_pairs: list[tuple[float, int]] = []
-    holdout_indices = non_overlapping(list(range(holdout_start, n - requested_horizon)), requested_horizon)
     for i in holdout_indices:
         score = composite(i)
         target = select_labels[i]
@@ -232,7 +298,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     status = "success" if probability is not None and len(holdout_pairs) >= 10 else "partial" if probability is not None else "insufficient_data"
     if len(holdout_pairs) < 10:
         warnings.append("The untouched chronological holdout has fewer than 10 factor-calibration predictions.")
-    validation = {"method": "training-segment factor selection + correlation pruning + later empirical bucket calibration", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_base_rate": calibration_prevalence, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True}}
+    validation = {"method": "training-segment factor selection + correlation pruning + later empirical bucket calibration", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_base_rate": calibration_prevalence, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True, "oos_inference_did_not_select_or_modify_probability": True}}
     validation["diagnostics_label_end_exclusive"] = holdout_start
     validation["sample_feasibility"] = {"minimum_bucket_observations": 20, "minimum_holdout_predictions": 10, "calibration_available": len(calibration_pairs), "requested_window_preserved": True}
     return researcher_result(

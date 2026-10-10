@@ -20,6 +20,8 @@ With a resolved complete calendar, labels use confirmed exchange sessions. Under
 
 Research D tests a fixed OHLCV factor set against 1D/5D/20D forward returns using chronological splits, non-overlapping labels and cutoffs learned only on the training segment. For a single ticker, label Spearman IC as time-series IC. The grouped return spread is a descriptive time-series statistic, not a long/short portfolio simulation. `factor_backtest` insufficiency is supporting-validation information and does not veto a probability absent detected leakage or invalid target construction.
 
+Research B separately reports every candidate's final-window time-series IC, approximate moving-block bootstrap interval, circular-shift diagnostic p-value, and Benjamini–Yekutieli adjusted p-value where estimable. That untouched window is evaluation-only and never selects a factor or changes a forecast. The shift test assumes stationarity, and neither its assumption nor bootstrap interval coverage is validated; interpret these fields as exploratory. DSR remains `not_assessed` without strategy returns.
+
 The upstream cross-sectional Rank IC / portfolio contract remains unavailable until a dated multi-ticker factor panel, point-in-time membership, compatible price and security-mask matrices, calendar and benchmark are supplied. Transaction costs, turnover, benchmark-relative NAV and market impact are not inferred from close-to-close labels.
 
 ## Adversarial audit

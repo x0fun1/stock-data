@@ -33,6 +33,8 @@ E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执
 
 B 的选择/衰减诊断要求 `index + horizon < diagnostics_label_end_exclusive`，不读取 holdout 标签；1D/5D/20D forward 数组各算一次。当前证据极性来自符号校正后的 `current_contribution`，训练 IC 方向另列，不能用训练正 IC 替代当前信号。`sample_feasibility` 披露校准/holdout 样本预算，不为满足阈值扩窗。
 
+新增 `validation.oos_factor_inference` 在最终 chronological evaluation 窗口逐项报告所有尝试因子的单标的时间序列 Spearman IC、分半方向一致性、循环 moving-block bootstrap 近似区间和 circular-shift 零假设诊断，并以 Benjamini–Yekutieli 对全部候选检验做保守 FDR 调整。方法、每项样本量、时间区间、`trials`、可计算 p 值数和调整方法都写入审计。该窗口只用于报告 OOS 结果，不参与因子筛选、方向或概率调整。Circular-shift 的平稳性假设及 bootstrap 覆盖率未验证；样本不足时 p 值/调整值为空，结果仍是探索性 IC 诊断。DSR 继续 `not_assessed`，因为没有策略收益序列与有效交易规则。
+
 ## C — 逻辑回归与防泄漏验证
 
 使用路径内独立 OHLCV 特征和确定性 L2 Logistic Regression。验证包含闭区间 Purged K-Fold、Embargo、仅用过去数据的 causal walk-forward、fold 内标准化和最后的 chronological holdout。当前预测可在验证固定后用已成熟标签重拟合，但不使用 holdout 指标调整特征或参数。
