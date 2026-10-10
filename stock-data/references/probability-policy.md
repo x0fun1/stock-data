@@ -7,6 +7,8 @@
 - Research C: logistic model `predict_proba`-equivalent output; apply Platt scaling only when enough causal walk-forward predictions exist. Mark uncalibrated raw output explicitly.
 - Consensus: equal-weight arithmetic mean of valid, provenance-bearing path estimates. It is not a majority vote or an independently calibrated ensemble.
 
+`economic_viability` is a separate optional result. If path expected returns are available, the report shows gross expected return and simple 5/10/20 bp assumed round-trip cost scenarios. These are sensitivity assumptions only, not broker fees, slippage, market impact, or a strategy net-return backtest. They never modify `prob_up`, raw/calibrated probabilities, OOS probability metrics, or forecast confidence. Older results without this field are treated as `not_assessed`.
+
 All sources require [prediction-integrity and reporting checks](reliability-gates.md). Strict mode does not exclude raw probabilities or require a minimum OOS/calibration threshold for prediction eligibility. Insufficient OOS, calibration or strategy audit lowers confidence/reporting status; detected leakage, fatal data conflict or an absent valid prediction still vetoes. `forecast_eligible` means prediction-computable, not full research or strategy validation.
 
 ## Probability fields

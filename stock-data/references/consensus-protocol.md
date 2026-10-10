@@ -8,6 +8,8 @@ Eligible path estimates receive equal arithmetic weight; this is not a majority 
 
 Confidence is separate from probability and never a veto by itself. The policy uses an explainable 0–100 penalty score, with labels high (80–100), medium (60–79), low (40–59), very low (<40). Report the causes, such as fallback calendar, unknown adjustment, single provider, OOS/calibration gaps, weak agreement or insufficient evidence. Dynamic reliability weights are not implemented.
 
+The optional `economic_viability` report averages available path gross expected returns and applies assumed 5/10/20 bp round-trip costs as a sensitivity table. This does not estimate actual fees, slippage, market impact, or executable net returns. It is not read by the confidence or consensus probability calculation. The News input contract also excludes this field.
+
 If fewer than two paths return valid probabilities, label `single_path`; zero valid probabilities means unavailable. A single-path estimate may be reported as DEGRADED if it passes prediction integrity. Exclude an invalid/leaking path; explicit leakage detection or another fatal pipeline-integrity defect vetoes the combined report under current policy.
 
 ## Horizon semantics

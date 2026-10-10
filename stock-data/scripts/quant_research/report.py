@@ -81,6 +81,22 @@ def _quant_lines(fields: dict[str, Any]) -> list[str]:
     return lines
 
 
+def _economic_lines(value: dict[str, Any] | None) -> list[str]:
+    value = value if isinstance(value, dict) else {}
+    if value.get("status") != "scenario_sensitivity_only":
+        return ["- 交易经济性：未评估（预期收益或成本情景不足）"]
+    scenarios = value.get("scenarios", [])
+    costs = ", ".join(
+        f"{_cell(row.get('round_trip_cost_bps'))}bp {_pct(row.get('net_expected_return'))}"
+        for row in scenarios if isinstance(row, dict)
+    ) or "Unavailable"
+    return [
+        "- 交易经济性：仅为假设成本敏感性分析；不代表实际费率、滑点、市场冲击或策略净收益回测。",
+        f"- 毛预期收益：{_pct(value.get('gross_expected_return'))}；成本后的情景净预期收益：{costs}。",
+        "- 交易经济性不改变上涨概率、原始预测或 Quant 置信度。",
+    ]
+
+
 def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -> str:
     if fields["prob_up"] is None:
         return "上涨概率：不可用。Quant 未提供通过报告资格的有效概率；不得由 LLM 或新闻补算。"
@@ -146,7 +162,8 @@ def render_final_response(result: dict[str, Any], *, summary: dict[str, Any] | N
     price, news = sections["price_time"] or {}, sections["news"]
     lines = [f"# {_cell(snapshot['ticker'])} 简析", "", required["identity"],
              f"- 最新确认收盘：{_cell(price.get('price'))} {_cell(price.get('currency'))}，日期 {_cell(price.get('session_date'))}；来源 {_cell(price.get('source'))}（非实时价）",
-             "", "### Quant", "", *_quant_lines(reportable_quant_fields(result))]
+             "", "### Quant", "", *_quant_lines(reportable_quant_fields(result)),
+             *_economic_lines(sections.get("quant", {}).get("economic_viability"))]
     if "calibration" not in required:
         lines.append(required["unavailable_reason"])
     evidence = sections["technical_factor_evidence"][:3]
@@ -230,13 +247,13 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
             "analysis_status": result["analysis_status"], "reporting_status": result.get("reporting_status", "veto"), "stages": result["stages"],
             "sections": {
                 "price_time": snapshot.get("latest_confirmed_close"),
-                "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "paths": paths},
+                "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "economic_viability": quant.get("economic_viability"), "paths": paths},
                 "technical_factor_evidence": evidence,
                 "backtest_ic_bias": {"audit_status": result["adversarial_audit"]["status"], "checks": {key: value.get("status") for key, value in bias.items() if isinstance(value, dict)}, "diagnostic_examples": ic, "scope": "D: single-security time-series diagnostics; full portfolio backtest/PBO/DSR not computed"},
                 "news": {"status": news.get("status"), "event_bias": news.get("overall_direction"), "events": events, "coverage": {key: news.get("coverage", {}).get(key) for key in ("observed_publication_start", "observed_publication_end", "eligible_event_count", "eligible_opinion_count", "excluded_evidence_count")}},
                 "cross_validation": {key: synthesis.get(key) for key in ("alignment", "alignment_basis", "news_evidence_direction", "overall_confidence", "evidence_links")},
                 "risk_counter_evidence": {"items": selected_risks, "total": len(risks), "omitted": len(risks) - len(selected_risks)},
-                "final_synthesis": {"status": result["analysis_status"], "may_report_direction": result["adversarial_audit"].get("may_report_direction", False), "quant": dict(quant_fields), "quant_field_source": "quant_result.json.consensus", "quant_display": _quant_lines(quant_fields), "probability_note": _final_probability_note(quant_fields, snapshot["ticker"], snapshot["horizon"]), "news_relationship": _relationship_text(synthesis), "probability_unavailable_reasons": _unavailable_reasons(result)[:5] if quant_fields["prob_up"] is None else [], "quant_probability_preserved": synthesis.get("quant_probability_preserved", False), "warnings": [bounded_text(item, 240) for item in synthesis.get("warnings", [])[:5]]},
+                "final_synthesis": {"status": result["analysis_status"], "may_report_direction": result["adversarial_audit"].get("may_report_direction", False), "quant": dict(quant_fields), "quant_field_source": "quant_result.json.consensus", "economic_viability": quant.get("economic_viability"), "quant_display": _quant_lines(quant_fields), "probability_note": _final_probability_note(quant_fields, snapshot["ticker"], snapshot["horizon"]), "news_relationship": _relationship_text(synthesis), "probability_unavailable_reasons": _unavailable_reasons(result)[:5] if quant_fields["prob_up"] is None else [], "quant_probability_preserved": synthesis.get("quant_probability_preserved", False), "warnings": [bounded_text(item, 240) for item in synthesis.get("warnings", [])[:5]]},
             }}
 
 
@@ -258,6 +275,7 @@ def render_markdown(result: dict[str, Any]) -> str:
              "- Bar close is not a live quote. Source authenticity is not independently verified.", "",
              "## 2. Quant 数据面", "",
              *_quant_lines(quant_fields),
+             *_economic_lines(quant.get("economic_viability")),
              f"- Status: {_cell(quant.get('status'))}",
              "- Confidence、agreement 与 diversity 保留 Quant 原值/原尺度；分类标签不换算为百分比。",
              f"- Calibration: {_cell(quant.get('calibration_status'))}; equal-weight mean is not an independently calibrated ensemble probability."]
@@ -287,7 +305,7 @@ def render_markdown(result: dict[str, Any]) -> str:
             for row in check:
                 lines.append(f"- OOS {_cell(row.get('researcher_id'))}: Brier {_cell(row.get('brier'))} vs base rate {_cell(row.get('base_rate_brier'))}")
     diagnostics = result["researchers"].get("factor_backtest", {}).get("validation") or {}
-    lines.extend(["", "D is single-security time-series IC/forward-return diagnostics. Full cross-sectional portfolio backtest, PBO, DSR, costs and survivorship verification are not supplied by this engine.", "",
+    lines.extend(["", "D is single-security time-series IC/forward-return diagnostics. Full cross-sectional portfolio backtest, PBO, DSR, actual execution costs/market impact, and survivorship verification are not supplied by this engine; the economic table is assumed-cost sensitivity only.", "",
                   "| Factor | Holdout IC | Mean forward return | N | Status |", "|---|---:|---:|---:|---|"])
     for name, value in diagnostics.get("factor_metrics", {}).items():
         metric = value.get("horizons", {}).get(diagnostics.get("requested_horizon"), {}).get("holdout", {})
@@ -313,6 +331,7 @@ def render_markdown(result: dict[str, Any]) -> str:
         for warning in item.get("warnings", []):
             lines.append(f"- {_cell(name)}: {_cell(warning)}")
     lines.extend(["", "## 8. Final Synthesis", "", *_quant_lines(quant_fields), "",
+                  *_economic_lines(quant.get("economic_viability")), "",
                   _final_probability_note(quant_fields, manifest["ticker"], manifest["horizon"]),
                   f"- 消息面与 Quant 的关系：{_relationship_text(synthesis)}（{_cell(synthesis.get('alignment'))}）；依据：{_cell(synthesis.get('alignment_basis'))}",
                   f"- Outcome: {_cell(result.get('analysis_status'))}; overall confidence: {_cell(synthesis.get('overall_confidence'))}"])

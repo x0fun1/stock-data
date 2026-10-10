@@ -8,6 +8,51 @@ from typing import Any
 from .math_utils import mean, sample_std
 
 
+ROUND_TRIP_COST_SCENARIOS_BPS = (5, 10, 20)
+
+
+def _economic_viability(researchers: list[dict[str, Any]]) -> dict[str, Any]:
+    available = [
+        (str(result.get("researcher_id", "unknown")), float(result["expected_return"]))
+        for result in researchers
+        if isinstance(result.get("expected_return"), (int, float))
+        and not isinstance(result.get("expected_return"), bool)
+        and math.isfinite(float(result["expected_return"]))
+    ]
+    gross = mean(value for _, value in available)
+    if gross is None:
+        return {
+            "status": "not_assessed",
+            "gross_expected_return": None,
+            "aggregation_method": "equal_mean_of_available_path_expected_returns",
+            "contributing_paths": [],
+            "expected_return_source_count": 0,
+            "scenarios": [],
+            "cost_model_status": "assumed_scenario_sensitivity_not_actual_cost_estimate",
+            "execution_validation": "not_assessed",
+        }
+    return {
+        "status": "scenario_sensitivity_only",
+        "gross_expected_return": gross,
+        "aggregation_method": "equal_mean_of_available_path_expected_returns",
+        "contributing_paths": [name for name, _ in available],
+        "expected_return_source_count": len(available),
+        "scenarios": [
+            {
+                "round_trip_cost_bps": cost_bps,
+                "net_expected_return": gross - cost_bps / 10000.0,
+                "expected_return_below_cost": gross < cost_bps / 10000.0,
+                "cost_model_status": "assumed_scenario_only_not_live_fee_slippage_or_impact",
+            }
+            for cost_bps in ROUND_TRIP_COST_SCENARIOS_BPS
+        ],
+        "cost_model_status": "assumed_scenario_sensitivity_not_actual_cost_estimate",
+        "execution_validation": "not_assessed",
+        "market_impact_estimate": "not_assessed",
+        "strategy_net_return_backtest": "not_assessed",
+    }
+
+
 def _oos_count(result: dict[str, Any]) -> int:
     validation = result.get("validation") or {}
     name = result.get("researcher_id")
@@ -134,6 +179,7 @@ def build_consensus(
     if not valid:
         return {
             "status": "unavailable", "weighting": "equal", "available_paths": 0,
+            "economic_viability": _economic_viability([]),
             "prob_up": None, "direction": "unavailable", "agreement": "unavailable",
             "diversity": "unavailable", "confidence": "very_low", "confidence_score": 0,
             "path_assessments": assessments, "calibration_status": "not_assessed",
@@ -228,9 +274,11 @@ def build_consensus(
         "probability_basis": "equal_weight_mean_of_valid_path_estimates",
         "calibration_status": "ensemble_calibration_unavailable",
     }
+    economic = _economic_viability(valid)
     return {
         "status": "ensemble" if len(valid) >= 2 else "single_path",
         "weighting": "equal",
+        "economic_viability": economic,
         "path_assessments": assessments,
         "calibration_status": "equal_weight_mean_not_ensemble_calibrated",
         "available_paths": len(valid),

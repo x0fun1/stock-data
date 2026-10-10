@@ -63,7 +63,7 @@ def _has_chronological_holdout(value: Any) -> bool:
     return False
 
 
-def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]]) -> dict[str, Any]:
+def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus: dict[str, Any]) -> dict[str, Any]:
     forecasts = [
         result for result in researchers
         if result.get("result_role", "forecast") == "forecast"
@@ -135,9 +135,17 @@ def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]]) -> 
     else:
         overfit_status = "not_assessed"
         overfit_detail = "no complete strategy-trial return matrix or registered parameter-search count is available"
+    economic = consensus.get("economic_viability") or {}
+    sensitivity_status = (
+        "simplified_assumption_scenario_only"
+        if economic.get("status") == "scenario_sensitivity_only"
+        else "not_assessed"
+    )
     cost_detail = (
         "cost-related fields are present but their execution assumptions and calculations have not been independently verified."
         if cost_available
+        else "only assumed 5/10/20 bp round-trip sensitivity scenarios are available; actual fees, slippage, market impact, and strategy net returns remain unassessed."
+        if sensitivity_status != "not_assessed"
         else "forecast and factor diagnostics use gross close-to-close returns; no executable strategy or cost inputs were supplied."
     )
     return {
@@ -161,6 +169,11 @@ def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]]) -> 
         "transaction_costs_and_market_impact": {
             "status": "present_unverified" if cost_available else "not_assessed",
             "detail": cost_detail,
+        },
+        "transaction_cost_sensitivity": {
+            "status": sensitivity_status,
+            "round_trip_cost_bps": [row.get("round_trip_cost_bps") for row in economic.get("scenarios", []) if isinstance(row, dict)],
+            "does_not_validate_execution": True,
         },
         "survivorship_bias": {
             "status": "not_assessed_single_security" if single_security else "not_assessed",
@@ -248,7 +261,7 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
         warn("PATH_FAILED", "Cross-validation by independent paths is unavailable; do not call this an ensemble consensus.")
     if consensus.get("agreement") in {"high_disagreement", "extreme_disagreement"}:
         warn("LOW_FACTOR_AGREEMENT", "Consensus probability is unstable across research paths.")
-    bias_checks = _bias_audit(manifest, researchers)
+    bias_checks = _bias_audit(manifest, researchers, consensus)
     if bias_checks["look_ahead_and_label_timing"]["status"] == "warning":
         warn("LEAKAGE_AUDIT_INCOMPLETE", "At least one research path lacks a complete declared feature/label timing audit.")
     if bias_checks["chronological_out_of_sample"]["status"] == "warning":

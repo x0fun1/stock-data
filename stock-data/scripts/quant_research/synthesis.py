@@ -128,6 +128,12 @@ def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -
     return {
         "quant": quant_fields,
         "quant_field_source": "quant_result.json.consensus",
+        "economic_viability": quant.get("economic_viability", {
+            "status": "not_assessed",
+            "cost_model_status": "not_assessed",
+            "execution_validation": "not_assessed",
+            "scenarios": [],
+        }),
         "alignment": alignment,
         "quantitative_bias": q_direction,
         "quant_prob_up": q_probability,

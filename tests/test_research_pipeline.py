@@ -76,6 +76,9 @@ class PipelineTests(Fixture):
         self.assertTrue(report["adversarial_audit"]["may_report_direction"])
         self.assertIsNotNone(report["consensus"]["prob_up"])
         self.assertEqual(report["synthesis"]["quant_prob_up"], quant["consensus"]["prob_up"])
+        self.assertEqual(report["synthesis"]["economic_viability"], quant["consensus"]["economic_viability"])
+        self.assertEqual(summary["sections"]["quant"]["economic_viability"], quant["consensus"]["economic_viability"])
+        self.assertIn("交易经济性不改变上涨概率、原始预测或 Quant 置信度", (output / "final_response.md").read_text(encoding="utf-8"))
         for key in ("prob_up", "direction", "confidence", "agreement", "diversity"):
             self.assertEqual(report["synthesis"]["quant"][key], quant["consensus"][key])
             self.assertEqual(summary["sections"]["quant"][key], quant["consensus"][key])

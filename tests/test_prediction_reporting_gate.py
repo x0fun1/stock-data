@@ -13,9 +13,11 @@ sys.path.insert(0, str(ROOT / "stock-data" / "scripts"))
 from quant_research.audit import audit
 from quant_research.consensus import build_consensus
 from quant_research.orchestrator import run_analysis
+from quant_research.news.contracts import NewsInput
 from quant_research.snapshot import freeze_snapshot, load_snapshot
 from quant_research.contracts import researcher_result
 from quant_research.gate_policy import aggregate_gate_telemetry, classify_reasons
+from quant_research.synthesis import build_synthesis
 from research_fixture import collection
 
 
@@ -166,6 +168,49 @@ class PredictionReportingGateTests(unittest.TestCase):
         self.assertIn("PBO_NOT_ASSESSED", reviewed["reason_codes"])
         self.assertIn("DSR_NOT_ASSESSED", reviewed["reason_codes"])
         self.assertIn("TRANSACTION_COST_NOT_ASSESSED", reviewed["reason_codes"])
+
+    def test_assumed_cost_scenarios_are_independent_of_probability_and_confidence(self):
+        manifest, _ = load_snapshot(self.freeze())
+        baseline = researcher_result(
+            "quant", manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
+            status="partial", prob_up=.64, probability_source="synthetic historical frequency",
+            validation={"oos_predictions": 25, "leakage_audit": {
+                "features_use_data_through_decision_close_only": True,
+                "future_returns_used_only_as_labels": True,
+            }},
+        )
+        costed = {**baseline, "expected_return": .0004}
+        before = build_consensus([baseline], manifest)
+        after = build_consensus([costed], manifest)
+        self.assertEqual(after["prob_up"], before["prob_up"])
+        self.assertEqual(after["confidence_score"], before["confidence_score"])
+        economics = after["economic_viability"]
+        self.assertEqual(economics["status"], "scenario_sensitivity_only")
+        self.assertEqual([row["round_trip_cost_bps"] for row in economics["scenarios"]], [5, 10, 20])
+        self.assertAlmostEqual(economics["scenarios"][0]["net_expected_return"], -.0001)
+        self.assertTrue(all(row["expected_return_below_cost"] for row in economics["scenarios"]))
+        self.assertEqual(economics["execution_validation"], "not_assessed")
+        self.assertNotIn("economic_viability", NewsInput.__dataclass_fields__)
+
+    def test_news_synthesis_preserves_quant_economics_and_probability(self):
+        manifest, _ = load_snapshot(self.freeze())
+        result = researcher_result(
+            "quant", manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
+            status="partial", prob_up=.41, expected_return=-.003,
+            probability_source="synthetic historical frequency",
+            validation={"oos_predictions": 25, "leakage_audit": {
+                "features_use_data_through_decision_close_only": True,
+                "future_returns_used_only_as_labels": True,
+            }},
+        )
+        consensus = build_consensus([result], manifest)
+        quant_frozen = {"snapshot": manifest, "consensus": consensus, "adversarial_audit": {"may_report_direction": True}}
+        news = {"ticker": manifest["ticker"], "market": manifest["market"], "horizon": manifest["horizon"],
+                "snapshot_id": manifest["snapshot_id"], "asof_timestamp": manifest["asof_timestamp"],
+                "status": "complete", "overall_direction": "positive", "sentiment": {"consensus_direction": "positive"}}
+        synthesis = build_synthesis(quant_frozen, news)
+        self.assertEqual(synthesis["quant"]["prob_up"], .41)
+        self.assertEqual(synthesis["economic_viability"], consensus["economic_viability"])
 
     def test_unknown_reason_code_fails_closed_and_batch_telemetry_counts_abstentions(self):
         self.assertEqual(classify_reasons(["UNREGISTERED_GATE_CODE"])["status"], "veto")

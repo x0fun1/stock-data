@@ -55,7 +55,7 @@ D 自行构造固定因子，按时间 70/30 划分训练和 holdout，分位切
 
 E 检查快照身份/digest、路径快照一致性、概率来源和范围、invalid 状态、残留区间重叠、结构化特征/标签时间声明、chronological OOS、Brier 基准与已观察的候选因子数量。声明检查不等于对每个特征实现的形式证明。
 
-PBO、DSR、交易成本/冲击、幸存者偏差缺乏完整试验收益矩阵、试验数量、执行假设、PIT universe 或退市覆盖时必须标为未评估；已有数值也不能自动当作已审计。当前没有正式 CPCV/PBO/DSR 计算、成本后执行模拟、长期可靠性权重或有治理凭据的 holdout/forward store。
+PBO、DSR、实际交易成本/冲击、幸存者偏差缺乏完整试验收益矩阵、试验数量、执行假设、PIT universe 或退市覆盖时必须标为未评估；已有数值也不能自动当作已审计。报告可给出 5/10/20 bp 假设往返成本敏感性，但这不构成实际费用、滑点、市场冲击或策略净收益回测。经济性字段与预测置信度、概率及 News 输入隔离。当前没有正式 CPCV/PBO/DSR 计算、成本后执行模拟、长期可靠性权重或有治理凭据的 holdout/forward store。
 
 若 `adversarial_audit.may_report_direction` 为 false，运行器将共识设为 `research_invalid` 并清空可报告概率。`pre_veto_prob_up` 仅用于追踪被否决结果，不能拿它交付正常方向结论。
 
