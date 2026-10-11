@@ -15,6 +15,11 @@ from ..snapshot import load_snapshot
 from ..validation.purged_cv import SampleInterval, causal_walk_forward, count_interval_overlaps, purged_kfold
 
 FEATURE_NAMES = ("return_1", "return_5", "return_20", "return_60", "volatility_20", "volume_z20", "range_position20", "gap_1", "close_location")
+FEATURE_FAMILIES = {
+    "return_1": "momentum", "return_5": "momentum", "return_20": "momentum", "return_60": "momentum",
+    "volatility_20": "volatility", "volume_z20": "volume", "range_position20": "trend",
+    "gap_1": "momentum", "close_location": "trend",
+}
 
 
 @dataclass(frozen=True)
@@ -286,6 +291,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     validation = {
         "model": "native deterministic L2 logistic regression",
         "features": list(FEATURE_NAMES),
+        "feature_families": dict(FEATURE_FAMILIES),
         "random_seed": 0,
         "feature_availability": "close[t] and OHLCV through decision session t; target begins after t",
         "leakage_audit": {"features_use_data_through_decision_close_only": True, "target_excluded_from_features": True, "fold_local_scaling": True, "purge_uses_closed_information_intervals": True, "causal_walk_forward": True, "chronological_holdout": True},
@@ -325,5 +331,13 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     predicted_return = mean([row.forward_return for row in current_rows if row.target == 1])
     down_return = mean([row.forward_return for row in current_rows if row.target == 0])
     expected_return = probability * predicted_return + (1 - probability) * down_return if probability is not None and predicted_return is not None and down_return is not None else None
-    evidence = {"positive": [{"family": "momentum", "features": list(FEATURE_NAMES), "model_probability": probability}] if probability is not None and probability >= 0.5 else [], "negative": [{"family": "momentum", "features": list(FEATURE_NAMES), "model_probability": probability}] if probability is not None and probability < 0.5 else []}
+    model_evidence = {
+        "hypothesis": "L2 logistic prediction from multiple OHLCV input feature families",
+        "features": list(FEATURE_NAMES), "model_probability": probability,
+        "family_scope": "input_exposure; not fitted contribution or statistical independence",
+        "factors": [{"family": family, "features": [name for name in FEATURE_NAMES if FEATURE_FAMILIES[name] == family]}
+                    for family in sorted(set(FEATURE_FAMILIES.values()))],
+    }
+    evidence = {"positive": [model_evidence] if probability is not None and probability >= 0.5 else [],
+                "negative": [model_evidence] if probability is not None and probability < 0.5 else []}
     return researcher_result("ml", ticker, horizon_name, manifest["snapshot_id"], status=status, prob_up=probability, expected_return=expected_return, evidence=evidence, validation=validation, data_used=["daily raw OHLCV"], warnings=warnings, probability_source="logistic_predict_proba_platt_calibrated" if calibration and probability is not None else "logistic_predict_proba_uncalibrated" if probability is not None else None, raw_probability=raw_current if probability is not None else None, calibrated_probability=probability if calibration and probability is not None else None)

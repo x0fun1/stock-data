@@ -33,7 +33,11 @@ E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执
 
 B 的选择/衰减诊断要求 `index + horizon < diagnostics_label_end_exclusive`，不读取 holdout 标签；1D/5D/20D forward 数组各算一次。当前证据极性来自符号校正后的 `current_contribution`，训练 IC 方向另列，不能用训练正 IC 替代当前信号。`sample_feasibility` 披露校准/holdout 样本预算，不为满足阈值扩窗。
 
+B 在前段训练样本按绝对 Rank IC 排序，`abs(IC) >= 0.02` 是预设的启发式筛选线，不是显著性检验。随后去除与已保留因子绝对相关系数 `>= 0.85` 的候选，每家族最多两项、总计最多五项。`close_location` 按价格区间位置归为 trend，`overnight_gap` 按隔夜价格收益归为 momentum；家族修正会影响同家族数量限制。该选择过程没有用 FDR 控制训练搜索的错误发现率，不能声称选中的因子具有统计显著性。
+
 新增 `validation.oos_factor_inference` 在最终 chronological evaluation 窗口逐项报告所有尝试因子的单标的时间序列 Spearman IC、分半方向一致性、循环 moving-block bootstrap 近似区间和 circular-shift 零假设诊断，并以 Benjamini–Yekutieli 对全部候选检验做保守 FDR 调整。方法、每项样本量、时间区间、`trials`、可计算 p 值数和调整方法都写入审计。该窗口只用于报告 OOS 结果，不参与因子筛选、方向或概率调整。Circular-shift 的平稳性假设及 bootstrap 覆盖率未验证；样本不足时 p 值/调整值为空，结果仍是探索性 IC 诊断。DSR 继续 `not_assessed`，因为没有策略收益序列与有效交易规则。
+
+OOS 的 BY 调整以全部尝试候选作为检验家族，并计入无法计算 p 值的候选数量。调整值是最终评价窗口的诊断输出；当前没有用 `p_adjusted < 0.05` 等阈值再选因子，也不能把它追溯为训练选择阈值 `0.02` 的 FDR 保证。
 
 ## C — 逻辑回归与防泄漏验证
 

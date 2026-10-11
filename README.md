@@ -174,7 +174,7 @@ python stock-data/scripts/global_stock_data.py --function yahoo_history --params
 
 ## 实现边界与验证
 
-当前仓库版本：Skill `2.8.0` / research runtime `0.5.0` / snapshot schema `1.2`。保留原有 Quant→冻结→News 流程、中央 gate 和预测契约；常规预测可使用隔离运行和经过实际回复二次校验的 JSON 清理，研究/审计通过 `--keep-json` 保留完整档案。清理只触及本次私有运行的已登记 JSON，不改变数据门槛或预测算法。Quant 的 OOS 冻结行情审计、按当前可用路径的共识诊断、因果扩展基率策略回放、Factor 样本预算、证据等级和 confidence score 语义字段不改变冻结输入契约或 NewsInput。A 路径仍是无先验/无衰减的条件频率；skill 权重保持实验性且不启用；XGBoost/LightGBM 未实现、不探测、不加载。当前 OOS replay 是历史描述性点估计，没有技能不确定性区间，也不证明真实市场预测改善。
+当前仓库版本：Skill `2.8.1` / research runtime `0.5.1` / snapshot schema `1.2`。保留原有 Quant→冻结→News 流程、中央 gate 和预测契约；常规预测可使用隔离运行和经过实际回复二次校验的 JSON 清理，研究/审计通过 `--keep-json` 保留完整档案。清理只触及本次私有运行的已登记 JSON，不改变数据门槛或预测算法。Quant 的 OOS 冻结行情审计、按当前可用路径的共识诊断、因果扩展基率策略回放、Factor 样本预算、证据等级和 confidence score 语义字段不改变冻结输入契约或 NewsInput。2.8.1 加固缺失日期、重复路径身份和评估映射，并修正 OHLCV 特征家族标签；B 的同家族筛选及共识多样性评分可能随标签修正变化。训练 IC 筛选阈值与 OOS FDR 诊断的区别，以及当前 confidence 最高 80 分的保守扣分设计，见 [Quant Paths](stock-data/references/quant-paths.md) 和 [Consensus Protocol](stock-data/references/consensus-protocol.md)。A 路径仍是无先验/无衰减的条件频率；skill 权重保持实验性且不启用；XGBoost/LightGBM 未实现、不探测、不加载。当前 OOS replay 是历史描述性点估计，没有技能不确定性区间，也不证明真实市场预测改善。
 
 预测概率与经济性分开：5/10/20 bp 仅是假设成本敏感性。因子 OOS IC 使用 BY-FDR、moving-block bootstrap 和 circular-shift 探索性检验；时序平稳性和区间覆盖率尚未验证，DSR 保持 `not_assessed`。没有真实、独立、可配对市场快照，本次合成 fixture 仅用于边界、兼容和运行性能工程验收，不构成预测改善证据。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
 

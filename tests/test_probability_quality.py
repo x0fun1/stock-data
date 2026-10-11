@@ -52,6 +52,53 @@ def _fixture(*, changed_evaluation_targets=False, shifted_windows=False, abstain
 
 
 class ProbabilityQualityTests(unittest.TestCase):
+    def test_missing_or_invalid_asof_is_rejected_without_string_coercion(self):
+        researchers, manifest = _fixture()
+        manifest.pop("latest_confirmed_close")
+        for value in (None, 20240210, "not-a-date"):
+            with self.subTest(asof=value):
+                quality = build_oos_probability_quality(researchers, {**manifest, "asof_timestamp": value})
+                self.assertEqual(quality["paths"], {})
+                self.assertEqual(quality["row_validation"]["quant"]["rejected_samples"], 10)
+                self.assertIn("snapshot_asof_session_missing_or_invalid",
+                              quality["row_validation"]["quant"]["rejection_reasons"])
+        quality = build_oos_probability_quality(researchers, {**manifest, "asof_timestamp": "2024-02-10T20:00:00Z"})
+        self.assertEqual(quality["paths"]["quant"]["valid_probability_predictions"], 10)
+
+    def test_explicit_assessments_control_current_cohort_weights_and_leakage_replay(self):
+        researchers, manifest = _fixture()
+        bars = [{"date": (date(2024, 1, 1) + timedelta(days=i)).isoformat(), "close": 100 + i}
+                for i in range(25)]
+        manifest["latest_confirmed_close"]["session_date"] = bars[-1]["date"]
+        for path in researchers:
+            path["validation"]["oos_forecasts"] = [
+                {"decision_session": bars[i]["date"], "label_end_session": bars[i + 1]["date"],
+                 "training_label_end_session": bars[0]["date"], "target": 1, "probability": .7,
+                 "target_definition": "close[t+1] / close[t] - 1 > 0"}
+                for i in range(2, 22, 2)]
+        researchers[0]["forecast_eligible"] = False  # Stale path annotations must not override the caller.
+        researchers[2]["reason_codes"] = ["LEAKAGE_DETECTED"]
+        assessments = {
+            "quant": {"forecast_eligible": True, "reason_codes": []},
+            "ml": {"forecast_eligible": True, "reason_codes": []},
+        }
+        quality, weights = build_probability_validation(researchers, manifest, bars=bars, assessments=assessments,
+                                                       minimum_weight_window_samples=3)
+        self.assertEqual(quality["current_forecast_paths"], ["quant"])
+        self.assertEqual(weights["path_ids"], ["quant"])
+        self.assertEqual(quality["assessment_source"], "explicit_assessments")
+        replay = quality["algorithm_policy_replay"]
+        self.assertTrue(all("ml" not in row["available_path_ids"] for row in replay["active_path_mask"]))
+        self.assertTrue(any("factor" in row["available_path_ids"] for row in replay["active_path_mask"]))
+
+    def test_duplicate_path_ids_are_excluded_from_probability_metrics(self):
+        researchers, manifest = _fixture()
+        quality, weights = build_probability_validation([*researchers, researchers[0]], manifest)
+        self.assertNotIn("quant", quality["paths"])
+        self.assertNotIn("quant", quality["current_forecast_paths"])
+        self.assertNotIn("quant", weights["path_ids"])
+        self.assertEqual(quality["path_input_rejections"][0]["reason"], "duplicate_researcher_id")
+
     def test_frozen_oos_audit_rejects_wrong_labels_training_boundary_and_duplicates(self):
         bars = [{"date": (date(2024, 1, 1) + timedelta(days=i)).isoformat(), "close": close}
                 for i, close in enumerate((100, 102, 101, 103, 100, 104))]

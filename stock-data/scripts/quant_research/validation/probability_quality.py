@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import math
+from datetime import date
 from typing import Any
 
 from ..contracts import HORIZONS
@@ -12,6 +13,63 @@ from ..math_utils import mean
 
 MINIMUM_WEIGHT_WINDOW_SAMPLES = 20
 DEFAULT_BRIER_SKILL_EPSILON = 0.05
+
+
+def unique_research_paths(
+    researchers: list[dict[str, Any]],
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Exclude ambiguous duplicate IDs rather than choosing a first or last vote."""
+    grouped: dict[str, list[dict[str, Any]]] = {}
+    rejected: list[dict[str, Any]] = []
+    for index, path in enumerate(researchers):
+        name = path.get("researcher_id") if isinstance(path, dict) else None
+        if not isinstance(name, str) or not name:
+            rejected.append({"record_index": index, "reason": "researcher_id_missing_or_invalid"})
+            continue
+        grouped.setdefault(name, []).append(path)
+    accepted = []
+    for name, paths in grouped.items():
+        if len(paths) != 1:
+            rejected.append({"researcher_id": name, "record_count": len(paths),
+                             "reason": "duplicate_researcher_id"})
+        else:
+            accepted.append(paths[0])
+    return accepted, rejected
+
+
+def _session_date(value: Any) -> str | None:
+    if not isinstance(value, str):
+        return None
+    session = value[:10]
+    try:
+        return session if date.fromisoformat(session).isoformat() == session else None
+    except ValueError:
+        return None
+
+
+def _path_assessment(path: dict[str, Any], assessments: dict[str, dict[str, Any]] | None) -> dict[str, Any]:
+    if assessments is None:
+        return path  # Legacy standalone diagnostics consume optional annotations.
+    value = assessments.get(path.get("researcher_id"))
+    return value if isinstance(value, dict) else {}
+
+
+def path_has_detected_leakage(path: dict[str, Any], assessments: dict[str, dict[str, Any]] | None = None) -> bool:
+    """An explicit assessment cannot erase a path's declared timing violation."""
+    for metadata in (path, _path_assessment(path, assessments)):
+        if "LEAKAGE_DETECTED" in (metadata.get("reason_codes") or []):
+            return True
+    validation = path.get("validation")
+    if not isinstance(validation, dict):
+        return False
+    leakage = validation.get("leakage_audit")
+    if isinstance(leakage, dict) and (
+        leakage.get("features_use_data_through_decision_close_only") is False
+        or leakage.get("future_returns_used_only_as_labels", leakage.get("target_excluded_from_features")) is False
+    ):
+        return True
+    purged = validation.get("purged_kfold")
+    return isinstance(purged, dict) and purged.get("retained_interval_overlaps", 0) not in (None, 0)
 
 
 def _valid_probability(value: Any) -> bool:
@@ -24,7 +82,7 @@ def _audit_oos_path(
 ) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
     summary = {"status": "not_assessed", "supplied_samples": 0, "valid_samples": 0,
                "valid_predictions": 0, "rejected_samples": 0, "rejection_reasons": {},
-               "rejected_examples": []}
+               "rejected_sample_rate": None, "rejected_examples": []}
     validation = path.get("validation") or {}
     if not isinstance(validation, dict):
         summary["reason"] = "validation_metadata_not_object"
@@ -54,11 +112,12 @@ def _audit_oos_path(
         except (KeyError, TypeError, ValueError, OverflowError):
             session_index, closes, forward = {}, [], []
             bars_error = "frozen_market_bars_invalid"
-    latest = (manifest.get("latest_confirmed_close") or {}).get("session_date")
-    if not isinstance(latest, str) and bars:
-        latest = str(bars[-1].get("date", ""))[:10]
-    if not isinstance(latest, str):
-        latest = str(manifest.get("asof_timestamp", ""))[:10]
+    latest_close = manifest.get("latest_confirmed_close")
+    latest = _session_date(latest_close.get("session_date")) if isinstance(latest_close, dict) else None
+    if latest is None and bars and not bars_error:
+        latest = _session_date(bars[-1].get("date"))
+    if latest is None:
+        latest = _session_date(manifest.get("asof_timestamp"))
     latest_index = session_index.get(latest) if session_index else None
     duplicates: set[str] = set()
     seen: set[str] = set()
@@ -104,6 +163,8 @@ def _audit_oos_path(
                 expected_target = int(float(forward[decision_index]) > 0)
                 if target != expected_target:
                     reasons.append("target_does_not_match_frozen_close_prices")
+        elif not isinstance(latest, str):
+            reasons.append("snapshot_asof_session_missing_or_invalid")
         elif not (decision <= label_end <= latest):
             reasons.append("label_outside_snapshot_time_boundary")
         if not isinstance(target, int) or isinstance(target, bool) or target not in (0, 1):
@@ -137,6 +198,7 @@ def _audit_oos_path(
         rows[decision] = {**row, "decision_session": decision, "label_end_session": label_end,
                           "target": target, "target_definition": recorded_target}
     summary["valid_samples"] = len(rows)
+    summary["rejected_sample_rate"] = summary["rejected_samples"] / len(source_rows) if source_rows else None
     summary["valid_predictions"] = sum(_valid_probability(row.get("probability")) for row in rows.values())
     summary["status"] = "rejected_records" if summary["rejected_samples"] else "validated"
     if bars is None:
@@ -156,7 +218,8 @@ def audit_oos_result(
         supplied = len(source_rows) if isinstance(source_rows, list) else 0
         return {"status": "rejected_snapshot_identity", "supplied_samples": supplied,
                 "valid_samples": 0, "valid_predictions": 0, "valid_prediction_count": 0,
-                "rejected_samples": supplied, "rejection_reasons": {"snapshot_identity_mismatch": supplied or 1},
+                "rejected_samples": supplied, "rejected_sample_rate": 1.0 if supplied else None,
+                "rejection_reasons": {"snapshot_identity_mismatch": supplied or 1},
                 "rejected_examples": [], "reason": "oos_rows_do_not_match_frozen_snapshot_identity"}
     rows, summary = _audit_oos_path(result, manifest, bars)
     return {**summary, "valid_prediction_count": sum(_valid_probability(row.get("probability")) for row in rows.values())}
@@ -178,6 +241,7 @@ def _validated_oos_rows(
             audits[str(path.get("researcher_id", "unknown"))] = {
                 "status": "rejected_snapshot_identity", "supplied_samples": supplied,
                 "valid_samples": 0, "valid_predictions": 0, "rejected_samples": supplied,
+                "rejected_sample_rate": 1.0 if supplied else None,
                 "rejection_reasons": {"snapshot_identity_mismatch": supplied or 1},
                 "rejected_examples": [], "reason": "oos_rows_do_not_match_frozen_snapshot_identity",
             }
@@ -370,7 +434,9 @@ def _policy_replay_quality(
 def build_oos_probability_quality(
     researchers: list[dict[str, Any]], manifest: dict[str, Any],
     *, bars: list[dict[str, Any]] | None = None,
+    assessments: dict[str, dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    researchers, input_rejections = unique_research_paths(researchers)
     rows_by_path, row_audits = _validated_oos_rows(researchers, manifest, bars)
     path_metrics = {
         name: _probability_metrics(list(rows.values()))
@@ -379,18 +445,21 @@ def build_oos_probability_quality(
     all_names = sorted(rows_by_path)
     active_names = sorted({str(path.get("researcher_id", "unknown")) for path in researchers
                            if path.get("result_role", "forecast") == "forecast"
-                           and path.get("forecast_eligible", True) is True})
+                            and _path_assessment(path, assessments).get("forecast_eligible", assessments is None) is True
+                            and not path_has_detected_leakage(path, assessments)})
     common_oos = _common_oos_metrics(rows_by_path, active_names)
     # A path with detected information leakage cannot support historical policy skill,
     # even when individual labels and dates in its submitted rows are well formed.
     replay_rows = {name: rows for name, rows in rows_by_path.items()
                    if not any(path.get("researcher_id") == name
-                              and "LEAKAGE_DETECTED" in (path.get("reason_codes") or [])
+                               and path_has_detected_leakage(path, assessments)
                               for path in researchers)}
     return {
         "status": "available" if common_oos.get("common_oos_samples", 0) else "partial" if path_metrics else "not_assessed",
         "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
         "current_forecast_paths": active_names,
+        "assessment_source": "explicit_assessments" if assessments is not None else "legacy_path_annotations",
+        "path_input_rejections": input_rejections,
         "target_definition": f"close[t+{HORIZONS.get(manifest.get('horizon'), 0)}] / close[t] - 1 > 0",
         "paths": path_metrics,
         "row_validation": row_audits,
@@ -405,6 +474,7 @@ def build_brier_skill_weight_diagnostic(
     manifest: dict[str, Any],
     *,
     bars: list[dict[str, Any]] | None = None,
+    assessments: dict[str, dict[str, Any]] | None = None,
     epsilon: float = DEFAULT_BRIER_SKILL_EPSILON,
     minimum_per_window: int = MINIMUM_WEIGHT_WINDOW_SAMPLES,
 ) -> dict[str, Any]:
@@ -412,10 +482,12 @@ def build_brier_skill_weight_diagnostic(
         raise ValueError("Brier skill epsilon must be finite and non-negative")
     if isinstance(minimum_per_window, bool) or not isinstance(minimum_per_window, int) or minimum_per_window < 2:
         raise ValueError("minimum_per_window must be an integer of at least 2")
+    researchers, input_rejections = unique_research_paths(researchers)
     rows_by_path, _ = _validated_oos_rows(researchers, manifest, bars)
     active_names = {str(path.get("researcher_id", "unknown")) for path in researchers
                     if path.get("result_role", "forecast") == "forecast"
-                    and path.get("forecast_eligible", True) is True}
+                    and _path_assessment(path, assessments).get("forecast_eligible", assessments is None) is True
+                    and not path_has_detected_leakage(path, assessments)}
     names = sorted(name for name in rows_by_path if name in active_names)
     all_dates = set.intersection(*(set(rows_by_path[name]) for name in names)) if names else set()
     common_dates = []
@@ -439,6 +511,8 @@ def build_brier_skill_weight_diagnostic(
         "common_oos_samples": len(common_dates),
         "common_complete_prediction_samples": len(complete_dates),
         "path_ids": names,
+        "assessment_source": "explicit_assessments" if assessments is not None else "legacy_path_annotations",
+        "path_input_rejections": input_rejections,
         "weight_estimation_start": None,
         "weight_estimation_end": None,
         "weight_estimation_label_end": None,
@@ -540,13 +614,14 @@ def build_probability_validation(
     manifest: dict[str, Any],
     *,
     bars: list[dict[str, Any]] | None = None,
+    assessments: dict[str, dict[str, Any]] | None = None,
     skill_epsilon: float = DEFAULT_BRIER_SKILL_EPSILON,
     minimum_weight_window_samples: int = MINIMUM_WEIGHT_WINDOW_SAMPLES,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     return (
-        build_oos_probability_quality(researchers, manifest, bars=bars),
+        build_oos_probability_quality(researchers, manifest, bars=bars, assessments=assessments),
         build_brier_skill_weight_diagnostic(
-            researchers, manifest, bars=bars, epsilon=skill_epsilon,
+            researchers, manifest, bars=bars, assessments=assessments, epsilon=skill_epsilon,
             minimum_per_window=minimum_weight_window_samples,
         ),
     )

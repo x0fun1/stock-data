@@ -7,7 +7,8 @@ from typing import Any
 
 from .math_utils import mean, sample_std
 from .validation.probability_quality import (DEFAULT_BRIER_SKILL_EPSILON,
-                                             build_probability_validation)
+                                             audit_oos_result, build_probability_validation,
+                                             path_has_detected_leakage, unique_research_paths)
 
 
 ROUND_TRIP_COST_SCENARIOS_BPS = (5, 10, 20)
@@ -192,10 +193,23 @@ def build_consensus(
     bars: list[dict[str, Any]] | None = None,
     skill_epsilon: float = DEFAULT_BRIER_SKILL_EPSILON,
 ) -> dict[str, Any]:
+    researchers, input_rejections = unique_research_paths(researchers)
     if assessments is None:
-        assessments = {r["researcher_id"]: forecast_assessment(r, manifest) for r in researchers}
+        assessments = {r["researcher_id"]: forecast_assessment(
+            r, manifest, oos_evidence_audit=audit_oos_result(r, manifest, bars) if bars is not None else None,
+        ) for r in researchers}
+    else:
+        supplied_assessments = assessments
+        assessments = {}
+        for result in researchers:
+            name = result["researcher_id"]
+            assessment = supplied_assessments.get(name)
+            if isinstance(assessment, dict):
+                assessments[name] = assessment
+            else:
+                input_rejections.append({"researcher_id": name, "reason": "path_assessment_missing_or_invalid"})
     oos_probability_quality, skill_weight_validation = build_probability_validation(
-        researchers, manifest, bars=bars, skill_epsilon=skill_epsilon,
+        researchers, manifest, bars=bars, assessments=assessments, skill_epsilon=skill_epsilon,
     )
     valid = [
         r for r in researchers
@@ -203,8 +217,10 @@ def build_consensus(
         and r.get("status") in {"success", "partial"}
         and isinstance(r.get("prob_up"), (int, float))
         and not isinstance(r.get("prob_up"), bool)
+        and math.isfinite(float(r["prob_up"])) and 0 <= r["prob_up"] <= 1
         and r.get("probability_source")
-        and assessments[r["researcher_id"]]["forecast_eligible"]
+        and assessments.get(r["researcher_id"], {}).get("forecast_eligible") is True
+        and not path_has_detected_leakage(r, assessments)
     ]
     probabilities = [float(r["prob_up"]) for r in valid]
     if not valid:
@@ -218,11 +234,13 @@ def build_consensus(
             "prob_up": None, "direction": "unavailable", "agreement": "unavailable",
             "diversity": "unavailable", "confidence": "very_low", "confidence_score": 0,
             "path_assessments": assessments, "calibration_status": "not_assessed",
+            "path_input_rejections": input_rejections,
             "prediction": {"status": "unavailable", "raw_probability": None,
                            "calibrated_probability": None, "reportable_probability": None,
                            "probability_basis": "no_valid_path", "calibration_status": "not_assessed"},
             "reason_codes": ["PREDICTION_FAILED"],
-            "warnings": ["No researcher produced a reportable probability; the Quant prediction is unavailable."],
+            "warnings": ["No researcher produced a reportable probability; the Quant prediction is unavailable."]
+                        + (["Ambiguous path IDs or missing assessments were excluded; see path_input_rejections."] if input_rejections else []),
         }
 
     probability = mean(probabilities)
@@ -259,7 +277,7 @@ def build_consensus(
     confidence_score = float(base_score)
     confidence_reasons: list[str] = []
     confidence_penalties: list[dict[str, Any]] = []
-    path_assessments = [assessments[r["researcher_id"]] for r in valid]
+    path_assessments = [assessments.get(r["researcher_id"], {}) for r in valid]
     def deduct(points: int, reason: str) -> None:
         nonlocal confidence_score
         confidence_score -= points
@@ -267,18 +285,18 @@ def build_consensus(
         confidence_reasons.append(reason)
     if len(valid) < 2:
         deduct(10, "only_one_quant_path")
-    calibration_statuses = [item["probability_calibration"] for item in path_assessments]
+    calibration_statuses = [item.get("probability_calibration", "uncalibrated") for item in path_assessments]
     if "uncalibrated" in calibration_statuses:
         deduct(20, "uncalibrated_raw_probability")
     deduct(10, "ensemble_calibration_unavailable")
-    oos_statuses = [item["oos_validation"]["status"] for item in path_assessments]
+    oos_statuses = [(item.get("oos_validation") or {}).get("status", "insufficient") for item in path_assessments]
     if not oos_statuses or all(status in {"weak", "insufficient"} for status in oos_statuses):
         deduct(20, "oos_validation_insufficient")
     elif "weak" in oos_statuses or "insufficient" in oos_statuses:
         deduct(10, "some_oos_validation_weak")
-    if any("LEAKAGE_AUDIT_INCOMPLETE" in item["reason_codes"] for item in path_assessments):
+    if any("LEAKAGE_AUDIT_INCOMPLETE" in (item.get("reason_codes") or []) for item in path_assessments):
         deduct(15, "leakage_audit_incomplete")
-    if any("OOS_EVIDENCE_INVALID" in item["reason_codes"] for item in path_assessments):
+    if any("OOS_EVIDENCE_INVALID" in (item.get("reason_codes") or []) for item in path_assessments):
         deduct(20, "oos_evidence_invalid")
     if agreement == "medium":
         deduct(5, "moderate_path_disagreement")
@@ -304,9 +322,9 @@ def build_consensus(
     confidence_score = max(0, min(100, round(confidence_score)))
     confidence = _confidence_label(confidence_score)
 
-    warnings: list[str] = []
-    all_codes = [code for item in path_assessments for code in item["reason_codes"]]
-    if any(item["probability_calibration"] == "uncalibrated" for item in path_assessments):
+    warnings: list[str] = (["Ambiguous path IDs or missing assessments were excluded; see path_input_rejections."] if input_rejections else [])
+    all_codes = [code for item in path_assessments for code in (item.get("reason_codes") or [])]
+    if "uncalibrated" in calibration_statuses:
         warnings.append("Consensus includes raw uncalibrated model probabilities; calibration cannot be inferred from the path mean.")
     warnings.append("The equal-weight consensus has no independently validated ensemble calibrator; its probability reliability is not established by path-level calibration alone.")
     if len(valid) < 2:
@@ -334,6 +352,7 @@ def build_consensus(
         "oos_probability_quality": oos_probability_quality,
         "skill_weight_validation": skill_weight_validation,
         "path_assessments": assessments,
+        "path_input_rejections": input_rejections,
         "calibration_status": "equal_weight_mean_not_ensemble_calibrated",
         "available_paths": len(valid),
         "path_ids": [r["researcher_id"] for r in valid],

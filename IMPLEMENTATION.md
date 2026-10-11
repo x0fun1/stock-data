@@ -118,3 +118,14 @@ Yahoo 路由改为强制 yfinance 优先。Yahoo 主依赖合并到 `stock-data/
 - 清理保留 `report.md`、`final_response.md` 和最小 `cleanup_receipt.txt`。回执只含 ID、回复/报告哈希、状态、JSON 文件/字节数和相对目标名。操作系统文件锁保证并发互斥并复用失效锁文件；内容不符的既有锁文件会被拒绝而不覆盖。失效 pipeline 标记只在运行归属与清单校验后移除。dry-run、原子回执写入、partial 状态与幂等重试均由清理模块处理；analysis-only 模式不清理源快照。
 - Skill 常规预测顺序改为创建私有 run、生成并校验待发送文本、宿主读取/复制后清理、发送同一文本；研究/审计使用 `--keep-json`。CLI 不判断消息是否实际送达。
 - 新增 `tests/test_json_cleanup.py` 生命周期验收。代码质量复核后 `python -m unittest discover -s tests`：**220 项运行，219 通过、1 项跳过**；跳过项是本机策略拒绝创建 symlink 的隔离路径用例。实际 CLI 合成 abstain 流程、report/freeze 篡改阻断、未知文件、外部输入和共享快照保护、active pipeline 锁、并发清理锁、异常锁文件保护、失效标记归属保护、失败强制清理、dry-run、部分失败重试与幂等均通过。额外 `compileall`、六个 Python 文件 AST 解析、`git diff --check` 和 13 条 Skill 本地链接检查通过。Skill Creator `quick_validate.py` 因系统 Python 与 bundled Python 均无 PyYAML，无法启动；没有为此安装依赖。
+
+## Quant 接口加固与证据口径复核（2026-10-11）
+
+Skill **2.8.1** / research runtime **0.5.1**；Snapshot schema 保持 **1.2**。
+
+- 缺少 as-of 的现有代码因 `str()` 转换不会出现所述字符串/None 比较 `TypeError`，但显式 `None` 会变成 `"None"`，可能错误放行结构性 OOS 日期。改为解析有效 ISO session 日期，缺失或类型错误时拒收记录，并在比较前显式检查类型。
+- 共识和概率质量诊断排除重复 researcher ID 的所有副本，避免双重投票或选择第一/最后一条造成偏差；缺失 ID/评估映射写入 `path_input_rejections`，不再抛 KeyError。共识还复核数值有限性，显式 assessment 不能抹除路径已声明的泄漏。
+- 共识将 `assessments` 显式传入 OOS 质量和实验权重诊断。缺失评估的路径不参与当前预测集合；历史 replay 继续独立于今天的可用集合，同时保留显式和原路径的泄漏排除。旧版独立调用仍支持路径内注解，但通过 `assessment_source` 披露该模式。
+- 修正 C 的多家族 OHLCV 输入说明，以及 B 的收盘区间位置/隔夜收益家族。C 的数值预测不因标签修改，B 的同家族上限可改变保留因子，共识多样性评分也可能变化；家族标签不证明统计独立或预测改善。
+- 文档明确 B 的训练 `abs(IC) >= 0.02`、相关性 `0.85`、家族/总数量上限是启发式筛选；最终 OOS 的 BY 调整不是训练选择的 FDR 保证。共识缺 ensemble 校准及技能区间的两项固定扣分，使当前最高支持度评分为 80（起点 85 时至多 65）。维持一条拒收记录触发 20 分扣减的保守政策，并披露 `rejected_sample_rate`；未设未经验证的拒绝率阈值。
+- 本轮完整回归：`python -m unittest discover -s tests` **228 项运行，227 通过、1 项跳过**，耗时 31.093 秒；跳过仍为本机不允许创建 symlink 的用例。新增边缘日期、评估映射、重复身份、非有限概率、泄漏不可覆盖及最高评分回归，ML 既有完整时序测试同时验证输入家族。`compileall` 和 `git diff --check` 通过。没有新增独立市场 OOS 或技能不确定性区间，结果不能证明真实市场预测改善。

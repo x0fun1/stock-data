@@ -11,6 +11,7 @@ from unittest.mock import patch
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "stock-data" / "scripts"))
 from quant_research.researchers import ml
+from quant_research.consensus import _families
 from quant_research.snapshot import freeze_snapshot
 from research_fixture import collection
 
@@ -37,6 +38,9 @@ class MLTemporalIntegrityTests(unittest.TestCase):
                 result = ml.run(snapshot)
 
         validation = result["validation"]
+        self.assertEqual(_families(result), {"momentum", "trend", "volatility", "volume"})
+        self.assertEqual(validation["feature_families"]["close_location"], "trend")
+        self.assertEqual(validation["feature_families"]["gap_1"], "momentum")
         calibration = validation["calibration_training"]
         holdout = validation["final_holdout"]
         self.assertFalse(optional_imports)

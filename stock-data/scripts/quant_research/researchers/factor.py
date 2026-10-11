@@ -107,8 +107,8 @@ def _factors(bars: list[dict[str, Any]]) -> dict[str, tuple[str, str, list[float
     add("realized_volatility_20", "volatility", "sample_std(log(close[j]/close[j-1]), j=t-18..t)", vol20)
     add("volume_z20", "volume", "(volume[t] - mean(volume[t-19:t])) / sample_std(volume[t-19:t])", volume_z)
     add("range_position_20", "trend", "(close[t] - rolling_low20) / (rolling_high20 - rolling_low20)", range_pos)
-    add("close_location", "volume", "(2*close[t] - high[t] - low[t]) / (high[t] - low[t])", close_location)
-    add("overnight_gap", "volatility", "open[t] / close[t-1] - 1", gap)
+    add("close_location", "trend", "(2*close[t] - high[t] - low[t]) / (high[t] - low[t])", close_location)
+    add("overnight_gap", "momentum", "open[t] / close[t-1] - 1", gap)
     add("volume_return_corr20", "volume", "corr(return, volume_change) over 20 sessions", volume_return_corr)
     return result
 
