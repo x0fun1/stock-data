@@ -176,7 +176,7 @@ class ProviderTests(unittest.TestCase):
         p = YahooProvider()
         with patch.object(p, '_call_yfinance', return_value={'status': 'empty', 'data': None}):
             with patch('yfinance_provider._legacy_yahoo_fallback', return_value={'status': 'partial', 'fallback_used': True}) as fallback:
-                self.assertTrue(p.call('yahoo_news', symbol='AAPL')['fallback_used'])
+                self.assertTrue(p.call('yahoo_statistics', symbol='AAPL')['fallback_used'])
         fallback.assert_called_once()
         with patch.object(p, '_call_yfinance', return_value={'status': 'partial', 'data': {'bars': [{'close': 10}]}}):
             with patch('yfinance_provider._legacy_yahoo_fallback') as fallback:

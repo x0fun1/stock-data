@@ -261,10 +261,11 @@ class CliTests(OfflineCase):
         code, data = self.cli(["--list"])
         self.assertEqual(code, 0)
         self.assertEqual(data["status"], "success")
-        self.assertEqual(len(data["data"]), 44 + len(stock.YFINANCE_FUNCTIONS))
+        self.assertEqual(len(data["data"]), 43 + len(stock.YFINANCE_FUNCTIONS))
         names = {item["function"] for item in data["data"]}
         self.assertNotIn("official_get", names)
         self.assertNotIn("get_yahoo_session", names)
+        self.assertNotIn("stock_news", names)
 
     def test_yahoo_company_profile_is_available_via_cli(self):
         profile = {"assetProfile": {"longBusinessSummary": "Fixture business", "sector": "Fixture"}}

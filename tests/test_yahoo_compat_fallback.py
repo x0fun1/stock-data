@@ -32,24 +32,6 @@ def test_history_fallback_normalizes_local_session_and_preserves_unknowns():
     assert result["status"] == "partial"
 
 
-def test_news_fallback_maps_only_legacy_publication_and_ticker_evidence():
-    legacy = ModuleType("global_stock_data")
-    legacy.stock_news = lambda keyword, count: [{
-        "article_id": "story-1", "title": "Reported result", "publisher": "Publisher",
-        "link": "https://news.example/story-1", "publish_time": 1704067200,
-        "tickers": ["AAPL"],
-    }]
-    with patch.dict(sys.modules, {"global_stock_data": legacy}):
-        result = fallback("yahoo_news", {"symbol": "AAPL", "count": 5}, {"category": "DataUnavailable"})
-    article = result["data"]["articles"][0]
-    assert result["fallback_used"] is True
-    assert result["fallback_route"] == "stock_news"
-    assert result["status"] == "partial"
-    assert result["fetched_at_utc"].endswith("Z")
-    assert article["tickers"] == ["AAPL"]
-    assert article["published_at"] == "2024-01-01T00:00:00Z"
-
-
 def test_generic_fallback_records_route_and_actual_search_source():
     legacy = ModuleType("global_stock_data")
     calls = []
@@ -110,7 +92,6 @@ def test_every_registered_capability_is_mapped_or_explicitly_unmappable():
         "yahoo_quote": "yahoo_quote_summary",
         "yahoo_profile": "yahoo_quote_summary",
         "yahoo_financials": "financial_statements_yahoo",
-        "yahoo_news": "stock_news",
         "yahoo_search": "stock_search",
         "yahoo_statistics": "key_statistics",
         "yahoo_analysis": "analyst_estimates",

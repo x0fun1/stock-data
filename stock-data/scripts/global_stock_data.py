@@ -1550,39 +1550,6 @@ def stock_search(keyword: str, count: int = 10) -> list[dict]:
     return result
 
 
-def stock_news(keyword: str, count: int = 10) -> list[dict]:
-    """
-    Yahoo Finance 新闻搜索
-    keyword: 股票代码或关键词，如 "AAPL", "Tesla", "0700.HK"
-    返回: [{title, publisher, link, publish_time, thumbnail}, ...]
-    注意: 需要先获取 Yahoo cookie 才能调用，否则返回 400
-    """
-    _nonempty_text(keyword, "keyword")
-    _positive_int(count, "count")
-    if count > 100 or len(keyword) > 200:
-        raise ValueError("News search is limited to 100 records and a 200-character query.")
-    s = get_yahoo_session()
-
-    url = "https://query2.finance.yahoo.com/v1/finance/search"
-    params = {"q": keyword, "quotesCount": 0, "newsCount": count}
-    r = _session_get(s, url, params=params, timeout=10)
-    r.raise_for_status()
-
-    news = r.json().get("news", [])
-    result = []
-    for n in news:
-        result.append({
-            "title": n.get("title"),
-            "publisher": n.get("publisher"),
-            "link": n.get("link"),
-            "publish_time": n.get("providerPublishTime"),
-            "article_id": n.get("uuid"),
-            "tickers": n.get("relatedTickers"),
-            "thumbnail": n.get("thumbnail", {}).get("resolutions", [{}])[0].get("url") if n.get("thumbnail") else None,
-        })
-    return result
-
-
 _cik_cache = None
 
 def ticker_to_cik(ticker: str) -> dict:
@@ -2011,11 +1978,6 @@ def yahoo_financials(symbol: str, frequency: str = "yearly",
     return _yfinance_call("yahoo_financials", **locals())
 
 
-def yahoo_news(symbol: str | None = None, query: str | None = None,
-               count: int = 10, tab: str = "news") -> dict:
-    return _yfinance_call("yahoo_news", **locals())
-
-
 def yahoo_search(query: str, count: int = 8, lookup_type: str | None = None) -> dict:
     return _yfinance_call("yahoo_search", **locals())
 
@@ -2051,7 +2013,7 @@ def yahoo_screen(query: dict, query_type: str = "equity", size: int = 25,
 
 YFINANCE_FUNCTIONS = {
     "yahoo_history", "yahoo_history_batch", "yahoo_quote", "yahoo_profile",
-    "yahoo_financials", "yahoo_news", "yahoo_search", "yahoo_statistics",
+    "yahoo_financials", "yahoo_search", "yahoo_statistics",
     "yahoo_analysis", "yahoo_holders", "yahoo_options", "yahoo_earnings",
     "yahoo_funds", "yahoo_screen",
 }# Explicit data/analysis entry points. Low-level HTTP and session helpers are
@@ -2087,7 +2049,6 @@ FUNCTION_SOURCES = {
     "sec_filings": "SEC EDGAR",
     "sec_xbrl_facts": "SEC EDGAR",
     "stock_search": "Eastmoney search",
-    "stock_news": "Yahoo Finance",
     "ticker_to_cik": "SEC EDGAR",
     "market_stock_list": "Eastmoney push2",
     "short_volume_all": "FINRA Reg SHO",

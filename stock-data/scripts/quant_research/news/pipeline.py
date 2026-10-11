@@ -18,6 +18,7 @@ from .classify import direction_for, event_text, event_type_for, matched_topics,
 from .contracts import NewsInput
 from .decay import time_decay
 from .deduplicate import deduplicate_articles
+from .impact import assess as assess_impact
 from .normalize import normalize_articles, normalize_source_sentiment
 from .reaction import validate_reaction
 
@@ -213,6 +214,8 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         warnings.append(f"{len(unclassified_clusters)} records could not be classified as a factual event or explicit opinion and were left unclassified")
 
     bars = [dict(row) for row in news_input.bars]
+    frozen_closes = [float(row["close"]) for row in bars if isinstance(row.get("close"), (int, float))]
+    frozen_dates = [str(row["date"])[:10] for row in bars]
     events: list[dict[str, Any]] = []
     for cluster in event_clusters:
         representative = cluster["representative"]
@@ -228,6 +231,15 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             market=news_input.market,
             bars=bars,
             session_closes=news_input.coverage.get("session_closes"),
+        )
+        impact = assess_impact(
+            event_type=event_type,
+            event_direction=event_direction,
+            reaction=reaction,
+            publishers=cluster.get("sources", []),
+            closes=frozen_closes,
+            session_index=(frozen_dates.index(str(reaction["market_session_date"])[:10])
+                           if reaction.get("market_session_date") else None),
         )
         scores = {
             field: _mean_field(cluster["articles"], field)
@@ -290,6 +302,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             "headline": representative.get("title"),
             "summary": representative.get("summary"),
             "market_reaction": reaction,
+            "impact": impact,
         })
 
     opinions: list[dict[str, Any]] = []

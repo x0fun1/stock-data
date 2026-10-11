@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.8.1"}
+metadata: {version: "2.9.0"}
 ---
 
 # Stock Data & Quant Research
@@ -39,15 +39,16 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 |---|---|---|
 | 报价/历史/资料 | `references/analysis-paths.md` | `references/source-policies.md`（需要比较来源或解释缺口时） |
 | 通用分析/概率 | `references/researcher-contract.md`、`references/reliability-gates.md`、`references/quant-paths.md`、`references/probability-policy.md` | `references/point-in-time-policy.md`、`references/consensus-protocol.md`、`references/snapshot-schema.md`（遇到对应问题时） |
-| 新闻/事件/情绪 | `references/news-analysis.md`、`references/source-policies.md` | `references/collection-adapter.md`（字段映射时）、`references/point-in-time-policy.md`（历史可用性问题时） |
+| 新闻/事件/情绪 | `references/news-analysis.md`、`references/news-impact-rubric.md`、`references/source-policies.md` | `references/collection-adapter.md`（字段映射时）、`references/point-in-time-policy.md`（历史可用性问题时） |
 | 因子/回测 | `references/quant-paths.md` | `references/consensus-protocol.md`、`references/point-in-time-policy.md` |
 | Finnhub 工具调用 | `references/finnhub-mcp-1.21.3-schema.md` 中所需函数 | 仅在能力未知时浏览完整 schema |
 
-`SKILL.md` 负责路由和顺序；`news-analysis.md`、`quant-paths.md`、`reliability-gates.md`、`probability-policy.md` 分别是 News、量化路径、数据门槛、概率交付的权威规则。不要为报价查询加载完整研究文档，也不要默认把全部 references 发送给模型。
+`SKILL.md` 负责路由和顺序；`news-analysis.md`、`news-impact-rubric.md`、`quant-paths.md`、`reliability-gates.md`、`probability-policy.md` 分别是 News、News 影响分级、量化路径、数据门槛、概率交付的权威规则。不要为报价查询加载完整研究文档，也不要默认把全部 references 发送给模型。
 
 ## 来源路由
 
 - 美股优先使用实际已连接、覆盖该字段的 Finnhub MCP；参数按当前会话 schema。仅在需要时读取 [Finnhub schema](references/finnhub-mcp-1.21.3-schema.md)。本包不提供 Finnhub 连接或密钥。
+- 新闻唯一来源是宿主 Finnhub MCP `get-news-pulse`（基线 7 天，返回 headline/source/datetime_utc，无正文）。本包已移除全部 Yahoo 新闻路由；宿主未连接 Finnhub MCP 时 News 记 `not_assessed`，不做二次联网。
 - 港股及 Finnhub 缺项使用本包 global gateway；调用前按需读取 [global-stock-data.md](references/global-stock-data.md) 与 [source-policies.md](references/source-policies.md)。函数和参数以 `--list` 为准。
 - 每轮维护已成功查询及缺项清单；复用成功响应，仅补缺项。403/Premium 不重试同端点；429 停止新增 Finnhub 调用。失败响应不能改成成功空数组。
 - ETF 使用自身 OHLCV，标明 `asset_type=etf`。成分股/指数只作有明确敞口的背景，不代填基金价格、财务或 NAV。当前不实现 ETF 穿透估值、跟踪误差或杠杆路径模型。

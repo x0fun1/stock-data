@@ -1,4 +1,4 @@
-"""Explicit Yahoo market/news collection; the research pipeline remains offline.
+"""Explicit Yahoo market collection; the research pipeline remains offline.
 
 Only normalized provider data is projected. Calendar evidence is optional, and
 unknown provenance/closure is never replaced with a guessed symbol or clock.
@@ -194,37 +194,19 @@ def _market(envelope: dict[str, Any], request: dict[str, Any], start: str, end: 
     return block
 
 
-def _news(envelope: dict[str, Any]) -> dict[str, Any]:
-    block = _block(envelope)
-    if block["status"] in {"failed", "unavailable"}:
-        return block
-    articles = block["data"].get("articles")
-    if not isinstance(articles, list):
-        block.update(status="failed", data=None)
-        block["warnings"].append("provider news lacks a normalized articles array")
-    elif not articles:
-        block.update(status="unavailable", data=None)
-        block["warnings"].append("no articles returned; historical coverage is not established")
-    else:
-        block["status"] = "partial"
-        block["warnings"].append("Yahoo short feed only; historical news coverage/full text not guaranteed. Existing NewsInput performs PIT and ticker filtering.")
-    return block
-
-
-def collect(request: dict[str, Any], *, domains: tuple[str, ...] | list[str] = ("market", "news"),
+def collect(request: dict[str, Any], *, domains: tuple[str, ...] | list[str] = ("market",),
             provider: Any = None, cache_dir: str | Path | None = None, timeout: float = 15,
-            deadline: float = 120, request_budget: int = 30, news_count: int = 10,
-            news_tab: str = "news", now: datetime | None = None) -> dict[str, Any]:
+            deadline: float = 120, request_budget: int = 30,
+            now: datetime | None = None) -> dict[str, Any]:
     """Collect selected domains independently. Inject a provider for offline tests.
 
-    Existing Finnhub successes are reused by the host: select only missing domains.
+    News is intentionally absent: the Finnhub MCP tool is the only news source.
+    Existing Finnhub successes are reused by the host.
     No provider-specific options are added to the research request.
     """
     normalized = normalize_request(request)
-    if not domains or set(domains) - {"market", "news"}:
-        raise ValueError("domains must select market and/or news")
-    if not 1 <= news_count <= 100 or news_tab not in {"news", "all", "press releases"}:
-        raise ValueError("invalid bounded news count/tab")
+    if not domains or set(domains) - {"market"}:
+        raise ValueError("domains must select market")
     if timeout <= 0 or deadline <= 0 or request_budget < 1:
         raise ValueError("network limits must be positive")
     normalized["asof"] = normalized["asof"] or (now or datetime.now(timezone.utc)).astimezone(timezone.utc).isoformat()
@@ -252,12 +234,9 @@ def collect(request: dict[str, Any], *, domains: tuple[str, ...] | list[str] = (
     symbol = aliases.get("Yahoo Finance", normalized["ticker"])
     result = {}
     try:
-        if "market" in domains:
-            env = _call(provider, "yahoo_history", symbol=symbol, start=start.isoformat(),
-                        end=(end + timedelta(days=1)).isoformat(), interval="1d", price_basis="adjusted")
-            result["market"] = _market(env, normalized, start.isoformat(), end.isoformat(), schedule)
-        if "news" in domains:
-            result["news"] = _news(_call(provider, "yahoo_news", symbol=symbol, count=news_count, tab=news_tab))
+        env = _call(provider, "yahoo_history", symbol=symbol, start=start.isoformat(),
+                    end=(end + timedelta(days=1)).isoformat(), interval="1d", price_basis="adjusted")
+        result["market"] = _market(env, normalized, start.isoformat(), end.isoformat(), schedule)
     finally:
         if owned_provider:
             provider.close()
@@ -277,21 +256,19 @@ def write_responses(responses: dict[str, Any], path: str | Path) -> Path:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--request", required=True, type=Path)
-    parser.add_argument("--domains", nargs="+", choices=("market", "news"), default=["market", "news"])
+    parser.add_argument("--domains", nargs="+", choices=("market",), default=["market"])
     parser.add_argument("--output", required=True, type=Path)
-    parser.add_argument("--cache-dir", type=Path, required=True)
+    parser.add_argument("--cache-dir", required=True, type=Path)
     parser.add_argument("--timeout", type=float, default=15)
     parser.add_argument("--deadline", type=float, default=120)
     parser.add_argument("--request-budget", type=int, default=30)
-    parser.add_argument("--news-count", type=int, default=10)
-    parser.add_argument("--news-tab", choices=("news", "all", "press releases"), default="news")
     args = parser.parse_args(argv)
     try:
         if args.output.exists():
             raise FileExistsError("output already exists")
         request = json.loads(args.request.read_text(encoding="utf-8"))
         responses = collect(request, domains=args.domains, cache_dir=args.cache_dir, timeout=args.timeout,
-                            deadline=args.deadline, request_budget=args.request_budget, news_count=args.news_count, news_tab=args.news_tab)
+                            deadline=args.deadline, request_budget=args.request_budget)
         write_responses(responses, args.output)
         return 1 if all(b["status"] == "failed" for b in responses.values()) or responses.get("market", {}).get("status") == "failed" else 0
     except (OSError, ValueError, ImportError) as exc:

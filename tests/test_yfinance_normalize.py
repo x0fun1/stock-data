@@ -104,18 +104,23 @@ class NormalizeTests(unittest.TestCase):
         self.assertIsNone(unconfirmed["data"]["symbol"])
 
     def test_adapter_news_canonical_dates_tags_and_update_preserved(self):
-        result = n.normalize_news([{"id": "one", "content": {
-            "title": "Report", "pubDate": "2026-10-06T12:00:00Z",
-            "updatedAt": "2026-10-07T12:00:00Z", "contentType": "STORY",
-            "relatedTickers": ["AAPL"], "provider": {"displayName": "Publisher"},
-            "canonicalUrl": {"url": "https://example.com/report"}}}], query_symbol="MSFT")
-        domain = StockDataAdapter().make_receipt({"ticker": "AAPL"}, {"news": {"status": "success", "data": result}})["domains"]["news"]
+        # Yahoo news routes were removed; this covers the Finnhub MCP article shape
+        # (headline/source/datetime_utc) reaching the same adapter and PIT filter.
+        articles = [{"id": "one", "title": "Report", "summary": None,
+                     "publisher": "Publisher", "source": "Publisher",
+                     "url": "https://example.com/report",
+                     "published_at": "2026-10-06T12:00:00Z",
+                     "updated_at": "2026-10-07T12:00:00Z",
+                     "tickers": ["AAPL"], "record_type": "news"}]
+        domain = StockDataAdapter().make_receipt(
+            {"ticker": "AAPL"},
+            {"news": {"status": "success", "data": {"articles": articles}}})["domains"]["news"]
         raw = domain["data"]["articles"][0]
-        articles, excluded, _ = normalize_articles(domain["data"], ticker="AAPL", asof_timestamp="2026-10-06T20:00:00Z")
-        self.assertEqual(articles, [])
+        articles_in, excluded, _ = normalize_articles(domain["data"], ticker="AAPL", asof_timestamp="2026-10-06T20:00:00Z")
+        self.assertEqual(articles_in, [])
         self.assertEqual(excluded["updated_after_asof"], 1)
-        articles, _, _ = normalize_articles(domain["data"], ticker="AAPL", asof_timestamp="2026-10-08T20:00:00Z")
-        mapped = articles[0]
+        articles_in, _, _ = normalize_articles(domain["data"], ticker="AAPL", asof_timestamp="2026-10-08T20:00:00Z")
+        mapped = articles_in[0]
         self.assertEqual(mapped["published_at"], "2026-10-06T12:00:00Z")
         self.assertEqual(raw["updated_at"], "2026-10-07T12:00:00Z")
         self.assertEqual(mapped["tickers"], ["AAPL"])
@@ -166,31 +171,6 @@ class NormalizeTests(unittest.TestCase):
         self.assertEqual(result["records"][0]["currency"], "USD")
         ttm = n.normalize_financials({"balance_sheet": income}, "ttm")
         self.assertEqual(ttm["statements"]["balance_sheet"], "unsupported")
-
-    def test_ticker_news_dates_tags_and_no_query_injection(self):
-        items = [{"id": "one", "content": {"title": "Report", "pubDate": "2026-10-06T12:00:00Z",
-                   "updatedAt": "2026-10-07T12:00:00Z", "contentType": "STORY",
-                   "provider": {"displayName": "Publisher"}, "canonicalUrl": {"url": "https://example.com"}}},
-                 {"id": "two", "content": {"title": "Unknown", "updatedAt": "2026-10-06T12:00:00Z"}},
-                 {"content": {"contentType": "AD", "title": "Advertisement"}}]
-        result = n.normalize_news(items, query_symbol="AAPL")
-        self.assertEqual(len(result["articles"]), 2)
-        first, second = result["articles"]
-        self.assertEqual(first["tickers"], [])
-        self.assertEqual(first["query_symbol"], "AAPL")
-        self.assertNotEqual(first["published_at"], first["updated_at"])
-        self.assertIsNone(second["published_at"])
-        self.assertFalse(second["strict_news_eligible"])
-        self.assertEqual(second["record_type"], "unknown")
-
-    def test_search_news_schema(self):
-        result = n.normalize_news([{"uuid": "search", "title": "Title", "providerPublishTime": 0,
-                    "publisher": "P", "link": "https://example.com", "type": "STORY", "relatedTickers": ["MSFT"]}],
-                                  kind="search", query_symbol="AAPL")
-        article = result["articles"][0]
-        self.assertEqual(article["published_at"], "1970-01-01T00:00:00Z")
-        self.assertEqual(article["tickers"], ["MSFT"])
-        self.assertEqual(article["id"], "search")
 
     def test_options_and_funds(self):
         options = n.normalize_options({"calls": Frame([(0, {"lastTradeDate": datetime(2026, 1, 1, tzinfo=timezone.utc),

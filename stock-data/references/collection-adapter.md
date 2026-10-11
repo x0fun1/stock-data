@@ -6,10 +6,10 @@ The adapter is a file contract, not another data fetcher. Collect data with this
 
 ## Yahoo collector response map
 
-`yahoo_collect.py` collects only market/news (default both; `--domains market` or `--domains news` supplements a missing domain). Its Yahoo route always tries yfinance first, then automatically invokes a semantically compatible legacy route after an error, empty result, or unavailable dependency/capability; there is no backend-selection option. Partial yfinance data is retained. The collector does not rerun Finnhub or execute research. Keep the existing request schema; provider-specific settings belong to collection CLI/config, not research parameters. The host reuses successful Finnhub responses. See [yfinance-data.md](yfinance-data.md) and current CLI help.
+`yahoo_collect.py` collects only the market domain. The collector does not rerun Finnhub or execute research. Keep the existing request schema; provider-specific settings belong to collection CLI/config, not research parameters. News is not collected here: the host supplies `news.data.articles[]` from the Finnhub MCP `get-news-pulse` tool during Step 2. See [yfinance-data.md](yfinance-data.md) and current CLI help.
 
 ```text
-python stock-data/scripts/yahoo_collect.py --request request.json --domains market news --output gateway-responses.json --cache-dir runtime/yfinance-cache
+python stock-data/scripts/yahoo_collect.py --request request.json --output gateway-responses.json --cache-dir runtime/yfinance-cache
 python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
 ```
 
@@ -122,8 +122,6 @@ Use these only when the named source/tool and schema are actually used; keep the
 
 | Source response | Normalized News field | Rule |
 |---|---|---|
-| Finnhub `get-news-pulse.top_headlines[]`: `headline`, `url`, `source`, `datetime_utc` | article `title`, `url`, `source`, `published_at` | Preserve the UTC timestamp; `count` and `delta_vs_prev_week` are source context, not event strength or duplicate article count. |
+| Finnhub `get-news-pulse.top_headlines[]`: `headline`, `url`, `source`, `datetime_utc` | article `title`, `url`, `source`, `published_at` | Preserve the UTC timestamp; `count` and `delta_vs_prev_week` are source context, not event strength or duplicate article count. This tool returns headlines only: `summary` stays null and `record_type` defaults to `news`; opinion lexicons that depend on body text are correspondingly weakened and must be disclosed. |
 | Finnhub `get-news-pulse`: `sentiment_score`, `bullish_percent`, `bearish_percent`, `sentiment_source`, `period` | `data.source_sentiment` | Preserve raw values/period, target and available time. Directional use also requires the recent target-specific eligibility gate and declared percent scale. |
-| global `stock_news`: `title`, `publisher`, `link`, `publish_time`, `article_id`, `tickers` | article `title`, `source`, `url`, `published_at`, `article_id`, `tickers` | `publish_time` is provider epoch seconds; convert that exact instant to UTC ISO-8601 and preserve related ticker tags. Missing tags cannot be inferred from the query alone. |
-
 Do not infer a sentiment aggregate for a source that returned headlines only. For any other provider, use its current documented schema; otherwise leave the field unavailable.

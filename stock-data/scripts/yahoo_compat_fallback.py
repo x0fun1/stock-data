@@ -111,29 +111,6 @@ def _legacy_history(gateway: Any, symbol: str, params: dict[str, Any]) -> dict[s
     }
 
 
-def _legacy_news(gateway: Any, symbol: str | None, query: str | None, count: int) -> dict[str, Any]:
-    from yfinance_normalize import normalize_news
-
-    keyword = symbol or query
-    rows = gateway.stock_news(keyword, count=count)
-    native = [{"uuid": row.get("article_id"), "title": row.get("title"),
-               "publisher": row.get("publisher"), "link": row.get("link"),
-               "providerPublishTime": row.get("publish_time"),
-               "relatedTickers": row.get("tickers")}
-              for row in rows if isinstance(row, dict)]
-    normalized = normalize_news(native, kind="search", query_symbol=symbol)
-    return {"status": "empty" if not normalized["articles"] else "partial",
-            "data": normalized, "actual_source": "Yahoo Finance",
-            "fetched_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-            "provider_library": "legacy_compat", "provider_version": "stock-data gateway",
-            "fallback_attempted": True,
-            "fallback_used": True, "fallback_route": "stock_news",
-            "fallback_reason": None,
-            "warnings": ["Legacy news compatibility route used; historical PIT coverage is not established."] + normalized["warnings"],
-            "provenance": {"library": "legacy_compat", "route": "stock_news",
-                           "raw_http_payload_captured": False}}
-
-
 def _route(function: str, params: dict[str, Any]) -> tuple[str, str, Any, list[str]] | None:
     """Return legacy function, source, arguments, and warnings for a capability."""
     symbol = params.get("symbol")
@@ -148,8 +125,6 @@ def _route(function: str, params: dict[str, Any]) -> tuple[str, str, Any, list[s
         return "financial_statements_yahoo", "Yahoo Finance", {
             "symbol": symbol, "quarterly": frequency == "quarterly"}, (
             ["Legacy compatibility route cannot provide a trailing-twelve-month statement."] if frequency in {"trailing", "ttm"} else [])
-    if function == "yahoo_news":
-        return "stock_news", "Yahoo Finance", None, []
     if function == "yahoo_search":
         if params.get("lookup_type") is not None:
             return None
@@ -185,9 +160,6 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any]) -> tuple[A
         any_data = any(_has_data(item.get("data")) for item in symbols_result.values())
         status = "partial" if any_data else "empty"
         return {"status": status, "data": {"symbols": symbols_result}}, "Yahoo Finance", "stock_kline_yahoo", ["Legacy batch fallback performs bounded per-symbol compatibility calls."]
-    if function == "yahoo_news":
-        data = _legacy_news(gateway, params.get("symbol"), params.get("query"), params.get("count", 10))
-        return data, "Yahoo Finance", "stock_news", []
     if function == "yahoo_options":
         symbol, expiration = params.get("symbol"), params.get("expiration")
         if expiration is None:
@@ -206,8 +178,6 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any]) -> tuple[A
         raise LookupError("No legacy compatibility route is registered for this yfinance capability.")
     name, source, mapped, warnings = route
     if mapped is None:
-        if function == "yahoo_news":
-            raise AssertionError("handled above")
         raise LookupError("Legacy compatibility parameters cannot be mapped safely.")
     data = gateway.FUNCTIONS[name](**mapped)
     return data, source, name, warnings
@@ -216,7 +186,7 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any]) -> tuple[A
 def fallback(function: str, params: dict[str, Any], reason: dict[str, Any]) -> dict[str, Any]:
     """Try one registered compatibility route after a yfinance failure."""
     from datetime import datetime, timezone
-    special_routes = {"yahoo_history", "yahoo_history_batch", "yahoo_news", "yahoo_options"}
+    special_routes = {"yahoo_history", "yahoo_history_batch", "yahoo_options"}
     if function not in special_routes and _route(function, params) is None:
         return {"status": "error", "data": None, "actual_source": "Yahoo Finance",
                 "fetched_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -250,8 +220,6 @@ def fallback(function: str, params: dict[str, Any], reason: dict[str, Any]) -> d
         category = "NoLegacyRoute" if isinstance(exc, LookupError) else "LegacyFallbackFailed"
         if function in {"yahoo_history", "yahoo_history_batch"}:
             attempted_route = "stock_kline_yahoo"
-        elif function == "yahoo_news":
-            attempted_route = "stock_news"
         elif function == "yahoo_options":
             attempted_route = "options_chain"
         else:

@@ -262,55 +262,6 @@ def _tags(value):
     return sorted(set(result))
 
 
-def normalize_news(items, *, kind="ticker", query_symbol=None):
-    """Two independent schemas; query symbol is never fabricated as article tag."""
-    if kind not in {"ticker", "search"}:
-        raise ValueError("news kind must be ticker or search")
-    articles, warnings = [], []
-    for item in items or []:
-        if not isinstance(item, Mapping):
-            warnings.append("invalid_news_record")
-            continue
-        content = item.get("content", {}) if kind == "ticker" else item
-        if not isinstance(content, Mapping):
-            warnings.append("invalid_ticker_content")
-            continue
-        content_type = content.get("contentType", item.get("type"))
-        if str(content_type).upper() in {"AD", "ADVERTISEMENT", "SPONSORED"} or item.get("isAd") is True:
-            warnings.append("advertisement_excluded")
-            continue
-        if kind == "ticker":
-            published = _utc(content.get("pubDate")) or _utc(content.get("displayTime"))
-            updated = _utc(content.get("updatedAt", content.get("lastModified")))
-            provider = content.get("provider") or {}
-            publisher = provider.get("displayName") if isinstance(provider, Mapping) else provider
-            canonical = content.get("canonicalUrl") or content.get("clickThroughUrl") or {}
-            url = canonical.get("url") if isinstance(canonical, Mapping) else canonical
-            tags = _tags(content.get("relatedTickers", item.get("relatedTickers")))
-        else:
-            published = _utc(item.get("providerPublishTime"))
-            updated = _utc(item.get("updatedAt", item.get("lastModified")))
-            publisher, url = item.get("publisher"), item.get("link")
-            tags = _tags(item.get("relatedTickers"))
-        article = {"id": item.get("id", item.get("uuid", content.get("id"))),
-                   "title": content.get("title"), "summary": content.get("summary"),
-                   "publisher": publisher, "provider": publisher, "source": publisher,
-                   "url": url, "published_at": published, "updated_at": updated,
-                   "tickers": tags, "query_symbol": query_symbol,
-                   "record_type": "news" if str(content_type).upper() in {"STORY", "ARTICLE"} else "unknown",
-                   "content_type": content_type, "news_kind": kind,
-                   "strict_news_eligible": published is not None,
-                   "source_record": json_safe(item)}
-        if published is None:
-            warnings.append("missing_reliable_publication_time; exclude_from_strict_news")
-        if not tags:
-            warnings.append("article_related_tickers_unconfirmed")
-        articles.append(article)
-    return {"articles": articles, "warnings": sorted(set(warnings)),
-            "coverage": {"returned_count": len(articles), "historical_coverage_confirmed": False,
-                         "full_text_available": False}}
-
-
 def normalize_options(chain, *, expiration=None, underlying=None):
     """Map native OptionChain or calls/puts dict. No Greeks or trade direction."""
     output = {}

@@ -49,6 +49,8 @@ strength × relevance × novelty × source_quality × time_decay
 
 Positive event with a negative return is `event_price_divergence_positive`; negative event with a positive return is `event_price_divergence_negative`. Do not infer “priced in”, expectations or causality from that association. Insufficient windows and absent compatible benchmarks remain null/not assessed.
 
+Every eligible event card additionally carries a deterministic `impact` block: magnitude band, pattern comparison against the symbol's own trailing volatility, declared breadth scope, weakest-publisher source tier and fixed attribution caveats. Thresholds, the deliberately unadopted composite score and the single-ticker observation limit are defined in [news-impact-rubric.md](news-impact-rubric.md). These grades are descriptive heuristics inside this stage: they produce no probability, never change the frozen Quant result, and must not be presented as measured contagion or calibrated impact.
+
 Event confidence is at most medium, requiring at least three eligible event clusters, at least two reported independent origins, source quality at least 0.5 for all events, directional price association and supplied calendar evidence. These claims remain source supplied and uncalibrated. All other usable evidence has low confidence; no eligible evidence is `not_assessed`.
 
 ## Synthesis and artifacts

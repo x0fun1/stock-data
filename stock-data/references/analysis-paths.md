@@ -34,7 +34,7 @@ Yahoo 新 gateway 执行需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA
 
 | 问题 | 首选能力 / 补缺 | 解释边界 |
 |---|---|---|
-| 最近消息、催化剂 | Finnhub `get-news-pulse` → global `yahoo_news` | Finnhub 基线固定 7 天；Yahoo stream/Search 分开映射，不造 tags 或完整档案 |
+| 最近消息、催化剂 | Finnhub `get-news-pulse`（唯一新闻源） | 基线固定 7 天；返回 headline/source/datetime_utc，无正文；不造 tags 或完整档案 |
 | 分析师评级、预期 | `get-recommendations`；更多字段按需 global `yahoo_analysis` | 评级是观点；预期与实际业绩分开；不生成来源未提供的情绪分 |
 | 财报、经济或 IPO 日历 | `get-calendar`；缺项按需 `earnings_calendar` / `yahoo_earnings` | 后者指定证券；核对 kind、范围、目标 symbol；空结果不等于已确认无事件 |
 | 内部人活动 | `get-insider-signal`；按需 SEC 原始申报 | 交易日与申报日分开；申报索引不等于已解析 Form 4；买卖不保证价格方向 |

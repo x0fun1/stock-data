@@ -14,18 +14,17 @@ from yahoo_collect import collect, write_responses, main
 from quant_research.stock_data_adapter import StockDataAdapter
 from quant_research.snapshot import freeze_snapshot, load_snapshot
 from quant_research.orchestrator import run_analysis
-from research_fixture import collection, article
+from research_fixture import collection
 
 
 class Provider:
-    def __init__(self, history=None, news=None):
+    def __init__(self, history=None):
         self.history = history or {"status": "empty", "data": {"bars": []}}
-        self.news = news or {"status": "empty", "data": {"articles": []}}
         self.calls = []
 
     def call(self, name, **params):
         self.calls.append((name, params))
-        return copy.deepcopy(self.history if name == "yahoo_history" else self.news)
+        return copy.deepcopy(self.history)
 
 
 def fixture():
@@ -69,18 +68,23 @@ class CollectionTests(unittest.TestCase):
         self.assertTrue(receipt["domains"]["market"]["fallback_used"])
         self.assertEqual(receipt["domains"]["market"]["fallback_route"], "stock_kline_yahoo")
 
-    def test_cli_news_failure_is_partial_success_not_market_failure(self):
+    def test_cli_market_only_and_no_overwrite(self):
         request, market, cal = fixture()
         with tempfile.TemporaryDirectory() as tmp:
             request_path, output = Path(tmp) / "request.json", Path(tmp) / "responses.json"
             request_path.write_text(json.dumps(request))
-            responses = {"market": {"status": "complete"}, "news": {"status": "failed"}}
+            responses = {"market": {"status": "complete"}}
             args = ["--request", str(request_path), "--output", str(output), "--cache-dir", str(Path(tmp) / "cache")]
             with patch("yahoo_collect.collect", return_value=responses) as mocked:
                 self.assertEqual(main(args), 0)
                 self.assertEqual(json.loads(output.read_text()), responses)
                 self.assertEqual(main(args), 1)
                 self.assertEqual(mocked.call_count, 1)
+
+    def test_news_domain_is_no_longer_collectable(self):
+        request, _, _ = fixture()
+        with self.assertRaises(ValueError):
+            collect(request, provider=Provider(), domains=["news"])
 
     def test_explicit_inclusive_end_and_only_requested_domain(self):
         request, market, cal = fixture()
@@ -140,19 +144,10 @@ class CollectionTests(unittest.TestCase):
             def call(self, name, **params):
                 raise DependencyFailure("sensitive details are redacted")
 
-        failed = collect(request, provider=FailingProvider(), domains=["news"])["news"]
+        failed = collect(request, provider=FailingProvider(), domains=["market"])["market"]
         self.assertEqual(failed["status"], "failed")
         self.assertEqual(failed["gateway_envelope"]["error"]["category"], "DependencyUnavailable")
         self.assertNotIn("sensitive details", json.dumps(failed))
-
-    def test_news_failure_does_not_clear_market(self):
-        request, market, cal = fixture()
-        provider = Provider(market, {"status": "error", "error": {"category": "RateLimited"}})
-        with patch("yahoo_collect._calendar", return_value=cal):
-            result = collect(request, provider=provider)
-        self.assertEqual(result["market"]["status"], "complete")
-        self.assertEqual(result["news"]["status"], "failed")
-        self.assertEqual(len(result["market"]["data"]["bars"]), 100)
 
     def test_missing_identity_currency_adjustment_not_guessed(self):
         request, market, cal = fixture()
@@ -165,14 +160,6 @@ class CollectionTests(unittest.TestCase):
         self.assertNotIn("currency", result)
         self.assertNotIn("adjustment", result)
         self.assertEqual(result["status"], "partial")
-
-    def test_news_keeps_real_tags_timestamps_and_partial_feed(self):
-        request, _, _ = fixture()
-        source = article()
-        result = collect(request, provider=Provider(news={"status": "success", "data": {"articles": [source]}}), domains=["news"])
-        self.assertEqual(result["news"]["status"], "partial")
-        self.assertEqual(result["news"]["data"]["articles"], [source])
-        self.assertNotIn("source_symbol", result["news"])
 
     def test_empty_failed_and_invalid_are_distinct(self):
         request, _, _ = fixture()
@@ -198,7 +185,7 @@ class CollectionTests(unittest.TestCase):
     def test_actual_adapt_freeze_analyze_with_same_schema_and_provenance(self):
         request, market, cal = fixture()
         with patch("yahoo_collect._calendar", return_value=cal):
-            responses = collect(request, provider=Provider(market, {"status": "success", "data": {"articles": [article()]}}))
+            responses = collect(request, provider=Provider(market))
         value = StockDataAdapter().make_receipt(request, responses)
         self.assertEqual(value["request"]["history_window"], request["history_window"])
         self.assertEqual(value["domains"]["market"]["provider_library"], "yfinance")

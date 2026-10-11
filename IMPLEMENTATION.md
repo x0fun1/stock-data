@@ -119,6 +119,19 @@ Yahoo 路由改为强制 yfinance 优先。Yahoo 主依赖合并到 `stock-data/
 - Skill 常规预测顺序改为创建私有 run、生成并校验待发送文本、宿主读取/复制后清理、发送同一文本；研究/审计使用 `--keep-json`。CLI 不判断消息是否实际送达。
 - 新增 `tests/test_json_cleanup.py` 生命周期验收。代码质量复核后 `python -m unittest discover -s tests`：**220 项运行，219 通过、1 项跳过**；跳过项是本机策略拒绝创建 symlink 的隔离路径用例。实际 CLI 合成 abstain 流程、report/freeze 篡改阻断、未知文件、外部输入和共享快照保护、active pipeline 锁、并发清理锁、异常锁文件保护、失效标记归属保护、失败强制清理、dry-run、部分失败重试与幂等均通过。额外 `compileall`、六个 Python 文件 AST 解析、`git diff --check` 和 13 条 Skill 本地链接检查通过。Skill Creator `quick_validate.py` 因系统 Python 与 bundled Python 均无 PyYAML，无法启动；没有为此安装依赖。
 
+## 移除 Yahoo 新闻能力并引入 News 影响分级（2026-10-11）
+
+Skill 更新为 **2.9.0**、research runtime 更新为 **0.6.0**；Snapshot schema 仍为 **1.2**。Quant → 冻结 → News → 综合顺序、数据 gate、概率契约和 NewsInput 均未改变。
+
+- **移除全部 Yahoo 新闻能力**：`yahoo_news`、旧 `stock_news`、`normalize_news`、provider 的 `_news` 与注册项、legacy fallback 的 `stock_news` 路由，以及 collector 的 news 域、`--news-count`、`--news-tab`。`yahoo_collect.py` 现在只采 market 域。实测依据：上游 ticker 新闻端点 `/xhr/ncp` 返回 404，NVDA/INTC/SPCX/AAPL 全部 0 篇；Finnhub MCP `get-news-pulse` 对同批标的分别返回 248/213/246 篇且全部带 `datetime_utc`。
+- **新闻唯一来源改为宿主 Finnhub MCP**：`get-news-pulse` 基线固定 7 天，只返回 headline/source/datetime_utc，无正文；`summary` 留空并已在 collection-adapter 披露，正文依赖的观点词典因此减弱。宿主未连接 Finnhub MCP 时 News 记 `not_assessed`，不做二次联网。**代价**：不再有包内脚本级新闻降级路径，未配 MCP 的宿主消息面直接归零。
+- **新增确定性影响分级** `news/impact.py` 与 `references/news-impact-rubric.md`，改写自 MIT 许可的 `tradermonty/claude-trading-skills`（Copyright (c) 2026 TraderMonty）`market-news-analyst` 的分类法：影响幅度分级、相对自身 20 日波动率的模式比对（amplified/consistent/dampened/inverse）、按事件类型声明的广度范围、簇内最弱信源分层、固定归因警示。
+- **明确不并入上游内容**：复合 Impact Score（未校准的伪精确值，字段恒为 `not_implemented`）、跨资产反应分析（News 层只读单标的冻结 K 线）、WebSearch/WebFetch 采集、英文输出与长篇报告。
+- 修正两处实现问题：信源分层原按最高层级匹配且与 docstring 的"最弱"承诺矛盾，已改为逐个判定后取最弱；模式比对新增 `1e-4` 日波动率下限，否则近常数收益序列会把所有事件误判为 `amplified`。
+- 广度一律为**声明范围**而非观测值（`observed_breadth` 恒为 `not_assessed`）；影响分级不产生概率、不进入 A/B/C/D、不改动已冻结的 Quant 结果。
+- 本轮完整回归：`python -m unittest discover -s tests` **237 项运行，236 通过、1 项跳过**，耗时 32.343 秒；跳过仍为本机不允许创建 symlink 的用例。删除 4 项 Yahoo 新闻专用用例，新增 12 项影响分级用例（含端到端 pipeline 校验 impact 落盘且不含概率字段），并重写 adapter 新闻 PIT 用例以改用 Finnhub 文章形状。`global_stock_data.py --list` 与 `yahoo_collect.py --help` 确认不再暴露任何 Yahoo 新闻函数。
+- 没有移除历史 JSON 字段或改变 reason/status 枚举；旧分析结果缺少 `impact` 时按未评估处理，不影响既有字段读取。
+
 ## Quant 接口加固与证据口径复核（2026-10-11）
 
 Skill **2.8.1** / research runtime **0.5.1**；Snapshot schema 保持 **1.2**。

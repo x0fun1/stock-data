@@ -60,7 +60,7 @@ CLI 的 JSON 外层包含 `status`、`source`、`function`、`fetched_at_utc` �
 | 个股 SEC 文件 | EDGAR `sec_filings` | `cik, form_type`；当前 submissions 的 recent 列表，不保证完整历史 |
 | SEC XBRL 指标 | EDGAR `sec_xbrl_facts` | `cik, metrics`；当前读取 us-gaap 的 10-K/10-Q facts；保留原始单位与各披露记录，不是完整三表，也不覆盖全部会计标准/申报类型 |
 | 代码搜索 | 东财 `stock_search` / Yahoo `yahoo_search` | 名称/代码检索；确认证券类型和来源身份 |
-| 新闻 | Yahoo `yahoo_news` | 证券 stream 或关键词 Search 独立映射；不造 tags/分数/历史覆盖 |
+| 新闻 | 不提供 | 已移除全部 Yahoo 新闻路由；新闻只由宿主 Finnhub MCP `get-news-pulse` 提供 |
 | 基金 / ETF 资料 | Yahoo `yahoo_funds` | 按需读取费用/说明/持仓；缺持仓日期明示 |
 | 当前结构化筛选 | Yahoo `yahoo_screen` | 登记字段/操作符 JSON；每页≤250、有结果/页数边界，非历史 universe |
 | ticker → CIK | EDGAR `ticker_to_cik` | `ticker`；无匹配时返回空，不猜 CIK |
@@ -78,7 +78,7 @@ CLI 的 JSON 外层包含 `status`、`source`、`function`、`fetched_at_utc` �
 
 新 `yahoo_*` gateway 需显式 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA_YAHOO_CACHE_DIR`；collector 要求 `--cache-dir`。源时间保留真实 bar-label 语义，未确认 unit 留 null；不能为使 response map 通过 24h/source_before_close 等既有审计而伪造收盘时间或单位。实际研究数据是否有效须以原 pipeline/审计结果为准。
 
-`stock_kline_yahoo`、`yahoo_quote_summary`、`financial_statements_yahoo`、`key_statistics`、`analyst_estimates`、`institutional_holders`、`options_chain`、`stock_news` 保留原签名/返回结构，不是新默认路由。旧 K 线仍使用 range_ 和 UTC date；新 history 使用交易所 session 日期并保留 UTC 时间。访问方式不同但来源均为 Yahoo Finance，不算独立双源。
+`stock_kline_yahoo`、`yahoo_quote_summary`、`financial_statements_yahoo`、`key_statistics`、`analyst_estimates`、`institutional_holders`、`options_chain` 保留原签名/返回结构，不是新默认路由。旧 K 线仍使用 range_ 和 UTC date；新 history 使用交易所 session 日期并保留 UTC 时间。访问方式不同但来源均为 Yahoo Finance，不算独立双源。本包已移除全部 Yahoo 新闻路由（`yahoo_news`/`stock_news`）；新闻只由宿主 Finnhub MCP 提供。
 
 ## 数据口径与覆盖
 

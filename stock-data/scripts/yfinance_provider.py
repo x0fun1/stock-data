@@ -215,7 +215,7 @@ def _legacy_yahoo_fallback(function, params, reason):
 
 
 class YahooProvider:
-    NAMES = frozenset('yahoo_history yahoo_history_batch yahoo_quote yahoo_profile yahoo_financials yahoo_news yahoo_search yahoo_statistics yahoo_analysis yahoo_holders yahoo_options yahoo_earnings yahoo_funds yahoo_screen'.split())
+    NAMES = frozenset('yahoo_history yahoo_history_batch yahoo_quote yahoo_profile yahoo_financials yahoo_search yahoo_statistics yahoo_analysis yahoo_holders yahoo_options yahoo_earnings yahoo_funds yahoo_screen'.split())
 
     def __init__(self, cache_dir=None, *, timeout=15, deadline=None, max_requests=None,
                  budget=None, yf_module=None, session=None, proxy=None, **kwargs):
@@ -308,7 +308,7 @@ class YahooProvider:
             # Fixed dispatch: user strings are never attribute or method names.
             dispatch = {'yahoo_history': self._history, 'yahoo_history_batch': self._batch,
                         'yahoo_quote': self._quote, 'yahoo_profile': self._profile,
-                        'yahoo_financials': self._financials, 'yahoo_news': self._news,
+                        'yahoo_financials': self._financials,
                         'yahoo_search': self._search, 'yahoo_statistics': self._statistics,
                         'yahoo_analysis': self._analysis, 'yahoo_holders': self._holders,
                         'yahoo_options': self._options, 'yahoo_earnings': self._earnings,
@@ -523,19 +523,6 @@ class YahooProvider:
         raw, detail = self._selected(methods, selected, serialize=False)
         result = normalize_financials(raw, frequency, currency=None)
         return result, {**detail, 'warnings': detail.get('warnings', []) + ['Financial currency and disclosure dates not independently confirmed']}
-
-    def _news(self, symbol=None, query=None, count=10, tab='news'):
-        from yfinance_normalize import normalize_news
-        if bool(symbol) == bool(query) or not isinstance(count, int) or not 1 <= count <= 100 or tab not in ('news','all','press releases'):
-            raise GatewayError('InvalidParameters', 'Specify symbol OR query and bounded count/tab')
-        if symbol:
-            # Dedicated ticker avoids upstream parameter-insensitive news cache.
-            self._ticker(symbol)
-            t = self._yf.Ticker(symbol, session=self._session)
-            items = t.get_news(count=count, tab=tab)
-        else:
-            items = self._yf.Search(query, news_count=count, session=self._session).news
-        return normalize_news(items, kind='ticker' if symbol else 'search', query_symbol=symbol), {'warnings': ['Short current feed; no historical PIT coverage or full-text guarantee']}
 
     def _search(self, query, count=8, lookup_type=None):
         if not isinstance(query, str) or not 1 <= len(query) <= 200 or not 1 <= count <= 100:
