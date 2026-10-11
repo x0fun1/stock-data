@@ -132,6 +132,23 @@ Skill 更新为 **2.9.0**、research runtime 更新为 **0.6.0**；Snapshot sche
 - 本轮完整回归：`python -m unittest discover -s tests` **237 项运行，236 通过、1 项跳过**，耗时 32.343 秒；跳过仍为本机不允许创建 symlink 的用例。删除 4 项 Yahoo 新闻专用用例，新增 12 项影响分级用例（含端到端 pipeline 校验 impact 落盘且不含概率字段），并重写 adapter 新闻 PIT 用例以改用 Finnhub 文章形状。`global_stock_data.py --list` 与 `yahoo_collect.py --help` 确认不再暴露任何 Yahoo 新闻函数。
 - 没有移除历史 JSON 字段或改变 reason/status 枚举；旧分析结果缺少 `impact` 时按未评估处理，不影响既有字段读取。
 
+## News 影响分级复审修复（2026-10-11）
+
+Skill 保持 **2.9.0**、research runtime 保持 **0.6.0**；Snapshot schema 仍为 **1.2**。仅修复 2.9.0 引入的影响分级缺陷，不改变预测算法、数据 gate、概率契约或 NewsInput。
+
+审阅发现并复现 2 项中等风险、2 项低风险问题，均已修复：
+
+- **[P2] 影响分级在常规交付中丢失**：`news_result.json` 含 `impact`，但摘要投影与 Markdown 报告都未输出，`cleanup-run` 删除 JSON 后随之消失。现由 `report.py` 的 `impact_summary()`/`impact_rubric_limits()` 投影：每个事件卡在 `report.md` 输出一行完整分级（幅度、观测收益、模式、波动率比、信源层级、声明与观测广度、复合分状态），随后输出固定限制块；`agent_summary.json` 输出精简字段与单个 `impact_rubric` 标记。
+- **[P2] 信源子串匹配错误提升等级**：原用 `item in folded` 匹配短名，导致 "Security Finance Blog"（含 `sec`）被判官方来源、"Capital.com"（含 `ap`）判为主要金融媒体。改为规范化后的**精确别名表**（`match_rule: exact_normalized_alias_only`），并单独处理转载署名：`Reuters - Yahoo Finance` 归 Reuters 的 tier2，单独的 `Yahoo Finance` 仍是 tier4 聚合平台。
+- **[P3] "20 日波动率"实为 19 个收益率**：原切片 `closes[index-window:index]` 取 20 个收盘价只产生 19 个收益率。改为取 21 个收盘价形成 20 个事件前收益率，短窗口边界同步放宽。
+- **[P3] 浮点误差导致阈值边界降档**：`90/100-1` 为 `-0.09999999999999998` 被判 major、`100.5/100-1` 为 `0.00499999999999989` 被判 negligible，而同幅度正向分别为 severe、minor。引入显式 `BAND_TOLERANCE = 1e-9`，并补测正负方向全部 8 个精确边界。
+
+另修一处自身引入的回归：最初把 `attribution_caveats` 按事件重复写入 `agent_summary.json`，导致其体积从预算内升到 30519 字节、触发既有 30000 字节上限用例。改为常量限制只输出一次（摘要用单行标记，完整清单在 `report.md`），摘要恢复有界。
+
+本轮完整回归：`python -m unittest discover -s tests` **244 项运行，243 通过、1 项跳过**，耗时 34.023 秒；跳过仍为本机不允许创建 symlink 的用例。新增 7 项用例覆盖四项修复与清理后交付留存，其中包含断言分级经 Markdown 留存、`composite_impact_score` 恒为 `not_implemented`、`observed_breadth` 恒为 `not_assessed`、未知发布者不得升级。`compileall` 与 `git diff --check` 通过。
+
+注意：若两份 Markdown 也被删除，影响分级不可恢复；需要保留完整 `news_result.json` 的 `impact` 块时使用 `--keep-json`。
+
 ## Quant 接口加固与证据口径复核（2026-10-11）
 
 Skill **2.8.1** / research runtime **0.5.1**；Snapshot schema 保持 **1.2**。

@@ -24,6 +24,8 @@ Graded from the single observed `daily_close_return` (close-to-close) of the fir
 | `negligible` | < 0.5% |
 | `not_assessed` | no mature frozen session follows the event |
 
+A comparison tolerance of `1e-9` (`band_tolerance`) is applied at each edge. A close-to-close return computed from prices is rarely exactly on a threshold — `90/100-1` evaluates to `-0.09999999999999998` while `110/100-1` evaluates to `+0.10000000000000009` — so without slack the same 10% move would grade `severe` in one direction and `major` in the other.
+
 This is a single-instrument band. It is not an index, sector or intraday move, and it is not an expected return. Every result carries `calibration_status: heuristic_uncalibrated`.
 
 Absence of magnitude is never evidence that an event was unimportant: it may already have been priced in, offset by concurrent events, or observed on a session the news did not cause.
@@ -31,6 +33,8 @@ Absence of magnitude is never evidence that an event was unimportant: it may alr
 ## Pattern comparison
 
 Compares the observed move against the symbol's **own** trailing 20-session return sigma, so the result is reproducible offline from frozen bars. No cross-asset historical pattern library is used.
+
+Twenty returns require **21 closing prices**, so the window slice starts one bar earlier than `index - window` would suggest. Taking `index - window` yields only 19 returns and a systematically different sigma.
 
 | Pattern | Condition |
 |---|---|
@@ -59,6 +63,10 @@ A **declared** transmission scope derived from the deterministic event taxonomy,
 
 Editorial reliability labels applied per publisher; a cluster takes the **weakest** tier present, so one unrecognized publisher cannot upgrade the rest.
 
+Matching is **exact on a normalized alias**, never a substring test (`match_rule: exact_normalized_alias_only`). A substring rule is unsafe at this granularity: it promotes "Security Finance Blog" to `tier1_official_primary` because the name contains "sec", and "Capital.com" to `tier2_major_financial_news` because it contains "ap". Names are lower-cased, whitespace-collapsed and trimmed of surrounding punctuation, then looked up.
+
+A syndication credit naming the original outlet (`Reuters - Yahoo Finance`, `Reuters via Yahoo`) is unwrapped once, and the named original decides the tier. The relaying platform alone (`Yahoo Finance`) is `tier4_analysis_and_aggregator`.
+
 | Tier | Meaning |
 |---|---|
 | `tier1_official_primary` | regulator, central bank, exchange or issuer filing |
@@ -68,6 +76,15 @@ Editorial reliability labels applied per publisher; a cluster takes the **weakes
 | `unclassified_publisher` | absent or unrecognized; no tier asserted |
 
 Unknown names stay `unclassified_publisher` and are never promoted. A publisher name is a source claim: it does not authenticate the supplier, establish independence between outlets, or prove any specific factual claim.
+
+## Where the grading appears
+
+The impact block is computed inside the frozen News stage. Because a normal prediction run executes `cleanup-run`, which deletes every JSON artifact and keeps only `report.md` and `final_response.md`, the grading is also projected into the retained reports:
+
+- `report.md` — one `Impact grading:` line per event with magnitude, observed return, pattern, sigma ratio, source tier, declared vs observed breadth and composite status, followed by the full caveat block above.
+- `agent_summary.json` — a compact per-event projection plus a single `impact_rubric` marker. This file is itself deleted by cleanup and its size is budget-bounded, so it carries only short fields.
+
+If both Markdown files are lost, the grading is not recoverable; use `--keep-json` when the full `news_result.json` impact block must be retained.
 
 ## Attribution caveats
 

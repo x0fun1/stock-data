@@ -176,6 +176,8 @@ class PipelineIntegrationTests(unittest.TestCase):
         self.assertTrue(cards, "fixture produced no eligible event card")
         impact = cards[0]["impact"]
         self.assertEqual(impact["composite_impact_score"], "not_implemented")
+        self.assertIn(impact["magnitude"]["band"],
+                      {"severe", "major", "moderate", "minor", "negligible", "not_assessed"})
         self.assertEqual(impact["breadth_scope"]["observed_breadth"], "not_assessed")
         self.assertEqual(impact["source_tier"]["tier"], "tier2_major_financial_news")
         self.assertIn(impact["magnitude"]["band"],
@@ -184,6 +186,126 @@ class PipelineIntegrationTests(unittest.TestCase):
         # News must never leak a probability into the impact block.
         for forbidden in ("prob_up", "reportable_probability", "confidence_score"):
             self.assertNotIn(forbidden, repr(impact))
+
+
+class ReviewFixTests(unittest.TestCase):
+    """Regressions for the four defects found in the 2.9.0 impact review."""
+
+    def test_band_edges_are_symmetric_across_positive_and_negative_moves(self):
+        # 90/100-1 is -0.09999999999999998 while 110/100-1 is +0.10000000000000009.
+        # Without an explicit tolerance the same 10% move graded differently by sign.
+        pairs = [(100.0, 90.0, "severe"), (100.0, 110.0, "severe"),
+                 (100.0, 100.5, "minor"), (100.0, 99.5, "minor"),
+                 (100.0, 95.0, "major"), (100.0, 105.0, "major"),
+                 (100.0, 102.0, "moderate"), (100.0, 98.0, "moderate")]
+        for base, moved, expected in pairs:
+            with self.subTest(move=moved):
+                self.assertEqual(impact.magnitude_band(moved / base - 1)["band"], expected)
+        self.assertEqual(impact.magnitude_band(0.0049)["band"], "negligible")
+        self.assertGreater(impact.magnitude_band(0.1)["band_tolerance"], 0)
+
+    def test_trailing_sigma_uses_twenty_returns_not_nineteen(self):
+        import statistics
+        closes = [100.0 * (1.0 + 0.001 * i) for i in range(40)]
+        index = 25
+        segment = closes[index - 21:index]
+        self.assertEqual(len(segment) - 1, 20)
+        expected = statistics.stdev([segment[i] / segment[i - 1] - 1 for i in range(1, 21)])
+        self.assertAlmostEqual(impact._trailing_sigma(closes, index), expected, places=12)
+
+    def test_unknown_publishers_are_never_promoted_by_substring(self):
+        for name in ("Security Finance Blog", "Capital.com", "Securities Times",
+                     "AP News Blog", "Capital Markets Weekly"):
+            with self.subTest(publisher=name):
+                self.assertEqual(impact.source_tier([name])["tier"], "unclassified_publisher")
+
+    def test_syndicated_credit_prefers_the_named_original_outlet(self):
+        self.assertEqual(impact.source_tier(["Reuters - Yahoo Finance"])["tier"],
+                         "tier2_major_financial_news")
+        self.assertEqual(impact.source_tier(["Reuters via Yahoo"])["tier"],
+                         "tier2_major_financial_news")
+        self.assertEqual(impact.source_tier(["Yahoo Finance"])["tier"],
+                         "tier4_analysis_and_aggregator")
+
+    def test_exact_aliases_still_resolve_after_normalization(self):
+        self.assertEqual(impact.source_tier(["  Reuters  "])["tier"], "tier2_major_financial_news")
+        self.assertEqual(impact.source_tier(["Associated Press"])["tier"], "tier2_major_financial_news")
+        self.assertEqual(impact.source_tier(["ChartMill"])["tier"], "tier3_specialized_real_time")
+        self.assertEqual(impact.source_tier(["SEC"])["tier"], "tier1_official_primary")
+
+    def test_match_rule_is_disclosed(self):
+        self.assertEqual(impact.source_tier(["Reuters"])["match_rule"], "exact_normalized_alias_only")
+
+
+class RetainedArtifactTests(unittest.TestCase):
+    """Impact grading must survive a JSON cleanup, which keeps only Markdown."""
+
+    def _run(self, root):
+        import copy
+        import json
+        import tempfile
+        from unittest.mock import patch
+
+        sys.path.insert(0, str(ROOT / "tests"))
+        from quant_research.orchestrator import run_analysis
+        from quant_research.snapshot import freeze_snapshot
+        from quant_research.stock_data_adapter import StockDataAdapter
+        import yahoo_collect
+        from research_fixture import article, collection
+
+        value = collection(140)
+        market = copy.deepcopy(value["domains"]["market"])
+        market["status"] = "success"
+        market["source_symbol"] = "INTC"
+        market["provider_library"] = "yfinance"
+        market["provider_version"] = "fixture"
+        market["data"]["bars"][-1]["timestamp_utc"] = market["source_timestamp"]
+        request = copy.deepcopy(value["request"])
+        request["history_window"] = {"start": market["data"]["bars"][0]["date"],
+                                     "end": market["data"]["bars"][-1]["date"]}
+
+        class Provider:
+            def call(self, name, **params):
+                return copy.deepcopy(market)
+
+        responses_news = {"status": "complete", "actual_source": "Finnhub MCP",
+                          "source_timestamp": value["captured_at_utc"],
+                          "fetched_at_utc": value["captured_at_utc"],
+                          "data": {"articles": [article(source="Reuters")]}}
+        with tempfile.TemporaryDirectory() as tmp:
+            work = Path(tmp)
+            with patch("yahoo_collect._calendar", return_value=market["session_calendar"]):
+                responses = yahoo_collect.collect(request, provider=Provider())
+            responses["news"] = responses_news
+            receipt = StockDataAdapter().make_receipt(request, responses)
+            snapshot = freeze_snapshot(
+                yahoo_collect.write_responses(receipt, work / "collection.json"), work / "snapshots")
+            report_dir = run_analysis(snapshot, work / "research")
+            # Read inside the temp directory: a cleanup run keeps only the two
+            # Markdown files, so this is exactly what survives cleanup.
+            return (Path(report_dir / "report.md").read_text(encoding="utf-8"),
+                    json.loads(Path(report_dir / "agent_summary.json").read_text(encoding="utf-8")))
+
+    def test_markdown_and_summary_carry_impact_grade_and_limits(self):
+        report_md, summary = self._run(None)
+        for token in ("Impact grading", "magnitude", "source tier", "declared breadth"):
+            self.assertIn(token, report_md)
+        self.assertIn("composite impact score", report_md)
+        self.assertIn("No composite impact score is produced", report_md)
+        events = summary["sections"]["news"]["events"]
+        self.assertTrue(events, "summary lost its event cards")
+        impact = events[0]["impact"]
+        self.assertIn(impact["magnitude_band"],
+                      {"severe", "major", "moderate", "minor", "negligible", "not_assessed"})
+        self.assertEqual(impact["composite_impact_score"], "not_implemented")
+        self.assertEqual(impact["observed_breadth"], "not_assessed")
+        self.assertEqual(impact["source_tier"], "tier2_major_financial_news")
+        self.assertIn(impact["pattern"], {"amplified", "consistent", "dampened", "inverse", "not_assessed"})
+        # Per-event caveats stay out of the bounded summary; limits are emitted once.
+        self.assertNotIn("attribution_caveats", impact)
+        marker = summary["sections"]["news"]["impact_rubric"]
+        self.assertIn("no composite impact score", marker)
+        self.assertIn("declared not observed", marker)
 
 
 if __name__ == "__main__":

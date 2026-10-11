@@ -14,6 +14,7 @@ Every field is a disclosed heuristic band, never a calibrated expectation.
 from __future__ import annotations
 
 import math
+import re
 from typing import Any
 
 
@@ -42,25 +43,78 @@ SOURCE_TIERS: dict[str, str] = {
 }
 
 # Publication-quality tiers are only asserted for names a reviewer can verify.
-# Anything else stays unclassified rather than being silently promoted.
-_TIER1_PUBLISHERS = frozenset({
-    "federal reserve", "federalreserve.gov", "sec", "sec.gov", "edgar", "sec edgar",
-    "bls", "treasury", "treasury.gov", "cftc", "federal trade commission", "ftc",
-    "european central bank", "ecb", "bank of japan", "boj", "people's bank of china", "pboc",
+# Matching is EXACT on a normalized alias, never a substring test: a substring
+# rule promotes "Security Finance Blog" to tier1 because it contains "sec" and
+# "Capital.com" to tier2 because it contains "ap". Anything absent from this
+# table stays unclassified rather than being silently promoted.
+_TIER1_ALIASES = frozenset({
+    "federal reserve", "federal reserve board", "federalreserve.gov", "u.s. federal reserve",
+    "sec", "sec.gov", "u.s. securities and exchange commission", "edgar", "sec edgar",
+    "bls", "u.s. bureau of labor statistics", "treasury", "treasury.gov", "u.s. department of the treasury",
+    "cftc", "federal trade commission", "ftc",
+    "european central bank", "ecb", "bank of japan", "boj",
+    "people's bank of china", "pboc",
     "company press release", "company filing", "press release", "investor relations",
 })
-_TIER2_PUBLISHERS = frozenset({
-    "reuters", "bloomberg", "wall street journal", "wsj", "financial times", "ft",
-    "associated press", "ap", "cnbc", "barron's", "marketwatch", "the economist",
+_TIER2_ALIASES = frozenset({
+    "reuters", "reuters.com", "bloomberg", "wall street journal", "wsj", "wsj.com",
+    "financial times", "ft", "ft.com", "associated press", "ap",
+    "cnbc", "barron's", "barrons", "marketwatch", "the economist",
 })
-_TIER3_PUBLISHERS = frozenset({
-    "seeking alpha", "zacks", "investing.com", "barrons", "stocktwits", "benzinga",
+_TIER3_ALIASES = frozenset({
+    "seeking alpha", "zacks", "investing.com", "stocktwits", "benzinga",
     "chartmill", "tipranks", "morningstar", "quartz", "fortune", "forbes",
 })
-_TIER4_PUBLISHERS = frozenset({
-    "yahoo finance", "yahoo", "msn", "aol", "yahoo news", "newsfile", "globenewswire",
-    "business wire", "pr newswire", "accesswire", "ein presswire", "simply wall st",
+# Syndication platforms that relay someone else's reporting. A headline carried
+# here is credited to the relaying platform unless the original is named.
+_TIER4_ALIASES = frozenset({
+    "yahoo finance", "yahoo", "finance.yahoo.com", "msn", "aol",
+    "newsfile", "globenewswire", "business wire", "pr newswire",
+    "accesswire", "ein presswire", "simply wall st", "yahoo news",
 })
+_TIER_ALIASES: tuple[tuple[str, frozenset[str]], ...] = (
+    ("tier1_official_primary", _TIER1_ALIASES),
+    ("tier2_major_financial_news", _TIER2_ALIASES),
+    ("tier3_specialized_real_time", _TIER3_ALIASES),
+    ("tier4_analysis_and_aggregator", _TIER4_ALIASES),
+)
+
+# "Reuters - Yahoo Finance", "Reuters via Yahoo", "Reuters | Yahoo": prefer the
+# named original outlet, because a platform name alone hides who wrote it.
+_CREDIT_SPLIT = re.compile(r"\s+(?:via|[-–—|:]|from)\s+", re.IGNORECASE)
+
+
+def _normalize_publisher(name: str) -> str:
+    text = re.sub(r"\s+", " ", str(name)).strip().casefold()
+    return text.strip(" .·—–-")
+
+
+def _classify_publisher(name: str) -> str:
+    """Return a tier for an exact normalized alias, or unclassified.
+
+    Syndication credits are unwrapped once so the original outlet decides the
+    tier; the platform is not allowed to silently downgrade a named wire.
+    """
+    normalized = _normalize_publisher(name)
+    if not normalized:
+        return "unclassified_publisher"
+    for tier, aliases in _TIER_ALIASES:
+        if normalized in aliases:
+            return tier
+    parts = [part.strip() for part in _CREDIT_SPLIT.split(normalized) if part.strip()]
+    if len(parts) > 1:
+        for part in parts:
+            for tier, aliases in _TIER_ALIASES:
+                if part in aliases and tier != "tier4_analysis_and_aggregator":
+                    return tier
+    return "unclassified_publisher"
+
+
+# Comparison slack for band edges. A close-to-close return computed from prices
+# is rarely exactly on a threshold: 90/100-1 is -0.09999999999999998 while
+# 110/100-1 is +0.10000000000000009. Without slack the same 10% move would be
+# graded severe in one direction and major in the other.
+BAND_TOLERANCE = 1e-9
 
 
 def magnitude_band(observed_return: float | None) -> dict[str, Any]:
@@ -70,11 +124,13 @@ def magnitude_band(observed_return: float | None) -> dict[str, Any]:
                 "thresholds": "single_instrument_absolute_return_bands",
                 "warning": "no mature frozen session follows this event; magnitude is not assessed"}
     magnitude = abs(float(observed_return))
-    band = next((name for name, threshold in MAGNITUDE_BANDS if magnitude >= threshold), "negligible")
+    band = next((name for name, threshold in MAGNITUDE_BANDS
+                 if magnitude + BAND_TOLERANCE >= threshold), "negligible")
     return {
         "band": band,
         "observed_abs_return": round(magnitude, 6),
         "thresholds": "single_instrument_absolute_return_bands",
+        "band_tolerance": BAND_TOLERANCE,
         "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
         "calibration_status": "heuristic_uncalibrated",
     }
@@ -86,10 +142,15 @@ MINIMUM_USABLE_SIGMA = 1e-4
 
 
 def _trailing_sigma(closes: list[float], index: int, window: int = 20) -> float | None:
-    """Sample standard deviation of returns strictly before the event session."""
-    start = max(1, index - window)
+    """Sample standard deviation of the ``window`` returns strictly before the event session.
+
+    ``window`` returns require ``window + 1`` closing prices, so the slice starts
+    one bar earlier than a naive ``index - window``. Taking ``index - window``
+    would silently return only ``window - 1`` returns.
+    """
+    start = max(0, index - window - 1)
     segment = closes[start:index]
-    if len(segment) < 5:
+    if len(segment) < 2:
         return None
     returns = [segment[i] / segment[i - 1] - 1 for i in range(1, len(segment)) if segment[i - 1] > 0]
     if len(returns) < 5:
@@ -162,17 +223,6 @@ def breadth_scope(event_type: str | None) -> dict[str, Any]:
             "observation_limit": "single_frozen_ticker_ohlcv_only"}
 
 
-def _classify_publisher(name: str) -> str:
-    folded = name.casefold()
-    for tier, known in (("tier1_official_primary", _TIER1_PUBLISHERS),
-                        ("tier2_major_financial_news", _TIER2_PUBLISHERS),
-                        ("tier3_specialized_real_time", _TIER3_PUBLISHERS),
-                        ("tier4_analysis_and_aggregator", _TIER4_PUBLISHERS)):
-        if any(folded == item or item in folded for item in known):
-            return tier
-    return "unclassified_publisher"
-
-
 def source_tier(publishers: list[str] | tuple[str, ...]) -> dict[str, Any]:
     """Assign the weakest tier present across a cluster's publishers.
 
@@ -190,7 +240,7 @@ def source_tier(publishers: list[str] | tuple[str, ...]) -> dict[str, Any]:
     weakest = max(per_publisher.values(), key=order.index)
     return {"tier": weakest, "tier_meaning": SOURCE_TIERS[weakest], "publishers": names,
             "per_publisher": per_publisher, "selection_rule": "weakest_publisher_in_cluster",
-            "calibration_status": "heuristic_uncalibrated"}
+            "match_rule": "exact_normalized_alias_only", "calibration_status": "heuristic_uncalibrated"}
 
 
 ATTRIBUTION_CAVEATS: tuple[str, ...] = (
