@@ -16,8 +16,8 @@ def validate_response_text(result: dict[str, Any], text: str) -> None:
     expected = required_response_lines(result)
     lines = {line.strip() for line in text.splitlines()}
     missing = [name for name, value in expected.items() if value not in lines]
-    prefixes = ("- 上涨概率", "- 方向：", "- Quant Confidence：", "- 置信度评分：", "- 报告状态：", "- 模型一致度", "- 原始路径估计均值：", "- 校准概率：", "- 联合概率校准：", "- 低置信度原因：", "- 证据多样性", "- 预测窗口：")
-    quant_names = ("prob_up", "direction", "confidence", "confidence_score", "reporting_status", "agreement", "raw_probability", "calibrated_probability", "ensemble_calibration_status", "confidence_reasons", "diversity", "horizon_type")
+    prefixes = ("- 上涨概率", "- 方向：", "- Quant Confidence：", "- 置信度支持度评分：", "- 置信度评分含义", "- OOS 预测证据等级", "- 报告状态：", "- 模型一致度", "- 原始路径估计均值：", "- 校准概率：", "- 联合概率校准：", "- 低置信度原因：", "- 证据多样性", "- 预测窗口：")
+    quant_names = ("prob_up", "direction", "confidence", "confidence_score", "confidence_score_kind", "predictive_evidence_grade", "reporting_status", "agreement", "raw_probability", "calibrated_probability", "ensemble_calibration_status", "confidence_reasons", "diversity", "horizon_type")
     quant_lines = {expected[name] for name in quant_names if name in expected}
     conflicting = any(line.startswith(prefixes) and line not in quant_lines for line in lines)
     if missing or conflicting:
@@ -39,6 +39,8 @@ def validate_final_response(analysis_dir: Path, response_file: Path) -> dict[str
         raise ValueError("Completed Quant/News/final stage receipts are required")
     validate_response_text(result, response_file.read_text(encoding="utf-8-sig"))
     return {"status": "success", "delivery_status": "validated", "analysis_id": result["analysis_id"],
+            "analysis_status": result.get("analysis_status"), "reporting_status": result.get("reporting_status"),
+            "snapshot_id": quant["snapshot"]["snapshot_id"],
             "ticker": quant["snapshot"]["ticker"], "horizon": quant["snapshot"]["horizon"],
             "asof_timestamp": quant["snapshot"]["asof_timestamp"], "response_file": str(response_file),
             "prob_up": result["synthesis"]["quant"]["prob_up"]}

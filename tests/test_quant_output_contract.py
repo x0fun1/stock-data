@@ -25,12 +25,14 @@ class QuantOutputTests(unittest.TestCase):
         output = subprocess.run([sys.executable, str(script), "schema", "--kind", "final"], check=True, capture_output=True)
         contract = json.loads(output.stdout.decode("utf-8"))["synthesis_quant"]
         self.assertEqual(contract["missing_probability_display"], "上涨概率：不可用")
-        self.assertEqual(contract["required"], ["prob_up", "direction", "confidence", "confidence_score", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"])
+        self.assertEqual(contract["required"], ["prob_up", "direction", "confidence", "confidence_score", "confidence_score_kind", "predictive_evidence_grade", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"])
         self.assertFalse(contract["news_may_change_prob_up"])
 
     def assert_quant_fields(self, value):
         source = value["consensus"]
         expected = {key: source[key] for key in ("prob_up", "direction", "confidence", "agreement", "diversity")}
+        expected.update(confidence_score_kind="heuristic_evidence_support",
+                        predictive_evidence_grade="insufficient_oos_evidence")
         self.assertEqual(value["synthesis"]["quant"], expected)
         summary = build_agent_summary(value)
         self.assertEqual({key: summary["sections"]["quant"][key] for key in expected}, expected)

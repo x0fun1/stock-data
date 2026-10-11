@@ -8,6 +8,7 @@ import unittest
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "stock-data" / "scripts"))
 from quant_research.validation.probability_quality import (
+    audit_oos_result,
     build_brier_skill_weight_diagnostic,
     build_oos_probability_quality,
     build_probability_validation,
@@ -51,6 +52,65 @@ def _fixture(*, changed_evaluation_targets=False, shifted_windows=False, abstain
 
 
 class ProbabilityQualityTests(unittest.TestCase):
+    def test_frozen_oos_audit_rejects_wrong_labels_training_boundary_and_duplicates(self):
+        bars = [{"date": (date(2024, 1, 1) + timedelta(days=i)).isoformat(), "close": close}
+                for i, close in enumerate((100, 102, 101, 103, 100, 104))]
+        manifest = {"ticker": "TEST", "horizon": "1D", "snapshot_id": "snap",
+                    "latest_confirmed_close": {"session_date": bars[-1]["date"]}}
+        valid = {"decision_session": bars[2]["date"], "label_end_session": bars[3]["date"],
+                 "target": 1, "probability": .7,
+                 "training_label_end_session": bars[1]["date"],
+                 "target_definition": "close[t+1] / close[t] - 1 > 0"}
+        tampered = [
+            {**valid, "decision_session": bars[3]["date"], "label_end_session": bars[4]["date"], "target": 1},
+            {**valid, "decision_session": bars[4]["date"], "label_end_session": bars[4]["date"], "target": 1},
+            {**valid, "decision_session": bars[1]["date"], "label_end_session": bars[2]["date"],
+             "target": 0, "training_label_end_session": bars[3]["date"]},
+            {**valid},
+        ]
+        result = {"researcher_id": "quant", "result_role": "forecast", **{key: manifest[key]
+                  for key in ("ticker", "horizon", "snapshot_id")},
+                  "validation": {"oos_forecasts": [valid, *tampered]}}
+        audit = audit_oos_result(result, manifest, bars)
+        self.assertEqual(audit["valid_prediction_count"], 0)
+        self.assertEqual(audit["rejected_samples"], 5)
+        self.assertIn("duplicate_decision_session", audit["rejection_reasons"])
+        self.assertIn("label_horizon_does_not_match_frozen_sessions", audit["rejection_reasons"])
+        self.assertIn("training_label_not_matured_by_decision", audit["rejection_reasons"])
+        self.assertIn("target_does_not_match_frozen_close_prices", audit["rejection_reasons"])
+        quality = build_oos_probability_quality([result], manifest, bars=bars)
+        self.assertEqual(quality["paths"], {})
+
+    def test_current_path_with_no_valid_oos_cannot_disappear_from_common_comparison(self):
+        researchers, manifest = _fixture()
+        researchers[1]["validation"]["oos_forecasts"] = []
+        quality = build_oos_probability_quality(researchers, manifest)
+        self.assertEqual(quality["current_forecast_paths"], ["factor", "ml", "quant"])
+        self.assertEqual(quality["common_oos"]["common_oos_samples"], 0)
+        self.assertEqual(quality["common_oos"]["missing_path_ids"], ["factor"])
+        self.assertEqual(quality["status"], "partial")
+
+    def test_detected_leakage_does_not_support_policy_replay_skill(self):
+        bars = [{"date": (date(2024, 1, 1) + timedelta(days=i)).isoformat(), "close": 100 + i}
+                for i in range(8)]
+        manifest = {"ticker": "TEST", "horizon": "1D", "snapshot_id": "snap",
+                    "latest_confirmed_close": {"session_date": bars[-1]["date"]}}
+        rows = [{"decision_session": bars[i]["date"], "label_end_session": bars[i + 1]["date"],
+                 "target": 1, "training_label_end_session": bars[1]["date"],
+                 "target_definition": "close[t+1] / close[t] - 1 > 0"}
+                for i in (3, 4, 5)]
+        paths = [{"researcher_id": name, "result_role": "forecast", "ticker": "TEST",
+                  "horizon": "1D", "snapshot_id": "snap", "reason_codes": reasons,
+                  "validation": {"oos_forecasts": [{**row, "probability": probability} for row in rows]}}
+                 for name, probability, reasons in (("quant", .5, []),
+                                                    ("ml", 1.0, ["LEAKAGE_DETECTED"]))]
+        quality = build_oos_probability_quality(paths, manifest, bars=bars)
+        replay = quality["algorithm_policy_replay"]
+        self.assertEqual(replay["predicted_dates"], 3)
+        self.assertIn("union_of_submitted_valid_dated_oos_records", replay["coverage_denominator_scope"])
+        self.assertAlmostEqual(replay["forecast_metrics"]["brier_score"], .25)
+        self.assertTrue(all(row["available_path_ids"] == ["quant"] for row in replay["active_path_mask"]))
+
     def test_quality_reports_brier_logloss_reliability_coverage_and_abstention(self):
         researchers, manifest = _fixture(abstain_one=True)
         result = build_oos_probability_quality(researchers, manifest)

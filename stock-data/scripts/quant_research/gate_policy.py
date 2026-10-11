@@ -40,6 +40,7 @@ REASON_CATALOG: dict[str, dict[str, Any]] = {
     "ASSET_TYPE_UNVERIFIED": {"severity": "degraded", "scope": "data", "can_veto_prediction": False},
     "EXTREME_PRICE_MOVE_UNRECONCILED": {"severity": "degraded", "scope": "data", "can_veto_prediction": False},
     "OOS_INSUFFICIENT": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
+    "OOS_EVIDENCE_INVALID": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
     "CALIBRATION_MISSING": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
     "FACTOR_BACKTEST_INSUFFICIENT": {"severity": "warning", "scope": "validation", "can_veto_prediction": False},
     "LOW_FACTOR_AGREEMENT": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},

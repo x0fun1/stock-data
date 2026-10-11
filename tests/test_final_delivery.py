@@ -62,6 +62,10 @@ class BriefDeliveryTests(unittest.TestCase):
                     validate_response_text(result, text.replace(original, replacement))
         with self.assertRaisesRegex(ValueError, "conflicting Quant field"):
             validate_response_text(result, text + "\n- 上涨概率 P(up)：99%\n")
+        for line in ("- 置信度评分含义（confidence_score_kind）：predictive_accuracy",
+                     "- OOS 预测证据等级（predictive_evidence_grade）：validated_alpha"):
+            with self.subTest(extra=line), self.assertRaisesRegex(ValueError, "conflicting Quant field"):
+                validate_response_text(result, text + "\n" + line + "\n")
 
     def test_invalid_or_vetoed_probability_has_explicit_reason_and_no_number(self):
         for probability, allowed in ((None, True), (True, True), (float("nan"), True), (.91, False)):

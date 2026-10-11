@@ -11,7 +11,7 @@ import shutil
 import tempfile
 from datetime import date
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 from zoneinfo import ZoneInfo
 
 from .contracts import normalize_request, parse_timestamp, utc_now
@@ -187,7 +187,10 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
                              "issues": warnings, "reason_codes": gate["reason_codes"]}}
 
 
-def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
+def freeze_snapshot(
+    input_path: Path, output_root: Path, *,
+    on_snapshot_created: Callable[[Path], None] | None = None,
+) -> Path:
     payload = sanitize_data(json.loads(input_path.read_text(encoding="utf-8-sig")))
     if not isinstance(payload, dict) or not isinstance(payload.get("request"), dict):
         raise ValueError("input must be an object containing a request object")
@@ -288,6 +291,8 @@ def freeze_snapshot(input_path: Path, output_root: Path) -> Path:
             _write_json(temporary / f"{domain}.json", block)
             _write_json(raw_dir / f"{domain}.json", raw_blocks[domain])
         os.replace(temporary, destination)
+        if on_snapshot_created is not None:
+            on_snapshot_created(destination)
     except Exception:
         shutil.rmtree(temporary, ignore_errors=True)
         raise

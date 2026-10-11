@@ -10,6 +10,7 @@ from pathlib import Path
 from typing import Any
 
 from quant_research.contracts import normalize_request, utc_now
+from quant_research.cleanup import cleanup_analysis, cleanup_owned_run, create_run_workspace, mark_run_failed, release_pipeline_lock, update_run_workspace
 from quant_research.delivery import validate_final_response
 from quant_research.orchestrator import run_analysis
 from quant_research.stock_data_adapter import StockDataAdapter
@@ -34,7 +35,7 @@ def _schema(kind: str) -> dict[str, Any]:
     if kind == "researcher":
         return {"required": ["researcher_id", "result_role", "ticker", "horizon", "snapshot_id", "direction", "prob_up", "prob_down", "raw_probability", "calibrated_probability", "reportable_probability", "expected_return", "confidence", "probability_source", "evidence", "validation", "data_used", "warnings", "status"], "researcher_ids": ["quant", "factor", "ml", "factor_backtest"], "result_roles": ["forecast", "diagnostic"], "statuses": ["success", "partial", "failed", "insufficient_data", "invalid"], "probability_source_required_when_prob_up_is_numeric": True, "diagnostic_paths_enter_consensus": False}
     if kind == "final":
-        return {"schema_version": "1.2", "required": ["analysis_id", "analysis_status", "reporting_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "confidence_score", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": "上涨概率：不可用", "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json", "final_response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; preserve literal Quant/identity/relationship/reporting-status fields from final_response.md", "probability_blending": "prohibited"}
+        return {"schema_version": "1.2", "required": ["analysis_id", "analysis_status", "reporting_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "confidence_score", "confidence_score_kind", "predictive_evidence_grade", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": "上涨概率：不可用", "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json", "final_response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; preserve literal Quant/identity/relationship/reporting-status fields from final_response.md", "artifact_lifecycle": {"owned_pipeline": "pipeline --cleanup-json writes into runtime/runs/<run_id>; cleanup-run validates the actual prepared reply before deleting only registered JSON", "retained": ["report.md", "final_response.md", "cleanup_receipt.txt"], "research_archive": "omit --cleanup-json or use --keep-json; existing shared snapshots/analyses are never included in run cleanup", "schema_change": False}, "probability_blending": "prohibited"}
     if kind == "news":
         return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["overall_direction", "event_strength", "sentiment", "source_agreement", "market_confirmation", "major_events", "background_records", "catalysts", "risks", "confidence", "warnings"], "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only"}
     raise ValueError(f"unknown schema kind: {kind}")
@@ -63,9 +64,18 @@ def main(argv: list[str] | None = None) -> int:
     pipeline.add_argument("--responses", type=Path, required=True)
     pipeline.add_argument("--output-root", type=Path, default=Path("runtime"))
     pipeline.add_argument("--captured-at-utc")
+    pipeline_mode = pipeline.add_mutually_exclusive_group()
+    pipeline_mode.add_argument("--cleanup-json", action="store_true", help="isolate this pipeline run for explicit post-validation JSON cleanup")
+    pipeline_mode.add_argument("--keep-json", action="store_true", help="retain JSON in the legacy shared output layout (default)")
     delivery = commands.add_parser("validate-response", help="check a prepared reply against frozen Quant/News results before delivery")
     delivery.add_argument("--analysis-dir", type=Path, required=True)
     delivery.add_argument("--response-file", type=Path, required=True)
+    cleanup = commands.add_parser("cleanup-run", help="preview or remove JSON owned by a run or explicitly named analysis")
+    cleanup.add_argument("--run-dir", type=Path, help="isolated runtime/runs/<run_id> directory")
+    cleanup.add_argument("--analysis-dir", type=Path, help="owned analysis directory (with --run-dir) or legacy analysis-only target")
+    cleanup.add_argument("--response-file", type=Path, help="the exact prepared reply text validated before cleanup")
+    cleanup.add_argument("--dry-run", action="store_true", help="show registered JSON targets and byte count without deleting")
+    cleanup.add_argument("--force-incomplete", action="store_true", help="explicitly allow cleanup of a failed/incomplete run")
     schema = commands.add_parser("schema", help="print a machine-readable contract")
     schema.add_argument("--kind", choices=("request", "gateway-responses", "collection", "researcher", "news", "final"), required=True)
     args = parser.parse_args(argv)
@@ -89,25 +99,67 @@ def main(argv: list[str] | None = None) -> int:
             location = freeze_snapshot(args.input, args.output_root)
             print(json.dumps({"status": "success", "snapshot_dir": str(location)}, ensure_ascii=False))
         elif args.command in {"analyze", "pipeline"}:
-            if args.command == "pipeline":
-                request_value = normalize_request(json.loads(args.request.read_text(encoding="utf-8-sig")))
-                response_value = json.loads(args.responses.read_text(encoding="utf-8-sig"))
-                if not isinstance(response_value, dict) or not isinstance(response_value.get("domains", response_value), dict):
-                    raise ValueError("responses must contain a domain map")
-                receipt = safe_output_destination(args.output_root / "collections", "collection_" + utc_now().replace(":", "").replace("-", "").replace(".", "") + ".json")
-                StockDataAdapter().write_receipt(request_value, response_value.get("domains", response_value), receipt, captured_at_utc=args.captured_at_utc)
-                snapshot_dir = freeze_snapshot(receipt, args.output_root / "snapshots")
-                output_root = args.output_root / "research"
-            else:
-                snapshot_dir, output_root = args.snapshot_dir, args.output_root
-            policy = json.loads(args.news_policy.read_text(encoding="utf-8-sig")) if getattr(args, "news_policy", None) else None
-            if policy is not None and not isinstance(policy, dict):
-                raise ValueError("news policy file must contain a JSON object")
-            location = run_analysis(snapshot_dir, output_root, policy)
-            summary = json.loads((location / "agent_summary.json").read_text(encoding="utf-8"))
-            print(json.dumps({"status": "success", "analysis_status": summary["analysis_status"], "may_report_direction": summary["sections"]["final_synthesis"]["may_report_direction"], "report_dir": str(location), "json": str(location / "report.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json"), "final_response": str(location / "final_response.md")}, ensure_ascii=False))
+            owned_run = None
+            try:
+                if args.command == "pipeline":
+                    request_value = normalize_request(json.loads(args.request.read_text(encoding="utf-8-sig")))
+                    response_value = json.loads(args.responses.read_text(encoding="utf-8-sig"))
+                    if not isinstance(response_value, dict) or not isinstance(response_value.get("domains", response_value), dict):
+                        raise ValueError("responses must contain a domain map")
+                    if args.cleanup_json:
+                        owned_run, _ = create_run_workspace(args.output_root)
+                        collection_name = f"collection_{owned_run.name}.json"
+                        receipt = safe_output_destination(owned_run / "collections", collection_name)
+                        update_run_workspace(owned_run, collection_name=collection_name)
+                        StockDataAdapter().write_receipt(request_value, response_value.get("domains", response_value), receipt, captured_at_utc=args.captured_at_utc)
+                        snapshot_dir = freeze_snapshot(
+                            receipt, owned_run / "snapshots",
+                            on_snapshot_created=lambda path: update_run_workspace(owned_run, snapshot_id=path.name),
+                        )
+                        output_root = owned_run / "research"
+                    else:
+                        receipt = safe_output_destination(args.output_root / "collections", "collection_" + utc_now().replace(":", "").replace("-", "").replace(".", "") + ".json")
+                        StockDataAdapter().write_receipt(request_value, response_value.get("domains", response_value), receipt, captured_at_utc=args.captured_at_utc)
+                        snapshot_dir = freeze_snapshot(receipt, args.output_root / "snapshots")
+                        output_root = args.output_root / "research"
+                else:
+                    snapshot_dir, output_root = args.snapshot_dir, args.output_root
+                policy = json.loads(args.news_policy.read_text(encoding="utf-8-sig")) if getattr(args, "news_policy", None) else None
+                if policy is not None and not isinstance(policy, dict):
+                    raise ValueError("news policy file must contain a JSON object")
+                if owned_run is None:
+                    location = run_analysis(snapshot_dir, output_root, policy)
+                else:
+                    location = run_analysis(
+                        snapshot_dir, output_root, policy,
+                        on_analysis_created=lambda path: update_run_workspace(owned_run, analysis_id=path.name),
+                    )
+                    update_run_workspace(owned_run, state="awaiting_cleanup")
+                summary = json.loads((location / "agent_summary.json").read_text(encoding="utf-8"))
+                result = {"status": "success", "analysis_status": summary["analysis_status"], "may_report_direction": summary["sections"]["final_synthesis"]["may_report_direction"], "report_dir": str(location), "json": str(location / "report.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json"), "final_response": str(location / "final_response.md")}
+                if owned_run is not None:
+                    result["run_dir"] = str(owned_run)
+                    result["cleanup_required"] = True
+                    release_pipeline_lock(owned_run)
+                print(json.dumps(result, ensure_ascii=False))
+            except Exception as exc:
+                if owned_run is not None:
+                    mark_run_failed(owned_run, exc)
+                raise
         elif args.command == "validate-response":
             print(json.dumps(validate_final_response(args.analysis_dir, args.response_file), ensure_ascii=False))
+        elif args.command == "cleanup-run":
+            if args.run_dir is not None:
+                result = cleanup_owned_run(args.run_dir, analysis_dir=args.analysis_dir,
+                                           response_file=args.response_file,
+                                           dry_run=args.dry_run, force_incomplete=args.force_incomplete)
+            else:
+                if args.analysis_dir is None:
+                    raise ValueError("provide --run-dir or --analysis-dir")
+                result = cleanup_analysis(args.analysis_dir, response_file=args.response_file,
+                                          dry_run=args.dry_run, force_incomplete=args.force_incomplete)
+            print(json.dumps(result, ensure_ascii=False))
+            return 0 if result.get("cleanup_status") in {"complete", "already_cleaned", "dry_run"} else 2
         else:
             # Machine-readable schema must survive Windows console code pages.
             print(json.dumps(_schema(args.kind), ensure_ascii=True, indent=2))

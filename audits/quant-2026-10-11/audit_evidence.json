@@ -1,0 +1,4943 @@
+{
+  "audit_date_local": "2026-10-11",
+  "timezone": "Asia/Shanghai",
+  "repository_revision": "5833220a5a184d45ddcd29a7f008a81221766523",
+  "python": "3.13.7",
+  "synthetic_only": true,
+  "horizon_runs": [
+    {
+      "input_is_synthetic": true,
+      "normalized_bars": 756,
+      "horizon": "1D",
+      "paths": {
+        "quant": {
+          "status": "success",
+          "current_probability": 0.5408163265306123,
+          "forecast_eligible": true,
+          "oos_count": 76
+        },
+        "factor": {
+          "status": "success",
+          "current_probability": 0.5405405405405406,
+          "forecast_eligible": true,
+          "oos_count": 76
+        },
+        "ml": {
+          "status": "partial",
+          "current_probability": 0.9999913808885417,
+          "forecast_eligible": true,
+          "oos_count": 76
+        },
+        "factor_backtest": {
+          "status": "success",
+          "current_probability": null,
+          "forecast_eligible": false,
+          "oos_count": 0
+        }
+      },
+      "factor_calibration_observations": 113,
+      "factor_bucket_counts": {
+        "low": 38,
+        "mid": 37,
+        "high": 38
+      },
+      "factor_holdout_predictions": 76,
+      "ml_calibration_observations": 121,
+      "ml_calibration_status": "calibrated",
+      "quant_oos_predictions_below_current_minimum_30": 0,
+      "consensus": {
+        "path_ids": [
+          "quant",
+          "factor",
+          "ml"
+        ],
+        "probability": 0.6937827493198983,
+        "confidence": "medium",
+        "confidence_score": 60,
+        "confidence_reasons": [
+          "extreme_path_disagreement"
+        ],
+        "reporting_status": "degraded",
+        "may_report_direction": true,
+        "oos_quality": {
+          "status": "available",
+          "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
+          "target_definition": "close[t+1] / close[t] - 1 > 0",
+          "paths": {
+            "quant": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.24996476893702135,
+              "log_loss": 0.6930854718100001,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 39,
+                  "mean_probability": 0.4833984919915261,
+                  "observed_positive_rate": 0.48717948717948717
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 37,
+                  "mean_probability": 0.542080559079768,
+                  "observed_positive_rate": 0.5405405405405406
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.002689993398446016,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "factor": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.1622750219356375,
+              "log_loss": 0.4997790136361802,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 27,
+                  "mean_probability": 0.21052631578947367,
+                  "observed_positive_rate": 0.14814814814814814
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 25,
+                  "mean_probability": 0.5405405405405406,
+                  "observed_positive_rate": 0.56
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 24,
+                  "mean_probability": 0.8421052631578947,
+                  "observed_positive_rate": 0.875
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.038949614434379,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  3,
+                  4,
+                  6,
+                  7,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "ml": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.0062822728995064305,
+              "log_loss": 0.03453125008152827,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 33,
+                  "mean_probability": 0.007479741461060954,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 1,
+                  "mean_probability": 0.10567225497843305,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 3,
+                  "mean_probability": 0.25751999004900217,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 1,
+                  "mean_probability": 0.6776411002337425,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 2,
+                  "mean_probability": 0.7696578358081964,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 1,
+                  "mean_probability": 0.8367142358037574,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 35,
+                  "mean_probability": 0.9924263959457763,
+                  "observed_positive_rate": 1.0
+                }
+              ],
+              "expected_calibration_error": 0.030743010889268257,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "interval_method": "not_computed"
+              }
+            }
+          },
+          "common_oos": {
+            "common_oos_samples": 76,
+            "common_oos_start": "2023-08-17",
+            "common_oos_end": "2024-03-14",
+            "same_ticker_horizon_target_and_label_end": true,
+            "path_metrics_on_common_oos_dates": {
+              "factor": {
+                "all_evaluable_oos_samples": 76,
+                "valid_probability_predictions": 76,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.1622750219356375,
+                "log_loss": 0.4997790136361802,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 27,
+                    "mean_probability": 0.21052631578947367,
+                    "observed_positive_rate": 0.14814814814814814
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 25,
+                    "mean_probability": 0.5405405405405406,
+                    "observed_positive_rate": 0.56
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 24,
+                    "mean_probability": 0.8421052631578947,
+                    "observed_positive_rate": 0.875
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": 0.038949614434379,
+                "calibration_sample_count": 76,
+                "calibration_uncertainty": {
+                  "status": "descriptive_no_interval",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    3,
+                    4,
+                    6,
+                    7,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "ml": {
+                "all_evaluable_oos_samples": 76,
+                "valid_probability_predictions": 76,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.0062822728995064305,
+                "log_loss": 0.03453125008152827,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 33,
+                    "mean_probability": 0.007479741461060954,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 1,
+                    "mean_probability": 0.10567225497843305,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 3,
+                    "mean_probability": 0.25751999004900217,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 1,
+                    "mean_probability": 0.6776411002337425,
+                    "observed_positive_rate": 1.0
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 2,
+                    "mean_probability": 0.7696578358081964,
+                    "observed_positive_rate": 1.0
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 1,
+                    "mean_probability": 0.8367142358037574,
+                    "observed_positive_rate": 1.0
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 35,
+                    "mean_probability": 0.9924263959457763,
+                    "observed_positive_rate": 1.0
+                  }
+                ],
+                "expected_calibration_error": 0.030743010889268257,
+                "calibration_sample_count": 76,
+                "calibration_uncertainty": {
+                  "status": "descriptive_no_interval",
+                  "sparse_bins": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "quant": {
+                "all_evaluable_oos_samples": 76,
+                "valid_probability_predictions": 76,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.24996476893702135,
+                "log_loss": 0.6930854718100001,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 39,
+                    "mean_probability": 0.4833984919915261,
+                    "observed_positive_rate": 0.48717948717948717
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 37,
+                    "mean_probability": 0.542080559079768,
+                    "observed_positive_rate": 0.5405405405405406
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": 0.002689993398446016,
+                "calibration_sample_count": 76,
+                "calibration_uncertainty": {
+                  "status": "descriptive_no_interval",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              }
+            },
+            "all_paths_valid_prediction_samples": 76,
+            "complete_sample_start": "2023-08-17",
+            "complete_sample_end": "2024-03-14",
+            "path_metrics_on_same_complete_samples": {
+              "factor": {
+                "all_evaluable_oos_samples": 76,
+                "valid_probability_predictions": 76,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.1622750219356375,
+                "log_loss": 0.4997790136361802,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 27,
+                    "mean_probability": 0.21052631578947367,
+                    "observed_positive_rate": 0.14814814814814814
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 25,
+                    "mean_probability": 0.5405405405405406,
+                    "observed_positive_rate": 0.56
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 24,
+                    "mean_probability": 0.8421052631578947,
+                    "observed_positive_rate": 0.875
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": 0.038949614434379,
+                "calibration_sample_count": 76,
+                "calibration_uncertainty": {
+                  "status": "descriptive_no_interval",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    3,
+                    4,
+                    6,
+                    7,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "ml": {
+                "all_evaluable_oos_samples": 76,
+                "valid_probability_predictions": 76,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.0062822728995064305,
+                "log_loss": 0.03453125008152827,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 33,
+                    "mean_probability": 0.007479741461060954,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 1,
+                    "mean_probability": 0.10567225497843305,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 3,
+                    "mean_probability": 0.25751999004900217,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 1,
+                    "mean_probability": 0.6776411002337425,
+                    "observed_positive_rate": 1.0
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 2,
+                    "mean_probability": 0.7696578358081964,
+                    "observed_positive_rate": 1.0
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 1,
+                    "mean_probability": 0.8367142358037574,
+                    "observed_positive_rate": 1.0
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 35,
+                    "mean_probability": 0.9924263959457763,
+                    "observed_positive_rate": 1.0
+                  }
+                ],
+                "expected_calibration_error": 0.030743010889268257,
+                "calibration_sample_count": 76,
+                "calibration_uncertainty": {
+                  "status": "descriptive_no_interval",
+                  "sparse_bins": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "quant": {
+                "all_evaluable_oos_samples": 76,
+                "valid_probability_predictions": 76,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.24996476893702135,
+                "log_loss": 0.6930854718100001,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 39,
+                    "mean_probability": 0.4833984919915261,
+                    "observed_positive_rate": 0.48717948717948717
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 37,
+                    "mean_probability": 0.542080559079768,
+                    "observed_positive_rate": 0.5405405405405406
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": 0.002689993398446016,
+                "calibration_sample_count": 76,
+                "calibration_uncertainty": {
+                  "status": "descriptive_no_interval",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              }
+            },
+            "all_available_label_samples": 76
+          }
+        },
+        "weight_diagnostic": {
+          "status": "exploratory_temporal_validation",
+          "weighting": "equal",
+          "current_weighting_enabled": false,
+          "deployment_status": "disabled_pending_independent_real_snapshot_oos_and_performance_acceptance",
+          "method": "Brier Skill weights estimated on earlier common OOS rows and evaluated on later common OOS rows",
+          "skill_formula": "max(0, (baseline_brier - path_brier) / baseline_brier)",
+          "epsilon": 0.05,
+          "minimum_samples_per_window": 20,
+          "common_oos_samples": 76,
+          "common_complete_prediction_samples": 76,
+          "path_ids": [
+            "factor",
+            "ml",
+            "quant"
+          ],
+          "weight_estimation_start": "2023-08-17",
+          "weight_estimation_end": "2023-11-29",
+          "weight_estimation_label_end": "2023-11-30",
+          "evaluation_start": "2023-12-01",
+          "evaluation_end": "2024-03-14",
+          "baseline_brier": 0.25,
+          "path_brier": {
+            "factor": 0.1656914062886882,
+            "ml": 0.004639133589081726,
+            "quant": 0.24956203141717223
+          },
+          "skill": {
+            "factor": 0.3372343748452472,
+            "ml": 0.9814434656436731,
+            "quant": 0.0017518743313110763
+          },
+          "candidate_weights": {
+            "factor": 0.2633477621829676,
+            "ml": 0.7014571694572787,
+            "quant": 0.035195068359753626
+          },
+          "evaluation": {
+            "status": "available",
+            "weighted_brier": 0.024908486966282256,
+            "equal_weight_brier": 0.09305416757880564,
+            "baseline_brier": 0.25,
+            "path_brier": {
+              "factor": 0.15885863758258678,
+              "ml": 0.007925412209931135,
+              "quant": 0.2503675064568705
+            },
+            "weighted_beats_equal_weight": true,
+            "weighted_beats_estimation_base_rate": true,
+            "evaluation_samples": 38
+          },
+          "fallback_reason": null,
+          "estimation_samples": 38,
+          "evaluation_samples": 38,
+          "estimation_base_rate": 0.5,
+          "maximum_candidate_weight": 0.7014571694572787,
+          "concentration_risk": "not_flagged_by_heuristic"
+        }
+      },
+      "active_path_only_oos_quality": {
+        "status": "available",
+        "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
+        "target_definition": "close[t+1] / close[t] - 1 > 0",
+        "paths": {
+          "quant": {
+            "all_evaluable_oos_samples": 76,
+            "valid_probability_predictions": 76,
+            "oos_coverage": 1.0,
+            "abstain_rate": 0.0,
+            "brier_score": 0.24996476893702135,
+            "log_loss": 0.6930854718100001,
+            "reliability_diagram": [
+              {
+                "lower_bound": 0.0,
+                "upper_bound": 0.1,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.1,
+                "upper_bound": 0.2,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.2,
+                "upper_bound": 0.3,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.3,
+                "upper_bound": 0.4,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.4,
+                "upper_bound": 0.5,
+                "count": 39,
+                "mean_probability": 0.4833984919915261,
+                "observed_positive_rate": 0.48717948717948717
+              },
+              {
+                "lower_bound": 0.5,
+                "upper_bound": 0.6,
+                "count": 37,
+                "mean_probability": 0.542080559079768,
+                "observed_positive_rate": 0.5405405405405406
+              },
+              {
+                "lower_bound": 0.6,
+                "upper_bound": 0.7,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.7,
+                "upper_bound": 0.8,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.8,
+                "upper_bound": 0.9,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.9,
+                "upper_bound": 1.0,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              }
+            ],
+            "expected_calibration_error": 0.002689993398446016,
+            "calibration_sample_count": 76,
+            "calibration_uncertainty": {
+              "status": "descriptive_no_interval",
+              "sparse_bins": [
+                0,
+                1,
+                2,
+                3,
+                6,
+                7,
+                8,
+                9
+              ],
+              "interval_method": "not_computed"
+            }
+          },
+          "factor": {
+            "all_evaluable_oos_samples": 76,
+            "valid_probability_predictions": 76,
+            "oos_coverage": 1.0,
+            "abstain_rate": 0.0,
+            "brier_score": 0.1622750219356375,
+            "log_loss": 0.4997790136361802,
+            "reliability_diagram": [
+              {
+                "lower_bound": 0.0,
+                "upper_bound": 0.1,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.1,
+                "upper_bound": 0.2,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.2,
+                "upper_bound": 0.3,
+                "count": 27,
+                "mean_probability": 0.21052631578947367,
+                "observed_positive_rate": 0.14814814814814814
+              },
+              {
+                "lower_bound": 0.3,
+                "upper_bound": 0.4,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.4,
+                "upper_bound": 0.5,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.5,
+                "upper_bound": 0.6,
+                "count": 25,
+                "mean_probability": 0.5405405405405406,
+                "observed_positive_rate": 0.56
+              },
+              {
+                "lower_bound": 0.6,
+                "upper_bound": 0.7,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.7,
+                "upper_bound": 0.8,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.8,
+                "upper_bound": 0.9,
+                "count": 24,
+                "mean_probability": 0.8421052631578947,
+                "observed_positive_rate": 0.875
+              },
+              {
+                "lower_bound": 0.9,
+                "upper_bound": 1.0,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              }
+            ],
+            "expected_calibration_error": 0.038949614434379,
+            "calibration_sample_count": 76,
+            "calibration_uncertainty": {
+              "status": "descriptive_no_interval",
+              "sparse_bins": [
+                0,
+                1,
+                3,
+                4,
+                6,
+                7,
+                9
+              ],
+              "interval_method": "not_computed"
+            }
+          },
+          "ml": {
+            "all_evaluable_oos_samples": 76,
+            "valid_probability_predictions": 76,
+            "oos_coverage": 1.0,
+            "abstain_rate": 0.0,
+            "brier_score": 0.0062822728995064305,
+            "log_loss": 0.03453125008152827,
+            "reliability_diagram": [
+              {
+                "lower_bound": 0.0,
+                "upper_bound": 0.1,
+                "count": 33,
+                "mean_probability": 0.007479741461060954,
+                "observed_positive_rate": 0.0
+              },
+              {
+                "lower_bound": 0.1,
+                "upper_bound": 0.2,
+                "count": 1,
+                "mean_probability": 0.10567225497843305,
+                "observed_positive_rate": 0.0
+              },
+              {
+                "lower_bound": 0.2,
+                "upper_bound": 0.3,
+                "count": 3,
+                "mean_probability": 0.25751999004900217,
+                "observed_positive_rate": 0.0
+              },
+              {
+                "lower_bound": 0.3,
+                "upper_bound": 0.4,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.4,
+                "upper_bound": 0.5,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.5,
+                "upper_bound": 0.6,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.6,
+                "upper_bound": 0.7,
+                "count": 1,
+                "mean_probability": 0.6776411002337425,
+                "observed_positive_rate": 1.0
+              },
+              {
+                "lower_bound": 0.7,
+                "upper_bound": 0.8,
+                "count": 2,
+                "mean_probability": 0.7696578358081964,
+                "observed_positive_rate": 1.0
+              },
+              {
+                "lower_bound": 0.8,
+                "upper_bound": 0.9,
+                "count": 1,
+                "mean_probability": 0.8367142358037574,
+                "observed_positive_rate": 1.0
+              },
+              {
+                "lower_bound": 0.9,
+                "upper_bound": 1.0,
+                "count": 35,
+                "mean_probability": 0.9924263959457763,
+                "observed_positive_rate": 1.0
+              }
+            ],
+            "expected_calibration_error": 0.030743010889268257,
+            "calibration_sample_count": 76,
+            "calibration_uncertainty": {
+              "status": "descriptive_no_interval",
+              "sparse_bins": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "interval_method": "not_computed"
+            }
+          }
+        },
+        "common_oos": {
+          "common_oos_samples": 76,
+          "common_oos_start": "2023-08-17",
+          "common_oos_end": "2024-03-14",
+          "same_ticker_horizon_target_and_label_end": true,
+          "path_metrics_on_common_oos_dates": {
+            "factor": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.1622750219356375,
+              "log_loss": 0.4997790136361802,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 27,
+                  "mean_probability": 0.21052631578947367,
+                  "observed_positive_rate": 0.14814814814814814
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 25,
+                  "mean_probability": 0.5405405405405406,
+                  "observed_positive_rate": 0.56
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 24,
+                  "mean_probability": 0.8421052631578947,
+                  "observed_positive_rate": 0.875
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.038949614434379,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  3,
+                  4,
+                  6,
+                  7,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "ml": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.0062822728995064305,
+              "log_loss": 0.03453125008152827,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 33,
+                  "mean_probability": 0.007479741461060954,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 1,
+                  "mean_probability": 0.10567225497843305,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 3,
+                  "mean_probability": 0.25751999004900217,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 1,
+                  "mean_probability": 0.6776411002337425,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 2,
+                  "mean_probability": 0.7696578358081964,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 1,
+                  "mean_probability": 0.8367142358037574,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 35,
+                  "mean_probability": 0.9924263959457763,
+                  "observed_positive_rate": 1.0
+                }
+              ],
+              "expected_calibration_error": 0.030743010889268257,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "quant": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.24996476893702135,
+              "log_loss": 0.6930854718100001,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 39,
+                  "mean_probability": 0.4833984919915261,
+                  "observed_positive_rate": 0.48717948717948717
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 37,
+                  "mean_probability": 0.542080559079768,
+                  "observed_positive_rate": 0.5405405405405406
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.002689993398446016,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            }
+          },
+          "all_paths_valid_prediction_samples": 76,
+          "complete_sample_start": "2023-08-17",
+          "complete_sample_end": "2024-03-14",
+          "path_metrics_on_same_complete_samples": {
+            "factor": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.1622750219356375,
+              "log_loss": 0.4997790136361802,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 27,
+                  "mean_probability": 0.21052631578947367,
+                  "observed_positive_rate": 0.14814814814814814
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 25,
+                  "mean_probability": 0.5405405405405406,
+                  "observed_positive_rate": 0.56
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 24,
+                  "mean_probability": 0.8421052631578947,
+                  "observed_positive_rate": 0.875
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.038949614434379,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  3,
+                  4,
+                  6,
+                  7,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "ml": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.0062822728995064305,
+              "log_loss": 0.03453125008152827,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 33,
+                  "mean_probability": 0.007479741461060954,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 1,
+                  "mean_probability": 0.10567225497843305,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 3,
+                  "mean_probability": 0.25751999004900217,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 1,
+                  "mean_probability": 0.6776411002337425,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 2,
+                  "mean_probability": 0.7696578358081964,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 1,
+                  "mean_probability": 0.8367142358037574,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 35,
+                  "mean_probability": 0.9924263959457763,
+                  "observed_positive_rate": 1.0
+                }
+              ],
+              "expected_calibration_error": 0.030743010889268257,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "quant": {
+              "all_evaluable_oos_samples": 76,
+              "valid_probability_predictions": 76,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.24996476893702135,
+              "log_loss": 0.6930854718100001,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 39,
+                  "mean_probability": 0.4833984919915261,
+                  "observed_positive_rate": 0.48717948717948717
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 37,
+                  "mean_probability": 0.542080559079768,
+                  "observed_positive_rate": 0.5405405405405406
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.002689993398446016,
+              "calibration_sample_count": 76,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            }
+          },
+          "all_available_label_samples": 76
+        }
+      },
+      "ic_inference": {
+        "momentum_5": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.014285714285714285,
+          "p_value_adjusted": 0.1581840513983371,
+          "bootstrap_status": "exploratory"
+        },
+        "momentum_20": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.6285714285714286,
+          "p_value_adjusted": 1.0,
+          "bootstrap_status": "exploratory"
+        },
+        "momentum_60": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.42857142857142855,
+          "p_value_adjusted": 1.0,
+          "bootstrap_status": "exploratory"
+        },
+        "reversal_1": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.014285714285714285,
+          "p_value_adjusted": 0.1581840513983371,
+          "bootstrap_status": "exploratory"
+        },
+        "trend_sma20": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.05714285714285714,
+          "p_value_adjusted": 0.47455215419501134,
+          "bootstrap_status": "exploratory"
+        },
+        "realized_volatility_20": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.9428571428571428,
+          "p_value_adjusted": 1.0,
+          "bootstrap_status": "exploratory"
+        },
+        "volume_z20": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.8428571428571429,
+          "p_value_adjusted": 1.0,
+          "bootstrap_status": "exploratory"
+        },
+        "range_position_20": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.17142857142857143,
+          "p_value_adjusted": 1.0,
+          "bootstrap_status": "exploratory"
+        },
+        "close_location": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.014285714285714285,
+          "p_value_adjusted": 0.1581840513983371,
+          "bootstrap_status": "exploratory"
+        },
+        "overnight_gap": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "not_assessed"
+        },
+        "volume_return_corr20": {
+          "observations": 76,
+          "block_length": 4,
+          "permutations": 69,
+          "p_value": 0.5285714285714286,
+          "p_value_adjusted": 1.0,
+          "bootstrap_status": "exploratory"
+        }
+      }
+    },
+    {
+      "input_is_synthetic": true,
+      "normalized_bars": 756,
+      "horizon": "5D",
+      "paths": {
+        "quant": {
+          "status": "success",
+          "current_probability": 0.49295774647887325,
+          "forecast_eligible": true,
+          "oos_count": 25
+        },
+        "factor": {
+          "status": "insufficient_data",
+          "current_probability": null,
+          "forecast_eligible": false,
+          "oos_count": 0
+        },
+        "ml": {
+          "status": "partial",
+          "current_probability": 0.9999562435665732,
+          "forecast_eligible": true,
+          "oos_count": 25
+        },
+        "factor_backtest": {
+          "status": "success",
+          "current_probability": null,
+          "forecast_eligible": false,
+          "oos_count": 0
+        }
+      },
+      "factor_calibration_observations": 37,
+      "factor_bucket_counts": {
+        "low": 13,
+        "mid": 11,
+        "high": 13
+      },
+      "factor_holdout_predictions": 0,
+      "ml_calibration_observations": 40,
+      "ml_calibration_status": "calibrated",
+      "quant_oos_predictions_below_current_minimum_30": 0,
+      "consensus": {
+        "path_ids": [
+          "quant",
+          "ml"
+        ],
+        "probability": 0.7464569950227232,
+        "confidence": "very_low",
+        "confidence_score": 30,
+        "confidence_reasons": [
+          "oos_validation_insufficient",
+          "extreme_path_disagreement",
+          "low_evidence_family_diversity"
+        ],
+        "reporting_status": "degraded",
+        "may_report_direction": true,
+        "oos_quality": {
+          "status": "available",
+          "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
+          "target_definition": "close[t+5] / close[t] - 1 > 0",
+          "paths": {
+            "quant": {
+              "all_evaluable_oos_samples": 25,
+              "valid_probability_predictions": 25,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.2545659957247672,
+              "log_loss": 0.7022839964467935,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 2,
+                  "mean_probability": 0.49191655801825296,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 23,
+                  "mean_probability": 0.5094704145915733,
+                  "observed_positive_rate": 0.43478260869565216
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.10935945678278719,
+              "calibration_sample_count": 25,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "factor": {
+              "all_evaluable_oos_samples": 25,
+              "valid_probability_predictions": 0,
+              "oos_coverage": 0.0,
+              "abstain_rate": 1.0,
+              "brier_score": null,
+              "log_loss": null,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": null,
+              "calibration_sample_count": 0,
+              "calibration_uncertainty": {
+                "status": "insufficient_samples",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "ml": {
+              "all_evaluable_oos_samples": 25,
+              "valid_probability_predictions": 25,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.002485096266492161,
+              "log_loss": 0.022327438511227274,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 11,
+                  "mean_probability": 0.00801145599985503,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 2,
+                  "mean_probability": 0.14269050667238128,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 1,
+                  "mean_probability": 0.8869083960751797,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 11,
+                  "mean_probability": 0.9966298022029821,
+                  "observed_positive_rate": 1.0
+                }
+              ],
+              "expected_calibration_error": 0.02094683236140739,
+              "calibration_sample_count": 25,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "interval_method": "not_computed"
+              }
+            }
+          },
+          "common_oos": {
+            "common_oos_samples": 25,
+            "common_oos_start": "2023-08-17",
+            "common_oos_end": "2024-03-06",
+            "same_ticker_horizon_target_and_label_end": true,
+            "path_metrics_on_common_oos_dates": {
+              "factor": {
+                "all_evaluable_oos_samples": 25,
+                "valid_probability_predictions": 0,
+                "oos_coverage": 0.0,
+                "abstain_rate": 1.0,
+                "brier_score": null,
+                "log_loss": null,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": null,
+                "calibration_sample_count": 0,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "ml": {
+                "all_evaluable_oos_samples": 25,
+                "valid_probability_predictions": 25,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.002485096266492161,
+                "log_loss": 0.022327438511227274,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 11,
+                    "mean_probability": 0.00801145599985503,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 2,
+                    "mean_probability": 0.14269050667238128,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 1,
+                    "mean_probability": 0.8869083960751797,
+                    "observed_positive_rate": 1.0
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 11,
+                    "mean_probability": 0.9966298022029821,
+                    "observed_positive_rate": 1.0
+                  }
+                ],
+                "expected_calibration_error": 0.02094683236140739,
+                "calibration_sample_count": 25,
+                "calibration_uncertainty": {
+                  "status": "descriptive_no_interval",
+                  "sparse_bins": [
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "quant": {
+                "all_evaluable_oos_samples": 25,
+                "valid_probability_predictions": 25,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.2545659957247672,
+                "log_loss": 0.7022839964467935,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 2,
+                    "mean_probability": 0.49191655801825296,
+                    "observed_positive_rate": 1.0
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 23,
+                    "mean_probability": 0.5094704145915733,
+                    "observed_positive_rate": 0.43478260869565216
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": 0.10935945678278719,
+                "calibration_sample_count": 25,
+                "calibration_uncertainty": {
+                  "status": "descriptive_no_interval",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              }
+            },
+            "all_paths_valid_prediction_samples": 0,
+            "complete_sample_start": null,
+            "complete_sample_end": null,
+            "path_metrics_on_same_complete_samples": {
+              "factor": {
+                "all_evaluable_oos_samples": 0,
+                "valid_probability_predictions": 0,
+                "oos_coverage": 0.0,
+                "abstain_rate": null,
+                "brier_score": null,
+                "log_loss": null,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": null,
+                "calibration_sample_count": 0,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "ml": {
+                "all_evaluable_oos_samples": 0,
+                "valid_probability_predictions": 0,
+                "oos_coverage": 0.0,
+                "abstain_rate": null,
+                "brier_score": null,
+                "log_loss": null,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": null,
+                "calibration_sample_count": 0,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "quant": {
+                "all_evaluable_oos_samples": 0,
+                "valid_probability_predictions": 0,
+                "oos_coverage": 0.0,
+                "abstain_rate": null,
+                "brier_score": null,
+                "log_loss": null,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": null,
+                "calibration_sample_count": 0,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              }
+            },
+            "all_available_label_samples": 25
+          }
+        },
+        "weight_diagnostic": {
+          "status": "fallback_equal_weight",
+          "weighting": "equal",
+          "current_weighting_enabled": false,
+          "deployment_status": "disabled_pending_independent_real_snapshot_oos_and_performance_acceptance",
+          "method": "Brier Skill weights estimated on earlier common OOS rows and evaluated on later common OOS rows",
+          "skill_formula": "max(0, (baseline_brier - path_brier) / baseline_brier)",
+          "epsilon": 0.05,
+          "minimum_samples_per_window": 20,
+          "common_oos_samples": 25,
+          "common_complete_prediction_samples": 0,
+          "path_ids": [
+            "factor",
+            "ml",
+            "quant"
+          ],
+          "weight_estimation_start": null,
+          "weight_estimation_end": null,
+          "weight_estimation_label_end": null,
+          "evaluation_start": null,
+          "evaluation_end": null,
+          "baseline_brier": null,
+          "path_brier": {},
+          "skill": {},
+          "candidate_weights": {},
+          "evaluation": {
+            "status": "not_assessed",
+            "weighted_brier": null,
+            "equal_weight_brier": null,
+            "baseline_brier": null
+          },
+          "fallback_reason": "insufficient_complete_common_oos_samples_for_separate_estimation_and_evaluation_windows"
+        }
+      },
+      "active_path_only_oos_quality": {
+        "status": "available",
+        "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
+        "target_definition": "close[t+5] / close[t] - 1 > 0",
+        "paths": {
+          "quant": {
+            "all_evaluable_oos_samples": 25,
+            "valid_probability_predictions": 25,
+            "oos_coverage": 1.0,
+            "abstain_rate": 0.0,
+            "brier_score": 0.2545659957247672,
+            "log_loss": 0.7022839964467935,
+            "reliability_diagram": [
+              {
+                "lower_bound": 0.0,
+                "upper_bound": 0.1,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.1,
+                "upper_bound": 0.2,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.2,
+                "upper_bound": 0.3,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.3,
+                "upper_bound": 0.4,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.4,
+                "upper_bound": 0.5,
+                "count": 2,
+                "mean_probability": 0.49191655801825296,
+                "observed_positive_rate": 1.0
+              },
+              {
+                "lower_bound": 0.5,
+                "upper_bound": 0.6,
+                "count": 23,
+                "mean_probability": 0.5094704145915733,
+                "observed_positive_rate": 0.43478260869565216
+              },
+              {
+                "lower_bound": 0.6,
+                "upper_bound": 0.7,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.7,
+                "upper_bound": 0.8,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.8,
+                "upper_bound": 0.9,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.9,
+                "upper_bound": 1.0,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              }
+            ],
+            "expected_calibration_error": 0.10935945678278719,
+            "calibration_sample_count": 25,
+            "calibration_uncertainty": {
+              "status": "descriptive_no_interval",
+              "sparse_bins": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                6,
+                7,
+                8,
+                9
+              ],
+              "interval_method": "not_computed"
+            }
+          },
+          "ml": {
+            "all_evaluable_oos_samples": 25,
+            "valid_probability_predictions": 25,
+            "oos_coverage": 1.0,
+            "abstain_rate": 0.0,
+            "brier_score": 0.002485096266492161,
+            "log_loss": 0.022327438511227274,
+            "reliability_diagram": [
+              {
+                "lower_bound": 0.0,
+                "upper_bound": 0.1,
+                "count": 11,
+                "mean_probability": 0.00801145599985503,
+                "observed_positive_rate": 0.0
+              },
+              {
+                "lower_bound": 0.1,
+                "upper_bound": 0.2,
+                "count": 2,
+                "mean_probability": 0.14269050667238128,
+                "observed_positive_rate": 0.0
+              },
+              {
+                "lower_bound": 0.2,
+                "upper_bound": 0.3,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.3,
+                "upper_bound": 0.4,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.4,
+                "upper_bound": 0.5,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.5,
+                "upper_bound": 0.6,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.6,
+                "upper_bound": 0.7,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.7,
+                "upper_bound": 0.8,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.8,
+                "upper_bound": 0.9,
+                "count": 1,
+                "mean_probability": 0.8869083960751797,
+                "observed_positive_rate": 1.0
+              },
+              {
+                "lower_bound": 0.9,
+                "upper_bound": 1.0,
+                "count": 11,
+                "mean_probability": 0.9966298022029821,
+                "observed_positive_rate": 1.0
+              }
+            ],
+            "expected_calibration_error": 0.02094683236140739,
+            "calibration_sample_count": 25,
+            "calibration_uncertainty": {
+              "status": "descriptive_no_interval",
+              "sparse_bins": [
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8
+              ],
+              "interval_method": "not_computed"
+            }
+          }
+        },
+        "common_oos": {
+          "common_oos_samples": 25,
+          "common_oos_start": "2023-08-17",
+          "common_oos_end": "2024-03-06",
+          "same_ticker_horizon_target_and_label_end": true,
+          "path_metrics_on_common_oos_dates": {
+            "ml": {
+              "all_evaluable_oos_samples": 25,
+              "valid_probability_predictions": 25,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.002485096266492161,
+              "log_loss": 0.022327438511227274,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 11,
+                  "mean_probability": 0.00801145599985503,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 2,
+                  "mean_probability": 0.14269050667238128,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 1,
+                  "mean_probability": 0.8869083960751797,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 11,
+                  "mean_probability": 0.9966298022029821,
+                  "observed_positive_rate": 1.0
+                }
+              ],
+              "expected_calibration_error": 0.02094683236140739,
+              "calibration_sample_count": 25,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "quant": {
+              "all_evaluable_oos_samples": 25,
+              "valid_probability_predictions": 25,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.2545659957247672,
+              "log_loss": 0.7022839964467935,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 2,
+                  "mean_probability": 0.49191655801825296,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 23,
+                  "mean_probability": 0.5094704145915733,
+                  "observed_positive_rate": 0.43478260869565216
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.10935945678278719,
+              "calibration_sample_count": 25,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            }
+          },
+          "all_paths_valid_prediction_samples": 25,
+          "complete_sample_start": "2023-08-17",
+          "complete_sample_end": "2024-03-06",
+          "path_metrics_on_same_complete_samples": {
+            "ml": {
+              "all_evaluable_oos_samples": 25,
+              "valid_probability_predictions": 25,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.002485096266492161,
+              "log_loss": 0.022327438511227274,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 11,
+                  "mean_probability": 0.00801145599985503,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 2,
+                  "mean_probability": 0.14269050667238128,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 1,
+                  "mean_probability": 0.8869083960751797,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 11,
+                  "mean_probability": 0.9966298022029821,
+                  "observed_positive_rate": 1.0
+                }
+              ],
+              "expected_calibration_error": 0.02094683236140739,
+              "calibration_sample_count": 25,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "quant": {
+              "all_evaluable_oos_samples": 25,
+              "valid_probability_predictions": 25,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.2545659957247672,
+              "log_loss": 0.7022839964467935,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 2,
+                  "mean_probability": 0.49191655801825296,
+                  "observed_positive_rate": 1.0
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 23,
+                  "mean_probability": 0.5094704145915733,
+                  "observed_positive_rate": 0.43478260869565216
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.10935945678278719,
+              "calibration_sample_count": 25,
+              "calibration_uncertainty": {
+                "status": "descriptive_no_interval",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            }
+          },
+          "all_available_label_samples": 25
+        }
+      },
+      "ic_inference": {
+        "momentum_5": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "momentum_20": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "momentum_60": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "reversal_1": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "trend_sma20": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "realized_volatility_20": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "volume_z20": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "range_position_20": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "close_location": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        },
+        "overnight_gap": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "not_assessed"
+        },
+        "volume_return_corr20": {
+          "observations": 25,
+          "block_length": 5,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "exploratory"
+        }
+      }
+    },
+    {
+      "input_is_synthetic": true,
+      "normalized_bars": 756,
+      "horizon": "20D",
+      "paths": {
+        "quant": {
+          "status": "insufficient_data",
+          "current_probability": null,
+          "forecast_eligible": false,
+          "oos_count": 7
+        },
+        "factor": {
+          "status": "insufficient_data",
+          "current_probability": null,
+          "forecast_eligible": false,
+          "oos_count": 0
+        },
+        "ml": {
+          "status": "partial",
+          "current_probability": 0.6025418329713214,
+          "forecast_eligible": true,
+          "oos_count": 7
+        },
+        "factor_backtest": {
+          "status": "partial",
+          "current_probability": null,
+          "forecast_eligible": false,
+          "oos_count": 0
+        }
+      },
+      "factor_calibration_observations": 10,
+      "factor_bucket_counts": {
+        "low": 4,
+        "mid": 2,
+        "high": 4
+      },
+      "factor_holdout_predictions": 0,
+      "ml_calibration_observations": 12,
+      "ml_calibration_status": "uncalibrated",
+      "quant_oos_predictions_below_current_minimum_30": 7,
+      "consensus": {
+        "path_ids": [
+          "ml"
+        ],
+        "probability": 0.6025418329713214,
+        "confidence": "low",
+        "confidence_score": 40,
+        "confidence_reasons": [
+          "only_one_quant_path",
+          "uncalibrated_raw_probability",
+          "oos_validation_insufficient"
+        ],
+        "reporting_status": "degraded",
+        "may_report_direction": true,
+        "oos_quality": {
+          "status": "available",
+          "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
+          "target_definition": "close[t+20] / close[t] - 1 > 0",
+          "paths": {
+            "quant": {
+              "all_evaluable_oos_samples": 7,
+              "valid_probability_predictions": 7,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.2610254427595755,
+              "log_loss": 0.7153268965686523,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 7,
+                  "mean_probability": 0.5403000725982092,
+                  "observed_positive_rate": 0.2857142857142857
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": 0.2545857868839235,
+              "calibration_sample_count": 7,
+              "calibration_uncertainty": {
+                "status": "insufficient_samples",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "factor": {
+              "all_evaluable_oos_samples": 7,
+              "valid_probability_predictions": 0,
+              "oos_coverage": 0.0,
+              "abstain_rate": 1.0,
+              "brier_score": null,
+              "log_loss": null,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                }
+              ],
+              "expected_calibration_error": null,
+              "calibration_sample_count": 0,
+              "calibration_uncertainty": {
+                "status": "insufficient_samples",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            },
+            "ml": {
+              "all_evaluable_oos_samples": 7,
+              "valid_probability_predictions": 7,
+              "oos_coverage": 1.0,
+              "abstain_rate": 0.0,
+              "brier_score": 0.0664653083850674,
+              "log_loss": 0.23485183057238768,
+              "reliability_diagram": [
+                {
+                  "lower_bound": 0.0,
+                  "upper_bound": 0.1,
+                  "count": 2,
+                  "mean_probability": 0.054459369001480726,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.1,
+                  "upper_bound": 0.2,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.2,
+                  "upper_bound": 0.3,
+                  "count": 2,
+                  "mean_probability": 0.23452165326314833,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.3,
+                  "upper_bound": 0.4,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.4,
+                  "upper_bound": 0.5,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.5,
+                  "upper_bound": 0.6,
+                  "count": 1,
+                  "mean_probability": 0.5807155721500009,
+                  "observed_positive_rate": 0.0
+                },
+                {
+                  "lower_bound": 0.6,
+                  "upper_bound": 0.7,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.7,
+                  "upper_bound": 0.8,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.8,
+                  "upper_bound": 0.9,
+                  "count": 0,
+                  "mean_probability": null,
+                  "observed_positive_rate": null
+                },
+                {
+                  "lower_bound": 0.9,
+                  "upper_bound": 1.0,
+                  "count": 2,
+                  "mean_probability": 0.9394636892602712,
+                  "observed_positive_rate": 1.0
+                }
+              ],
+              "expected_calibration_error": 0.18282146259410234,
+              "calibration_sample_count": 7,
+              "calibration_uncertainty": {
+                "status": "insufficient_samples",
+                "sparse_bins": [
+                  0,
+                  1,
+                  2,
+                  3,
+                  4,
+                  5,
+                  6,
+                  7,
+                  8,
+                  9
+                ],
+                "interval_method": "not_computed"
+              }
+            }
+          },
+          "common_oos": {
+            "common_oos_samples": 7,
+            "common_oos_start": "2023-08-17",
+            "common_oos_end": "2024-02-09",
+            "same_ticker_horizon_target_and_label_end": true,
+            "path_metrics_on_common_oos_dates": {
+              "factor": {
+                "all_evaluable_oos_samples": 7,
+                "valid_probability_predictions": 0,
+                "oos_coverage": 0.0,
+                "abstain_rate": 1.0,
+                "brier_score": null,
+                "log_loss": null,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": null,
+                "calibration_sample_count": 0,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "ml": {
+                "all_evaluable_oos_samples": 7,
+                "valid_probability_predictions": 7,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.0664653083850674,
+                "log_loss": 0.23485183057238768,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 2,
+                    "mean_probability": 0.054459369001480726,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 2,
+                    "mean_probability": 0.23452165326314833,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 1,
+                    "mean_probability": 0.5807155721500009,
+                    "observed_positive_rate": 0.0
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 2,
+                    "mean_probability": 0.9394636892602712,
+                    "observed_positive_rate": 1.0
+                  }
+                ],
+                "expected_calibration_error": 0.18282146259410234,
+                "calibration_sample_count": 7,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "quant": {
+                "all_evaluable_oos_samples": 7,
+                "valid_probability_predictions": 7,
+                "oos_coverage": 1.0,
+                "abstain_rate": 0.0,
+                "brier_score": 0.2610254427595755,
+                "log_loss": 0.7153268965686523,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 7,
+                    "mean_probability": 0.5403000725982092,
+                    "observed_positive_rate": 0.2857142857142857
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": 0.2545857868839235,
+                "calibration_sample_count": 7,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              }
+            },
+            "all_paths_valid_prediction_samples": 0,
+            "complete_sample_start": null,
+            "complete_sample_end": null,
+            "path_metrics_on_same_complete_samples": {
+              "factor": {
+                "all_evaluable_oos_samples": 0,
+                "valid_probability_predictions": 0,
+                "oos_coverage": 0.0,
+                "abstain_rate": null,
+                "brier_score": null,
+                "log_loss": null,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": null,
+                "calibration_sample_count": 0,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "ml": {
+                "all_evaluable_oos_samples": 0,
+                "valid_probability_predictions": 0,
+                "oos_coverage": 0.0,
+                "abstain_rate": null,
+                "brier_score": null,
+                "log_loss": null,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": null,
+                "calibration_sample_count": 0,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              },
+              "quant": {
+                "all_evaluable_oos_samples": 0,
+                "valid_probability_predictions": 0,
+                "oos_coverage": 0.0,
+                "abstain_rate": null,
+                "brier_score": null,
+                "log_loss": null,
+                "reliability_diagram": [
+                  {
+                    "lower_bound": 0.0,
+                    "upper_bound": 0.1,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.1,
+                    "upper_bound": 0.2,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.2,
+                    "upper_bound": 0.3,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.3,
+                    "upper_bound": 0.4,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.4,
+                    "upper_bound": 0.5,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.5,
+                    "upper_bound": 0.6,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.6,
+                    "upper_bound": 0.7,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.7,
+                    "upper_bound": 0.8,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.8,
+                    "upper_bound": 0.9,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  },
+                  {
+                    "lower_bound": 0.9,
+                    "upper_bound": 1.0,
+                    "count": 0,
+                    "mean_probability": null,
+                    "observed_positive_rate": null
+                  }
+                ],
+                "expected_calibration_error": null,
+                "calibration_sample_count": 0,
+                "calibration_uncertainty": {
+                  "status": "insufficient_samples",
+                  "sparse_bins": [
+                    0,
+                    1,
+                    2,
+                    3,
+                    4,
+                    5,
+                    6,
+                    7,
+                    8,
+                    9
+                  ],
+                  "interval_method": "not_computed"
+                }
+              }
+            },
+            "all_available_label_samples": 7
+          }
+        },
+        "weight_diagnostic": {
+          "status": "fallback_equal_weight",
+          "weighting": "equal",
+          "current_weighting_enabled": false,
+          "deployment_status": "disabled_pending_independent_real_snapshot_oos_and_performance_acceptance",
+          "method": "Brier Skill weights estimated on earlier common OOS rows and evaluated on later common OOS rows",
+          "skill_formula": "max(0, (baseline_brier - path_brier) / baseline_brier)",
+          "epsilon": 0.05,
+          "minimum_samples_per_window": 20,
+          "common_oos_samples": 7,
+          "common_complete_prediction_samples": 0,
+          "path_ids": [
+            "factor",
+            "ml",
+            "quant"
+          ],
+          "weight_estimation_start": null,
+          "weight_estimation_end": null,
+          "weight_estimation_label_end": null,
+          "evaluation_start": null,
+          "evaluation_end": null,
+          "baseline_brier": null,
+          "path_brier": {},
+          "skill": {},
+          "candidate_weights": {},
+          "evaluation": {
+            "status": "not_assessed",
+            "weighted_brier": null,
+            "equal_weight_brier": null,
+            "baseline_brier": null
+          },
+          "fallback_reason": "insufficient_complete_common_oos_samples_for_separate_estimation_and_evaluation_windows"
+        }
+      },
+      "active_path_only_oos_quality": {
+        "status": "partial",
+        "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
+        "paths": {
+          "ml": {
+            "all_evaluable_oos_samples": 7,
+            "valid_probability_predictions": 7,
+            "oos_coverage": 1.0,
+            "abstain_rate": 0.0,
+            "brier_score": 0.0664653083850674,
+            "log_loss": 0.23485183057238768,
+            "reliability_diagram": [
+              {
+                "lower_bound": 0.0,
+                "upper_bound": 0.1,
+                "count": 2,
+                "mean_probability": 0.054459369001480726,
+                "observed_positive_rate": 0.0
+              },
+              {
+                "lower_bound": 0.1,
+                "upper_bound": 0.2,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.2,
+                "upper_bound": 0.3,
+                "count": 2,
+                "mean_probability": 0.23452165326314833,
+                "observed_positive_rate": 0.0
+              },
+              {
+                "lower_bound": 0.3,
+                "upper_bound": 0.4,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.4,
+                "upper_bound": 0.5,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.5,
+                "upper_bound": 0.6,
+                "count": 1,
+                "mean_probability": 0.5807155721500009,
+                "observed_positive_rate": 0.0
+              },
+              {
+                "lower_bound": 0.6,
+                "upper_bound": 0.7,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.7,
+                "upper_bound": 0.8,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.8,
+                "upper_bound": 0.9,
+                "count": 0,
+                "mean_probability": null,
+                "observed_positive_rate": null
+              },
+              {
+                "lower_bound": 0.9,
+                "upper_bound": 1.0,
+                "count": 2,
+                "mean_probability": 0.9394636892602712,
+                "observed_positive_rate": 1.0
+              }
+            ],
+            "expected_calibration_error": 0.18282146259410234,
+            "calibration_sample_count": 7,
+            "calibration_uncertainty": {
+              "status": "insufficient_samples",
+              "sparse_bins": [
+                0,
+                1,
+                2,
+                3,
+                4,
+                5,
+                6,
+                7,
+                8,
+                9
+              ],
+              "interval_method": "not_computed"
+            }
+          }
+        },
+        "common_oos": {
+          "common_oos_samples": 0,
+          "reason": "fewer than two dated forecast paths supplied OOS records"
+        }
+      },
+      "ic_inference": {
+        "momentum_5": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "momentum_20": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "momentum_60": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "reversal_1": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "trend_sma20": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "realized_volatility_20": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "volume_z20": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "range_position_20": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "close_location": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "overnight_gap": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        },
+        "volume_return_corr20": {
+          "observations": 7,
+          "block_length": 20,
+          "permutations": 0,
+          "p_value": null,
+          "p_value_adjusted": null,
+          "bootstrap_status": "insufficient_samples"
+        }
+      }
+    }
+  ],
+  "sample_budgets": [
+    {
+      "bars": 756,
+      "horizon_sessions": 1,
+      "calibration_labels": 113,
+      "distinct_score_bucket_counts": {
+        "low": 38,
+        "mid": 37,
+        "high": 38
+      },
+      "minimum_bars_for_all_three_distinct_score_buckets_at_20": 399
+    },
+    {
+      "bars": 756,
+      "horizon_sessions": 5,
+      "calibration_labels": 37,
+      "distinct_score_bucket_counts": {
+        "low": 13,
+        "mid": 11,
+        "high": 13
+      },
+      "minimum_bars_for_all_three_distinct_score_buckets_at_20": 1199
+    },
+    {
+      "bars": 756,
+      "horizon_sessions": 20,
+      "calibration_labels": 10,
+      "distinct_score_bucket_counts": {
+        "low": 4,
+        "mid": 2,
+        "high": 4
+      },
+      "minimum_bars_for_all_three_distinct_score_buckets_at_20": 4199
+    }
+  ],
+  "confidence_probe": {
+    "scope": "isolated scoring/contract probe; not genuine OOS records",
+    "beats_baseline": {
+      "confidence_score": 100,
+      "confidence_label": "high",
+      "audit_reporting_status": "pass",
+      "audit_reason_codes": [
+        "PBO_NOT_ASSESSED",
+        "DSR_NOT_ASSESSED",
+        "TRANSACTION_COST_NOT_ASSESSED",
+        "PORTFOLIO_BACKTEST_MISSING"
+      ]
+    },
+    "fails_baseline": {
+      "confidence_score": 100,
+      "confidence_label": "high",
+      "audit_reporting_status": "degraded",
+      "audit_reason_codes": [
+        "PBO_NOT_ASSESSED",
+        "DSR_NOT_ASSESSED",
+        "TRANSACTION_COST_NOT_ASSESSED",
+        "PORTFOLIO_BACKTEST_MISSING",
+        "OOS_INSUFFICIENT"
+      ]
+    }
+  },
+  "malformed_oos_probe": {
+    "scope": "OOS validator only; no claim that stock-data emits these rows",
+    "malformed_row": {
+      "decision_session": "2024-01-02",
+      "label_end_session": "2024-01-02",
+      "training_label_end_session": "2024-01-20",
+      "target": 1,
+      "probability": 0.8,
+      "target_definition": "deliberately wrong target for 5D"
+    },
+    "quality_status": "available",
+    "accepted_common_samples": 1
+  },
+  "quant_threshold_probe": {
+    "input_is_synthetic": true,
+    "bars": 170,
+    "horizon": "5D",
+    "current_status": "insufficient_data",
+    "current_probability": null,
+    "current_match_count": 25,
+    "reported_oos_predictions": 4,
+    "oos_training_counts": [
+      19,
+      20,
+      21,
+      22,
+      23
+    ]
+  },
+  "five_day_ic_resolution_bound": {
+    "observations": 25,
+    "block_length_observations": 5,
+    "potential_offsets": 16,
+    "minimum_required_offsets": 19,
+    "runtime_emits_p_value": false,
+    "hypothetical_minimum_raw_p_if_sample_check_removed": 0.058823529411764705,
+    "optimistic_minimum_BY_q_with_11_equal_minimum_p": 0.17763984381631442
+  }
+}

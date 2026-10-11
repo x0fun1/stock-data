@@ -22,6 +22,7 @@ from .researchers import factor, factor_backtest, ml, quant
 from .snapshot import load_snapshot
 from .synthesis import build_synthesis
 from .security import bounded_text
+from .validation.probability_quality import audit_oos_result
 
 RUNNERS: dict[str, Callable[[Path, tuple[dict[str, Any], dict[str, Any]] | None], dict[str, Any]]] = {
     "quant": quant.run,
@@ -35,7 +36,10 @@ def _write_json(path: Path, value: Any) -> None:
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
 
 
-def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, Any] | None = None) -> Path:
+def run_analysis(
+    snapshot_dir: Path, output_root: Path, news_policy: dict[str, Any] | None = None,
+    *, on_analysis_created: Callable[[Path], None] | None = None,
+) -> Path:
     pipeline_started = time.perf_counter()
     snapshot_load_started = time.perf_counter()
     loaded = load_snapshot(snapshot_dir, include_news=True)
@@ -52,6 +56,8 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
     analysis_id = f"{manifest['snapshot_id']}_analysis_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
     destination = safe_output_destination(output_root, analysis_id)
     destination.mkdir(parents=True, exist_ok=False)
+    if on_analysis_created is not None:
+        on_analysis_created(destination)
     researcher_dir = destination / "researchers"
     researcher_dir.mkdir()
 
@@ -75,13 +81,17 @@ def run_analysis(snapshot_dir: Path, output_root: Path, news_policy: dict[str, A
             )
         finally:
             researcher_wall_seconds[researcher_id] = time.perf_counter() - path_started
-        assessment = forecast_assessment(result, manifest)
+        oos_evidence_audit = None
+        if result.get("result_role", "forecast") == "forecast":
+            oos_evidence_audit = audit_oos_result(result, manifest, bars)
+            result["oos_evidence_audit"] = oos_evidence_audit
+        assessment = forecast_assessment(result, manifest, oos_evidence_audit=oos_evidence_audit)
         result.update(assessment)
         path_assessments[researcher_id] = assessment
         _write_json(researcher_dir / f"{researcher_id}.json", result)
         results[researcher_id] = result
 
-    consensus = build_consensus(list(results.values()), manifest, assessments=path_assessments)
+    consensus = build_consensus(list(results.values()), manifest, assessments=path_assessments, bars=bars)
     consensus["horizon_type"] = manifest.get("data_validation", {}).get("horizon_type", "unavailable")
     consensus["session_horizon_verified"] = bool(manifest.get("data_validation", {}).get("session_horizon_verified", False))
     adversarial = audit(manifest, list(results.values()), consensus)

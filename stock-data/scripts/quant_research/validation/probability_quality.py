@@ -5,6 +5,8 @@ from __future__ import annotations
 import math
 from typing import Any
 
+from ..contracts import HORIZONS
+from ..market_data import forward_returns, non_overlapping
 from ..math_utils import mean
 
 
@@ -17,39 +19,175 @@ def _valid_probability(value: Any) -> bool:
             and math.isfinite(float(value)) and 0 <= float(value) <= 1)
 
 
-def _validated_oos_rows(researchers: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str, dict[str, dict[str, Any]]]:
+def _audit_oos_path(
+    path: dict[str, Any], manifest: dict[str, Any], bars: list[dict[str, Any]] | None,
+) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
+    summary = {"status": "not_assessed", "supplied_samples": 0, "valid_samples": 0,
+               "valid_predictions": 0, "rejected_samples": 0, "rejection_reasons": {},
+               "rejected_examples": []}
+    validation = path.get("validation") or {}
+    if not isinstance(validation, dict):
+        summary["reason"] = "validation_metadata_not_object"
+        return {}, summary
+    source_rows = validation.get("oos_forecasts")
+    if not isinstance(source_rows, list):
+        summary["reason"] = "dated_oos_forecasts_not_supplied"
+        return {}, summary
+    summary["supplied_samples"] = len(source_rows)
+    horizon_name = manifest.get("horizon")
+    horizon = HORIZONS.get(horizon_name)
+    target_definition = f"close[t+{horizon}] / close[t] - 1 > 0" if horizon else None
+    session_index: dict[str, int] = {}
+    closes: list[float] = []
+    forward: list[float | None] = []
+    bars_error = None
+    if bars is not None:
+        try:
+            sessions = [str(bar["date"])[:10] for bar in bars]
+            closes = [float(bar["close"]) for bar in bars]
+            if (any(len(session) != 10 for session in sessions)
+                    or len(set(sessions)) != len(sessions)
+                    or any(close <= 0 or not math.isfinite(close) for close in closes)):
+                raise ValueError("invalid frozen sessions or close values")
+            session_index = {session: i for i, session in enumerate(sessions)}
+            forward = forward_returns(closes, horizon) if horizon else []
+        except (KeyError, TypeError, ValueError, OverflowError):
+            session_index, closes, forward = {}, [], []
+            bars_error = "frozen_market_bars_invalid"
     latest = (manifest.get("latest_confirmed_close") or {}).get("session_date")
+    if not isinstance(latest, str) and bars:
+        latest = str(bars[-1].get("date", ""))[:10]
     if not isinstance(latest, str):
         latest = str(manifest.get("asof_timestamp", ""))[:10]
+    latest_index = session_index.get(latest) if session_index else None
+    duplicates: set[str] = set()
+    seen: set[str] = set()
+    for row in source_rows:
+        if not isinstance(row, dict):
+            continue
+        decision = row.get("decision_session")
+        if isinstance(decision, str):
+            if decision in seen:
+                duplicates.add(decision)
+            seen.add(decision)
+
+    rows: dict[str, dict[str, Any]] = {}
+    for row_number, row in enumerate(source_rows):
+        reasons: list[str] = []
+        if not isinstance(row, dict):
+            reasons = ["record_not_object"]
+            row = {}
+        decision = row.get("decision_session")
+        label_end = row.get("label_end_session")
+        target = row.get("target")
+        probability = row.get("probability")
+        training_end = row.get("training_label_end_session")
+        recorded_target = row.get("target_definition") or validation.get("target_definition")
+        decision_index = session_index.get(decision) if isinstance(decision, str) else None
+        label_index = session_index.get(label_end) if isinstance(label_end, str) else None
+        if not isinstance(decision, str) or not isinstance(label_end, str):
+            reasons.append("decision_or_label_end_missing")
+        elif bars is not None:
+            if bars_error:
+                reasons.append(bars_error)
+            elif decision_index is None or label_index is None:
+                reasons.append("session_missing_from_frozen_market_bars")
+            elif latest_index is None:
+                reasons.append("snapshot_asof_session_missing_from_frozen_market_bars")
+            elif horizon is None or label_index != decision_index + horizon:
+                reasons.append("label_horizon_does_not_match_frozen_sessions")
+            elif latest_index is not None and label_index > latest_index:
+                reasons.append("label_not_matured_by_snapshot_asof")
+            elif forward[decision_index] is None:
+                reasons.append("forward_return_unavailable_for_oos_label")
+            else:
+                expected_target = int(float(forward[decision_index]) > 0)
+                if target != expected_target:
+                    reasons.append("target_does_not_match_frozen_close_prices")
+        elif not (decision <= label_end <= latest):
+            reasons.append("label_outside_snapshot_time_boundary")
+        if not isinstance(target, int) or isinstance(target, bool) or target not in (0, 1):
+            reasons.append("invalid_binary_target")
+        if recorded_target != target_definition:
+            reasons.append("target_definition_does_not_match_requested_horizon")
+        if probability is not None and not _valid_probability(probability):
+            reasons.append("invalid_probability_value")
+        if training_end is not None:
+            if not isinstance(training_end, str):
+                reasons.append("invalid_training_label_boundary")
+            elif bars is not None and training_end not in session_index:
+                reasons.append("training_label_end_missing_from_frozen_market_bars")
+            elif bars is not None and decision_index is not None and session_index[training_end] > decision_index:
+                reasons.append("training_label_not_matured_by_decision")
+            elif bars is None and isinstance(decision, str) and training_end > decision:
+                reasons.append("training_label_not_matured_by_decision")
+        elif _valid_probability(probability) and bars is not None:
+            reasons.append("training_label_boundary_missing_for_prediction")
+        if isinstance(decision, str) and decision in duplicates:
+            reasons.append("duplicate_decision_session")
+        if reasons:
+            summary["rejected_samples"] += 1
+            for reason in set(reasons):
+                summary["rejection_reasons"][reason] = summary["rejection_reasons"].get(reason, 0) + 1
+            if len(summary["rejected_examples"]) < 5:
+                summary["rejected_examples"].append({"record_index": row_number,
+                                                     "decision_session": decision if isinstance(decision, str) else None,
+                                                     "reason_codes": sorted(set(reasons))})
+            continue
+        rows[decision] = {**row, "decision_session": decision, "label_end_session": label_end,
+                          "target": target, "target_definition": recorded_target}
+    summary["valid_samples"] = len(rows)
+    summary["valid_predictions"] = sum(_valid_probability(row.get("probability")) for row in rows.values())
+    summary["status"] = "rejected_records" if summary["rejected_samples"] else "validated"
+    if bars is None:
+        summary["structural_validation"] = "limited_no_frozen_session_index"
+    else:
+        summary["structural_validation"] = "verified_against_frozen_session_index_and_close_labels"
+    return rows, summary
+
+
+def audit_oos_result(
+    result: dict[str, Any], manifest: dict[str, Any], bars: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    """Verify dated OOS records against the frozen horizon and, when provided, bars."""
+    if any(result.get(key) != manifest.get(key) for key in ("ticker", "horizon", "snapshot_id")):
+        validation = result.get("validation") if isinstance(result.get("validation"), dict) else {}
+        source_rows = validation.get("oos_forecasts")
+        supplied = len(source_rows) if isinstance(source_rows, list) else 0
+        return {"status": "rejected_snapshot_identity", "supplied_samples": supplied,
+                "valid_samples": 0, "valid_predictions": 0, "valid_prediction_count": 0,
+                "rejected_samples": supplied, "rejection_reasons": {"snapshot_identity_mismatch": supplied or 1},
+                "rejected_examples": [], "reason": "oos_rows_do_not_match_frozen_snapshot_identity"}
+    rows, summary = _audit_oos_path(result, manifest, bars)
+    return {**summary, "valid_prediction_count": sum(_valid_probability(row.get("probability")) for row in rows.values())}
+
+
+def _validated_oos_rows(
+    researchers: list[dict[str, Any]], manifest: dict[str, Any],
+    bars: list[dict[str, Any]] | None = None,
+) -> tuple[dict[str, dict[str, dict[str, Any]]], dict[str, dict[str, Any]]]:
     result: dict[str, dict[str, dict[str, Any]]] = {}
+    audits: dict[str, dict[str, Any]] = {}
     for path in researchers:
         if path.get("result_role", "forecast") != "forecast":
             continue
         if any(path.get(key) != manifest.get(key) for key in ("ticker", "horizon", "snapshot_id")):
+            validation = path.get("validation") if isinstance(path.get("validation"), dict) else {}
+            source_rows = validation.get("oos_forecasts")
+            supplied = len(source_rows) if isinstance(source_rows, list) else 0
+            audits[str(path.get("researcher_id", "unknown"))] = {
+                "status": "rejected_snapshot_identity", "supplied_samples": supplied,
+                "valid_samples": 0, "valid_predictions": 0, "rejected_samples": supplied,
+                "rejection_reasons": {"snapshot_identity_mismatch": supplied or 1},
+                "rejected_examples": [], "reason": "oos_rows_do_not_match_frozen_snapshot_identity",
+            }
             continue
-        validation = path.get("validation") or {}
-        source_rows = validation.get("oos_forecasts")
-        if not isinstance(source_rows, list):
-            continue
-        rows: dict[str, dict[str, Any]] = {}
-        for row in source_rows:
-            if not isinstance(row, dict):
-                continue
-            decision, label_end, target = row.get("decision_session"), row.get("label_end_session"), row.get("target")
-            if (not isinstance(decision, str) or not isinstance(label_end, str)
-                    or not isinstance(target, int) or isinstance(target, bool) or target not in (0, 1)
-                    or decision > latest or label_end > latest or label_end < decision):
-                continue
-            if decision in rows:
-                # Duplicate decision keys make common-window comparisons ambiguous.
-                rows = {}
-                break
-            rows[decision] = {**row, "decision_session": decision, "label_end_session": label_end,
-                              "target": target,
-                              "target_definition": row.get("target_definition") or validation.get("target_definition")}
+        name = str(path.get("researcher_id", "unknown"))
+        rows, summary = _audit_oos_path(path, manifest, bars)
+        audits[name] = summary
         if rows:
-            result[str(path.get("researcher_id", "unknown"))] = rows
-    return result
+            result[name] = rows
+    return result, audits
 
 
 def _probability_metrics(rows: list[dict[str, Any]], *, denominator: int | None = None) -> dict[str, Any]:
@@ -97,20 +235,20 @@ def _probability_metrics(rows: list[dict[str, Any]], *, denominator: int | None 
     }
 
 
-def build_oos_probability_quality(researchers: list[dict[str, Any]], manifest: dict[str, Any]) -> dict[str, Any]:
-    rows_by_path = _validated_oos_rows(researchers, manifest)
-    path_metrics = {
-        name: _probability_metrics(list(rows.values()))
-        for name, rows in rows_by_path.items()
-    }
-    names = sorted(rows_by_path)
-    if len(names) < 2:
-        return {
-            "status": "not_assessed" if not names else "partial",
-            "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
-            "paths": path_metrics,
-            "common_oos": {"common_oos_samples": 0, "reason": "fewer than two dated forecast paths supplied OOS records"},
-        }
+def _common_oos_metrics(
+    rows_by_path: dict[str, dict[str, dict[str, Any]]], names: list[str],
+) -> dict[str, Any]:
+    if not names:
+        return {"common_oos_samples": 0,
+                "reason": "no dated forecast paths supplied valid OOS records"}
+    missing_names = sorted(name for name in names if name not in rows_by_path)
+    if missing_names:
+        return {"common_oos_samples": 0, "all_paths_valid_prediction_samples": 0,
+                "all_available_label_samples": 0,
+                "reason": "current forecast paths missing valid dated OOS records",
+                "missing_path_ids": missing_names,
+                "path_metrics_on_common_oos_dates": {},
+                "path_metrics_on_same_complete_samples": {}}
     common_dates = set.intersection(*(set(rows_by_path[name]) for name in names))
     compatible: list[str] = []
     for decision in sorted(common_dates):
@@ -119,31 +257,146 @@ def build_oos_probability_quality(researchers: list[dict[str, Any]], manifest: d
                 and len({row["label_end_session"] for row in row_set}) == 1
                 and len({row.get("target_definition") for row in row_set}) == 1):
             compatible.append(decision)
-    common_rows = {name: [rows_by_path[name][date] for date in compatible] for name in names}
-    complete_dates = [date for date in compatible
-                      if all(_valid_probability(rows_by_path[name][date].get("probability")) for name in names)]
-    complete_rows = {name: [rows_by_path[name][date] for date in complete_dates] for name in names}
+    common_rows = {name: [rows_by_path[name][decision] for decision in compatible] for name in names}
+    complete_dates = [decision for decision in compatible
+                      if all(_valid_probability(rows_by_path[name][decision].get("probability"))
+                             for name in names)]
+    complete_rows = {name: [rows_by_path[name][decision] for decision in complete_dates]
+                     for name in names}
     return {
-        "status": "available" if compatible else "not_assessed",
-        "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
-        "target_definition": rows_by_path[names[0]][compatible[0]].get("target_definition") if compatible else None,
-        "paths": path_metrics,
-        "common_oos": {
-            "common_oos_samples": len(compatible),
-            "common_oos_start": compatible[0] if compatible else None,
-            "common_oos_end": compatible[-1] if compatible else None,
-            "same_ticker_horizon_target_and_label_end": bool(compatible),
-            "path_metrics_on_common_oos_dates": {
-                name: _probability_metrics(common_rows[name], denominator=len(compatible)) for name in names
-            },
-            "all_paths_valid_prediction_samples": len(complete_dates),
-            "complete_sample_start": complete_dates[0] if complete_dates else None,
-            "complete_sample_end": complete_dates[-1] if complete_dates else None,
-            "path_metrics_on_same_complete_samples": {
-                name: _probability_metrics(complete_rows[name], denominator=len(complete_dates)) for name in names
-            },
-            "all_available_label_samples": len(compatible),
+        "common_oos_samples": len(compatible),
+        "common_oos_start": compatible[0] if compatible else None,
+        "common_oos_end": compatible[-1] if compatible else None,
+        "same_ticker_horizon_target_and_label_end": bool(compatible),
+        "path_metrics_on_common_oos_dates": {
+            name: _probability_metrics(common_rows[name], denominator=len(compatible)) for name in names
         },
+        "all_paths_valid_prediction_samples": len(complete_dates),
+        "complete_sample_start": complete_dates[0] if complete_dates else None,
+        "complete_sample_end": complete_dates[-1] if complete_dates else None,
+        "path_metrics_on_same_complete_samples": {
+            name: _probability_metrics(complete_rows[name], denominator=len(complete_dates)) for name in names
+        },
+        "all_available_label_samples": len(compatible),
+    }
+
+
+def _policy_replay_quality(
+    rows_by_path: dict[str, dict[str, dict[str, Any]]], manifest: dict[str, Any],
+    bars: list[dict[str, Any]] | None,
+) -> dict[str, Any]:
+    if not rows_by_path:
+        return {"status": "not_assessed", "reason": "no_valid_dated_oos_records"}
+    if not bars:
+        return {"status": "partial", "reason": "frozen_market_bars_unavailable_for_causal_baseline"}
+    horizon = HORIZONS.get(manifest.get("horizon"))
+    if not horizon:
+        return {"status": "not_assessed", "reason": "unsupported_horizon"}
+    sessions = [str(bar.get("date", ""))[:10] for bar in bars]
+    closes = [float(bar["close"]) for bar in bars]
+    if len(set(sessions)) != len(sessions) or any(close <= 0 or not math.isfinite(close) for close in closes):
+        return {"status": "not_assessed", "reason": "frozen_market_sessions_or_closes_invalid"}
+    index_by_date = {session: index for index, session in enumerate(sessions)}
+    forward = forward_returns(closes, horizon)
+    all_dates = sorted(set().union(*(set(path_rows) for path_rows in rows_by_path.values())))
+    cohort: list[dict[str, Any]] = []
+    rejected = 0
+    path_counts: dict[str, int] = {}
+    for decision in all_dates:
+        index = index_by_date.get(decision)
+        if index is None or index + horizon >= len(bars):
+            rejected += 1
+            continue
+        date_rows = [path_rows[decision] for path_rows in rows_by_path.values() if decision in path_rows]
+        if (not date_rows or len({row["target"] for row in date_rows}) != 1
+                or len({row["label_end_session"] for row in date_rows}) != 1
+                or len({row.get("target_definition") for row in date_rows}) != 1):
+            rejected += 1
+            continue
+        matured = non_overlapping(list(range(0, max(0, index - horizon + 1))), horizon)
+        matured_outcomes = [forward[i] for i in matured if i + horizon <= index and forward[i] is not None]
+        if not matured_outcomes:
+            continue
+        # Jeffreys-smoothed expanding base rate: (wins + 1/2) / (n + 1).
+        baseline = (sum(value > 0 for value in matured_outcomes) + 0.5) / (len(matured_outcomes) + 1)
+        predictions = [row for row in date_rows if _valid_probability(row.get("probability"))]
+        if predictions:
+            path_counts[str(len(predictions))] = path_counts.get(str(len(predictions)), 0) + 1
+            probability = sum(float(row["probability"]) for row in predictions) / len(predictions)
+            cohort.append({"decision_session": decision,
+                           "label_end_session": date_rows[0]["label_end_session"],
+                           "target": date_rows[0]["target"], "probability": probability,
+                           "baseline_probability": baseline,
+                           "available_path_ids": sorted(name for name, values in rows_by_path.items()
+                                                         if decision in values and _valid_probability(values[decision].get("probability")))})
+        else:
+            cohort.append({"decision_session": decision,
+                           "label_end_session": date_rows[0]["label_end_session"],
+                           "target": date_rows[0]["target"], "probability": None,
+                           "baseline_probability": baseline, "available_path_ids": []})
+    predicted = [row for row in cohort if _valid_probability(row.get("probability"))]
+    baseline_scored = [{**row, "probability": row["baseline_probability"]} for row in predicted]
+    metrics = _probability_metrics(cohort, denominator=len(cohort))
+    baseline_metrics = _probability_metrics(baseline_scored, denominator=len(predicted))
+    candidate_brier = metrics.get("brier_score")
+    baseline_brier = baseline_metrics.get("brier_score")
+    skill = (1 - candidate_brier / baseline_brier
+             if isinstance(candidate_brier, (int, float)) and isinstance(baseline_brier, (int, float))
+             and baseline_brier > 0 else None)
+    return {
+        "status": "descriptive_no_uncertainty_interval" if predicted else "not_assessed",
+        "method": "date-by-date equal mean of every valid frozen OOS path; paths may abstain; compared on identical predicted dates with a Jeffreys-smoothed causal expanding base rate",
+        "evidence_scope": "retrospective_holdout_records_from_current_frozen_snapshot; not an independent historical as-of prediction ledger",
+        "coverage_denominator_scope": "union_of_submitted_valid_dated_oos_records; dates omitted by every path are not observable here",
+        "current_paths_used_for_filtering": False,
+        "eligible_oos_label_dates": len(cohort),
+        "predicted_dates": len(predicted),
+        "oos_coverage": len(predicted) / len(cohort) if cohort else 0.0,
+        "abstain_rate": 1 - len(predicted) / len(cohort) if cohort else None,
+        "path_count_by_prediction_date": path_counts,
+        "active_path_mask": [
+            {"decision_session": row["decision_session"],
+             "available_path_ids": row["available_path_ids"]}
+            for row in cohort
+        ],
+        "conflicting_or_invalid_label_dates": rejected,
+        "forecast_metrics": metrics,
+        "expanding_base_rate_on_same_dates": baseline_metrics,
+        "brier_skill_vs_expanding_base_rate": skill,
+        "skill_uncertainty": "not_estimated; do not treat positive point estimate as validated improvement",
+    }
+
+
+def build_oos_probability_quality(
+    researchers: list[dict[str, Any]], manifest: dict[str, Any],
+    *, bars: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    rows_by_path, row_audits = _validated_oos_rows(researchers, manifest, bars)
+    path_metrics = {
+        name: _probability_metrics(list(rows.values()))
+        for name, rows in rows_by_path.items()
+    }
+    all_names = sorted(rows_by_path)
+    active_names = sorted({str(path.get("researcher_id", "unknown")) for path in researchers
+                           if path.get("result_role", "forecast") == "forecast"
+                           and path.get("forecast_eligible", True) is True})
+    common_oos = _common_oos_metrics(rows_by_path, active_names)
+    # A path with detected information leakage cannot support historical policy skill,
+    # even when individual labels and dates in its submitted rows are well formed.
+    replay_rows = {name: rows for name, rows in rows_by_path.items()
+                   if not any(path.get("researcher_id") == name
+                              and "LEAKAGE_DETECTED" in (path.get("reason_codes") or [])
+                              for path in researchers)}
+    return {
+        "status": "available" if common_oos.get("common_oos_samples", 0) else "partial" if path_metrics else "not_assessed",
+        "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
+        "current_forecast_paths": active_names,
+        "target_definition": f"close[t+{HORIZONS.get(manifest.get('horizon'), 0)}] / close[t] - 1 > 0",
+        "paths": path_metrics,
+        "row_validation": row_audits,
+        "common_oos": common_oos,
+        "candidate_path_common_oos": _common_oos_metrics(rows_by_path, all_names),
+        "algorithm_policy_replay": _policy_replay_quality(replay_rows, manifest, bars),
     }
 
 
@@ -151,6 +404,7 @@ def build_brier_skill_weight_diagnostic(
     researchers: list[dict[str, Any]],
     manifest: dict[str, Any],
     *,
+    bars: list[dict[str, Any]] | None = None,
     epsilon: float = DEFAULT_BRIER_SKILL_EPSILON,
     minimum_per_window: int = MINIMUM_WEIGHT_WINDOW_SAMPLES,
 ) -> dict[str, Any]:
@@ -158,8 +412,11 @@ def build_brier_skill_weight_diagnostic(
         raise ValueError("Brier skill epsilon must be finite and non-negative")
     if isinstance(minimum_per_window, bool) or not isinstance(minimum_per_window, int) or minimum_per_window < 2:
         raise ValueError("minimum_per_window must be an integer of at least 2")
-    rows_by_path = _validated_oos_rows(researchers, manifest)
-    names = sorted(rows_by_path)
+    rows_by_path, _ = _validated_oos_rows(researchers, manifest, bars)
+    active_names = {str(path.get("researcher_id", "unknown")) for path in researchers
+                    if path.get("result_role", "forecast") == "forecast"
+                    and path.get("forecast_eligible", True) is True}
+    names = sorted(name for name in rows_by_path if name in active_names)
     all_dates = set.intersection(*(set(rows_by_path[name]) for name in names)) if names else set()
     common_dates = []
     for decision in sorted(all_dates):
@@ -282,13 +539,14 @@ def build_probability_validation(
     researchers: list[dict[str, Any]],
     manifest: dict[str, Any],
     *,
+    bars: list[dict[str, Any]] | None = None,
     skill_epsilon: float = DEFAULT_BRIER_SKILL_EPSILON,
     minimum_weight_window_samples: int = MINIMUM_WEIGHT_WINDOW_SAMPLES,
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     return (
-        build_oos_probability_quality(researchers, manifest),
+        build_oos_probability_quality(researchers, manifest, bars=bars),
         build_brier_skill_weight_diagnostic(
-            researchers, manifest, epsilon=skill_epsilon,
+            researchers, manifest, bars=bars, epsilon=skill_epsilon,
             minimum_per_window=minimum_weight_window_samples,
         ),
     )

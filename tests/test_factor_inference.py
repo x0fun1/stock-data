@@ -10,9 +10,19 @@ sys.path.insert(0, str(ROOT / "stock-data" / "scripts"))
 from quant_research.math_utils import (benjamini_yekutieli,
                                        circular_block_bootstrap_spearman,
                                        circular_shift_spearman_p_value)
+from quant_research.researchers.factor import _sample_feasibility
 
 
 class FactorInferenceTests(unittest.TestCase):
+    def test_factor_sample_budget_matches_strict_non_overlapping_split(self):
+        for horizon, capacity, minimum_bars in ((1, 113, 399), (5, 37, 1199), (20, 10, 4199)):
+            with self.subTest(horizon=horizon):
+                budget = _sample_feasibility(756, horizon)
+                self.assertEqual(budget["max_non_overlapping_calibration_label_capacity"], capacity)
+                self.assertEqual(budget["estimated_minimum_daily_bars"], minimum_bars)
+                self.assertEqual(_sample_feasibility(minimum_bars - 1, horizon)["max_non_overlapping_calibration_label_capacity"], 59)
+                self.assertEqual(_sample_feasibility(minimum_bars, horizon)["max_non_overlapping_calibration_label_capacity"], 60)
+
     def test_benjamini_yekutieli_matches_reference_and_counts_full_trial_family(self):
         adjusted = benjamini_yekutieli({"a": .01, "b": .03, "c": .04, "unavailable": None}, trials=4)
         harmonic = 1 + 1 / 2 + 1 / 3 + 1 / 4

@@ -14,6 +14,46 @@ from ..math_utils import (benjamini_yekutieli, circular_block_bootstrap_spearman
 from ..snapshot import load_snapshot
 
 
+MINIMUM_FACTOR_BUCKET_OBSERVATIONS = 20
+
+
+def _calibration_label_capacity(bar_count: int, horizon: int) -> int:
+    """Count the largest leak-free, non-overlapping calibration cohort at this history size."""
+    train_end = int(bar_count * 0.5)
+    calibration_end = int(bar_count * 0.8)
+    first = max(train_end, 60)
+    last = calibration_end - horizon - 1
+    return (last - first) // (horizon + 1) + 1 if last >= first else 0
+
+
+def _sample_feasibility(bar_count: int, horizon: int) -> dict[str, Any]:
+    required = 3 * MINIMUM_FACTOR_BUCKET_OBSERVATIONS
+    low, high = 0, max(256, bar_count)
+    while _calibration_label_capacity(high, horizon) < required:
+        high *= 2
+    while low < high:
+        middle = (low + high) // 2
+        if _calibration_label_capacity(middle, horizon) >= required:
+            high = middle
+        else:
+            low = middle + 1
+    capacity = _calibration_label_capacity(bar_count, horizon)
+    return {
+        "status": "capacity_below_three_bucket_minimum" if capacity < required else "budget_possible_not_guaranteed_by_factor_scores",
+        "minimum_bucket_observations": MINIMUM_FACTOR_BUCKET_OBSERVATIONS,
+        "required_calibration_observations_for_three_balanced_buckets": required,
+        "max_non_overlapping_calibration_label_capacity": capacity,
+        "calibration_available": 0,
+        "calibration_observations_with_complete_factor_scores": 0,
+        "calibration_bucket_counts": {"low": 0, "mid": 0, "high": 0},
+        "all_current_buckets_meet_minimum": False,
+        "estimated_minimum_daily_bars": low,
+        "additional_daily_bars_at_current_history_length": max(0, low - bar_count),
+        "estimate_assumptions": "fixed 50% selection / 30% calibration / 20% holdout split, 60-session feature warm-up, H+1-session label spacing, and three balanced buckets; score ties, missing factors, and regime drift can increase the requirement",
+        "requested_window_preserved": True,
+    }
+
+
 def _window_return(values: list[float], i: int, window: int) -> float | None:
     return values[i] / values[i - window] - 1.0 if i >= window and values[i - window] > 0 else None
 
@@ -198,6 +238,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     close = [row["close"] for row in bars]
     factors = _factors(bars)
     n = len(bars)
+    sample_feasibility = _sample_feasibility(n, requested_horizon)
     holdout_start = int(n * 0.8)
     holdout_indices = non_overlapping(list(range(holdout_start, n - requested_horizon)), requested_horizon)
     train_end = int(n * 0.5)
@@ -248,7 +289,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     warnings: list[str] = ["Returns are gross close-to-close observations; this factor path does not model execution, spreads, slippage or fees."]
     if not retained:
         warnings.append("No candidate factor passed the minimum absolute Rank IC screen in the training segment.")
-        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"factor_decay": decay, "oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon), "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"}, data_used=["daily raw OHLCV"], warnings=warnings)
+        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"factor_decay": decay, "oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "sample_feasibility": sample_feasibility, "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon), "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"}, data_used=["daily raw OHLCV"], warnings=warnings)
 
     # Standardize each selected factor using the selection segment only.
     standardized: dict[str, list[float | None]] = {}
@@ -261,7 +302,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         signs[name] = 1 if (metrics["rank_ic"] or 0) >= 0 else -1
         standardized[name] = [max(-3.0, min(3.0, (float(value) - center) / scale)) if value is not None else None for value in values]
     if not standardized:
-        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon), "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"}, warnings=["Selected factors had no stable scale in the training segment."])
+        return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "sample_feasibility": sample_feasibility, "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon), "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"}, warnings=["Selected factors had no stable scale in the training segment."])
 
     def composite(index: int) -> float | None:
         values = [standardized[name][index] * signs[name] for name in standardized if standardized[name][index] is not None]
@@ -275,6 +316,12 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     for score, target in calibration_pairs:
         bucket = "low" if low_cut is not None and score <= low_cut else "high" if high_cut is not None and score >= high_cut else "mid"
         bucket_samples[bucket].append(target)
+    sample_feasibility["calibration_observations_with_complete_factor_scores"] = len(calibration_pairs)
+    sample_feasibility["calibration_available"] = len(calibration_pairs)
+    sample_feasibility["calibration_bucket_counts"] = {key: len(value) for key, value in bucket_samples.items()}
+    sample_feasibility["all_current_buckets_meet_minimum"] = all(
+        len(values) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS for values in bucket_samples.values()
+    )
     current_score = composite(n - 1)
     current_bucket = None if current_score is None else "low" if low_cut is not None and current_score <= low_cut else "high" if high_cut is not None and current_score >= high_cut else "mid"
     selected_returns = bucket_samples.get(current_bucket, [])
@@ -333,7 +380,8 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         warnings.append("The untouched chronological holdout has fewer than 10 factor-calibration predictions.")
     validation = {"method": "training-segment factor selection + correlation pruning + later empirical bucket calibration", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "oos_factor_inference": oos_factor_inference, "oos_forecasts": oos_forecasts, "oos_evaluable_samples": len(oos_forecasts), "oos_predictions": len(holdout_pairs), "oos_coverage": len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else 0.0, "oos_abstain_rate": 1 - len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else None, "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0", "candidate_factor_count": len(factors), "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_base_rate": calibration_prevalence, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True, "oos_inference_did_not_select_or_modify_probability": True}}
     validation["diagnostics_label_end_exclusive"] = holdout_start
-    validation["sample_feasibility"] = {"minimum_bucket_observations": 20, "minimum_holdout_predictions": 10, "calibration_available": len(calibration_pairs), "requested_window_preserved": True}
+    sample_feasibility["minimum_holdout_predictions"] = 10
+    validation["sample_feasibility"] = sample_feasibility
     return researcher_result(
         "factor", ticker, horizon_name, manifest["snapshot_id"], status=status,
         prob_up=probability, expected_return=expected,

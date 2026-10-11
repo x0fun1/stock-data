@@ -100,10 +100,10 @@ python3 "${CODEX_HOME:-$HOME/.codex}/skills/.system/skill-installer/scripts/inst
 先按 Skill 完成一次数据采集，将实际 gateway 响应按 [collection-adapter.md](stock-data/references/collection-adapter.md) 映射为规范化输入。推荐组合入口：
 
 ```text
-python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
+python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime --cleanup-json
 ```
 
-`pipeline` 顺序完成请求规范化、adapt、freeze、analyze；它只消费已采集文件，不自动拉取最新数据。Agent 仍负责实际工具采集、来源字段映射和授权边界。逐阶段命令也可用。示例在仓库根目录执行；安装后改用已安装脚本的实际绝对路径，JSON 输入和 `runtime/` 放在用户可写工作目录。
+`pipeline` 顺序完成请求规范化、adapt、freeze、analyze；它只消费已采集文件，不自动拉取最新数据。Skill 的常规预测使用 `--cleanup-json`，将本次文件隔离到 `runtime/runs/<run_id>/`。保存并校验实际待发送文本后调用 `cleanup-run --run-dir <run_dir> --analysis-dir <report_dir> --response-file <prepared_reply.md>`，脚本会再次校验，再删除本次登记 JSON，留下两份 Markdown 和 `cleanup_receipt.txt`。可先运行 `cleanup-run --run-dir <run_dir> --analysis-dir <report_dir> --dry-run` 查看目标。需要审计/复现时使用 `--keep-json`；未指定两者时保留旧共享输出行为。Analysis-only 清理可使用 `cleanup-run --analysis-dir <analysis_dir>`，仅限旧共享 analysis，且不会清理来源快照。Agent 仍负责实际工具采集、来源字段映射和授权边界。逐阶段命令也可用。示例在仓库根目录执行；安装后改用已安装脚本的实际绝对路径，JSON 输入和 `runtime/` 放在用户可写工作目录。
 
 ```text
 python stock-data/scripts/quant_research.py request --input request.json --output normalized-request.json
@@ -119,8 +119,15 @@ python stock-data/scripts/quant_research.py analyze --snapshot-dir runtime/snaps
 `analyze` 先检查数据资格；通过后完成四路径、共识、E、News 与综合，未通过则跳过研究器并输出弃权报告。生成：
 
 ```text
-runtime/snapshots/<snapshot_id>/          manifest、规范化各域、raw envelopes
-runtime/research/<analysis_id>/
+runtime/runs/<run_id>/                    --cleanup-json 的本次独占根目录
+  run_manifest.json                       运行期间登记所有权，清理时删除
+  collections/collection_<run_id>.json
+  snapshots/<snapshot_id>/                manifest、规范化各域、raw envelopes
+  research/<analysis_id>/                 下方列出的 analysis 产物
+  cleanup_receipt.txt                     清理后保留：状态、哈希和相对 JSON 目标名
+# 清理后仅保留 research/<analysis_id>/ 下的两份 Markdown 和根目录回执
+runtime/snapshots/<snapshot_id>/          legacy/--keep-json 共享布局
+runtime/research/<analysis_id>/            legacy/--keep-json 共享布局
   researchers/{quant,factor,ml,factor_backtest}.json
   quant_result.json + quant_result.freeze.json
   news_result.json + news_result.freeze.json
@@ -135,9 +142,10 @@ CLI 的 `status: success` 仅表示产物写出；另检查 `analysis_status` �
 
 ```text
 python stock-data/scripts/quant_research.py validate-response --analysis-dir <实际返回的 report_dir> --response-file <待发送的完整回复.md>
+python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回的 run_dir> --analysis-dir <实际返回的 report_dir> --response-file <同一待发送的完整回复.md>
 ```
 
-该检查验证 Quant/News 冻结 digest、报告来源绑定、完成阶段和强制原文行；遗漏/篡改概率、原生字段、标的/窗口/时间或未保留不可用原因时返回错误。通过后发送同一文本，不能再次删减强制字段。它不能拦截宿主 Agent 未调用脚本而直接发送的消息，也不核验全部自然语言主张。前置采集/校验失败到无法产生报告时，直接报告“上涨概率：不可用”、失败阶段与实际缺口，明确研究未完成。
+该检查验证 Quant/News 冻结 digest、报告来源绑定、完成阶段和强制原文行；遗漏/篡改概率、原生字段、标的/窗口/时间或未保留不可用原因时返回错误。通过后，宿主已读取/复制待发送文本时再调用清理命令，然后发送同一文本，不能再次删减强制字段。清理会保留 Markdown 和收据，但原有 JSON 校验依赖随之删除，不能再对该运行重新验证；需要保留复现材料时用 `--keep-json`。CLI 不判断聊天消息是否实际送达，也不能拦截宿主 Agent 绕过 Skill 直接发送；它不核验全部自然语言主张。前置采集/校验失败到无法产生报告时，直接报告“上涨概率：不可用”、失败阶段与实际缺口，明确研究未完成。失败或中断运行保持原样，只有显式 `--force-incomplete` 才允许清理。
 
 ## Yahoo yfinance 优先与自动兼容回退（2.5.0）
 
@@ -166,7 +174,7 @@ python stock-data/scripts/global_stock_data.py --function yahoo_history --params
 
 ## 实现边界与验证
 
-当前仓库版本：Skill `2.6.0` / research runtime `0.3.0` / snapshot schema `1.2`。保留原有 Quant→冻结→News 流程、中央 gate 和 `validate-response`；新增的 OOS 质量、因子 IC 推断、成本敏感性、权重实验诊断和性能数据均为可选分析结果字段，不改变冻结输入契约或 NewsInput。A 路径仍是无先验/无衰减的条件频率；skill 权重保持实验性且不启用；XGBoost/LightGBM 未实现、不探测、不加载。新旧分析兼容测试确认旧的可选字段缺失时采用等权、经济性为 `not_assessed`。
+当前仓库版本：Skill `2.8.0` / research runtime `0.5.0` / snapshot schema `1.2`。保留原有 Quant→冻结→News 流程、中央 gate 和预测契约；常规预测可使用隔离运行和经过实际回复二次校验的 JSON 清理，研究/审计通过 `--keep-json` 保留完整档案。清理只触及本次私有运行的已登记 JSON，不改变数据门槛或预测算法。Quant 的 OOS 冻结行情审计、按当前可用路径的共识诊断、因果扩展基率策略回放、Factor 样本预算、证据等级和 confidence score 语义字段不改变冻结输入契约或 NewsInput。A 路径仍是无先验/无衰减的条件频率；skill 权重保持实验性且不启用；XGBoost/LightGBM 未实现、不探测、不加载。当前 OOS replay 是历史描述性点估计，没有技能不确定性区间，也不证明真实市场预测改善。
 
 预测概率与经济性分开：5/10/20 bp 仅是假设成本敏感性。因子 OOS IC 使用 BY-FDR、moving-block bootstrap 和 circular-shift 探索性检验；时序平稳性和区间覆盖率尚未验证，DSR 保持 `not_assessed`。没有真实、独立、可配对市场快照，本次合成 fixture 仅用于边界、兼容和运行性能工程验收，不构成预测改善证据。Yahoo 的 `include_metadata=true` 保留来源 meta/events/adjclose，但不等于完整交易日历或已验证复权。输入契约见 [reliability-gates.md](stock-data/references/reliability-gates.md)。
 

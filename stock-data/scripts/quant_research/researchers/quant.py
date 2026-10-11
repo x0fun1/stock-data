@@ -10,6 +10,8 @@ from ..market_data import forward_returns, market_bars, non_overlapping
 from ..math_utils import mean, wilson_interval
 from ..snapshot import load_snapshot
 
+MINIMUM_MATCHING_SAMPLES = 30
+
 
 def _momentum(values: list[float], index: int, window: int) -> float | None:
     if index < window or values[index - window] <= 0:
@@ -67,7 +69,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         prior_outcomes = [float(forward[i]) for i in candidates if forward[i] is not None]
         probability_at_decision = (
             sum(value > 0 for value in prior_outcomes) / len(prior_outcomes)
-            if len(prior_outcomes) >= 20 else None
+            if len(prior_outcomes) >= MINIMUM_MATCHING_SAMPLES else None
         )
         training_label_end = max((i + horizon for i in candidates), default=None)
         oos_forecasts.append({
@@ -90,7 +92,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     warnings: list[str] = []
     warnings.append("Returns are gross close-to-close observations; this baseline does not model execution, spreads, slippage or fees.")
     status = "success"
-    if len(outcomes) < 30:
+    if len(outcomes) < MINIMUM_MATCHING_SAMPLES:
         probability = None
         expected = None
         status = "insufficient_data"
@@ -113,6 +115,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         prob_up=probability, expected_return=expected, evidence=evidence,
         validation={
             "method": "expanding conditional-frequency holdout; no Bayesian prior or time decay",
+            "minimum_matching_samples": MINIMUM_MATCHING_SAMPLES,
             "holdout_start_session": bars[holdout_start]["date"] if holdout_start < len(bars) else None,
             "oos_predictions": len(oos_predictions),
             "oos_evaluable_samples": len(oos_forecasts),

@@ -55,7 +55,10 @@ def _economic_viability(researchers: list[dict[str, Any]]) -> dict[str, Any]:
     }
 
 
-def _oos_count(result: dict[str, Any]) -> int:
+def _oos_count(result: dict[str, Any], oos_evidence_audit: dict[str, Any] | None = None) -> int:
+    if isinstance(oos_evidence_audit, dict):
+        value = oos_evidence_audit.get("valid_prediction_count", 0)
+        return value if isinstance(value, int) and not isinstance(value, bool) else 0
     validation = result.get("validation") or {}
     name = result.get("researcher_id")
     value: Any = (validation.get("oos_predictions", 0) if name == "quant"
@@ -64,7 +67,10 @@ def _oos_count(result: dict[str, Any]) -> int:
     return value if isinstance(value, int) and not isinstance(value, bool) else 0
 
 
-def forecast_assessment(result: dict[str, Any], manifest: dict[str, Any]) -> dict[str, Any]:
+def forecast_assessment(
+    result: dict[str, Any], manifest: dict[str, Any],
+    *, oos_evidence_audit: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     codes: list[str] = []
     messages: list[str] = []
     probability = result.get("prob_up")
@@ -108,7 +114,7 @@ def forecast_assessment(result: dict[str, Any], manifest: dict[str, Any]) -> dic
         codes.append("LEAKAGE_DETECTED")
         messages.append("Purged validation reports overlapping train/test information intervals.")
 
-    count = _oos_count(result)
+    count = _oos_count(result, oos_evidence_audit)
     if count >= 100:
         oos_status = "strong"
     elif count >= 40:
@@ -125,6 +131,9 @@ def forecast_assessment(result: dict[str, Any], manifest: dict[str, Any]) -> dic
     if calibration == "uncalibrated":
         codes.append("CALIBRATION_MISSING")
         messages.append("Probability calibration is unavailable; the raw model probability is retained with lower confidence.")
+    if isinstance(oos_evidence_audit, dict) and oos_evidence_audit.get("rejected_samples", 0):
+        codes.append("OOS_EVIDENCE_INVALID")
+        messages.append("Some OOS records failed frozen-session, target, or matured-training-label verification; rejected records are excluded from validation metrics.")
     if result.get("status") not in {"success", "partial"}:
         codes.append("PATH_FAILED")
     fatal_codes = [code for code in codes if code in {"SNAPSHOT_IDENTITY_INVALID", "PREDICTION_FAILED", "LEAKAGE_DETECTED"}]
@@ -160,17 +169,33 @@ def _confidence_label(score: int) -> str:
     return "high" if score >= 80 else "medium" if score >= 60 else "low" if score >= 40 else "very_low"
 
 
+def _predictive_evidence_grade(quality: dict[str, Any]) -> str:
+    replay = quality.get("algorithm_policy_replay") or {}
+    count = replay.get("predicted_dates", 0)
+    skill = replay.get("brier_skill_vs_expanding_base_rate")
+    if (not isinstance(count, int) or isinstance(count, bool) or count < 20
+            or isinstance(skill, bool) or not isinstance(skill, (int, float))
+            or not math.isfinite(float(skill))):
+        return "insufficient_oos_evidence"
+    if skill <= 0:
+        return "no_observed_skill_vs_expanding_base_rate"
+    if count < 100:
+        return "exploratory_positive_skill_unconfirmed"
+    return "positive_skill_point_estimate_uncertainty_unestimated"
+
+
 def build_consensus(
     researchers: list[dict[str, Any]],
     manifest: dict[str, Any],
     *,
     assessments: dict[str, dict[str, Any]] | None = None,
+    bars: list[dict[str, Any]] | None = None,
     skill_epsilon: float = DEFAULT_BRIER_SKILL_EPSILON,
 ) -> dict[str, Any]:
     if assessments is None:
         assessments = {r["researcher_id"]: forecast_assessment(r, manifest) for r in researchers}
     oos_probability_quality, skill_weight_validation = build_probability_validation(
-        researchers, manifest, skill_epsilon=skill_epsilon,
+        researchers, manifest, bars=bars, skill_epsilon=skill_epsilon,
     )
     valid = [
         r for r in researchers
@@ -187,6 +212,8 @@ def build_consensus(
             "status": "unavailable", "weighting": "equal", "available_paths": 0,
             "economic_viability": _economic_viability([]),
             "oos_probability_quality": oos_probability_quality,
+            "predictive_evidence_grade": _predictive_evidence_grade(oos_probability_quality),
+            "confidence_score_kind": "heuristic_evidence_support",
             "skill_weight_validation": skill_weight_validation,
             "prob_up": None, "direction": "unavailable", "agreement": "unavailable",
             "diversity": "unavailable", "confidence": "very_low", "confidence_score": 0,
@@ -243,6 +270,7 @@ def build_consensus(
     calibration_statuses = [item["probability_calibration"] for item in path_assessments]
     if "uncalibrated" in calibration_statuses:
         deduct(20, "uncalibrated_raw_probability")
+    deduct(10, "ensemble_calibration_unavailable")
     oos_statuses = [item["oos_validation"]["status"] for item in path_assessments]
     if not oos_statuses or all(status in {"weak", "insufficient"} for status in oos_statuses):
         deduct(20, "oos_validation_insufficient")
@@ -250,6 +278,8 @@ def build_consensus(
         deduct(10, "some_oos_validation_weak")
     if any("LEAKAGE_AUDIT_INCOMPLETE" in item["reason_codes"] for item in path_assessments):
         deduct(15, "leakage_audit_incomplete")
+    if any("OOS_EVIDENCE_INVALID" in item["reason_codes"] for item in path_assessments):
+        deduct(20, "oos_evidence_invalid")
     if agreement == "medium":
         deduct(5, "moderate_path_disagreement")
     elif agreement == "high_disagreement":
@@ -258,6 +288,19 @@ def build_consensus(
         deduct(30, "extreme_path_disagreement")
     if diversity == "low" and len(valid) > 1:
         deduct(10, "low_evidence_family_diversity")
+    policy_replay = oos_probability_quality.get("algorithm_policy_replay") or {}
+    replay_count = policy_replay.get("predicted_dates", 0)
+    replay_skill = policy_replay.get("brier_skill_vs_expanding_base_rate")
+    if (not isinstance(replay_count, int) or isinstance(replay_count, bool) or replay_count < 20
+            or isinstance(replay_skill, bool) or not isinstance(replay_skill, (int, float))
+            or not math.isfinite(float(replay_skill))):
+        deduct(10, "policy_oos_skill_evidence_insufficient")
+    elif replay_skill <= 0:
+        deduct(20, "policy_oos_not_better_than_expanding_base_rate")
+    elif replay_count < 100:
+        deduct(10, "policy_oos_skill_is_exploratory")
+    else:
+        deduct(10, "policy_oos_skill_uncertainty_unestimated")
     confidence_score = max(0, min(100, round(confidence_score)))
     confidence = _confidence_label(confidence_score)
 
@@ -265,6 +308,7 @@ def build_consensus(
     all_codes = [code for item in path_assessments for code in item["reason_codes"]]
     if any(item["probability_calibration"] == "uncalibrated" for item in path_assessments):
         warnings.append("Consensus includes raw uncalibrated model probabilities; calibration cannot be inferred from the path mean.")
+    warnings.append("The equal-weight consensus has no independently validated ensemble calibrator; its probability reliability is not established by path-level calibration alone.")
     if len(valid) < 2:
         warnings.append("Only one research path produced a probability; this is a single-path result, not an ensemble consensus.")
     if diversity == "low":
@@ -308,6 +352,8 @@ def build_consensus(
         "evidence_families": sorted(union),
         "confidence": confidence,
         "confidence_score": confidence_score,
+        "confidence_score_kind": "heuristic_evidence_support",
+        "predictive_evidence_grade": _predictive_evidence_grade(oos_probability_quality),
         "confidence_reasons": list(dict.fromkeys(confidence_reasons)),
         "confidence_penalties": confidence_penalties,
         "reason_codes": list(dict.fromkeys(all_codes)),

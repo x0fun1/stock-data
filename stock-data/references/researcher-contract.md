@@ -20,7 +20,7 @@ Optional request fields: `intent` (`forecast`, `descriptive`, `factor_research`)
 
 ## Research result
 
-Final Synthesis retains consensus `prob_up/direction/confidence/agreement`, confidence score/reasons, report status and probability basis under `synthesis.quant`; it carries raw, calibrated and reportable probability fields separately. Agent summaries expose the reportable estimate and basis. See [probability-policy.md](probability-policy.md). Categorical confidence/agreement are not numerical probabilities.
+Final Synthesis retains consensus `prob_up/direction/confidence/agreement`, `confidence_score`, `confidence_score_kind`, `predictive_evidence_grade`, confidence reasons, report status and probability basis under `synthesis.quant`; it carries raw, calibrated and reportable probability fields separately. Agent summaries expose the reportable estimate, evidence grade and basis. The 0–100 score is heuristic evidence support, not accuracy. See [probability-policy.md](probability-policy.md). Categorical confidence/agreement are not numerical probabilities.
 
 Each path writes the same top-level fields:
 
@@ -52,7 +52,7 @@ Each path writes the same top-level fields:
 
 Unavailable numeric values are JSON `null`. A numeric probability requires a non-empty `probability_source` and must be in `[0,1]`. The `direction` field is derived from 0.5; it is not a vote. `confidence` remains null unless a researcher has a separately defined, validated confidence measure.
 
-The orchestrator adds prediction/reporting eligibility, exclusion reasons, OOS/calibration metadata, confidence score and `horizon_type`; `invalid` paths are excluded, while the combined prediction is vetoed only for detected leakage or another fatal integrity issue. Validation/strategy gaps lower report confidence; PBO/DSR and portfolio audits are not probability gates. D never votes. Final output adds reporting_status, analysis_status, stages, summary `agent_summary.json`, concise `final_response.md`, standard `report.md`, and debug JSON. Generic/brief stock or ETF analysis defaults to intent=forecast. Preserve literal bound fields from final_response.md and validate the actual prepared reply with validate-response.
+The orchestrator adds prediction/reporting eligibility, exclusion reasons, OOS/calibration metadata, confidence score and `horizon_type`; `invalid` paths are excluded, while the combined prediction is vetoed only for detected leakage or another fatal integrity issue. Validation/strategy gaps lower report confidence; PBO/DSR and portfolio audits are not probability gates. D never votes. Final output adds reporting_status, analysis_status, stages, summary `agent_summary.json`, concise `final_response.md`, standard `report.md`, and debug JSON. Generic/brief stock or ETF analysis defaults to intent=forecast. Preserve literal bound fields from final_response.md and validate the actual prepared reply with validate-response. For routine forecasts, `pipeline --cleanup-json` creates an isolated owned run; after the prepared reply is validated, `cleanup-run --run-dir ... --analysis-dir ... --response-file ...` revalidates it, removes only registered JSON, and retains the two Markdown reports plus a minimal cleanup receipt. Use `--keep-json` for research archives. A standalone `--analysis-dir` cleanup is for legacy shared analyses; it never removes the source snapshot.
 
 ## Status meanings
 

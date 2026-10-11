@@ -23,13 +23,13 @@ E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执
 
 固定检验“20 个 session 动量符号与未来 H-session 收益”的假设，用同符号、非重叠历史标签计算上涨频率和均值收益；扩展窗口在每个决策日只使用标签结束日期不晚于该决策日的历史样本。OOS 决策和标签也按 horizon 非重叠，输出决策日、标签结束日、训练标签边界及 Brier / 基准。
 
-查看 `probability_source`、`n_raw`、`n_effective`、`n_oos`、历史跨度及 `validation.oos_forecasts`。当前至少 21 根收盘才能形成信号，至少 30 个非重叠成熟匹配才报告条件概率；当前不使用 Bayesian prior 或时间衰减，故等权时 `n_effective = n_raw`。Wilson 值仅为 IID 近似区间，时间相关下的覆盖率尚未验证。无可用时间外预测时数值结果仅为 `partial`。这是固定动量假设 baseline，不是任意策略发现或成本后收益预测。
+查看 `probability_source`、`n_raw`、`n_effective`、`n_oos`、历史跨度及 `validation.oos_forecasts`。当前至少 21 根收盘才能形成信号，至少 30 个非重叠成熟匹配才报告条件概率；历史 OOS 预测调用相同的 `MINIMUM_MATCHING_SAMPLES`，避免用较宽松规则评价较严格的当前规则。当前不使用 Bayesian prior 或时间衰减，故等权时 `n_effective = n_raw`。Wilson 值仅为 IID 近似区间，时间相关下的覆盖率尚未验证。无可用时间外预测时数值结果仅为 `partial`。这是固定动量假设 baseline，不是任意策略发现或成本后收益预测。
 
 ## B — 因子验证、去冗余与频率映射
 
 路径自行构造动量、反转、趋势、波动和量价因子，记录公式、IC、分位收益差、覆盖、信号换组和 1D/5D/20D 衰减。前段样本选择因子、确定符号和标准化参数，相关性筛选与同家族限制减少重复证据；后续样本进行三档因子分数的经验频率映射，最后的时间段报告 holdout。
 
-核对 `validation.selected_factors`、`factor_decay`、`calibration_observations`、`calibration_bucket_counts`、`holdout_brier` 和基准。当前概率分桶至少需要 20 个校准观察，holdout 预测不足 10 个时数值结果为 `partial`。单 ticker 的 Rank/Spearman IC 是时间序列统计；代码的 `top_quantile_turnover` 是信号换组诊断，不能称为组合实际换手或成本后业绩。
+核对 `validation.selected_factors`、`factor_decay`、`calibration_observations`、`calibration_bucket_counts`、`sample_feasibility`、`holdout_brier` 和基准。当前概率分桶至少需要每桶 20 个校准观察；诊断会按固定 50/30/20 切分、60-session 特征预热和 H+1 标签间距估算当前容量及达到三个平衡桶最低预算所需的历史长度。该估算假设桶能均衡分配，不保证因子分数完整、无并列或跨状态稳定；不自动扩窗、不降低 20 样本门槛。holdout 预测不足 10 个时数值结果为 `partial`。单 ticker 的 Rank/Spearman IC 是时间序列统计；代码的 `top_quantile_turnover` 是信号换组诊断，不能称为组合实际换手或成本后业绩。
 
 B 的选择/衰减诊断要求 `index + horizon < diagnostics_label_end_exclusive`，不读取 holdout 标签；1D/5D/20D forward 数组各算一次。当前证据极性来自符号校正后的 `current_contribution`，训练 IC 方向另列，不能用训练正 IC 替代当前信号。`sample_feasibility` 披露校准/holdout 样本预算，不为满足阈值扩窗。
 
@@ -53,7 +53,7 @@ D 自行构造固定因子，按时间 70/30 划分训练和 holdout，分位切
 
 ## 共识与 E — 偏差审计
 
-共识只纳入通过 `forecast_assessment()`、身份匹配、有定量来源且状态为 `success/partial` 的 A/B/C 数值预测，当前采用等权概率平均，报告 range、dispersion、证据家族重叠和分类 confidence。新增 `oos_probability_quality` 报告每路径、共同日期交集和共同完整预测样本的 Brier、Log Loss、可靠性分箱、ECE、覆盖率及弃权率。新增 `skill_weight_validation` 仅做严格先早后晚的实验性 Brier Skill 估计/评价；当前 `weighting` 仍为 equal，不能把实验权重用于当前预测。等权均值不等于经过独立校准的 ensemble 概率。单路径称为 `single_path`；两路径结果披露缺失路径。详见 [consensus-protocol.md](consensus-protocol.md) 与 [probability-policy.md](probability-policy.md)。
+共识只纳入通过 `forecast_assessment()`、身份匹配、有定量来源且状态为 `success/partial` 的 A/B/C 数值预测，当前采用等权概率平均，报告 range、dispersion、证据家族重叠和分类 confidence。新增 `oos_probability_quality` 报告每路径证据审计、当前合格路径交集、全候选路径交集和共同完整预测样本的 Brier、Log Loss、可靠性分箱、ECE、覆盖率及弃权率。冻结行情验证决策 session、精确 H-session 标签、目标真值、目标定义、标签成熟度和预测时训练标签边界；无效样本不进入质量或权重指标。`algorithm_policy_replay` 按每个历史日期实际有有效预测的路径做等权均值，并与相同日期上的因果扩展基率比较，披露 coverage、`active_path_mask`、Brier Skill 和没有估计的不确定性。它是历史策略诊断，不因今天的活跃路径集合筛选过去日期，也不构成真实独立市场 OOS 验收。新增 `skill_weight_validation` 仅做严格先早后晚的实验性 Brier Skill 权重估计/评价；当前 `weighting` 仍为 equal，不能把实验权重用于当前预测。等权均值不等于经过独立校准的 ensemble 概率。`confidence_score` 是启发式研究支持度，不是预测准确率；`predictive_evidence_grade` 单独呈现基准技能点估计和证据限制。单路径称为 `single_path`；两路径结果披露缺失路径。详见 [consensus-protocol.md](consensus-protocol.md) 与 [probability-policy.md](probability-policy.md)。
 
 E 检查快照身份/digest、路径快照一致性、概率来源和范围、invalid 状态、残留区间重叠、结构化特征/标签时间声明、chronological OOS、Brier 基准与已观察的候选因子数量。声明检查不等于对每个特征实现的形式证明。
 

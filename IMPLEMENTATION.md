@@ -95,3 +95,26 @@ Yahoo 路由改为强制 yfinance 优先。Yahoo 主依赖合并到 `stock-data/
 - 文档：更新仓库 `README.md`、`stock-data/SKILL.md`、`probability-policy.md`、`quant-paths.md`、`snapshot-schema.md` 和本实施报告。没有删除文件；没有安装、发布或修改用户目录中的 Skill。
 
 `tracemalloc` 性能数字来自单轮固定合成快照对照；常规 runtime 不开内存跟踪。所有 OOS 数值和时间性能都仅是工程验收证据，不是市场预测结论。没有真实独立历史快照，因此 accuracy improvement、概率校准覆盖率和可部署 Skill 权重均未获验证。
+
+## Quant 审计计划 P0 执行批次（2026-10-11）
+
+依据 [量化深度审计与改进计划](audits/quant-2026-10-11/QUANT_AUDIT_PLAN.zh-CN.md)，Skill 更新为 **2.7.0**、research runtime 更新为 **0.4.0**；Snapshot schema 保持 **1.2**，Quant → 冻结 → News → 综合顺序和 NewsInput 未变。
+
+- A 的当前概率和历史 OOS 预测共用 30 个非重叠成熟匹配样本门槛。
+- 每条带日期的 OOS 记录由冻结 OHLCV 核查 ticker/horizon/snapshot 身份、decision 与 label session、准确 H-session 间隔、收盘价重算的目标、as-of 成熟状态、训练标签结束边界及重复决策日。拒绝项按原因计数，不进入路径质量、等权权重实验或历史策略回放；现有原始概率是否可报告仍遵守原 prediction-integrity gate。
+- 当前合格路径公共诊断与全候选诊断分开，单路径集合也报告自身指标。历史策略回放逐日期平均当天有有效预测的路径，与该日之前成熟、非重叠标签形成的 Jeffreys 平滑扩展基率在相同预测日期比较，保存 `active_path_mask` 并报告覆盖、Brier、Log Loss 和点估计 Brier Skill；不估计技能不确定性，不启用新的共识权重。
+- Factor 报告固定三段式切分与 H+1 非重叠规则下的校准容量，并估算三个均衡桶各需 20 个标签时的总历史长度。估算仅是样本预算，不扩窗、不降低最低样本要求。
+- `confidence_score_kind=heuristic_evidence_support`，UI 明示该 0–100 分是启发式研究支持度而非准确率；新增 `predictive_evidence_grade`，正向点估计仍明确标记为探索性或不确定性未估计。没有独立 ensemble calibrator 时加入置信度扣分与解释。
+- `agent_summary.json`、`report.md`、`final_response.md` 与 `validate-response` 同步新增证据等级和评分语义；相关 skill references 与最终 schema 投影同步更新。新增 OOS/样本预算仅用于审计与披露，不作为市场有效性的证明。
+
+初次 P0 实施时未运行测试；随后代码质量复核于 2026-10-11 运行 `python -m unittest discover -s tests`，**207 个测试通过**，`compileall` 与 `git diff --check` 通过。复核修正了历史 replay 误把路径名当日期集合、泄漏路径仍可能进入 replay、当前合格路径缺 OOS 行时被公共样本静默剔除、交付新增字段的冲突文本未被识别，以及因子样本预算旧字段兼容问题；新增相应回归测试并更新输出契约断言。尾部 `FileExistsError` JSON 是既有防覆盖测试的预期输出。replay 已明示其分母仅为各路径提交的有效日期并集；若所有路径都漏记同一决策日，现有结果无法统计该日的弃权。真实独立 OOS、逐日冻结的预测账本和前瞻验证仍待后续 P1 研究数据与 ledger 建立后完成。
+
+## 预测输出后 JSON 清理（2026-10-11）
+
+依据 [预测 JSON 清理实施方案](PREDICTION_JSON_CLEANUP_PLAN.zh-CN.md)，更新为 Skill **2.8.0** / research runtime **0.5.0**；Snapshot schema 仍为 **1.2**，不改预测算法、数据 gate 或 Quant → 冻结 → News → 综合顺序。
+
+- 新增 `pipeline --cleanup-json` 私有运行布局：`runtime/runs/<run_id>/` 内登记 collection、独占 snapshot 和 analysis；创建快照/分析目录时立即更新运行清单。未指定此模式的旧 CLI 共享输出行为不变，`--keep-json` 显式标记研究保留模式。
+- 新增 `cleanup-run --run-dir` 与 `cleanup-run --analysis-dir`。完整 run 清理会对实际待发送文本再次调用 `validate_final_response`，核对 analysis/snapshot 身份、登记目标的 SHA-256 和大小，拒绝未知文件、链接/junction、路径穿越或哈希变化；不触碰外部输入、旧共享快照、其他 run、用户文件及缓存。
+- 清理保留 `report.md`、`final_response.md` 和最小 `cleanup_receipt.txt`。回执只含 ID、回复/报告哈希、状态、JSON 文件/字节数和相对目标名。操作系统文件锁保证并发互斥并复用失效锁文件；内容不符的既有锁文件会被拒绝而不覆盖。失效 pipeline 标记只在运行归属与清单校验后移除。dry-run、原子回执写入、partial 状态与幂等重试均由清理模块处理；analysis-only 模式不清理源快照。
+- Skill 常规预测顺序改为创建私有 run、生成并校验待发送文本、宿主读取/复制后清理、发送同一文本；研究/审计使用 `--keep-json`。CLI 不判断消息是否实际送达。
+- 新增 `tests/test_json_cleanup.py` 生命周期验收。代码质量复核后 `python -m unittest discover -s tests`：**220 项运行，219 通过、1 项跳过**；跳过项是本机策略拒绝创建 symlink 的隔离路径用例。实际 CLI 合成 abstain 流程、report/freeze 篡改阻断、未知文件、外部输入和共享快照保护、active pipeline 锁、并发清理锁、异常锁文件保护、失效标记归属保护、失败强制清理、dry-run、部分失败重试与幂等均通过。额外 `compileall`、六个 Python 文件 AST 解析、`git diff --check` 和 13 条 Skill 本地链接检查通过。Skill Creator `quick_validate.py` 因系统 Python 与 bundled Python 均无 PyYAML，无法启动；没有为此安装依赖。

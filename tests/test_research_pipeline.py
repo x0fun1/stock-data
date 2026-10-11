@@ -98,12 +98,13 @@ class PipelineTests(Fixture):
         quality = quant["consensus"]["oos_probability_quality"]
         self.assertEqual(set(quality["paths"]), {"quant", "factor", "ml"})
         self.assertGreater(quality["common_oos"]["common_oos_samples"], 0)
-        self.assertEqual(quality["common_oos"]["all_paths_valid_prediction_samples"], 0)
+        self.assertEqual(quality["candidate_path_common_oos"]["all_paths_valid_prediction_samples"], 0)
+        self.assertGreater(quality["common_oos"]["all_paths_valid_prediction_samples"], 0)
         weights = quant["consensus"]["skill_weight_validation"]
         self.assertEqual(quant["consensus"]["weighting"], "equal")
         self.assertFalse(weights["current_weighting_enabled"])
         self.assertEqual(weights["status"], "fallback_equal_weight")
-        self.assertIn("Common OOS date intersection", (output / "report.md").read_text(encoding="utf-8"))
+        self.assertIn("Current eligible-path OOS date intersection", (output / "report.md").read_text(encoding="utf-8"))
         self.assertEqual(report["adversarial_audit"]["consensus_validation"]["current_weighting_enabled"], False)
         for key in ("prob_up", "direction", "confidence", "agreement", "diversity"):
             self.assertEqual(report["synthesis"]["quant"][key], quant["consensus"][key])
