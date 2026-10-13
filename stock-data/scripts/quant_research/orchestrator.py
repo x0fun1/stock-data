@@ -86,7 +86,11 @@ def run_analysis(
             oos_evidence_audit = audit_oos_result(result, manifest, bars)
             result["oos_evidence_audit"] = oos_evidence_audit
         assessment = forecast_assessment(result, manifest, oos_evidence_audit=oos_evidence_audit)
+        # Merge rather than replace: the path's own disclosures (cost basis,
+        # calibration state, sample shortfalls) must survive gating messages.
+        merged_warnings = list(dict.fromkeys([*result.get("warnings", []), *assessment.get("warnings", [])]))
         result.update(assessment)
+        result["warnings"] = merged_warnings
         path_assessments[researcher_id] = assessment
         _write_json(researcher_dir / f"{researcher_id}.json", result)
         results[researcher_id] = result
@@ -96,13 +100,16 @@ def run_analysis(
     consensus["session_horizon_verified"] = bool(manifest.get("data_validation", {}).get("session_horizon_verified", False))
     adversarial = audit(manifest, list(results.values()), consensus)
     if not adversarial.get("may_report_direction", False):
-        prediction = {**(consensus.get("prediction") or {}), "status": "veto", "reportable_probability": None}
+        prediction = {**(consensus.get("prediction") or {}), "status": "veto", "reportable_probability": None,
+                      "raw_probability": None, "calibrated_probability": None}
         consensus = {
             **consensus,
             "pre_veto_prob_up": consensus.get("prob_up"),
             "pre_veto_probability_range": consensus.get("probability_range"),
             "prob_up": None,
             "reportable_probability": None,
+            "raw_probability": None,
+            "calibrated_probability": None,
             "prediction": prediction,
             "probability": prediction,
             "probability_range": None,
@@ -113,6 +120,9 @@ def run_analysis(
     else:
         consensus["reporting_status"] = adversarial.get("reporting_status", "degraded")
         consensus["reportable_probability"] = consensus.get("prob_up")
+        # Promote the documented machine-readable basis from the nested
+        # prediction block so synthesis.quant can retain it.
+        consensus["probability_basis"] = (consensus.get("prediction") or {}).get("probability_basis")
         consensus["prediction"] = {**(consensus.get("prediction") or {}), "reportable_probability": consensus.get("prob_up")}
         consensus["probability"] = consensus["prediction"]
     quant_result = {

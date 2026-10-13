@@ -237,7 +237,7 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
     for item in manifest.get("warnings", []):
         warn("DATA_WARNING", "Snapshot: " + str(item))
     if manifest.get("data_quality", {}).get("overall") in {"low", "very_low"}:
-        warn("OOS_INSUFFICIENT", "Snapshot quality score is low; interpret the forecast as exploratory.")
+        warn("DATA_QUALITY_LOW", "Snapshot quality score is low; interpret the forecast as exploratory.")
 
     for result in researchers:
         name = str(result.get("researcher_id", "unknown"))
@@ -272,7 +272,7 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
             veto("LEAKAGE_DETECTED", f"{name} retained overlapping training/test information intervals.")
 
     if consensus.get("available_paths", 0) < 2:
-        warn("PATH_FAILED", "Cross-validation by independent paths is unavailable; do not call this an ensemble consensus.")
+        warn("OOS_MARKER_MISSING", "Cross-validation by independent paths is unavailable; do not call this an ensemble consensus.")
     if consensus.get("agreement") in {"high_disagreement", "extreme_disagreement"}:
         warn("LOW_FACTOR_AGREEMENT", "Consensus probability is unstable across research paths.")
     weight_validation = consensus.get("skill_weight_validation") or {}
@@ -347,7 +347,7 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
     strategy_limitations.append("PORTFOLIO_BACKTEST_MISSING")
     warn("PORTFOLIO_BACKTEST_MISSING", "No portfolio-level backtest was supplied; do not infer strategy profitability from a single-security probability.")
     if str(bias_checks["survivorship_bias"]["status"]).startswith("not_assessed"):
-        warn("PBO_NOT_ASSESSED", "Survivorship bias is not independently assessed because point-in-time universe and delisted-name history are unavailable.")
+        warn("SURVIVORSHIP_NOT_ASSESSED", "Survivorship bias is not independently assessed because point-in-time universe and delisted-name history are unavailable.")
     if any(not check["beats_base_rate"] for check in bias_checks["oos_brier_vs_base_rate"]):
         warn("OOS_INSUFFICIENT", "At least one reported forecast OOS Brier score does not beat its base-rate benchmark.")
 

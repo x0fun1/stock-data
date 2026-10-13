@@ -134,6 +134,25 @@ def release_pipeline_lock(run_dir: Path) -> None:
 def _pid_is_running(pid: int) -> bool:
     if pid <= 0:
         raise CleanupError("pipeline lock marker contains an invalid process id")
+    if os.name == "nt":
+        import ctypes
+        from ctypes import wintypes
+
+        kernel32 = ctypes.WinDLL("kernel32", use_last_error=True)
+        kernel32.OpenProcess.argtypes = (wintypes.DWORD, wintypes.BOOL, wintypes.DWORD)
+        kernel32.OpenProcess.restype = wintypes.HANDLE
+        kernel32.WaitForSingleObject.argtypes = (wintypes.HANDLE, wintypes.DWORD)
+        kernel32.WaitForSingleObject.restype = wintypes.DWORD
+        kernel32.CloseHandle.argtypes = (wintypes.HANDLE,)
+        kernel32.CloseHandle.restype = wintypes.BOOL
+        # Windows os.kill(pid, 0) terminates the process instead of probing it.
+        handle = kernel32.OpenProcess(0x00100000, False, pid)  # SYNCHRONIZE
+        if not handle:
+            return ctypes.get_last_error() != 87  # ERROR_INVALID_PARAMETER: no such PID
+        try:
+            return kernel32.WaitForSingleObject(handle, 0) != 0  # WAIT_OBJECT_0: exited
+        finally:
+            kernel32.CloseHandle(handle)
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -141,7 +160,7 @@ def _pid_is_running(pid: int) -> bool:
     except PermissionError:
         return True
     except OSError as exc:
-        if exc.errno == errno.ESRCH or getattr(exc, "winerror", None) == 87:
+        if exc.errno == errno.ESRCH:
             return False
         return True
     return True

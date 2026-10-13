@@ -85,8 +85,25 @@ def _check_price_observations(block: dict[str, Any], bars: list[dict[str, Any]],
         observations = []
         codes.append("LATEST_CLOSE_SINGLE_PROVIDER")
         warnings.append("Additional latest-price observations were malformed and not used for cross-source verification.")
+
+    def price_basis(row: dict[str, Any]) -> str | None:
+        adjustment = row.get("adjustment")
+        basis = row.get("price_basis", adjustment)
+        if not isinstance(basis, str) or basis not in ADJUSTMENTS:
+            return None
+        if "adjustment" in row and adjustment != basis:
+            # An explicitly present but differing value (including null) is a
+            # declared contradiction, not an omitted optional field.
+            return None
+        return basis
+
+    # The base row inherits the block's basis: observations describing the same
+    # series need no repeated basis, and an unrecognized block basis cannot
+    # silently disable the 0.3% conflict veto.
+    base_basis = price_basis(block) or block.get("adjustment") or "unspecified"
     base = {"source": block.get("actual_source"), "session_date": last,
-            "price": bars[-1].get("close"), "currency": block.get("currency"), "kind": "daily_close"}
+            "price": bars[-1].get("close"), "currency": block.get("currency"), "kind": "daily_close",
+            "price_basis": base_basis}
     accepted: list[dict[str, Any]] = [base] if isinstance(base["source"], str) and base["source"] else []
     for item in observations:
         try:
@@ -100,13 +117,24 @@ def _check_price_observations(block: dict[str, Any], bars: list[dict[str, Any]],
                     or not isinstance(currency, str) or not currency):
                 continue
             accepted.append({"source": source, "session_date": session_day, "price": price,
-                             "currency": currency, "kind": "daily_close"})
+                             "currency": currency, "kind": "daily_close",
+                             "price_basis": price_basis(item) or "unspecified"})
         except (KeyError, TypeError, ValueError):
             continue
-    same_session = [row for row in accepted if row["session_date"] == last and row["currency"] == block.get("currency")]
+    same_session_currency = [row for row in accepted if row["session_date"] == last and row["currency"] == block.get("currency")]
+    # Only a recognized, matching convention may verify or conflict; unknown
+    # bases stay retained but unusable (documented in collection-adapter.md).
+    same_session = [row for row in same_session_currency
+                    if base_basis in ADJUSTMENTS and row["price_basis"] == base_basis]
+    if observations and len(same_session) < len(same_session_currency):
+        warnings.append("Same-session price observations with unknown or incompatible adjustment/price_basis were retained but not used for cross-source verification.")
     distinct = {row["source"] for row in same_session}
+    # Documented rule: only closes from distinct providers may conflict. Skip
+    # rows sharing a source instead of comparing one provider against itself.
     for index, left in enumerate(same_session):
         for right in same_session[index + 1:]:
+            if left["source"] == right["source"]:
+                continue
             scale = min(float(left["price"]), float(right["price"]))
             if abs(float(left["price"]) - float(right["price"])) / scale > PRICE_MATCH_TOLERANCE:
                 codes.append("LATEST_PRICE_CONFLICT")
@@ -165,7 +193,7 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
     for field in ("actual_source", "currency", "unit"):
         if block.get(field) is not None and (not isinstance(block[field], str) or not 0 < len(block[field]) <= 200):
             errors.append(f"market {field} must be a bounded non-empty provenance string")
-            reason_codes.append("SOURCE_IDENTITY_CONFLICT" if field == "actual_source" else "MARKET_UNITS_UNVERIFIED")
+            reason_codes.append("SOURCE_IDENTITY_CONFLICT" if field == "actual_source" else "MARKET_UNITS_CONFLICT")
     data = block.get("data") or {}
     bars = data.get("bars") or []
     if not bars:
@@ -196,14 +224,16 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
     if not block.get("actual_source"):
         fatal("SOURCE_IDENTITY_UNVERIFIED", "market actual_source is missing")
     if not block.get("currency") or not block.get("unit"):
-        fatal("MARKET_UNITS_UNVERIFIED", "market currency/unit provenance is missing")
+        # Missing provenance (e.g. Yahoo never confirms a trade unit) degrades
+        # confidence; only a contradicting unit is an integrity conflict above.
+        degraded("MARKET_UNITS_UNVERIFIED", "market currency/unit provenance is missing")
     for field in ("currency", "unit"):
         if data.get(field) and block.get(field) and data[field] != block[field]:
             errors.append(f"market {field} differs between metadata and payload")
-            reason_codes.append("MARKET_UNITS_UNVERIFIED")
+            reason_codes.append("MARKET_UNITS_CONFLICT")
         if instrument.get(field) and block.get(field) != instrument[field]:
             errors.append(f"market {field} differs from the resolved instrument")
-            reason_codes.append("MARKET_UNITS_UNVERIFIED")
+            reason_codes.append("MARKET_UNITS_CONFLICT")
 
     fetched = block.get("fetched_at_utc", block.get("fetched_at"))
     parsed_times: dict[str, datetime] = {}
@@ -353,6 +383,9 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
             evidence_covered = checked >= last
             if not evidence_covered:
                 degraded("CORPORATE_ACTION_UNKNOWN", "company-action evidence does not cover the latest market bar")
+            elif evidence.get("action_coverage_confirmed", True) is not True:
+                # Legacy evidence without the flag retains its existing source/checked-through contract.
+                degraded("CORPORATE_ACTION_UNKNOWN", "company-action evidence does not confirm complete action coverage; an empty actions list does not establish that there were no actions")
             else:
                 corporate_action_status = "clear"
             for action in evidence["actions"]:

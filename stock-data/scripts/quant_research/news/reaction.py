@@ -28,12 +28,14 @@ def _price_direction(value: float | None) -> str:
 
 
 def _reaction_status(event_direction: str, price_direction: str) -> str:
+    # Divergence names follow the event sign (news-analysis.md): a positive
+    # event with a negative return is `event_price_divergence_positive`.
     if event_direction == "positive" and price_direction == "positive":
         return "confirmed_positive"
     if event_direction == "positive" and price_direction == "negative":
-        return "event_price_divergence_negative"
-    if event_direction == "negative" and price_direction == "positive":
         return "event_price_divergence_positive"
+    if event_direction == "negative" and price_direction == "positive":
+        return "event_price_divergence_negative"
     if event_direction == "negative" and price_direction == "negative":
         return "confirmed_negative"
     return "not_classifiable"
@@ -100,7 +102,9 @@ def validate_reaction(
 
     closes = [float(row["close"]) for row in bars]
     returns = _returns(closes)
-    # returns[k] is from bars[k] to bars[k+1].
+    # returns[k] is from bars[k] to bars[k+1]. The pre-event baseline is the 5
+    # returns strictly before the event session; the post-event window starts
+    # with the event-session close-to-close reaction (returns[index-1]).
     pre_returns = returns[max(0, index - 6):max(0, index - 1)]
     post_returns = returns[max(0, index - 1):min(len(returns), index + 4)]
     pre_vol = statistics.stdev(pre_returns) if len(pre_returns) >= 3 else None

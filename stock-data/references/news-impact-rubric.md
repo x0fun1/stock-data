@@ -63,9 +63,9 @@ A **declared** transmission scope derived from the deterministic event taxonomy,
 
 Editorial reliability labels applied per publisher; a cluster takes the **weakest** tier present, so one unrecognized publisher cannot upgrade the rest.
 
-Matching is **exact on a normalized alias**, never a substring test (`match_rule: exact_normalized_alias_only`). A substring rule is unsafe at this granularity: it promotes "Security Finance Blog" to `tier1_official_primary` because the name contains "sec", and "Capital.com" to `tier2_major_financial_news` because it contains "ap". Names are lower-cased, whitespace-collapsed and trimmed of surrounding punctuation, then looked up.
+Matching is **exact on a normalized alias**, never a substring test (`match_rule: exact_normalized_alias_only`). A substring rule is unsafe at this granularity: it promotes "Security Finance Blog" to `tier1_official_primary` because the name contains "sec", and "Capital.com" to `tier2_major_financial_news` because it contains "ap". Names are lower-cased, whitespace-collapsed and trimmed of surrounding punctuation; a leading article and a trailing `.com`/`.org`/`.net` suffix are folded before the lookup, then looked up. Anything absent from the curated alias table stays unclassified.
 
-A syndication credit naming the original outlet (`Reuters - Yahoo Finance`, `Reuters via Yahoo`) is unwrapped once, and the named original decides the tier. The relaying platform alone (`Yahoo Finance`) is `tier4_analysis_and_aggregator`.
+Explicit syndication credits use `original via relay` or `relay from original`; only the named original decides the tier, even when an unknown original is relayed by a recognized outlet. Punctuation-only credits such as `Reuters - Yahoo Finance` are treated as original/relay only when all suffixes are recognized aggregators; other multi-publisher credits use the weakest tier. The relaying platform alone (`Yahoo Finance`) is `tier4_analysis_and_aggregator`.
 
 | Tier | Meaning |
 |---|---|

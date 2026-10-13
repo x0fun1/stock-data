@@ -220,8 +220,11 @@ def freeze_snapshot(
             sessions = calendar_sessions(market, request["market"]) if market.get("session_calendar") is not None else []
         except (KeyError, TypeError, ValueError):
             sessions = []  # Invalid/missing calendar evidence degrades to source close status.
-        forming = {row["date"] for row in sessions if parse_timestamp(row["close_at"]) > parse_timestamp(asof_timestamp)}
-        exclude = bars and (str(bars[-1]["date"])[:10] in forming if sessions else _date_only(bars[-1].get("date")) == asof_day and market.get("last_bar_closed") is not True)
+        last_day = _date_only(bars[-1].get("date")) if bars else None
+        close_row = next((row for row in sessions if row["date"] == last_day.isoformat()), None) if last_day else None
+        # A non-empty schedule only establishes closure for the dates it actually contains.
+        exclude = bool(bars) and (parse_timestamp(close_row["close_at"]) > parse_timestamp(asof_timestamp)
+                                  if close_row is not None else last_day == asof_day and market.get("last_bar_closed") is not True)
         if exclude:
             market_data = dict(market_data)
             market_data["bars"] = bars[:-1]

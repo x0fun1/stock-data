@@ -269,8 +269,19 @@ class YahooProvider:
             self._tickers[symbol] = self._yf.Ticker(symbol, session=self._session)
         return self._tickers[symbol]
 
+    def _fallback(self, name, params, reason):
+        if self.policy.blocked:
+            raise GatewayError(*self.policy.blocked)
+        if reason['category'] in {'RateLimited', 'AccessDenied', 'BudgetExceeded'}:
+            raise GatewayError(reason['category'], 'Yahoo policy failure; legacy fallback is not permitted')
+        if (self.policy.count >= self.policy.max_requests
+                or self.policy.clock() - self.policy.started >= self.policy.deadline):
+            self.policy.blocked = ('BudgetExceeded', 'Yahoo job deadline or request budget exhausted')
+            raise GatewayError(*self.policy.blocked)
+        return _legacy_yahoo_fallback(name, params, reason)
+
     def call(self, name, **params):
-        """Use yfinance first, then automatically try the registered legacy route."""
+        """Use yfinance first; never bypass a terminal policy failure via fallback."""
         if name not in self.NAMES:
             raise GatewayError('UnsupportedCapability', 'Unregistered Yahoo capability')
         try:
@@ -279,15 +290,15 @@ class YahooProvider:
             if exc.code == 'InvalidParameters' and exc.message != 'Unsupported parameters or upstream signature':
                 raise
             reason = {'category': exc.code, 'exception_type': type(exc).__name__}
-            return _legacy_yahoo_fallback(name, params, reason)
+            return self._fallback(name, params, reason)
         except Exception as exc:
-            return _legacy_yahoo_fallback(name, params, {
+            return self._fallback(name, params, {
                 'category': 'DataUnavailable', 'exception_type': type(exc).__name__})
         if isinstance(result, dict) and result.get('status') in {'empty', 'unavailable', 'error', 'failed'}:
             error = result.get('error')
             reason = {'category': error.get('category', 'DataUnavailable') if isinstance(error, dict) else 'DataUnavailable',
                       'exception_type': error.get('exception_type', 'EmptyYahooResult') if isinstance(error, dict) else 'EmptyYahooResult'}
-            return _legacy_yahoo_fallback(name, params, reason)
+            return self._fallback(name, params, reason)
         return result
 
     def _call_yfinance(self, name, **params):

@@ -251,17 +251,6 @@ def normalize_financials(statements, frequency, currency=None):
             "warnings": ["period_end_is_not_disclosure_date", "units_not_confirmed"]}
 
 
-def _tags(value):
-    if not isinstance(value, list):
-        return []
-    result = []
-    for item in value:
-        tag = item.get("symbol") if isinstance(item, Mapping) else item
-        if isinstance(tag, str) and tag.strip():
-            result.append(tag.strip())
-    return sorted(set(result))
-
-
 def normalize_options(chain, *, expiration=None, underlying=None):
     """Map native OptionChain or calls/puts dict. No Greeks or trade direction."""
     output = {}

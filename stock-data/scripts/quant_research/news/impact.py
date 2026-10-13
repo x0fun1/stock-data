@@ -57,12 +57,12 @@ _TIER1_ALIASES = frozenset({
     "company press release", "company filing", "press release", "investor relations",
 })
 _TIER2_ALIASES = frozenset({
-    "reuters", "reuters.com", "bloomberg", "wall street journal", "wsj", "wsj.com",
-    "financial times", "ft", "ft.com", "associated press", "ap",
-    "cnbc", "barron's", "barrons", "marketwatch", "the economist",
+    "reuters", "bloomberg", "bloomberg news", "bloomberg.com", "wall street journal", "wsj",
+    "financial times", "associated press", "ap", "ap news", "apnews", "apnews.com",
+    "cnbc", "barron's", "barrons", "marketwatch", "marketwatch.com", "the economist",
 })
 _TIER3_ALIASES = frozenset({
-    "seeking alpha", "zacks", "investing.com", "stocktwits", "benzinga",
+    "seeking alpha", "seekingalpha.com", "zacks", "investing.com", "stocktwits", "benzinga",
     "chartmill", "tipranks", "morningstar", "quartz", "fortune", "forbes",
 })
 # Syndication platforms that relay someone else's reporting. A headline carried
@@ -79,9 +79,14 @@ _TIER_ALIASES: tuple[tuple[str, frozenset[str]], ...] = (
     ("tier4_analysis_and_aggregator", _TIER4_ALIASES),
 )
 
-# "Reuters - Yahoo Finance", "Reuters via Yahoo", "Reuters | Yahoo": prefer the
-# named original outlet, because a platform name alone hides who wrote it.
-_CREDIT_SPLIT = re.compile(r"\s+(?:via|[-–—|:]|from)\s+", re.IGNORECASE)
+# Explicit credits name roles: "original via relay" or "relay from original".
+# Punctuation-only credits are ambiguous, except for a known aggregator suffix.
+_SYNDICATION_CREDIT = re.compile(r"\s+(via|from)\s+", re.IGNORECASE)
+_CREDIT_SPLIT = re.compile(r"\s+[-–—|:]\s+")
+# Explicit strongest-to-weakest order; never derive it from dict layout.
+_TIER_ORDER = ("tier1_official_primary", "tier2_major_financial_news",
+               "tier3_specialized_real_time", "tier4_analysis_and_aggregator",
+               "unclassified_publisher")
 
 
 def _normalize_publisher(name: str) -> str:
@@ -89,25 +94,45 @@ def _normalize_publisher(name: str) -> str:
     return text.strip(" .·—–-")
 
 
-def _classify_publisher(name: str) -> str:
-    """Return a tier for an exact normalized alias, or unclassified.
+def _lookup_alias(name: str) -> str | None:
+    """Exact alias lookup after presentation-only suffix/prefix folding.
 
-    Syndication credits are unwrapped once so the original outlet decides the
-    tier; the platform is not allowed to silently downgrade a named wire.
+    Leading articles and web-domain suffixes are dropped so "The Wall Street
+    Journal" and "Reuters.com" resolve to the same curated alias; matching
+    never falls back to substrings.
     """
+    candidates = []
+    for candidate in (name, re.sub(r"\.(com|org|net)$", "", name)):
+        candidate = candidate.strip()
+        candidate = re.sub(r"^the\s+", "", candidate)
+        if candidate:
+            candidates.append(candidate)
+    for candidate in candidates:
+        for tier, aliases in _TIER_ALIASES:
+            if candidate in aliases:
+                return tier
+    return None
+
+
+def _classify_alias(name: str) -> str:
+    return _lookup_alias(_normalize_publisher(name)) or "unclassified_publisher"
+
+
+def _classify_publisher(name: str) -> str:
+    """Classify original publishers, never upgrade them using a named relay."""
     normalized = _normalize_publisher(name)
-    if not normalized:
-        return "unclassified_publisher"
-    for tier, aliases in _TIER_ALIASES:
-        if normalized in aliases:
-            return tier
+    credit = _SYNDICATION_CREDIT.split(normalized, maxsplit=1)
+    explicit_roles = len(credit) == 3
+    if explicit_roles:
+        normalized = credit[0] if credit[1] == "via" else credit[2]
     parts = [part.strip() for part in _CREDIT_SPLIT.split(normalized) if part.strip()]
-    if len(parts) > 1:
-        for part in parts:
-            for tier, aliases in _TIER_ALIASES:
-                if part in aliases and tier != "tier4_analysis_and_aggregator":
-                    return tier
-    return "unclassified_publisher"
+    tiers = [_classify_alias(part) for part in parts]
+    if not tiers:
+        return "unclassified_publisher"
+    if not explicit_roles and len(tiers) > 1 and all(tier == "tier4_analysis_and_aggregator" for tier in tiers[1:]):
+        # Retain documented "Reuters - Yahoo Finance" original/relay credits.
+        return tiers[0]
+    return max(tiers, key=_TIER_ORDER.index)
 
 
 # Comparison slack for band edges. A close-to-close return computed from prices
@@ -233,11 +258,10 @@ def source_tier(publishers: list[str] | tuple[str, ...]) -> dict[str, Any]:
     names = sorted({str(name).strip() for name in publishers if name and str(name).strip()})
     if not names:
         return {"tier": "unclassified_publisher", "tier_meaning": SOURCE_TIERS["unclassified_publisher"],
-                "publishers": [], "per_publisher": {}, "calibration_status": "heuristic_uncalibrated"}
+                "publishers": [], "per_publisher": {}, "selection_rule": "weakest_publisher_in_cluster",
+                "match_rule": "exact_normalized_alias_only", "calibration_status": "heuristic_uncalibrated"}
     per_publisher = {name: _classify_publisher(name) for name in names}
-    order = ("tier1_official_primary", "tier2_major_financial_news",
-             "tier3_specialized_real_time", "tier4_analysis_and_aggregator", "unclassified_publisher")
-    weakest = max(per_publisher.values(), key=order.index)
+    weakest = max(per_publisher.values(), key=_TIER_ORDER.index)
     return {"tier": weakest, "tier_meaning": SOURCE_TIERS[weakest], "publishers": names,
             "per_publisher": per_publisher, "selection_rule": "weakest_publisher_in_cluster",
             "match_rule": "exact_normalized_alias_only", "calibration_status": "heuristic_uncalibrated"}

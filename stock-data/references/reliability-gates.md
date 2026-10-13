@@ -35,7 +35,7 @@ strategy_eligibility:
 Only explicit, prediction-invalidating cases veto a probability:
 
 - insufficient usable OHLCV for the minimum predeclared feature window;
-- severe missing sessions confirmed by a resolved calendar, unrecoverable order/duplicate/price corruption, or invalid source identity/time/units;
+- severe missing sessions confirmed by a resolved calendar, unrecoverable order/duplicate/price corruption, or contradicting source identity/time/unit values;
 - stale data or a latest observation that cannot be identified;
 - conflicting same-session same-currency closes from independent providers (price mismatch greater than 0.3%);
 - confirmed in-window split, reverse split, spin-off or major adjustment discontinuity while the input price series remains unadjusted;
@@ -66,6 +66,8 @@ Do not install packages or access the network to resolve a calendar. The library
 
 Cross-source evidence uses only normalized same-session daily-close observations with matching currency. It reports `cross_source_verified` when at least two distinct providers agree within 0.3%; one valid provider is `provider_verified`; calendar-backed close evidence can be `calendar_verified`. A same-session conflict is fatal. Calendar availability is not a prerequisite for price-source matching. Provider names are source claims, not cryptographic authentication.
 
+Missing `currency`/`unit` provenance (for example a Yahoo bar whose trade unit the source never confirms) is a degraded confidence marker (`MARKET_UNITS_UNVERIFIED`), not a veto; do not infer the unit from the currency. A malformed or contradicting `currency`/`unit` value remains a source-integrity failure (`MARKET_UNITS_CONFLICT`, fatal veto).
+
 Keep distinct:
 
 ```yaml
@@ -92,7 +94,7 @@ prediction:
 
 An equal-weight path mean is not an independently calibrated ensemble. `calibrated_probability` stays null until a distinct, valid ensemble calibration exists; report the reportable mean and its basis clearly. On a fatal VETO, withhold raw/reportable probabilities from the user-facing response and preserve diagnostics only in the debug artifact. News cannot create or adjust a probability.
 
-Confidence is an explainable score, not a gate: start at 100; deduct for calendar fallback (-10), unknown adjustment (-10), single provider (-10), insufficient/weak OOS (-20), uncalibrated probability (-20), low evidence-family agreement (-10), insufficient history (-20), then clamp to 0–100. Labels: 80–100 high, 60–79 medium, 40–59 low, below 40 very low. A low score never independently vetoes. Report key causes, not only the label.
+Confidence is an explainable heuristic score, not a gate, and is computed in two documented layers. The frozen snapshot's data-quality score starts at 100 and deducts a proportional history-depth penalty (up to -20) plus fixed penalties for calendar fallback, unknown adjustment, unconfirmed corporate actions, a single-provider latest close and unreconciled extreme moves; a blocked prediction clamps it to at most 39. The consensus stage then deducts, from that base, for uncalibrated raw probabilities (-20), the missing validated ensemble calibrator (-10), a single usable path (-10), insufficient/weak OOS validation (-20/-10), incomplete leakage audits (-15), invalid OOS evidence (-20), path disagreement (-5/-20/-30), low evidence-family diversity (-10) and policy-replay skill shortfalls (-10/-20) — so the best achievable consensus score is 80 by design. Exact point values live in `snapshot.py` and `consensus.py`. Labels: 80–100 high, 60–79 medium, 40–59 low, below 40 very low; `confidence_score_kind` marks this as heuristic research support, not predictive accuracy. A low score never independently vetoes. Report key causes, not only the label.
 
 ## Reason codes
 
@@ -101,9 +103,9 @@ Code—not prose matching—controls policy. The central catalog is `scripts/qua
 | Code | Severity | Scope | Veto prediction? |
 |---|---|---|---|
 | `INSUFFICIENT_OHLCV`, `SEVERE_MISSING_BARS`, `INVALID_TIME_ORDER`, `INVALID_PRICE_VALUES` | fatal | prediction/data | yes |
-| `LATEST_PRICE_CONFLICT`, `LATEST_OBSERVATION_UNRESOLVED` | fatal | data | yes |
+| `LATEST_PRICE_CONFLICT`, `MARKET_UNITS_CONFLICT`, `LATEST_OBSERVATION_UNRESOLVED` | fatal | data | yes |
 | `CORPORATE_ACTION_CONTAMINATION`, `LEAKAGE_DETECTED`, `PREDICTION_FAILED` | fatal | prediction | yes |
-| `CALENDAR_OFFICIAL_MISSING`, `CALENDAR_FALLBACK_USED`, `ADJUSTMENT_UNKNOWN` | degraded | data | no |
+| `CALENDAR_OFFICIAL_MISSING`, `CALENDAR_FALLBACK_USED`, `ADJUSTMENT_UNKNOWN`, `MARKET_UNITS_UNVERIFIED` | degraded | data | no |
 | `OOS_INSUFFICIENT`, `CALIBRATION_MISSING`, `FACTOR_BACKTEST_INSUFFICIENT` | degraded/warning | validation | no |
 | `PBO_NOT_ASSESSED`, `DSR_NOT_ASSESSED`, `TRANSACTION_COST_NOT_ASSESSED`, `PORTFOLIO_BACKTEST_MISSING` | warning | strategy | no |
 | `LATEST_CLOSE_CROSS_VERIFIED` | info | data | no |

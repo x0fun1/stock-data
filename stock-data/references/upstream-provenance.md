@@ -1,6 +1,13 @@
 # Upstream Provenance
 
-These repositories supplied architecture/protocol ideas during the recorded upstream review. The runtime implements local modules; it does not load these upstream Skills, invoke their scripts, vendor their source, or copy factor implementations. License observations below record that review, not a new remote verification.
+The gateway retains its historical source integration; the A–E and News modules implement local adaptations of architecture/protocol ideas without loading upstream Skills, invoking their scripts, vendoring their source, or copying factor implementations. License observations below are historical records, not a new remote verification or a repository-wide license grant.
+
+## Historical gateway sources
+
+- **Finnhub stock analysis 0.1.0**: archived Skill metadata named the authors as `xo, Hermes Agent` and declared `license: MIT`. No complete license text accompanied that archive; the declaration is retained here without claiming independent verification. Finnhub MCP connectivity remains supplied by the host.
+- **global-stock-data 2.0.3** (archived filename/version label): [simonlin1212/global-stock-data](https://github.com/simonlin1212/global-stock-data), author Simon 林. The historical archive included gateway source; its repository-level reuse license was not established. Removing that archive does not remove applicable attribution or license obligations.
+
+## Research and News adaptations
 
 | Role | Repository | Reviewed material / adaptation | Recorded license and runtime boundary |
 |---|---|---|---|
@@ -13,4 +20,4 @@ These repositories supplied architecture/protocol ideas during the recorded upst
 | News | [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents), [quantskills/skill-news-sentiment-analyst](https://github.com/quantskills/skill-news-sentiment-analyst) | Separate news/opinion contracts, event deduplication, PIT and frozen price association | Apache-2.0 identified in repository declarations; local deterministic screen, no copied source/prompts/text. The News Skill's standalone license file was unavailable during review |
 | News impact rubric | [tradermonty/claude-trading-skills](https://github.com/tradermonty/claude-trading-skills) (`skills/market-news-analyst`) | Impact-magnitude bands, breadth taxonomy, pattern comparison, source tiers and attribution pitfalls | MIT (Copyright (c) 2026 TraderMonty); taxonomy only, reimplemented deterministically in `news/impact.py`. The composite Impact Score, cross-asset reaction analysis, WebSearch/WebFetch collection and English-only reporting were deliberately not adopted — see [news-impact-rubric.md](news-impact-rubric.md). No upstream source, prompt or text was copied |
 
-Full historical review notes are in repository-root `UPSTREAM_REVIEW.md` when working from the source checkout. They are source archives, not executable runtime instructions. Providing more inputs does not turn the local D/E modules into the full upstream engines. Report unsupported checks as not assessed; see [quant-paths.md](quant-paths.md).
+Historical source archives and review reports are not part of this runtime package. Providing more inputs does not turn the local D/E modules into the full upstream engines. Report unsupported checks as not assessed; see [quant-paths.md](quant-paths.md).

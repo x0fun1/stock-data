@@ -88,7 +88,9 @@ def _relevance(rows: list[dict[str, Any]], ticker: str) -> str:
         return "documented_exposure"
     if tickers:
         return "other_instrument"
-    pattern = re.compile(rf"(?<![A-Za-z0-9]){re.escape(ticker)}(?![A-Za-z0-9])", re.I)
+    # Match the exact-case symbol only. Case-insensitive matching would turn
+    # common words into hits for real short tickers (ON, IT, A, ALL, KEY...).
+    pattern = re.compile(rf"(?<![A-Za-z0-9]){re.escape(ticker)}(?![A-Za-z0-9])")
     return "text_match" if any(pattern.search(" ".join((row.get("title") or "", row.get("summary") or ""))) for row in rows) else "not_explicitly_matched"
 
 
@@ -146,6 +148,10 @@ def prepare_news_input(
         warnings.append(f"news domain status is {news.get('status')}")
     if excluded["missing_or_invalid_published_at"] or excluded["after_asof"] or excluded["updated_after_asof"]:
         warnings.append("news records without a reliable point-in-time publication/update timestamp were excluded")
+    if excluded.get("invalid_record"):
+        warnings.append(f"{excluded['invalid_record']} news record(s) were not objects and were dropped before normalization")
+    if excluded.get("over_analysis_cap"):
+        warnings.append(f"{excluded['over_analysis_cap']} PIT-eligible news record(s) were dropped by the 500-record analysis bound")
     return NewsInput(
         ticker=manifest["ticker"],
         market=manifest["market"],
@@ -214,7 +220,8 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         warnings.append(f"{len(unclassified_clusters)} records could not be classified as a factual event or explicit opinion and were left unclassified")
 
     bars = [dict(row) for row in news_input.bars]
-    frozen_closes = [float(row["close"]) for row in bars if isinstance(row.get("close"), (int, float))]
+    # Snapshot validation accepts numeric strings; preserve one close per date.
+    frozen_closes = [float(row["close"]) for row in bars]
     frozen_dates = [str(row["date"])[:10] for row in bars]
     events: list[dict[str, Any]] = []
     for cluster in event_clusters:
@@ -260,11 +267,6 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         else:
             event_source_agreement = "unknown"
         tickers = sorted({ticker for row in cluster["articles"] for ticker in row.get("tickers", [])})
-        ticker_pattern = re.compile(rf"(?<![A-Za-z0-9]){re.escape(news_input.ticker)}(?![A-Za-z0-9])", re.IGNORECASE)
-        explicit_ticker_mention = any(
-            ticker_pattern.search(" ".join((row.get("title") or "", row.get("summary") or "")))
-            for row in cluster["articles"]
-        )
         ticker_relevance = _relevance(cluster["articles"], news_input.ticker)
         events.append({
             "event_id": cluster["cluster_id"].replace("cluster_", "event_"),
@@ -298,6 +300,9 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             "time_decay": _rounded(float(decay["time_decay"])),
             "ticker_tags": tickers,
             "ticker_relevance": ticker_relevance,
+            "member_directions": source_directions,
+            "member_direction_conflict": bool(positive_count and negative_count),
+            "member_urls": sorted({str(row.get("url")) for row in cluster["articles"] if row.get("url")})[:10],
             "topic_terms": topics,
             "headline": representative.get("title"),
             "summary": representative.get("summary"),
@@ -402,7 +407,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
     positive = [event for event in events if event["direction"] == "positive"]
     negative = [event for event in events if event["direction"] in {"negative", "mixed"}]
     independent_count = len({identity for event in events for identity in event["independent_reporting_ids"]})
-    confidence = "medium" if len(events) >= 3 and independent_count >= 2 and all(event["source_quality"] is not None and event["source_quality"] >= 0.5 for event in events) and market_confirmation in {"positive", "negative"} and news_input.coverage.get("calendar_verification") == "supplied_source_evidence" else "low"
+    confidence = "medium" if len(events) >= 3 and independent_count >= 2 and all(event["source_quality"] is not None and event["source_quality"] >= 0.5 for event in events) and market_confirmation in {"positive", "negative"} and news_input.coverage.get("calendar_verification") in {"source_supplied_schedule", "library_verified"} else "low"
     limitations = [
         "Event classification and opinion tone use deterministic keyword screening; they are not a calibrated semantic model.",
         "News direction and sentiment are descriptive and do not generate or adjust Quant P(up).",
@@ -436,7 +441,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             "duplicate_records_merged": duplicates,
             "analyzed_market_bar_count": len(bars),
             "eligible_event_count": len(events), "eligible_opinion_count": len(opinions),
-            "excluded_evidence_count": len(excluded_evidence),
+            "excluded_evidence_count": len(excluded_evidence) + int((news_input.coverage.get("excluded_at_normalization") or {}).get("over_analysis_cap", 0)),
             "retrieved_window": news_input.coverage.get("retrieved_window"),
             "observed_publication_start": min((item["published_at"] for item in articles), default=None),
             "observed_publication_end": max((item["published_at"] for item in articles), default=None),

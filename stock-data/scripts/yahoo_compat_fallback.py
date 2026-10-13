@@ -27,7 +27,8 @@ def _range_for(params: dict[str, Any]) -> str:
     start, end = params.get("start"), params.get("end")
     if start and end:
         try:
-            days = max(0, (date.fromisoformat(end) - date.fromisoformat(start)).days)
+            days = max(0, (datetime.now(timezone.utc).date() - date.fromisoformat(start)).days)
+            # Legacy ranges end now, not at the requested historical end date.
             for limit, value in ((1, "1d"), (5, "5d"), (31, "1mo"), (93, "3mo"),
                                  (186, "6mo"), (366, "1y"), (732, "2y"),
                                  (1827, "5y"), (3653, "10y")):

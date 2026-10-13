@@ -119,7 +119,7 @@ def _probability_validation_lines(consensus: dict[str, Any]) -> list[str]:
     quality = consensus.get("oos_probability_quality") or {}
     common = quality.get("common_oos") or {}
     path_metrics = quality.get("paths") or {}
-    common_metrics = common.get("path_metrics_on_common_oos") or {}
+    common_metrics = common.get("path_metrics_on_common_oos_dates") or {}
     complete_metrics = common.get("path_metrics_on_same_complete_samples") or {}
     candidate_common = quality.get("candidate_path_common_oos") or {}
     row_validation = quality.get("row_validation") or {}
@@ -179,8 +179,8 @@ def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -
     if fields["prob_up"] is None:
         return "上涨概率：不可用。Quant 未提供通过报告资格的有效概率；不得由 LLM 或新闻补算。"
     probability = _probability_text(fields["prob_up"])
-    return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的上涨概率（合格路径等权均值，未单独进行 ensemble calibration）。"
-            f"News 只补充驱动解释和风险证据，不改变 Quant 的 {probability} 原始概率（等权路径均值）。")
+    return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的报告概率（合格路径等权均值，未单独进行 ensemble calibration）。"
+            f"News 只补充驱动解释和风险证据，不改变这份 Quant 报告概率（等权路径均值）。若需 raw/calibrated 原值，见调试 JSON。")
 
 
 def _relationship_text(synthesis: dict[str, Any]) -> str:
@@ -310,7 +310,13 @@ def impact_summary(event: dict[str, Any]) -> dict[str, Any]:
     is deleted by that same cleanup, so it keeps only short per-event fields plus
     the constant rubric marker, keeping the bounded-size budget intact.
     """
-    impact = event.get("impact") or {}
+    impact = event.get("impact")
+    if not isinstance(impact, dict):
+        # A pre-2.9.0 frozen news result has no impact block; nulls would be
+        # indistinguishable from errors, so project the documented state.
+        return {"magnitude_band": "not_assessed", "pattern": "not_assessed",
+                "source_tier": "not_assessed", "declared_breadth_scope": "not_assessed",
+                "observed_breadth": "not_assessed", "composite_impact_score": "not_assessed"}
     magnitude = impact.get("magnitude") or {}
     pattern = impact.get("pattern_comparison") or {}
     breadth = impact.get("breadth_scope") or {}
@@ -341,8 +347,13 @@ IMPACT_RUBRIC_LIMITS: tuple[str, ...] = (
 
 
 def impact_rubric_limits() -> list[str]:
-    """Constant impact-grading caveats, emitted once rather than per event card."""
-    return list(IMPACT_RUBRIC_LIMITS)
+    """Constant impact-grading caveats, emitted once rather than per event card.
+
+    Includes the full attribution-caveat block so the retained report.md keeps
+    the interpretation caveats after cleanup deletes news_result.json.
+    """
+    from .news.impact import ATTRIBUTION_CAVEATS
+    return list(IMPACT_RUBRIC_LIMITS) + list(ATTRIBUTION_CAVEATS)
 
 
 def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
@@ -356,7 +367,7 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
              for key, item in result["researchers"].items()]
     evidence = [{"path": key, "polarity": polarity, "factor": bounded_text(row.get("factor_name", row.get("hypothesis", row.get("family"))), 160), "current_contribution": row.get("current_contribution"), "training_rank_ic": row.get("training_rank_ic")}
                 for key, item in result["researchers"].items() for polarity in ("positive", "negative") for row in item.get("evidence", {}).get(polarity, [])[:2]]
-    events = [{key: event.get(key) for key in ("event_id", "event_type", "event_group", "first_published_at", "occurred_at", "updated_at", "direction", "url", "fact_status", "source_independence")} | {"headline": bounded_text(event.get("headline"), 300), "sources": [bounded_text(source, 100) for source in event.get("sources", [])[:3]], "reaction_status": event.get("market_reaction", {}).get("status"), "impact": impact_summary(event)} for event in news.get("major_events", [])[:5]]
+    events = [{key: event.get(key) for key in ("event_id", "event_type", "event_group", "first_published_at", "occurred_at", "direction", "url", "fact_status", "source_independence")} | {"headline": bounded_text(event.get("headline"), 300), "sources": [bounded_text(source, 100) for source in event.get("sources", [])[:3]], "reaction_status": event.get("market_reaction", {}).get("status"), "impact": impact_summary(event)} for event in news.get("major_events", [])[:5]]
     diagnostic = result["researchers"].get("factor_backtest", {}).get("validation") or {}
     factor_validation = result["researchers"].get("factor", {}).get("validation") or {}
     factor_inference = factor_validation.get("oos_factor_inference") or {}
@@ -464,19 +475,22 @@ def render_markdown(result: dict[str, Any]) -> str:
     for name, value in diagnostics.get("factor_metrics", {}).items():
         metric = value.get("horizons", {}).get(diagnostics.get("requested_horizon"), {}).get("holdout", {})
         lines.append(f"| {_cell(name)} | {_cell(metric.get('spearman_time_series_ic'))} | {_pct(metric.get('mean_forward_return'))} | {_cell(metric.get('observations'))} | {_cell(metric.get('status'))} |")
-    lines.extend(["", "## News & Event Analysis", "", f"- Status: {_cell(news.get('status'))}; eligible event bias: {_cell(news.get('overall_direction'))}; confidence: {_cell(news.get('confidence'))}",
+    lines.extend(["", "## 5. News & Event Analysis", "", f"- Status: {_cell(news.get('status'))}; eligible event bias: {_cell(news.get('overall_direction'))}; confidence: {_cell(news.get('confidence'))}",
                   f"- Coverage: {_cell(news.get('coverage', {}).get('observed_publication_start'))} to {_cell(news.get('coverage', {}).get('observed_publication_end'))}; excluded records: {_cell(news.get('coverage', {}).get('excluded_evidence_count'))}",
                   "- Reported events, opinions and provider aggregates are separate, uncalibrated DATA. News does not generate a probability."])
     for event in news.get("major_events", []):
         # report.md is a retained artifact and is not size-bounded, so it renders
         # the full impact block rather than the compact summary projection.
-        full = event.get("impact") or {}
+        full = event.get("impact")
+        lines.append(f"- {_cell(event.get('first_published_at'))} / {_cell(event.get('event_group'))} / {_cell(event.get('direction'))}: {_link(event.get('headline'), event.get('url'))}; source {_cell(', '.join(event.get('sources', [])))}; reaction {_cell(event.get('market_reaction', {}).get('status'))}")
+        if not isinstance(full, dict):
+            lines.append("  - Impact grading: not_assessed (this frozen news result carries no impact block)")
+            continue
         magnitude = full.get("magnitude") or {}
         pattern = full.get("pattern_comparison") or {}
         breadth = full.get("breadth_scope") or {}
         tier = full.get("source_tier") or {}
         observed = magnitude.get("observed_abs_return")
-        lines.append(f"- {_cell(event.get('first_published_at'))} / {_cell(event.get('event_group'))} / {_cell(event.get('direction'))}: {_link(event.get('headline'), event.get('url'))}; source {_cell(', '.join(event.get('sources', [])))}; reaction {_cell(event.get('market_reaction', {}).get('status'))}")
         lines.append(f"  - Impact grading: magnitude {_cell(magnitude.get('band'))} (abs return {_pct(observed) if observed is not None else 'n/a'}); pattern {_cell(pattern.get('pattern'))} (ratio to own trailing sigma {_cell(pattern.get('ratio_to_trailing_sigma'))}); source tier {_cell(tier.get('tier'))}; declared breadth {_cell(breadth.get('declared_scope'))} with observed breadth {_cell(breadth.get('observed_breadth'))}; composite impact score {_cell(full.get('composite_impact_score'))}")
     for opinion in news.get("opinion_records", [])[:5]:
         lines.append(f"- Opinion {_cell(opinion.get('sentiment'))}: {_link(opinion.get('headline'), opinion.get('url'))}")
@@ -487,7 +501,7 @@ def render_markdown(result: dict[str, Any]) -> str:
     lines.extend(["",
                   "Impact grading is a deterministic News-side heuristic, not a calibrated expectation and not a probability:"])
     lines.extend(f"- {limit}" for limit in impact_rubric_limits())
-    lines.extend(["", "## Quant / News Cross-Check", "", f"- Relationship: {_cell(synthesis.get('alignment'))}; basis: {_cell(synthesis.get('alignment_basis'))}",
+    lines.extend(["", "## 6. Quant / News Cross-Check", "", f"- Relationship: {_cell(synthesis.get('alignment'))}; basis: {_cell(synthesis.get('alignment_basis'))}",
                   f"- Quant: {_cell(quant_fields['direction'])}; unchanged P(up): {_probability_text(quant_fields['prob_up'])}",
                   f"- News event bias: {_cell(synthesis.get('news_event_bias'))}; tone: {_cell(synthesis.get('news_sentiment'))}",
                   "- Events are candidate explanations for observed market behavior; temporal association does not establish causality.", "", "## 7. Risk & Counter-evidence", ""])

@@ -18,7 +18,7 @@ def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
     allowed = (direction in {"bullish", "bearish", "neutral"}
                and isinstance(probability, (int, float)) and not isinstance(probability, bool)
                and math.isfinite(probability) and 0 <= probability <= 1
-               and quant_result.get("adversarial_audit", {}).get("may_report_direction") is not False)
+               and quant_result.get("adversarial_audit", {}).get("may_report_direction") is True)
     fields = {key: quant.get(key) for key in ("prob_up", "direction", "confidence", "agreement", "raw_probability", "calibrated_probability", "reportable_probability", "reporting_status", "confidence_score", "confidence_score_kind", "predictive_evidence_grade", "confidence_reasons", "calibration_status", "probability_basis", "horizon_type") if key in quant}
     fields.setdefault("confidence_score_kind", "heuristic_evidence_support")
     fields.setdefault("predictive_evidence_grade", "insufficient_oos_evidence")

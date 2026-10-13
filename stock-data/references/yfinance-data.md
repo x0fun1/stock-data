@@ -1,6 +1,6 @@
 # Yahoo Finance / yfinance 数据路由
 
-选择 Yahoo 后，结构化取数必须先调用 `global_stock_data.py` 的 `yahoo_*` yfinance 路由。请求错误、空结果、缺依赖或能力不可用时自动尝试登记的旧兼容接口；不提供后端选择开关。yfinance 已返回的 partial 结果保留，不被回退响应覆盖；回退的实际接口、来源和触发原因写入 provenance。没有安全等价旧接口时返回 `NoLegacyRoute`。不默认用 web fetch 或网页摘要。美股仍优先使用实际已连接且覆盖所需字段的 Finnhub；只补缺项，不重复拉取已有成功结果。原文网页仅作补充核对证据，明确来源和用途。数据范围仍为 US/HK 股票和 ETF；接入不增加预测模型、交易执行或数据授权。
+选择 Yahoo 后，结构化取数必须先调用 `global_stock_data.py` 的 `yahoo_*` yfinance 路由。请求错误、空结果、缺依赖或能力不可用时自动尝试登记的旧兼容接口；不提供后端选择开关。`RateLimited/AccessDenied/BudgetExceeded` 或已打开的作业熔断是终止性失败，不触发兼容回退。yfinance 已返回的 partial 结果保留，不被回退响应覆盖；回退的实际接口、来源和触发原因写入 provenance。没有安全等价旧接口时返回 `NoLegacyRoute`。不默认用 web fetch 或网页摘要。美股仍优先使用实际已连接且覆盖所需字段的 Finnhub；只补缺项，不重复拉取已有成功结果。原文网页仅作补充核对证据，明确来源和用途。数据范围仍为 US/HK 股票和 ETF；接入不增加预测模型、交易执行或数据授权。
 
 ## 环境与离线发现
 
@@ -77,8 +77,6 @@ adjusted OHLC 由同根 `Adj Close / Close` 等比例转换；保留 ratio、pro
 
 财报保留原始科目名、statement、period_end、frequency、value、unit/currency，以及来源确实给出的披露/可得时间。财务币种与交易币种分开；期末不是披露日期。逐表检查空表和状态，部分空表 partial，三份空表不标完整。ETF 不使用公司三表代替基金资料。
 
-Ticker stream 按已确认结构读取 `content.pubDate`/`displayTime` 等；Search 读取 `providerPublishTime`，分别保留 ID、标题、摘要、publisher/provider、URL、发布时间与更新时间、明确证券 tags。更新时间不当发布时间；query ticker 单列，不从搜索词生成 tickers。广告排除；无可靠时间者保留缺口但不进入严格 News。contentType/tab 仅在语义确定时映射 record_type，否则 unknown；不生成情绪/相关性分。count/tab 不同的请求避免复用库不区分参数的新闻缓存。短 feed 不支持完整历史新闻窗口或全文承诺。
-
 **本包已移除全部 Yahoo 新闻能力。** `yahoo_news`、旧 `stock_news`、`normalize_news` 及 collector 的 news 域、`--news-count`、`--news-tab` 参数一并删除，`yahoo_collect.py` 只采 market 域。原因是实测上游 ticker 端点已不可用（`/xhr/ncp` 返回 404，全部标的 0 篇），且 Finnhub MCP 已能稳定提供带时区的新闻。新闻唯一入口改为宿主 Finnhub MCP `get-news-pulse`，其文章按 [collection-adapter.md](collection-adapter.md) 规范化后进入同一 News 契约。宿主未连接 Finnhub MCP 时，消息面按 [news-analysis.md](news-analysis.md) 记 `not_assessed`，不做二次联网。
 
 期权先列可用 YYYY-MM-DD 到期日，再取所需链；lastTradeDate 保留 UTC，港股可用性不靠库存在推断。基金持仓无日期明确缺失，不回填历史。筛选页上限 250，限制页数/结果数，记录 offset/total/覆盖；当前名单不是历史 universe。估值/财务/预期/持仓只作描述性资料，不自动加入 A/B/C/D。
@@ -97,7 +95,7 @@ Ticker stream 按已确认结构读取 `content.pubDate`/`displayTime` 等；Sea
 
 方向研究仍按 Quant → 验证/审计 → News → Final Synthesis；新闻失败记 not_assessed，不能当 neutral 或改 Quant P(up)。中央 [reliability-gates.md](reliability-gates.md) 权威：复权/日历未知是降级，不自动致命；明确污染/身份/价格冲突按原 gate 处理。
 
-**当前采集不是已审计合格预测输入的承诺。** 单标的 history 的 `source_timestamp_kind=bar_label_not_trade_time` 明示日线索引时间，不是收盘/行情更新时间；即使交易日历确认该 bar 已闭合，仍不能把此标签改写为收盘时刻或 fetched_at。该真实源时间可能触发现有 24h freshness / `source_before_close` gate；保持 gate 不变，审计失败时报告阻断而非伪造时间。来源未确认的 `unit` 留 null，不从 currency 猜补；缺 unit、calendar-backed closure、身份或覆盖时 collector 记录 partial，后续 adapter/freezer/审计仍可能拒绝。`fast_info` 报价当前不提供可靠源时间；batch 的对齐轴、空位来源、交易所身份/币种/时区及修复覆盖也不能视为已证实。只有实际数据通过既有完整验证后才可称为有效研究输入。
+**当前采集不是已审计合格预测输入的承诺。** 单标的 history 的 `source_timestamp_kind=bar_label_not_trade_time` 明示日线索引时间，不是收盘/行情更新时间；即使交易日历确认该 bar 已闭合，仍不能把此标签改写为收盘时刻或 fetched_at。该真实源时间可能触发现有 24h freshness / `source_before_close` gate；保持 gate 不变，审计失败时报告阻断而非伪造时间。来源未确认的 `unit` 留 null，不从 currency 猜补；缺 unit、calendar-backed closure、身份或覆盖时 collector 记录 partial，freezer 对缺失 unit 记 `MARKET_UNITS_UNVERIFIED` 降级置信度（不单独否决），unit 与其他元数据**相互矛盾**才是数据完整性问题（`MARKET_UNITS_CONFLICT`，致命）。`fast_info` 报价当前不提供可靠源时间；batch 的对齐轴、空位来源、交易所身份/币种/时区及修复覆盖也不能视为已证实。只有实际数据通过既有完整验证后才可称为有效研究输入。
 
 旧 `stock_kline_yahoo`、`yahoo_quote_summary`、`financial_statements_yahoo`、`key_statistics`、`analyst_estimates`、`institutional_holders`、`options_chain` 保留原签名/返回结构，并作为 yfinance 失败后的强制自动回退路径。历史、报价/资料、财报、统计、预期、持仓、期权、财报事件和基金有明确映射；`yahoo_search` 自动映射到旧 `stock_search`，因此 provenance 标记其实际来源为 Eastmoney search。结构化筛选没有语义等价旧入口，返回 `NoLegacyRoute`。特别是旧 K 线 date 仍为 UTC 日期、range_ 仍非精确 start/end，不能与新交易所日期混同；结果标 partial 并保留窗口覆盖警告。
 
