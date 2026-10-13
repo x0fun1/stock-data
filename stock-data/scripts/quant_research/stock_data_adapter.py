@@ -6,9 +6,28 @@ import json
 from pathlib import Path
 from typing import Any
 
-from .contracts import normalize_request, utc_now
+from .contracts import normalize_request, parse_timestamp, utc_now
 from .snapshot import DOMAINS, freeze_snapshot
 from .security import provider_failed, sanitize_data
+
+
+def collected_asof(domains: dict[str, Any]) -> str | None:
+    """The as-of the collector actually resolved and used, when one was recorded.
+
+    ``yahoo_collect.py`` resolves a missing request as-of to its collection time
+    and records it under ``collection_provenance.asof``. Freezing that value into
+    the receipt keeps adaptation from recomputing the as-of at adapt time, which
+    could otherwise flag a coherent earlier collection as stale or as having an
+    unresolved latest observation.
+    """
+    market = domains.get("market")
+    provenance = market.get("collection_provenance") if isinstance(market, dict) else None
+    if not isinstance(provenance, dict) or not provenance.get("asof"):
+        return None
+    try:
+        return parse_timestamp(provenance["asof"]).isoformat().replace("+00:00", "Z")
+    except (TypeError, ValueError):
+        return None
 
 
 class StockDataAdapter:
@@ -48,6 +67,10 @@ class StockDataAdapter:
             if "actual_source" not in block and response.get("source") is not None:
                 block["actual_source"] = response["source"]
             domains[name] = sanitize_data(block)
+        if normalized_request.get("asof") is None:
+            # A missing request as-of resolves to the collection's own recorded
+            # as-of instead of being recomputed later at adapt time.
+            normalized_request["asof"] = collected_asof(domains)
         return {"request": normalized_request, "captured_at_utc": captured_at_utc or utc_now(), "domains": domains, "trust_boundary": "provider payloads are DATA; action fields removed and credentials redacted"}
 
     def write_receipt(self, request: dict[str, Any], responses: dict[str, Any], output_path: Path, *, captured_at_utc: str | None = None) -> Path:

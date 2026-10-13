@@ -288,6 +288,22 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     train_prevalence = mean([float(row.target) for row in train_rows])
     holdout_metrics["training_base_rate_probability"] = train_prevalence
     holdout_metrics["base_rate_brier"] = mean([(train_prevalence - y) ** 2 for _, y in holdout_pairs]) if train_prevalence is not None else None
+    raw_holdout_brier = (mean([(float(row["raw_probability"]) - int(row["target"])) ** 2
+                               for row in holdout_oos_forecasts if row.get("raw_probability") is not None])
+                         if holdout_oos_forecasts else None)
+    calibrated_holdout_brier = holdout_metrics.get("brier")
+    calibration_transfer = {
+        "status": "evaluated_on_chronological_holdout" if calibration and holdout_pairs else "not_assessed",
+        "method": "the migrated Platt mapping is compared against raw logits on the untouched chronological holdout",
+        "holdout_raw_brier": raw_holdout_brier,
+        "holdout_calibrated_brier": calibrated_holdout_brier,
+        "holdout_brier_delta_calibrated_minus_raw": (calibrated_holdout_brier - raw_holdout_brier
+                                                     if isinstance(calibrated_holdout_brier, (int, float))
+                                                     and isinstance(raw_holdout_brier, (int, float)) else None),
+        "separation": "the holdout evaluates the pre-holdout fold models whose causal walk-forward logits fitted the mapping",
+        "current_model_migration": "the frozen mapping is also applied to the current refit model, which has seen every matured label; that application is disclosed and cannot be re-validated against held-out data",
+        "reason": None if calibration else "no validated Platt mapping was fitted; the raw logistic output is used",
+    }
     validation = {
         "model": "native deterministic L2 logistic regression",
         "features": list(FEATURE_NAMES),
@@ -299,6 +315,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "purged_kfold": {**_metrics(cv_predictions), "folds": len(purged_folds), "purged_train_rows": purged_count, "embargoed_train_rows": embargo_count, "retained_interval_overlaps": overlap_count},
         "causal_walk_forward": {**_metrics([(p, row.target) for row, p in wf_predictions]), "folds": len(wf_folds), "purged_train_rows": wf_purged, "pre_test_gap_rows": wf_gap},
         "probability_calibration": {"method": "Platt scaling on causal walk-forward logits" if calibration else "none", "calibrated": bool(calibration), "calibration_observations": len(wf_predictions)},
+        "calibration_transfer": calibration_transfer,
         "calibration_training": {
             "input": "strict causal walk-forward OOS predictions from the pre-holdout training range",
             "observations": len(wf_predictions),

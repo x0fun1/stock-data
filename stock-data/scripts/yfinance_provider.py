@@ -31,6 +31,25 @@ class GatewayError(Exception):
         super().__init__(message)
 
 
+# Process-level job circuit. A terminal transport failure (rate limit, access
+# denial, exhausted job budget, oversize/invalid response) must stop every later
+# Yahoo call in this process — including a legacy-compatibility fallback —
+# instead of being forgotten when a per-call provider is closed. The collector
+# CLI owns one provider for its job; gateway calls share this latch.
+_JOB_CIRCUIT = {"blocked": None}
+
+
+def latch_job_circuit(reason):
+    """Remember the first terminal transport failure of this process."""
+    if _JOB_CIRCUIT["blocked"] is None:
+        _JOB_CIRCUIT["blocked"] = (str(reason[0]), str(reason[1]))
+
+
+def job_circuit_block():
+    """Return the latched process-wide job-circuit reason, if any."""
+    return _JOB_CIRCUIT["blocked"]
+
+
 def _has_data(value):
     """Nested empty modules are not successful data; genuine zero remains data."""
     if hasattr(value, 'empty'):
@@ -105,6 +124,17 @@ class TransportPolicy:
                 raise GatewayError('AccessDenied', 'Only one authentication recovery is allowed')
             self.count += 1
         return min(self.timeout, remaining)
+
+    def reserve(self):
+        """Account one non-transport (legacy-compatibility) job request in the same budget."""
+        with self.lock:
+            if self.blocked:
+                raise GatewayError(*self.blocked)
+            remaining = self.deadline - (self.clock() - self.started)
+            if remaining <= 0 or self.count >= self.max_requests:
+                self.blocked = ('BudgetExceeded', 'Yahoo job deadline or request budget exhausted')
+                raise GatewayError(*self.blocked)
+            self.count += 1
 
     def redirect(self, old, new):
         a, b = self.validate_url(old), self.validate_url(new)
@@ -270,18 +300,32 @@ class YahooProvider:
         return self._tickers[symbol]
 
     def _fallback(self, name, params, reason):
+        latched = job_circuit_block()
+        if latched is not None:
+            raise GatewayError(*latched)
         if self.policy.blocked:
             raise GatewayError(*self.policy.blocked)
         if reason['category'] in {'RateLimited', 'AccessDenied', 'BudgetExceeded'}:
-            raise GatewayError(reason['category'], 'Yahoo policy failure; legacy fallback is not permitted')
-        if (self.policy.count >= self.policy.max_requests
-                or self.policy.clock() - self.policy.started >= self.policy.deadline):
-            self.policy.blocked = ('BudgetExceeded', 'Yahoo job deadline or request budget exhausted')
-            raise GatewayError(*self.policy.blocked)
+            latched_reason = (reason['category'], 'Yahoo policy failure; legacy fallback is not permitted')
+            latch_job_circuit(latched_reason)
+            raise GatewayError(*latched_reason)
+        # A legacy-compatibility attempt consumes one job request. Its own HTTP
+        # calls are outside this transport and are not individually counted.
+        self.policy.reserve()
         return _legacy_yahoo_fallback(name, params, reason)
 
     def call(self, name, **params):
         """Use yfinance first; never bypass a terminal policy failure via fallback."""
+        latched = job_circuit_block()
+        if latched is not None:
+            raise GatewayError(*latched)
+        try:
+            return self._route(name, params)
+        finally:
+            if self.policy.blocked is not None:
+                latch_job_circuit(self.policy.blocked)
+
+    def _route(self, name, params):
         if name not in self.NAMES:
             raise GatewayError('UnsupportedCapability', 'Unregistered Yahoo capability')
         try:

@@ -44,6 +44,7 @@ REASON_CATALOG: dict[str, dict[str, Any]] = {
     "OOS_EVIDENCE_INVALID": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
     "DATA_QUALITY_LOW": {"severity": "degraded", "scope": "data", "can_veto_prediction": False},
     "OOS_MARKER_MISSING": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
+    "OOS_SELF_REPORT_MISMATCH": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
     "SURVIVORSHIP_NOT_ASSESSED": {"severity": "warning", "scope": "strategy", "can_veto_prediction": False},
     "CALIBRATION_MISSING": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
     "FACTOR_BACKTEST_INSUFFICIENT": {"severity": "warning", "scope": "validation", "can_veto_prediction": False},

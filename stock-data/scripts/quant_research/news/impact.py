@@ -142,13 +142,36 @@ def _classify_publisher(name: str) -> str:
 BAND_TOLERANCE = 1e-9
 
 
-def magnitude_band(observed_return: float | None) -> dict[str, Any]:
-    """Grade the absolute event-session close-to-close move into a disclosed band."""
+def magnitude_band(observed_return: float | None, *, reaction_status: str | None = None) -> dict[str, Any]:
+    """Grade the absolute event-session close-to-close move into a disclosed band.
+
+    The band is withheld when the reaction semantics do not support attributing
+    the observed session move to the event window: an intraday publication's
+    whole-session return includes pre-publication trading, and a
+    ``not_classifiable`` reaction has no usable direction semantics. The gate
+    mirrors ``pattern_comparison`` so the two halves of the impact block cannot
+    disagree about whether the same reaction is usable. The raw observed return
+    is still reported when it exists; only the band is not asserted.
+    """
     if observed_return is None or not math.isfinite(observed_return):
         return {"band": "not_assessed", "observed_abs_return": None,
                 "thresholds": "single_instrument_absolute_return_bands",
                 "warning": "no mature frozen session follows this event; magnitude is not assessed"}
     magnitude = abs(float(observed_return))
+    withheld = {
+        "intraday_daily_association": "whole-session return includes pre-publication trading; the move is not attributable to the event window",
+        "not_classifiable": "reaction direction is not classifiable; the impact band is not asserted",
+    }.get(reaction_status)
+    if withheld:
+        return {
+            "band": "not_assessed",
+            "observed_abs_return": round(magnitude, 6),
+            "thresholds": "single_instrument_absolute_return_bands",
+            "reaction_status": reaction_status,
+            "warning": withheld,
+            "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+            "calibration_status": "heuristic_uncalibrated",
+        }
     band = next((name for name, threshold in MAGNITUDE_BANDS
                  if magnitude + BAND_TOLERANCE >= threshold), "negligible")
     return {
@@ -166,23 +189,25 @@ def magnitude_band(observed_return: float | None) -> dict[str, Any]:
 MINIMUM_USABLE_SIGMA = 1e-4
 
 
-def _trailing_sigma(closes: list[float], index: int, window: int = 20) -> float | None:
-    """Sample standard deviation of the ``window`` returns strictly before the event session.
+def _trailing_sigma(closes: list[float], index: int, window: int = 20) -> tuple[float | None, int]:
+    """Sample sigma of the ``window`` returns strictly before the event session.
 
     ``window`` returns require ``window + 1`` closing prices, so the slice starts
     one bar earlier than a naive ``index - window``. Taking ``index - window``
-    would silently return only ``window - 1`` returns.
+    would silently return only ``window - 1`` returns. The second element is the
+    number of usable returns actually used, so callers never describe a shorter
+    baseline as a full 20-session window.
     """
     start = max(0, index - window - 1)
     segment = closes[start:index]
     if len(segment) < 2:
-        return None
+        return None, 0
     returns = [segment[i] / segment[i - 1] - 1 for i in range(1, len(segment)) if segment[i - 1] > 0]
     if len(returns) < 5:
-        return None
+        return None, len(returns)
     center = sum(returns) / len(returns)
     variance = sum((value - center) ** 2 for value in returns) / (len(returns) - 1)
-    return math.sqrt(variance) if variance > 0 else None
+    return (math.sqrt(variance) if variance > 0 else None), len(returns)
 
 
 def pattern_comparison(
@@ -201,12 +226,13 @@ def pattern_comparison(
     if session_index is None or not closes or session_index <= 0 or session_index > len(closes) - 1:
         return {"pattern": "not_assessed", "reason": "event session index unavailable in frozen bars",
                 "calibration_status": "heuristic_uncalibrated"}
-    sigma = _trailing_sigma(closes, session_index)
+    sigma, observations = _trailing_sigma(closes, session_index)
     observed = reaction.get("daily_close_return")
     if (sigma is None or sigma <= 0 or sigma < MINIMUM_USABLE_SIGMA
             or observed is None or not math.isfinite(float(observed))):
         return {"pattern": "not_assessed",
                 "reason": "insufficient trailing returns or a degenerate volatility baseline for a volatility ratio",
+                "trailing_sigma_observations": observations,
                 "calibration_status": "heuristic_uncalibrated"}
     ratio = abs(float(observed)) / sigma
     if status in {"event_price_divergence_positive", "event_price_divergence_negative"}:
@@ -221,8 +247,9 @@ def pattern_comparison(
         "reason": reason,
         "observed_abs_return": round(abs(float(observed)), 6),
         "trailing_sigma": round(sigma, 6),
+        "trailing_sigma_observations": observations,
         "ratio_to_trailing_sigma": round(ratio, 4),
-        "baseline": "own_trailing_20_session_return_sigma",
+        "baseline": "own_trailing_return_sigma_up_to_20_sessions",
         "calibration_status": "heuristic_uncalibrated",
     }
 
@@ -283,7 +310,8 @@ def assess(
 ) -> dict[str, Any]:
     """Bundle every deterministic News-side impact judgement for one event card."""
     return {
-        "magnitude": magnitude_band(reaction.get("daily_close_return")),
+        "magnitude": magnitude_band(reaction.get("daily_close_return"),
+                                    reaction_status=reaction.get("status")),
         "pattern_comparison": pattern_comparison(
             event_direction=event_direction, reaction=reaction, closes=closes, session_index=session_index),
         "breadth_scope": breadth_scope(event_type),

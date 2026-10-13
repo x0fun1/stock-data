@@ -63,6 +63,58 @@ def _has_chronological_holdout(value: Any) -> bool:
     return False
 
 
+def _self_report_cross_check(researchers: list[dict[str, Any]], consensus: dict[str, Any]) -> dict[str, Any]:
+    """Cross-check self-reported OOS Brier values against recomputed ones.
+
+    The adversarial audit must not trust a researcher's own metric when the
+    runtime can recompute it from the same path's validated dated OOS rows. A
+    path whose closest self-reported Brier does not match the recomputed value
+    is surfaced as a mismatch; paths whose supplied rows failed frozen
+    validation, or that report no metric, are explicitly not comparable rather
+    than silently treated as consistent.
+    """
+    quality = consensus.get("oos_probability_quality") or {}
+    path_metrics = quality.get("paths") or {}
+    row_validation = quality.get("row_validation") or {}
+    reported = _oos_baseline_checks(researchers)
+    tolerance = 1e-6
+    findings: list[dict[str, Any]] = []
+    for result in researchers:
+        if result.get("result_role", "forecast") != "forecast":
+            continue
+        name = str(result.get("researcher_id", "unknown"))
+        recomputed = (path_metrics.get(name) or {}).get("brier_score")
+        if not isinstance(recomputed, (int, float)) or isinstance(recomputed, bool):
+            findings.append({"researcher_id": name, "status": "not_comparable",
+                             "reason": "no recomputed OOS Brier score is available for this path"})
+            continue
+        audit_summary = row_validation.get(name) or {}
+        if audit_summary.get("rejected_samples"):
+            findings.append({"researcher_id": name, "status": "not_comparable",
+                             "reason": (f"{audit_summary.get('rejected_samples')} supplied dated OOS record(s) "
+                                        "failed frozen validation and are excluded from the recomputed metric")})
+            continue
+        values = [check["brier"] for check in reported if check["researcher_id"] == name]
+        if not values:
+            findings.append({"researcher_id": name, "status": "not_comparable",
+                             "reason": "the path reports no self-reported OOS Brier value"})
+            continue
+        closest = min(values, key=lambda value: abs(float(value) - float(recomputed)))
+        consistent = abs(float(closest) - float(recomputed)) <= tolerance
+        findings.append({"researcher_id": name, "status": "consistent" if consistent else "mismatch",
+                         "recomputed_brier": float(recomputed), "closest_self_reported_brier": closest,
+                         "self_reported_values": values})
+    mismatches = [finding for finding in findings if finding["status"] == "mismatch"]
+    consistent = [finding for finding in findings if finding["status"] == "consistent"]
+    if mismatches:
+        status, detail = "mismatch", "At least one forecast path's self-reported OOS Brier does not match the value recomputed from the same path's validated dated OOS rows."
+    elif consistent:
+        status, detail = "consistent", f"Recomputed OOS Brier scores match the closest self-reported value on {len(consistent)} forecast path(s)."
+    else:
+        status, detail = "not_comparable", "No forecast path supplied both self-reported and recomputable dated OOS Brier evidence."
+    return {"status": status, "detail": detail, "tolerance": tolerance, "method": "closest self-reported Brier vs Brier recomputed from validated dated OOS rows", "paths": findings}
+
+
 def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus: dict[str, Any]) -> dict[str, Any]:
     forecasts = [
         result for result in researchers
@@ -320,6 +372,10 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
     elif extreme_disagreement:
         warn("LOW_FACTOR_AGREEMENT", "Extreme disagreement is treated as an independent risk signal. Common OOS support does not establish a validated automatic override threshold, so the existing equal-weight probability remains subject to ordinary reporting gates.")
     bias_checks = _bias_audit(manifest, researchers, consensus)
+    cross_check = _self_report_cross_check(researchers, consensus)
+    bias_checks["oos_self_report_cross_check"] = cross_check
+    if cross_check["status"] == "mismatch":
+        warn("OOS_SELF_REPORT_MISMATCH", "At least one self-reported OOS Brier does not match the value recomputed from the same path's validated dated OOS rows; treat the affected validation claims as unverified.")
     if bias_checks["look_ahead_and_label_timing"]["status"] == "warning":
         warn("LEAKAGE_AUDIT_INCOMPLETE", "At least one research path lacks a complete declared feature/label timing audit.")
     if bias_checks["chronological_out_of_sample"]["status"] == "warning":

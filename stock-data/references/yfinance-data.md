@@ -89,6 +89,8 @@ adjusted OHLC 由同根 `Adj Close / Close` 等比例转换；保留 ratio、pro
 
 错误类别：DependencyUnavailable、UnsupportedCapability、InvalidParameters、RateLimited、AccessDenied、NetworkError、InvalidResponse、DataUnavailable、InsufficientCoverage、BudgetExceeded、NoLegacyRoute、LegacyFallbackFailed。gateway 保留 success/empty/error 并支持 partial；全部成功、有依据无数据及可用部分成功退出 0，依赖/请求错误或核心全部失败退出 1。退出 0 不代表研究完整。网络失败不会包装成成功空数组；market 域失败不清空已成功的另一域。兼容旧接口只在 yfinance 失败/空结果时自动调用，不调用网页 fallback。
 
+终态传输失败（RateLimited、AccessDenied、预算耗尽、超界/无效响应）会 latch 为**进程级 Yahoo 作业熔断**：同一进程内后续的 yfinance 调用与旧兼容回退都直接拒绝，直到进程结束；不能靠新建 provider 或改走旧接口绕过已打开的熔断。每次旧回退尝试按一次作业请求计入同一预算（回退内部 HTTP 不在该 transport 边界内，不逐请求计数）；失败/空结果之外的非终态原因才允许一次语义等价回退。
+
 ## 研究衔接与兼容
 
 [yahoo_collect.py](../scripts/yahoo_collect.py) 只采 market 域，复用宿主已有 Finnhub 成功结果；不把 yfinance 参数塞进研究 request，不让 pipeline 隐式联网。字段与 provenance 见 [collection-adapter.md](collection-adapter.md)。仍为 schema 1.2，无新增必填字段。

@@ -7,7 +7,7 @@ This reference defines the one centralized gate policy. Data-computation eligibi
 1. **Acquisition** — retain normalized OHLCV, timestamps, units, source identity and any independent same-session close observations.
 2. **Data integrity** — validate OHLCV structure, source/time identity, latest-observation freshness, calendar resolution, adjustment basis and corporate-action evidence.
 3. **Quant prediction** — after fatal integrity checks pass, attempt all selected prediction-capable A/B/C paths; D remains a diagnostic. Continue despite nonfatal calendar, adjustment, OOS, calibration or strategy-audit limitations.
-4. **Prediction validation** — assess chronological OOS support, calibration, leakage and factor evidence. Insufficient validation lowers confidence; *detected* leakage or invalid target construction vetoes the affected prediction.
+4. **Prediction validation** — assess chronological OOS support, calibration, leakage and factor evidence; self-reported OOS metrics are cross-checked against values recomputed from the same validated rows. Insufficient validation lowers confidence; *detected* leakage or invalid target construction vetoes the affected prediction.
 5. **Research/strategy audit** — assess PBO, DSR, costs, turnover and portfolio backtest. These determine whether a probability may support a strategy/profitability claim; missing evidence does not cancel a single-horizon probability.
 6. **Reporting gate** — return `pass`, `degraded`, or `veto`, with reason codes. News runs after Quant/audit and can change integrated conviction/context, never Quant probability.
 
@@ -106,7 +106,7 @@ Code—not prose matching—controls policy. The central catalog is `scripts/qua
 | `LATEST_PRICE_CONFLICT`, `MARKET_UNITS_CONFLICT`, `LATEST_OBSERVATION_UNRESOLVED` | fatal | data | yes |
 | `CORPORATE_ACTION_CONTAMINATION`, `LEAKAGE_DETECTED`, `PREDICTION_FAILED` | fatal | prediction | yes |
 | `CALENDAR_OFFICIAL_MISSING`, `CALENDAR_FALLBACK_USED`, `ADJUSTMENT_UNKNOWN`, `MARKET_UNITS_UNVERIFIED` | degraded | data | no |
-| `OOS_INSUFFICIENT`, `CALIBRATION_MISSING`, `FACTOR_BACKTEST_INSUFFICIENT` | degraded/warning | validation | no |
+| `OOS_INSUFFICIENT`, `OOS_SELF_REPORT_MISMATCH`, `CALIBRATION_MISSING`, `FACTOR_BACKTEST_INSUFFICIENT` | degraded/warning | validation | no |
 | `PBO_NOT_ASSESSED`, `DSR_NOT_ASSESSED`, `TRANSACTION_COST_NOT_ASSESSED`, `PORTFOLIO_BACKTEST_MISSING` | warning | strategy | no |
 | `LATEST_CLOSE_CROSS_VERIFIED` | info | data | no |
 
@@ -130,3 +130,5 @@ Code—not prose matching—controls policy. The central catalog is `scripts/qua
 8. Invalid/latest price conflict → VETO.
 9. Low confidence alone → still report a degraded probability, never VETO.
 10. Strict analysis mode with OOS/calibration gaps → still run Quant; mark reporting DEGRADED.
+
+These cases are the acceptance checklist for this runtime; the slim package does not ship an in-repo test suite, so they are exercised by separately maintained offline regression probes rather than repository tests.

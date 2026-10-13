@@ -17,7 +17,7 @@ from .gate_policy import aggregate_gate_telemetry
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
 from .paths import safe_output_destination
-from .report import build_agent_summary, render_final_response, render_markdown
+from .report import build_agent_summary, enforce_agent_summary_budget, render_final_response, render_markdown
 from .researchers import factor, factor_backtest, ml, quant
 from .snapshot import load_snapshot
 from .synthesis import build_synthesis
@@ -217,6 +217,7 @@ def run_analysis(
     final["performance"] = performance
     summary = build_agent_summary(final)
     summary["sections"]["quant"]["performance"] = performance
+    summary = enforce_agent_summary_budget(summary)
     _write_json(destination / "report.json", final)
     _write_json(destination / "agent_summary.json", summary)
     (destination / "report.md").write_text(render_markdown(final), encoding="utf-8")

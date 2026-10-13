@@ -22,9 +22,11 @@ Graded from the single observed `daily_close_return` (close-to-close) of the fir
 | `moderate` | >= 2% |
 | `minor` | >= 0.5% |
 | `negligible` | < 0.5% |
-| `not_assessed` | no mature frozen session follows the event |
+| `not_assessed` | no mature frozen session follows the event, or the reaction status/window does not support attribution |
 
 A comparison tolerance of `1e-9` (`band_tolerance`) is applied at each edge. A close-to-close return computed from prices is rarely exactly on a threshold — `90/100-1` evaluates to `-0.09999999999999998` while `110/100-1` evaluates to `+0.10000000000000009` — so without slack the same 10% move would grade `severe` in one direction and `major` in the other.
+
+The band is withheld when the reaction semantics cannot support attributing the observed session move to the event window: an `intraday_daily_association` whole-session return includes pre-publication trading, and a `not_classifiable` reaction has no usable direction semantics. In that case `observed_abs_return` is still reported when it exists — only the band is not asserted. This gate mirrors the pattern comparison so the two halves of the impact block never disagree about whether the same reaction is usable.
 
 This is a single-instrument band. It is not an index, sector or intraday move, and it is not an expected return. Every result carries `calibration_status: heuristic_uncalibrated`.
 
@@ -32,9 +34,9 @@ Absence of magnitude is never evidence that an event was unimportant: it may alr
 
 ## Pattern comparison
 
-Compares the observed move against the symbol's **own** trailing 20-session return sigma, so the result is reproducible offline from frozen bars. No cross-asset historical pattern library is used.
+Compares the observed move against the symbol's **own** trailing return sigma, taken from up to the last 20 returns strictly before the event session, so the result is reproducible offline from frozen bars. The actual number of returns used is reported as `trailing_sigma_observations` (minimum 5); a shorter baseline is never described as a full 20-session window. No cross-asset historical pattern library is used.
 
-Twenty returns require **21 closing prices**, so the window slice starts one bar earlier than `index - window` would suggest. Taking `index - window` yields only 19 returns and a systematically different sigma.
+A full window of twenty returns requires **21 closing prices**, so the window slice starts one bar earlier than `index - window` would suggest. Taking `index - window` yields only 19 returns and a systematically different sigma.
 
 | Pattern | Condition |
 |---|---|

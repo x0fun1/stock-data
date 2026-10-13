@@ -184,9 +184,28 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any]) -> tuple[A
     return data, source, name, warnings
 
 
+def _job_circuit_reason():
+    """The process-wide Yahoo job-circuit reason, when yfinance routing is loaded."""
+    try:
+        from yfinance_provider import job_circuit_block
+    except ImportError:
+        return None
+    return job_circuit_block()
+
+
 def fallback(function: str, params: dict[str, Any], reason: dict[str, Any]) -> dict[str, Any]:
     """Try one registered compatibility route after a yfinance failure."""
     from datetime import datetime, timezone
+    latched = _job_circuit_reason()
+    if latched:
+        # An open job circuit must not be bypassed through the legacy interface.
+        return {"status": "error", "data": None, "actual_source": "Yahoo Finance",
+                "fetched_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
+                "fallback_attempted": True, "fallback_used": False,
+                "fallback_route": None, "fallback_reason": reason,
+                "error": {"category": latched[0], "exception_type": "JobCircuitOpen",
+                          "message": "Yahoo job circuit is open; legacy fallback is not permitted."},
+                "warnings": ["Automatic legacy fallback was blocked by an open Yahoo job circuit."]}
     special_routes = {"yahoo_history", "yahoo_history_batch", "yahoo_options"}
     if function not in special_routes and _route(function, params) is None:
         return {"status": "error", "data": None, "actual_source": "Yahoo Finance",

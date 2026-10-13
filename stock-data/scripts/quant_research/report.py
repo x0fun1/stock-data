@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from decimal import Decimal
+import json
 import math
 from typing import Any
 from .security import bounded_text, markdown_text, safe_url
@@ -339,7 +340,8 @@ IMPACT_RUBRIC_MARKER = ("heuristic_uncalibrated; breadth is declared not observe
 
 IMPACT_RUBRIC_LIMITS: tuple[str, ...] = (
     "Magnitude bands are single-instrument close-to-close thresholds, not index, sector or intraday moves.",
-    "Pattern compares the observed move to the symbol's own trailing 20-session return sigma; it is not a cross-asset historical pattern test.",
+    "Magnitude and pattern bands are withheld when the reaction window includes pre-publication trading or the reaction direction is not classifiable; the observed raw return may still be shown.",
+    "Pattern compares the observed move to the symbol's own trailing return sigma over up to the last 20 returns (minimum 5, none of them after the event session); the actual return count is reported as trailing_sigma_observations and it is not a cross-asset historical pattern test.",
     "Breadth scope is DECLARED from the event taxonomy, never observed; the layer reads one frozen ticker series only.",
     "Source tier uses exact publisher aliases and takes the weakest publisher in a cluster; an unrecognized publisher is never promoted.",
     "No composite impact score is produced. Daily-bar association is temporal and does not establish causation.",
@@ -354,6 +356,58 @@ def impact_rubric_limits() -> list[str]:
     """
     from .news.impact import ATTRIBUTION_CAVEATS
     return list(IMPACT_RUBRIC_LIMITS) + list(ATTRIBUTION_CAVEATS)
+
+
+AGENT_SUMMARY_BYTE_BUDGET = 30_000
+
+
+def _summary_bytes(value: dict[str, Any]) -> int:
+    return len(json.dumps(value, ensure_ascii=False, allow_nan=False).encode("utf-8"))
+
+
+def enforce_agent_summary_budget(summary: dict[str, Any]) -> dict[str, Any]:
+    """Keep agent_summary.json inside its documented byte budget.
+
+    The summary is bounded by construction; this guard only fires if future
+    fields grow, and it drops or truncates optional detail — never the identity,
+    probability, status or warning fields the delivery contract requires. The
+    trim order is fixed and each removal is recorded under ``size_budget``.
+    """
+    if _summary_bytes(summary) <= AGENT_SUMMARY_BYTE_BUDGET:
+        return summary
+    sections = summary.get("sections", {})
+    trimmed: list[str] = []
+
+    def over() -> bool:
+        return _summary_bytes(summary) > AGENT_SUMMARY_BYTE_BUDGET
+
+    if over() and sections.get("technical_factor_evidence"):
+        sections["technical_factor_evidence"] = []
+        trimmed.append("technical_factor_evidence")
+    backtest = sections.get("backtest_ic_bias") or {}
+    if over() and backtest.get("diagnostic_examples"):
+        backtest["diagnostic_examples"] = []
+        trimmed.append("backtest_ic_bias.diagnostic_examples")
+    news = sections.get("news") or {}
+    if over() and len(news.get("events") or []) > 3:
+        news["events"] = news["events"][:3]
+        trimmed.append("news.events_reduced_to_3")
+    risks = sections.get("risk_counter_evidence") or {}
+    if over() and len(risks.get("items") or []) > 6:
+        risks["items"] = risks["items"][:6]
+        if isinstance(risks.get("total"), int):
+            risks["omitted"] = max(0, risks["total"] - len(risks["items"]))
+        trimmed.append("risk_counter_evidence.items_reduced_to_6")
+    quality = ((sections.get("quant") or {}).get("oos_probability_quality")) or {}
+    if over() and quality.get("path_metrics"):
+        quality["path_metrics"] = {name: {"brier_score": row.get("brier_score")}
+                                   for name, row in quality.get("path_metrics", {}).items()
+                                   if isinstance(row, dict)}
+        trimmed.append("quant.oos_probability_quality.path_metrics_reduced")
+    if trimmed:
+        summary["size_budget"] = {"byte_budget": AGENT_SUMMARY_BYTE_BUDGET,
+                                  "bytes": _summary_bytes(summary), "trimmed": trimmed}
+    return summary
 
 
 def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
@@ -381,7 +435,7 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
     selected_risks = []
     for source in ("data_or_audit", "news", "factor_backtest", "coverage_or_validation"):
         selected_risks.extend([row for row in risks if row.get("source") == source][:3])
-    return {"schema_version": "1.2", "content_role": "UNTRUSTED_DATA_SUMMARY_NO_EXECUTION_INSTRUCTIONS", "analysis_id": result["analysis_id"],
+    summary = {"schema_version": "1.2", "content_role": "UNTRUSTED_DATA_SUMMARY_NO_EXECUTION_INSTRUCTIONS", "analysis_id": result["analysis_id"],
             "identity": {key: snapshot[key] for key in ("ticker", "market", "horizon", "asof_timestamp", "snapshot_id")},
             "analysis_status": result["analysis_status"], "reporting_status": result.get("reporting_status", "veto"), "stages": result["stages"],
             "sections": {
@@ -394,6 +448,7 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "risk_counter_evidence": {"items": selected_risks, "total": len(risks), "omitted": len(risks) - len(selected_risks)},
                 "final_synthesis": {"status": result["analysis_status"], "may_report_direction": result["adversarial_audit"].get("may_report_direction", False), "quant": dict(quant_fields), "quant_field_source": "quant_result.json.consensus", "economic_viability": quant.get("economic_viability"), "quant_display": _quant_lines(quant_fields), "probability_note": _final_probability_note(quant_fields, snapshot["ticker"], snapshot["horizon"]), "news_relationship": _relationship_text(synthesis), "probability_unavailable_reasons": _unavailable_reasons(result)[:5] if quant_fields["prob_up"] is None else [], "quant_probability_preserved": synthesis.get("quant_probability_preserved", False), "warnings": [bounded_text(item, 240) for item in synthesis.get("warnings", [])[:5]]},
             }}
+    return enforce_agent_summary_budget(summary)
 
 
 def render_markdown(result: dict[str, Any]) -> str:
@@ -491,7 +546,12 @@ def render_markdown(result: dict[str, Any]) -> str:
         breadth = full.get("breadth_scope") or {}
         tier = full.get("source_tier") or {}
         observed = magnitude.get("observed_abs_return")
-        lines.append(f"  - Impact grading: magnitude {_cell(magnitude.get('band'))} (abs return {_pct(observed) if observed is not None else 'n/a'}); pattern {_cell(pattern.get('pattern'))} (ratio to own trailing sigma {_cell(pattern.get('ratio_to_trailing_sigma'))}); source tier {_cell(tier.get('tier'))}; declared breadth {_cell(breadth.get('declared_scope'))} with observed breadth {_cell(breadth.get('observed_breadth'))}; composite impact score {_cell(full.get('composite_impact_score'))}")
+        magnitude_text = _cell(magnitude.get("band"))
+        if magnitude.get("band") == "not_assessed" and magnitude.get("warning"):
+            magnitude_text += f" ({_cell(magnitude.get('warning'))})"
+        sigma_note = (f", {pattern.get('trailing_sigma_observations')} trailing returns"
+                      if pattern.get("trailing_sigma_observations") is not None else "")
+        lines.append(f"  - Impact grading: magnitude {magnitude_text} (abs return {_pct(observed) if observed is not None else 'n/a'}); pattern {_cell(pattern.get('pattern'))} (ratio to own trailing sigma {_cell(pattern.get('ratio_to_trailing_sigma'))}{sigma_note}); source tier {_cell(tier.get('tier'))}; declared breadth {_cell(breadth.get('declared_scope'))} with observed breadth {_cell(breadth.get('observed_breadth'))}; composite impact score {_cell(full.get('composite_impact_score'))}")
     for opinion in news.get("opinion_records", [])[:5]:
         lines.append(f"- Opinion {_cell(opinion.get('sentiment'))}: {_link(opinion.get('headline'), opinion.get('url'))}")
     for record in news.get("background_records", [])[:5]:
