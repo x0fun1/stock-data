@@ -156,7 +156,7 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any]) -> tuple[A
         for symbol in symbols:
             try:
                 symbols_result[symbol] = _legacy_history(gateway, symbol, params)
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001, PERF203 - bounded per-symbol isolation; one bad symbol must not fail the batch
                 symbols_result[symbol] = {"status": "failed", "error": {"category": type(exc).__name__}}
         any_data = any(_has_data(item.get("data")) for item in symbols_result.values())
         status = "partial" if any_data else "empty"
@@ -233,10 +233,10 @@ def fallback(function: str, params: dict[str, Any], reason: dict[str, Any]) -> d
                 "provider_library": "legacy_compat", "provider_version": "stock-data gateway",
                 "fallback_attempted": True,
                 "fallback_used": True, "fallback_route": route, "fallback_reason": reason,
-                "warnings": ["yfinance request failed; legacy compatibility route was used."] + warnings,
+                "warnings": ["yfinance request failed; legacy compatibility route was used.", *warnings],
                 "provenance": {"library": "legacy_compat", "route": route,
                                "raw_http_payload_captured": False}}
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - fallback guard; any failure is reported as a structured error envelope
         category = "NoLegacyRoute" if isinstance(exc, LookupError) else "LegacyFallbackFailed"
         if function in {"yahoo_history", "yahoo_history_batch"}:
             attempted_route = "stock_kline_yahoo"

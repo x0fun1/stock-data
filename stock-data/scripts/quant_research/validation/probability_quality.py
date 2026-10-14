@@ -10,7 +10,6 @@ from ..contracts import HORIZONS
 from ..market_data import forward_returns, non_overlapping
 from ..math_utils import mean
 
-
 MINIMUM_WEIGHT_WINDOW_SAMPLES = 20
 DEFAULT_BRIER_SKILL_EPSILON = 0.05
 
@@ -178,9 +177,7 @@ def _audit_oos_path(
                 reasons.append("invalid_training_label_boundary")
             elif bars is not None and training_end not in session_index:
                 reasons.append("training_label_end_missing_from_frozen_market_bars")
-            elif bars is not None and decision_index is not None and session_index[training_end] > decision_index:
-                reasons.append("training_label_not_matured_by_decision")
-            elif bars is None and isinstance(decision, str) and training_end > decision:
+            elif (bars is not None and decision_index is not None and session_index[training_end] > decision_index) or (bars is None and isinstance(decision, str) and training_end > decision):
                 reasons.append("training_label_not_matured_by_decision")
         elif _valid_probability(probability) and bars is not None:
             reasons.append("training_label_boundary_missing_for_prediction")
@@ -271,7 +268,7 @@ def _probability_metrics(rows: list[dict[str, Any]], *, denominator: int | None 
     for index in range(10):
         lower, upper = index / 10, (index + 1) / 10
         group = [row for row in valid if lower <= float(row["probability"]) < upper
-                 or index == 9 and float(row["probability"]) == 1]
+                 or (index == 9 and float(row["probability"]) == 1)]
         mean_probability = mean(float(row["probability"]) for row in group)
         observed_rate = mean(int(row["target"]) for row in group)
         bins.append({"lower_bound": lower, "upper_bound": upper, "count": len(group),
@@ -377,7 +374,7 @@ def _policy_replay_quality(
                 or len({row.get("target_definition") for row in date_rows}) != 1):
             rejected += 1
             continue
-        matured = non_overlapping(list(range(0, max(0, index - horizon + 1))), horizon)
+        matured = non_overlapping(list(range(max(0, index - horizon + 1))), horizon)
         matured_outcomes = [forward[i] for i in matured if i + horizon <= index and forward[i] is not None]
         if not matured_outcomes:
             continue
@@ -576,8 +573,8 @@ def build_brier_skill_weight_diagnostic(
                    for date in evaluation_dates)
         for name in names
     }
-    weighted_brier = mean((probability - target) ** 2 for probability, target in zip(weighted_probs, evaluation_targets))
-    equal_brier = mean((probability - target) ** 2 for probability, target in zip(equal_probs, evaluation_targets))
+    weighted_brier = mean((probability - target) ** 2 for probability, target in zip(weighted_probs, evaluation_targets, strict=True))
+    equal_brier = mean((probability - target) ** 2 for probability, target in zip(equal_probs, evaluation_targets, strict=True))
     base.update({
         "status": "exploratory_temporal_validation",
         "weight_estimation_start": estimation_dates[0],

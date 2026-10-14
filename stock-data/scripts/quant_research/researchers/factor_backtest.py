@@ -90,8 +90,8 @@ def _metrics(
     high_cut: float | None,
 ) -> dict[str, Any]:
     x, y = _aligned(values, labels, indices)
-    low_returns = [ret for value, ret in zip(x, y) if low_cut is not None and value <= low_cut]
-    high_returns = [ret for value, ret in zip(x, y) if high_cut is not None and value >= high_cut]
+    low_returns = [ret for value, ret in zip(x, y, strict=True) if low_cut is not None and value <= low_cut]
+    high_returns = [ret for value, ret in zip(x, y, strict=True) if high_cut is not None and value >= high_cut]
     spread = mean(high_returns) - mean(low_returns) if high_returns and low_returns else None
     enough = len(x) >= MIN_HOLDOUT_OBSERVATIONS
     return {

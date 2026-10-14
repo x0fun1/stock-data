@@ -2,8 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
 import math
+from datetime import date, datetime
+from itertools import pairwise
 from typing import Any
 from zoneinfo import ZoneInfo
 
@@ -34,7 +35,7 @@ def calendar_sessions(block: dict[str, Any], market: str) -> list[dict[str, Any]
         day = date.fromisoformat(row["date"])
         close = parse_timestamp(row["close_at"])
         local = close.astimezone(ZoneInfo(EXCHANGE_TIMEZONES[market]))
-        if local.date() != day or not start <= day <= end or previous is not None and day <= previous:
+        if local.date() != day or not start <= day <= end or (previous is not None and day <= previous):
             raise ValueError("session_calendar dates/close timestamps must be ordered, unique and within coverage")
         previous = day
     return sessions
@@ -44,31 +45,29 @@ def _library_calendar(market: str, start: str, end: str) -> dict[str, Any] | Non
     """Build a freeze-time exchange schedule if a supported optional library is installed."""
     calendar_code = {"US": "XNYS", "HK": "XHKG"}[market]
     try:
-        import exchange_calendars  # type: ignore[import-not-found]
         import exchange_calendars as _exchange_calendars  # type: ignore[import-not-found]
 
-        schedule = exchange_calendars.get_calendar(calendar_code).schedule.loc[start:end]
+        schedule = _exchange_calendars.get_calendar(calendar_code).schedule.loc[start:end]
         sessions = [{"date": str(session)[:10], "close_at": close.isoformat()}
-                    for session, close in zip(schedule.index, schedule["close"])]
+                    for session, close in zip(schedule.index, schedule["close"], strict=True)]
         if sessions:
             return {"source": f"exchange_calendars:{getattr(_exchange_calendars, '__version__', 'unknown')}",
                     "timezone": EXCHANGE_TIMEZONES[market], "coverage_start": start,
                     "coverage_end": end, "sessions": sessions}
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 - 可选第三方日历库：任何失败都回退到下一个来源，绝不伪造交易日历
         pass
     try:
-        import pandas_market_calendars  # type: ignore[import-not-found]
         import pandas_market_calendars as _pandas_market_calendars  # type: ignore[import-not-found]
 
         calendar_name = {"US": "NYSE", "HK": "HKEX"}[market]
-        schedule = pandas_market_calendars.get_calendar(calendar_name).schedule(start_date=start, end_date=end)
+        schedule = _pandas_market_calendars.get_calendar(calendar_name).schedule(start_date=start, end_date=end)
         sessions = [{"date": str(session)[:10], "close_at": close.isoformat()}
-                    for session, close in zip(schedule.index, schedule["market_close"])]
+                    for session, close in zip(schedule.index, schedule["market_close"], strict=True)]
         if sessions:
             return {"source": f"pandas_market_calendars:{getattr(_pandas_market_calendars, '__version__', 'unknown')}",
                     "timezone": EXCHANGE_TIMEZONES[market], "coverage_start": start,
                     "coverage_end": end, "sessions": sessions}
-    except Exception:
+    except Exception:  # noqa: BLE001, S110 - 可选第三方日历库：任何失败都回退为无库证据
         pass
     return None
 
@@ -282,7 +281,7 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
             errors.append("market history_window has invalid start/end")
             reason_codes.append("SOURCE_IDENTITY_CONFLICT")
     requested = request.get("history_window") or {}
-    if requested.get("start") and first < requested["start"] or requested.get("end") and last > requested["end"]:
+    if (requested.get("start") and first < requested["start"]) or (requested.get("end") and last > requested["end"]):
         errors.append("market bars extend outside the user-requested history window")
         reason_codes.append("SOURCE_IDENTITY_CONFLICT")
 
@@ -318,14 +317,14 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
                 day = date.fromisoformat(str(bar["date"])[:10])
                 if day.weekday() >= 5:
                     fatal("INVALID_TIME_ORDER", f"daily stock observation falls on a weekend: {day.isoformat()}")
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError):  # noqa: PERF203 - per-observation error collection is intentional
                 fatal("INVALID_TIME_ORDER", "an OHLCV observation has an invalid session date")
-        for left, right in zip(bars, bars[1:]):
+        for left, right in pairwise(bars):
             try:
                 gap_days = (date.fromisoformat(str(right["date"])[:10]) - date.fromisoformat(str(left["date"])[:10])).days
                 if gap_days > 14:
                     fatal("SEVERE_MISSING_BARS", f"OHLCV observations have an unexplained {gap_days}-calendar-day gap")
-            except (KeyError, TypeError, ValueError):
+            except (KeyError, TypeError, ValueError):  # noqa: PERF203 - per-observation error collection is intentional
                 fatal("INVALID_TIME_ORDER", "OHLCV observation dates are not parseable")
         horizon_type = "estimated_observed_sessions"
     else:
@@ -359,11 +358,15 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
         if close_row:
             close_at = close_row.get("close_at")
             latest_close["close_at"] = close_at
-            if fetch_time and source_time and parse_timestamp(close_at) <= asof:
-                if fetch_time < parse_timestamp(close_at) or source_time < parse_timestamp(close_at):
-                    fatal("LATEST_OBSERVATION_UNRESOLVED", "market source/fetch timestamp predates the latest session close")
-                    latest_close["kind"] = "unverified"
-                    reason_codes = [code for code in reason_codes if code != "LATEST_CLOSE_CROSS_VERIFIED"]
+            if (
+                fetch_time
+                and source_time
+                and parse_timestamp(close_at) <= asof
+                and (fetch_time < parse_timestamp(close_at) or source_time < parse_timestamp(close_at))
+            ):
+                fatal("LATEST_OBSERVATION_UNRESOLVED", "market source/fetch timestamp predates the latest session close")
+                latest_close["kind"] = "unverified"
+                reason_codes = [code for code in reason_codes if code != "LATEST_CLOSE_CROSS_VERIFIED"]
             if latest_close["kind"] == "provider_verified" and calendar_status in {"source_supplied_schedule", "library_verified"} and latest_close["kind"] != "unverified":
                 latest_close["kind"] = "calendar_verified"
 

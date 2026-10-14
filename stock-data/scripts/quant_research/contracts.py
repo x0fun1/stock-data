@@ -2,9 +2,9 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime, timezone
 import math
 import re
+from datetime import date, datetime, timezone
 from typing import Any
 
 HORIZONS = {"1D": 1, "5D": 5, "20D": 20}
@@ -14,12 +14,12 @@ RESEARCHER_STATUSES = {"success", "partial", "failed", "insufficient_data", "inv
 
 def normalize_request(value: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(value, dict):
-        raise ValueError("request must be an object")
+        raise ValueError("request must be an object")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     allowed = {"ticker", "market", "horizon", "asof", "mode", "intent", "asset_type", "instrument", "history_window", "history_start", "history_end"}
     if set(value) - allowed:
         raise ValueError("unsupported request fields: " + ", ".join(sorted(set(value) - allowed)))
     if not isinstance(value.get("ticker"), str):
-        raise ValueError("request.ticker must be a string")
+        raise ValueError("request.ticker must be a string")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     ticker = value["ticker"].strip().upper()
     market = str(value.get("market", "US")).strip().upper()
     horizon = str(value.get("horizon", "5D")).strip().upper()

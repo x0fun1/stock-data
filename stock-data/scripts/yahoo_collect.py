@@ -6,17 +6,20 @@ unknown provenance/closure is never replaced with a guessed symbol or clock.
 from __future__ import annotations
 
 import argparse
-from datetime import date, datetime, timedelta, timezone
 import json
 import math
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from quant_research.contracts import normalize_request, parse_timestamp, utc_now
-from quant_research.data_checks import EXCHANGE_TIMEZONES, _library_calendar, calendar_sessions
+from quant_research.data_checks import (
+    EXCHANGE_TIMEZONES,
+    _library_calendar,
+    calendar_sessions,
+)
 from quant_research.security import provider_failed, sanitize_data
-
 
 _METADATA = ("currency", "unit", "frequency", "source_symbol", "source_timestamp", "source_timestamp_kind",
              "fetched_at_utc", "adjustment", "adjustment_evidence", "provider_library",
@@ -45,8 +48,7 @@ def _year_back(day: date, years: int = 3) -> date:
 def _calendar(market: str, start: str, end: str) -> dict[str, Any] | None:
     try:
         return _library_calendar(market, start, end)
-    except Exception:
-        # Optional calendar failure is missing evidence, never synthetic closure.
+    except Exception:  # noqa: BLE001 - optional calendar failure is missing evidence, never synthetic closure
         return None
 
 
@@ -64,8 +66,7 @@ def _call(provider: Any, name: str, **params: Any) -> dict[str, Any]:
         if isinstance(result, dict):
             return result
         return {"status": "error", "error": {"category": "InvalidResponse", "message": "provider returned a non-object"}}
-    except Exception as exc:
-        # Never expose an exception string that could contain a session credential.
+    except Exception as exc:  # noqa: BLE001 - redact any provider failure; never expose strings that could contain a session credential
         category = getattr(exc, "code", None)
         if not isinstance(category, str) or not category:
             category = "NetworkError"

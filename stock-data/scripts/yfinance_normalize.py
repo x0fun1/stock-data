@@ -6,10 +6,10 @@ by the caller; this module does not infer either from a requested ticker.
 """
 from __future__ import annotations
 
+import math
 from collections.abc import Mapping
 from datetime import date, datetime, timezone
 from decimal import Decimal
-import math
 from zoneinfo import ZoneInfo
 
 
@@ -147,9 +147,8 @@ def normalize_history(frame, metadata, *, price_basis="provider", symbol=None, i
         if stamp.tzinfo is None:
             warnings.append("bar_timezone_unconfirmed")
         ratios.append({"date": bar["date"], "timestamp_utc": bar["timestamp_utc"], "ratio": ratio})
-        for key in _ACTION_FIELDS:
-            if bar[key] is not None and bar[key] != 0:
-                actions.append({"date": bar["date"], "kind": key, "value": bar[key]})
+        actions.extend({"date": bar["date"], "kind": key, "value": bar[key]}
+                       for key in _ACTION_FIELDS if bar[key] is not None and bar[key] != 0)
         bars.append(bar)
     if price_basis == "adjusted" and any(bar.get("adjustment_gap") for bar in bars):
         warnings.append("adjusted_view_has_ratio_gaps")
@@ -186,9 +185,11 @@ def repair_diff(original, repaired, original_metadata=None, repaired_metadata=No
     differences = []
     for index in sorted(before.keys() | after.keys()):
         left, right = before.get(index, {}), after.get(index, {})
-        for field in sorted(left.keys() | right.keys()):
-            if left.get(field) != right.get(field) or (field in left) != (field in right):
-                differences.append({"index": index, "field": field, "before": left.get(field), "after": right.get(field)})
+        differences.extend(
+            {"index": index, "field": field, "before": left.get(field), "after": right.get(field)}
+            for field in sorted(left.keys() | right.keys())
+            if left.get(field) != right.get(field) or (field in left) != (field in right)
+        )
     currency_before = (original_metadata or {}).get("currency")
     currency_after = (repaired_metadata or {}).get("currency")
     return {"changed": bool(differences) or currency_before != currency_after,

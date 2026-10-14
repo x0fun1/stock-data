@@ -8,7 +8,6 @@ from typing import Any
 from ..contracts import parse_timestamp
 from ..security import bounded_text, safe_url
 
-
 EVENT_SCORE_FIELDS = ("event_strength", "relevance", "magnitude", "novelty", "source_quality")
 OPINION_TYPES = {"opinion", "analyst_opinion", "social", "social_post", "commentary"}
 

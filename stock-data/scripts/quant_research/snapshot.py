@@ -9,15 +9,16 @@ import os
 import re
 import shutil
 import tempfile
+from collections.abc import Callable
 from datetime import date
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from zoneinfo import ZoneInfo
 
 from .contracts import normalize_request, parse_timestamp, utc_now
-from .paths import safe_output_destination, validate_path_component
 from .data_checks import EXCHANGE_TIMEZONES, calendar_sessions, check_market
 from .gate_policy import classify_reasons
+from .paths import safe_output_destination, validate_path_component
 from .security import provider_failed, sanitize_data
 
 SCHEMA_VERSION = "1.2"
@@ -102,11 +103,13 @@ def validate_collection(collection: dict[str, Any], request: dict[str, Any]) -> 
             errors.append(f"market bar {bar_day.isoformat()} occurs after the requested as-of date")
         values: dict[str, float] = {}
         for field in ("open", "high", "low", "close", "volume"):
+            value = bar.get(field)
+            if isinstance(value, bool):
+                errors.append(f"market bar {bar_day.isoformat()} is missing numeric {field}")
+                continue
             try:
-                if isinstance(bar.get(field), bool):
-                    raise ValueError("boolean is not a price/volume")
-                number = float(bar[field])
-            except (KeyError, TypeError, ValueError):
+                number = float(value)
+            except (TypeError, ValueError):
                 errors.append(f"market bar {bar_day.isoformat()} is missing numeric {field}")
                 continue
             if not math.isfinite(number):
@@ -193,11 +196,11 @@ def freeze_snapshot(
 ) -> Path:
     payload = sanitize_data(json.loads(input_path.read_text(encoding="utf-8-sig")))
     if not isinstance(payload, dict) or not isinstance(payload.get("request"), dict):
-        raise ValueError("input must be an object containing a request object")
+        raise ValueError("input must be an object containing a request object")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     request = normalize_request(payload["request"])
     collection = payload.get("domains")
     if not isinstance(collection, dict):
-        raise ValueError("input.domains must contain normalized stock-data domain responses")
+        raise ValueError("input.domains must contain normalized stock-data domain responses")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     asof_timestamp = request["asof"] or payload.get("captured_at_utc") or payload.get("asof_timestamp")
     if asof_timestamp is None:
         raise ValueError("provide request.asof or captured_at_utc with an explicit timezone")
@@ -231,7 +234,7 @@ def freeze_snapshot(
             if isinstance(market_data.get("history_window"), dict) and bars[:-1]:
                 market_data["history_window"] = {**market_data["history_window"], "end": bars[-2]["date"]}
             market["data"] = market_data
-            market["warnings"] = list(market.get("warnings", [])) + ["excluded same-as-of-date daily bar because the source did not confirm that the session was closed"]
+            market["warnings"] = [*market.get("warnings", []), "excluded same-as-of-date daily bar because the source did not confirm that the session was closed"]
             warnings.append("latest daily bar was excluded because the gateway did not confirm that its as-of-date session had closed")
             bar_count -= 1
             if bar_count <= 0:

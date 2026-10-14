@@ -14,7 +14,7 @@ import re
 import threading
 import time
 from pathlib import Path
-from urllib.parse import urlsplit, urljoin
+from urllib.parse import urljoin, urlsplit
 
 BASELINE = '1.7.0'
 COMMIT = '5cae563642b59f49adf6a04a5ad6744f8b0e084d'
@@ -68,14 +68,14 @@ def _safe(value):
     def clean(v):
         if isinstance(v, dict):
             return {k: clean(x) for k, x in v.items()
-                    if not re.search(r'cookie|crumb|token|password|proxy|authorization|sessionid', str(k), re.I)}
+                    if not re.search(r'cookie|crumb|token|password|proxy|authorization|sessionid', str(k), re.IGNORECASE)}
         if isinstance(v, list):
             return [clean(x) for x in v]
         if isinstance(v, str) and v.startswith(('http://', 'https://')):
             p = urlsplit(v)
             if p.username or p.password:
                 return '[redacted URL]'
-            if re.search(r'crumb|token|sessionid', p.query, re.I):
+            if re.search(r'crumb|token|sessionid', p.query, re.IGNORECASE):
                 return p._replace(query='', fragment='').geturl()
         return v
     return clean(value)
@@ -166,7 +166,8 @@ def bounded_session_class(base):
                 timeout = self.policy.before(url)
                 kwargs['timeout'] = min(float(kwargs.get('timeout') or timeout), timeout)
                 chunks, size, violation = [], 0, []
-                def receive(chunk):
+                def receive(chunk, chunks=chunks, violation=violation):
+                    # Bind per-hop buffers explicitly; the callback runs synchronously within this hop.
                     nonlocal size
                     size += len(chunk)
                     if size > self.policy.max_bytes:
@@ -182,7 +183,7 @@ def bounded_session_class(base):
                 try:
                     response = super().request(method, url, allow_redirects=False,
                                                content_callback=receive, **kwargs)
-                except Exception:
+                except Exception:  # noqa: BLE001 - transport failures are redacted into a sanitized GatewayError here
                     if violation:
                         raise GatewayError(*violation[0]) from None
                     self.policy.failures.append(('NetworkError', 'Yahoo transport failed (details redacted)'))
@@ -236,6 +237,7 @@ def bounded_session_class(base):
                 # Do not replay original query parameters into redirect destinations.
                 kwargs.pop('params', None)
                 url = new
+            raise GatewayError('AccessDenied', 'Redirect limit exceeded')
     return BoundedSession
 
 
@@ -245,7 +247,7 @@ def _legacy_yahoo_fallback(function, params, reason):
 
 
 class YahooProvider:
-    NAMES = frozenset('yahoo_history yahoo_history_batch yahoo_quote yahoo_profile yahoo_financials yahoo_search yahoo_statistics yahoo_analysis yahoo_holders yahoo_options yahoo_earnings yahoo_funds yahoo_screen'.split())
+    NAMES = frozenset(['yahoo_history', 'yahoo_history_batch', 'yahoo_quote', 'yahoo_profile', 'yahoo_financials', 'yahoo_search', 'yahoo_statistics', 'yahoo_analysis', 'yahoo_holders', 'yahoo_options', 'yahoo_earnings', 'yahoo_funds', 'yahoo_screen'])
 
     def __init__(self, cache_dir=None, *, timeout=15, deadline=None, max_requests=None,
                  budget=None, yf_module=None, session=None, proxy=None, **kwargs):
@@ -335,7 +337,7 @@ class YahooProvider:
                 raise
             reason = {'category': exc.code, 'exception_type': type(exc).__name__}
             return self._fallback(name, params, reason)
-        except Exception as exc:
+        except Exception as exc:  # noqa: BLE001 - unexpected capability failure falls back to the legacy route
             return self._fallback(name, params, {
                 'category': 'DataUnavailable', 'exception_type': type(exc).__name__})
         if isinstance(result, dict) and result.get('status') in {'empty', 'unavailable', 'error', 'failed'}:
@@ -375,7 +377,7 @@ class YahooProvider:
             raise GatewayError('InvalidParameters', 'Unsupported parameters or upstream signature') from None
         except AttributeError:
             raise GatewayError('UnsupportedCapability', 'Required public API unavailable') from None
-        except Exception:
+        except Exception:  # noqa: BLE001 - any remaining capability failure is redacted into a sanitized GatewayError
             if self.policy.blocked:
                 raise GatewayError(*self.policy.blocked) from None
             raise GatewayError('DataUnavailable', 'Yahoo capability failed') from None
@@ -443,9 +445,9 @@ class YahooProvider:
         if price_basis not in ('provider','adjusted'):
             raise GatewayError('InvalidParameters', 'price_basis must be provider or adjusted')
         t = self._ticker(symbol)
-        args = dict(interval=interval, auto_adjust=False, back_adjust=False, actions=True,
-                    keepna=True, rounding=False, prepost=prepost, repair=False,
-                    timeout=timeout or self.policy.timeout)
+        args = {'interval': interval, 'auto_adjust': False, 'back_adjust': False, 'actions': True,
+                'keepna': True, 'rounding': False, 'prepost': prepost, 'repair': False,
+                'timeout': timeout or self.policy.timeout}
         args.update({'start': start, 'end': end} if start else {'period': period or '1mo'})
         frame = t.history(**args)
         # Avoid dict(metadata), which eagerly reads tradingPeriods.
@@ -470,7 +472,7 @@ class YahooProvider:
         extra.update({'currency': meta.get('currency'), 'frequency': interval,
                  'source_symbol': source_meta.get('symbol'), 'metadata': meta,
                  'adjustment': price_basis, 'source_timestamp_kind': 'bar_label_not_trade_time',
-                 'warnings': normalized.get('warnings', []) + ['Bar closure and action coverage require independent calendar evidence'],
+                 'warnings': [*normalized.get('warnings', []), 'Bar closure and action coverage require independent calendar evidence'],
                  'last_bar_closed': None, 'gateway_envelope': {'provider_metadata': meta, 'wire_chart_metadata': source_meta, 'native_history': _safe(frame)}})
         bars = data.get('bars', [])
         if bars:
@@ -497,11 +499,11 @@ class YahooProvider:
             raise GatewayError('InvalidParameters', 'US and HK batches must be separate')
         for s in symbols:
             self._ticker(s)
-        args = dict(tickers=symbols, interval=interval, group_by='ticker', multi_level_index=True,
-                    auto_adjust=False, back_adjust=False, actions=True, prepost=prepost,
-                    ignore_tz=False, progress=False, threads=False if concurrency == 1 else 2,
-                    session=self._session, timeout=timeout or self.policy.timeout,
-                    keepna=True, repair=False, rounding=False)
+        args = {'tickers': symbols, 'interval': interval, 'group_by': 'ticker', 'multi_level_index': True,
+                'auto_adjust': False, 'back_adjust': False, 'actions': True, 'prepost': prepost,
+                'ignore_tz': False, 'progress': False, 'threads': False if concurrency == 1 else 2,
+                'session': self._session, 'timeout': timeout or self.policy.timeout,
+                'keepna': True, 'repair': False, 'rounding': False}
         args.update({'start': start, 'end': end} if start else {'period': period or '1mo'})
         frame = self._yf.download(**args)
         original_metadata = {key: dict(value) for key, value in self.policy.chart_metadata.items()}
@@ -536,7 +538,7 @@ class YahooProvider:
                     if results[s]['status'] != 'empty':
                         results[s]['status'] = 'partial'
                     results[s]['warnings'].append('Exchange timezone not confirmed; batch date axis is not session evidence')
-            except (KeyError, ValueError):
+            except (KeyError, ValueError):  # noqa: PERF203 - bounded per-symbol isolation is intentional
                 results[s] = {'status': 'empty', 'reason': 'No price-bearing result; failure cause unconfirmed'}
         ok = sum(r['status'] in ('success', 'partial') for r in results.values())
         complete = all(r['status'] == 'success' for r in results.values())
@@ -577,7 +579,7 @@ class YahooProvider:
             raise GatewayError('UnsupportedCapability', 'No TTM balance sheet is provided')
         raw, detail = self._selected(methods, selected, serialize=False)
         result = normalize_financials(raw, frequency, currency=None)
-        return result, {**detail, 'warnings': detail.get('warnings', []) + ['Financial currency and disclosure dates not independently confirmed']}
+        return result, {**detail, 'warnings': [*detail.get('warnings', []), 'Financial currency and disclosure dates not independently confirmed']}
 
     def _search(self, query, count=8, lookup_type=None):
         if not isinstance(query, str) or not 1 <= len(query) <= 200 or not 1 <= count <= 100:
@@ -626,7 +628,7 @@ class YahooProvider:
             try:
                 data[name] = methods[name]()
                 states[name] = 'success' if _has_data(data[name]) else 'empty'
-            except Exception as exc:
+            except Exception as exc:  # noqa: BLE001, PERF203 - per-module isolation; one failed module must not fail the bundle
                 data[name] = None
                 states[name] = 'error'
                 warnings.append({'module': name, 'error_type': getattr(exc, 'code', type(exc).__name__),

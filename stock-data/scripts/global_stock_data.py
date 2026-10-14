@@ -23,7 +23,6 @@ from typing import Any
 from urllib.parse import quote, quote_plus, urljoin, urlparse
 
 import requests
-
 from quant_research.security import sanitize_data
 
 PROVIDER_HOSTS = frozenset({"hq.sinajs.cn", "qt.gtimg.cn", "stock.finance.sina.com.cn", "push2.eastmoney.com", "push2his.eastmoney.com", "datacenter-web.eastmoney.com", "searchapi.eastmoney.com", "fc.yahoo.com", "query2.finance.yahoo.com", "www.sec.gov", "sec.gov", "data.sec.gov", "efts.sec.gov", "cdn.cboe.com", "cdn.finra.org", "home.treasury.gov", "publicreporting.cftc.gov", "api.nasdaq.com"})
@@ -138,7 +137,7 @@ def _candle_sort_key(candle: dict, index: int) -> tuple[str, float]:
     field = "timestamp_utc" if "timestamp_utc" in candle else "date"
     value = candle.get(field)
     if not isinstance(value, str):
-        raise ValueError(f"Candle {index} has invalid {field}.")
+        raise ValueError(f"Candle {index} has invalid {field}.")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     try:
         parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
     except ValueError as exc:
@@ -155,7 +154,7 @@ def _candle_sort_key(candle: dict, index: int) -> tuple[str, float]:
 
 def _validate_klines(klines, fields: tuple[str, ...] = ("close",)) -> None:
     if not isinstance(klines, list):
-        raise ValueError("klines must be a list of candles.")
+        raise ValueError("klines must be a list of candles.")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     key_field = None
     previous = None
     for index, candle in enumerate(klines):
@@ -312,22 +311,19 @@ def _is_object_missing(resp) -> bool:
     """Only a 404 or explicit missing-object error permits date fallback.
 
     XML AccessDenied (403) does not establish that a resource is absent.
+    Untrusted response bytes are inspected as bounded text; they are never
+    fed to an XML parser (entity-expansion attack surface).
     """
     if resp.status_code == 404:
         return True
     if resp.status_code not in (400, 403):
         return False
-    from xml.etree import ElementTree
-    try:
-        root = ElementTree.fromstring(resp.text or "")
-    except ElementTree.ParseError:
-        return False
-    code = next((item.text for item in root.iter()
-                 if item.tag.rsplit("}", 1)[-1] == "Code"), None)
-    return code in {"NoSuchKey", "NoSuchObject"}
+    body = (resp.text or "")[:65536]
+    match = re.search(r"<(?:\w+:)?Code[^>]*>([^<]*)</(?:\w+:)?Code>", body)
+    return match is not None and match.group(1) in {"NoSuchKey", "NoSuchObject"}
 
 
-def official_get(url: str, params: dict = None, headers: dict = None,
+def official_get(url: str, params: dict | None = None, headers: dict | None = None,
                  timeout: int = 30, as_json: bool = False):
     """Rate limited HTTP; only confirmed absent resources become DataNotAvailable."""
     host = (_validated_origin(url).hostname or "").lower()
@@ -634,16 +630,14 @@ def us_stock_kline_sina(ticker: str, num: int = 120) -> list[dict]:
         return []
 
     items = json.loads(m.group(1))
-    result = []
-    for item in items:
-        result.append({
-            "date": item.get("d"),
-            "open": _num(item.get("o")),
-            "high": _num(item.get("h")),
-            "low": _num(item.get("l")),
-            "close": _num(item.get("c")),
-            "volume": _int_or_none(item.get("v")),
-        })
+    result = [{
+        "date": item.get("d"),
+        "open": _num(item.get("o")),
+        "high": _num(item.get("h")),
+        "low": _num(item.get("l")),
+        "close": _num(item.get("c")),
+        "volume": _int_or_none(item.get("v")),
+    } for item in items]
     return result
 
 
@@ -704,7 +698,7 @@ def _ema(values: list[float], period: int) -> list[float]:
     return result
 
 
-def calc_ma(klines: list[dict], periods: list[int] = None) -> list[dict]:
+def calc_ma(klines: list[dict], periods: list[int] | None = None) -> list[dict]:
     """
     移动平均线 MA + EMA
     klines: K线数据 [{date, open, high, low, close, volume}, ...]
@@ -758,7 +752,7 @@ def calc_macd(klines: list[dict], fast: int = 12, slow: int = 26,
     ema_fast = _ema(closes, fast)
     ema_slow = _ema(closes, slow)
 
-    dif = [round(f - s, 4) for f, s in zip(ema_fast, ema_slow)]
+    dif = [round(f - s, 4) for f, s in zip(ema_fast, ema_slow, strict=True)]
     dea = _ema(dif, signal)
 
     result = []
@@ -774,7 +768,7 @@ def calc_macd(klines: list[dict], fast: int = 12, slow: int = 26,
 
 
 def calc_rsi(klines: list[dict],
-             periods: list[int] = None) -> list[dict]:
+             periods: list[int] | None = None) -> list[dict]:
     """
     RSI (Relative Strength Index)，保留原 simple-average 版本。
     涨跌幅使用最近 N 期的简单平均，未使用 Wilder 平滑。
@@ -1039,42 +1033,36 @@ def analyst_estimates(symbol: str) -> dict:
 
     # EPS 趋势
     et = data.get("earningsTrend", {}).get("trend", [])
-    eps_trend = []
-    for t in et:
-        eps_trend.append({
-            "period": t.get("period"),
-            "end_date": t.get("endDate"),
-            "eps_estimate": t.get("earningsEstimate", {}).get("avg", {}).get("raw"),
-            "eps_high": t.get("earningsEstimate", {}).get("high", {}).get("raw"),
-            "eps_low": t.get("earningsEstimate", {}).get("low", {}).get("raw"),
-            "revenue_estimate": t.get("revenueEstimate", {}).get("avg", {}).get("raw"),
-            "num_analysts": t.get("earningsEstimate", {}).get("numberOfAnalysts", {}).get("raw"),
-        })
+    eps_trend = [{
+        "period": t.get("period"),
+        "end_date": t.get("endDate"),
+        "eps_estimate": t.get("earningsEstimate", {}).get("avg", {}).get("raw"),
+        "eps_high": t.get("earningsEstimate", {}).get("high", {}).get("raw"),
+        "eps_low": t.get("earningsEstimate", {}).get("low", {}).get("raw"),
+        "revenue_estimate": t.get("revenueEstimate", {}).get("avg", {}).get("raw"),
+        "num_analysts": t.get("earningsEstimate", {}).get("numberOfAnalysts", {}).get("raw"),
+    } for t in et]
 
     # 评级趋势 (最近4个月)
     rt = data.get("recommendationTrend", {}).get("trend", [])
-    rating_trend = []
-    for r_ in rt:
-        rating_trend.append({
-            "period": r_.get("period"),
-            "strong_buy": r_.get("strongBuy"),
-            "buy": r_.get("buy"),
-            "hold": r_.get("hold"),
-            "sell": r_.get("sell"),
-            "strong_sell": r_.get("strongSell"),
-        })
+    rating_trend = [{
+        "period": r_.get("period"),
+        "strong_buy": r_.get("strongBuy"),
+        "buy": r_.get("buy"),
+        "hold": r_.get("hold"),
+        "sell": r_.get("sell"),
+        "strong_sell": r_.get("strongSell"),
+    } for r_ in rt]
 
     # 升降级历史 (最近20条)
     udh = data.get("upgradeDowngradeHistory", {}).get("history", [])[:20]
-    upgrades = []
-    for u in udh:
-        upgrades.append({
-            "date": u.get("epochGradeDate"),
-            "firm": u.get("firm"),
-            "to_grade": u.get("toGrade"),
-            "from_grade": u.get("fromGrade"),
-            "action": u.get("action"),  # up/down/main/init
-        })
+    upgrades = [{
+        "date": u.get("epochGradeDate"),
+        "firm": u.get("firm"),
+        "to_grade": u.get("toGrade"),
+        "from_grade": u.get("fromGrade"),
+        "action": u.get("action"),  # up/down/main/init
+    } for u in udh]
 
     return {
         "eps_trend": eps_trend,
@@ -1105,15 +1093,13 @@ def institutional_holders(symbol: str) -> dict:
 
     # 前10大机构
     io = data.get("institutionOwnership", {}).get("ownershipList", [])
-    top_holders = []
-    for h in io[:10]:
-        top_holders.append({
-            "name": h.get("organization"),
-            "shares": _val(h, "position"),
-            "value": _val(h, "value"),
-            "pct_held": _val(h, "pctHeld"),
-            "report_date": h.get("reportDate", {}).get("fmt") if isinstance(h.get("reportDate"), dict) else None,
-        })
+    top_holders = [{
+        "name": h.get("organization"),
+        "shares": _val(h, "position"),
+        "value": _val(h, "value"),
+        "pct_held": _val(h, "pctHeld"),
+        "report_date": h.get("reportDate", {}).get("fmt") if isinstance(h.get("reportDate"), dict) else None,
+    } for h in io[:10]]
 
     return {"overview": overview, "top_holders": top_holders}
 
@@ -1256,7 +1242,7 @@ def options_chain_cboe(ticker: str) -> dict:
 try:
     from zoneinfo import ZoneInfo
     _ET_TZ = ZoneInfo("America/New_York")
-except Exception:      # Windows 上 zoneinfo 可能缺 tzdata
+except (ImportError, KeyError):      # Python < 3.9 或 Windows 缺 tzdata（ZoneInfoNotFoundError 继承 KeyError）
     _ET_TZ = None
 
 
@@ -1286,7 +1272,7 @@ def _et_today() -> str:
     return (now - timedelta(hours=offset)).strftime("%Y-%m-%d")
 
 
-def filter_expiry(chain: dict, expiry: str = None, dte_max: int = None) -> list[dict]:
+def filter_expiry(chain: dict, expiry: str | None = None, dte_max: int | None = None) -> list[dict]:
     """按到期日筛选。expiry='0DTE' 取当日到期；dte_max 取 N 天内到期"""
     if expiry is not None and expiry != "0DTE":
         _date(expiry, "expiry")
@@ -1374,7 +1360,7 @@ def cboe_quote(ticker: str) -> dict:
                         as_json=True)["data"]
 
 
-def options_chain(symbol: str, expiration: int = None) -> dict:
+def options_chain(symbol: str, expiration: int | None = None) -> dict:
     """
     Yahoo 期权链 — calls + puts 完整数据（仅美股）
     symbol: "AAPL", "TSLA" 等美股 ticker
@@ -1404,23 +1390,21 @@ def options_chain(symbol: str, expiration: int = None) -> dict:
     options = oc.get("options", [{}])[0] if oc.get("options") else {}
 
     def _parse_options(opts):
-        result = []
-        for o in opts:
-            def _val(key):
-                v = o.get(key, {})
-                return v.get("raw") if isinstance(v, dict) else v
-            result.append({
-                "strike": _val("strike"),
-                "last_price": _val("lastPrice"),
-                "bid": _val("bid"),
-                "ask": _val("ask"),
-                "volume": _val("volume"),
-                "open_interest": _val("openInterest"),
-                "implied_volatility": _val("impliedVolatility"),
-                "in_the_money": o.get("inTheMoney"),
-                "expiration": o.get("expiration", {}).get("fmt") if isinstance(o.get("expiration"), dict) else None,
-                "contract_symbol": o.get("contractSymbol"),
-            })
+        def _val(option, key):
+            v = option.get(key, {})
+            return v.get("raw") if isinstance(v, dict) else v
+        result = [{
+            "strike": _val(o, "strike"),
+            "last_price": _val(o, "lastPrice"),
+            "bid": _val(o, "bid"),
+            "ask": _val(o, "ask"),
+            "volume": _val(o, "volume"),
+            "open_interest": _val(o, "openInterest"),
+            "implied_volatility": _val(o, "impliedVolatility"),
+            "in_the_money": o.get("inTheMoney"),
+            "expiration": o.get("expiration", {}).get("fmt") if isinstance(o.get("expiration"), dict) else None,
+            "contract_symbol": o.get("contractSymbol"),
+        } for o in opts]
         return result
 
     return {
@@ -1433,7 +1417,7 @@ def options_chain(symbol: str, expiration: int = None) -> dict:
 
 # SEC 请求统一使用 official_get（SEC_CONTACT、User-Agent 与限速在上方配置）。
 
-def sec_filings(cik: str, form_type: str = None) -> dict:
+def sec_filings(cik: str, form_type: str | None = None) -> dict:
     """
     SEC EDGAR Filing 列表
     cik: CIK号（10位补零），如 "0000320193" (Apple)
@@ -1473,7 +1457,7 @@ def sec_filings(cik: str, form_type: str = None) -> dict:
     }
 
 
-def sec_xbrl_facts(cik: str, metrics: list[str] = None) -> dict:
+def sec_xbrl_facts(cik: str, metrics: list[str] | None = None) -> dict:
     """SEC GAAP facts; records retain units, period and filing identities.
 
     Results include 10-K/10-Q facts in every unit, sorted newest filing first.
@@ -1497,12 +1481,10 @@ def sec_xbrl_facts(cik: str, metrics: list[str] = None) -> dict:
     result = {}
     fields = ("start", "end", "val", "form", "frame", "accn", "fy", "fp", "filed")
     for name in metrics:
-        rows = []
-        for unit, entries in (gaap.get(name, {}).get("units") or {}).items():
-            for entry in entries:
-                if entry.get("form") in ("10-K", "10-Q"):
-                    rows.append({**{field: entry.get(field) for field in fields},
-                                 "unit": unit})
+        rows = [{**{field: entry.get(field) for field in fields}, "unit": unit}
+                for unit, entries in (gaap.get(name, {}).get("units") or {}).items()
+                for entry in entries
+                if entry.get("form") in ("10-K", "10-Q")]
         result[name] = sorted(rows, key=lambda row: (
             row.get("filed") or "", row.get("end") or "",
             row.get("start") or "", row.get("accn") or ""), reverse=True)
@@ -1566,7 +1548,7 @@ def ticker_to_cik(ticker: str) -> dict:
         _cik_cache = official_get("https://www.sec.gov/files/company_tickers.json", timeout=15, as_json=True)
 
     ticker_upper = ticker.upper()
-    for _, v in _cik_cache.items():
+    for v in _cik_cache.values():
         if v.get("ticker") == ticker_upper:
             cik_str = str(v["cik_str"]).zfill(10)
             return {
@@ -1621,30 +1603,28 @@ def market_stock_list(market: str = "us_nasdaq", sort_field: str = "f3",
     if isinstance(diff, dict):
         diff = list(diff.values())
 
-    stocks = []
-    for item in diff:
-        stocks.append({
-            "code": item.get("f12"),         # 股票代码
-            "name": item.get("f14"),         # 中文名
-            "precision": _int_or_none(item.get("f152")),
-            "raw_price": _num(item.get("f2")),
-            "raw_change_amount": _num(item.get("f4")),
-            "raw_high": _num(item.get("f15")),
-            "raw_low": _num(item.get("f16")),
-            "raw_open": _num(item.get("f17")),
-            "raw_prev_close": _num(item.get("f18")),
-            "price": None, "change_amount": None,
-            "high": None, "low": None, "open": None, "prev_close": None,
-            "normalization_note": (
-                "Raw clist price scaling has not been verified; use stock_quote_eastmoney "
-                "for normalized quotes. precision is retained without assuming a divisor."),
-            "raw_change_pct": _num(item.get("f3")),
-            "change_pct": _num(item["f3"]) / 100 if _num(item.get("f3")) is not None else None,
-            "volume": _int_or_none(item.get("f5")),
-            "amount": _num(item.get("f6")),
-            "raw_amplitude": _num(item.get("f7")),
-            "amplitude": _num(item["f7"]) / 100 if _num(item.get("f7")) is not None else None,
-        })
+    stocks = [{
+        "code": item.get("f12"),         # 股票代码
+        "name": item.get("f14"),         # 中文名
+        "precision": _int_or_none(item.get("f152")),
+        "raw_price": _num(item.get("f2")),
+        "raw_change_amount": _num(item.get("f4")),
+        "raw_high": _num(item.get("f15")),
+        "raw_low": _num(item.get("f16")),
+        "raw_open": _num(item.get("f17")),
+        "raw_prev_close": _num(item.get("f18")),
+        "price": None, "change_amount": None,
+        "high": None, "low": None, "open": None, "prev_close": None,
+        "normalization_note": (
+            "Raw clist price scaling has not been verified; use stock_quote_eastmoney "
+            "for normalized quotes. precision is retained without assuming a divisor."),
+        "raw_change_pct": _num(item.get("f3")),
+        "change_pct": _num(item["f3"]) / 100 if _num(item.get("f3")) is not None else None,
+        "volume": _int_or_none(item.get("f5")),
+        "amount": _num(item.get("f6")),
+        "raw_amplitude": _num(item.get("f7")),
+        "amplitude": _num(item["f7"]) / 100 if _num(item.get("f7")) is not None else None,
+    } for item in diff]
 
     return {"total": total, "stocks": stocks}
 
@@ -1661,7 +1641,7 @@ def _recent_weekdays(days_back: int = 7) -> list[str]:
     return out
 
 
-def short_volume_all(date: str = None, market: str = "CNMS") -> dict:
+def short_volume_all(date: str | None = None, market: str = "CNMS") -> dict:
     """
     FINRA 全市场每日空头成交量。
     market: CNMS(合并全市场) / FNSQ(Nasdaq) / FNYX(NYSE) / FNRA(TRF)
@@ -1730,7 +1710,7 @@ _FORM_LABEL = {"4": "内部人交易", "8-K": "重大事件", "13F-HR": "机构�
                "SC 13D": "举牌(主动)", "SC 13G": "举牌(被动)", "S-1": "IPO注册"}
 
 
-def daily_filings(date: str = None, forms: list[str] = None) -> dict:
+def daily_filings(date: str | None = None, forms: list[str] | None = None) -> dict:
     """
     EDGAR 每日申报流。date=YYYYMMDD，不传自动回退找最近有数据的日子。
     forms: 只保留这些表单类型，如 ["4","8-K","13F-HR"]；None=全部
@@ -1778,8 +1758,8 @@ def daily_filings(date: str = None, forms: list[str] = None) -> dict:
     raise DataNotAvailable("未找到近 7 个工作日的 EDGAR 每日索引")
 
 
-def fulltext_search(query: str, forms: str = None, date_from: str = None,
-                    date_to: str = None, limit: int = 20) -> dict:
+def fulltext_search(query: str, forms: str | None = None, date_from: str | None = None,
+                    date_to: str | None = None, limit: int = 20) -> dict:
     """
     query: 加引号为精确短语，如 '"HBM4"'
     forms: "8-K" / "10-K" 等；date_from/to: YYYY-MM-DD
@@ -1845,7 +1825,7 @@ def _frame_period(year: int, quarter, instant: bool) -> str:
     return f"CY{year}Q{quarter}" if quarter else f"CY{year}"
 
 
-def market_frame(tag: str, year: int, quarter: int = None, unit: str = "USD",
+def market_frame(tag: str, year: int, quarter: int | None = None, unit: str = "USD",
                  instant=None) -> dict:
     """
     全市场横截面。tag 可用 XBRL_TAGS 的中文键或原始 XBRL 标签。
@@ -1888,8 +1868,8 @@ def frame_ranking(frame: dict, top: int = 20, ascending: bool = False) -> list[d
     return sorted(frame["data"], key=lambda x: x["value"], reverse=not ascending)[:top]
 
 
-def frame_screen(frame: dict, min_value: float = None,
-                 max_value: float = None) -> list[dict]:
+def frame_screen(frame: dict, min_value: float | None = None,
+                 max_value: float | None = None) -> list[dict]:
     """按数值区间筛选全市场公司"""
     out = frame["data"]
     if min_value is not None:
@@ -1901,7 +1881,7 @@ def frame_screen(frame: dict, min_value: float = None,
 
 
 
-def treasury_yield_curve(year: int = None) -> list[dict]:
+def treasury_yield_curve(year: int | None = None) -> list[dict]:
     """美国国债收益率曲线（每日，1M~30Y）。政府数据，S 级。返回 [0] 为最新一日"""
     if year is not None:
         _positive_int(year, "year")
@@ -1912,7 +1892,7 @@ def treasury_yield_curve(year: int = None) -> list[dict]:
     return list(csv.DictReader(io.StringIO(official_get(url))))
 
 
-def cftc_cot(limit: int = 20, market_contains: str = None) -> list[dict]:
+def cftc_cot(limit: int = 20, market_contains: str | None = None) -> list[dict]:
     """CFTC 持仓报告(COT)。政府数据，S 级"""
     _positive_int(limit, "limit")
     q = {"$limit": limit, "$order": "report_date_as_yyyy_mm_dd DESC"}
@@ -1922,7 +1902,7 @@ def cftc_cot(limit: int = 20, market_contains: str = None) -> list[dict]:
                         params=q, as_json=True)
 
 
-def earnings_calendar(date: str = None) -> dict:
+def earnings_calendar(date: str | None = None) -> dict:
     """Nasdaq 财报日历。date=YYYY-MM-DD，不传取今天"""
     if date is not None:
         _date(date, "date")
@@ -2063,7 +2043,7 @@ FUNCTION_SOURCES = {
     "cftc_cot": "CFTC",
     "earnings_calendar": "Nasdaq",
 }
-FUNCTION_SOURCES.update({name: "Yahoo Finance" for name in YFINANCE_FUNCTIONS})
+FUNCTION_SOURCES.update(dict.fromkeys(YFINANCE_FUNCTIONS, "Yahoo Finance"))
 
 FUNCTIONS = {name: globals()[name] for name in FUNCTION_SOURCES}
 
@@ -2133,7 +2113,7 @@ def _load_parameters(args) -> dict:
         return {}
     value = json.loads(text, parse_constant=_reject_json_constant)
     if not isinstance(value, dict):
-        raise ValueError("Parameters must be a JSON object.")
+        raise ValueError("Parameters must be a JSON object.")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     return value
 
 
@@ -2237,7 +2217,7 @@ def main(argv: list[str] | None = None) -> int:
             record_count = _yahoo_record_count(data) if function_name in YFINANCE_FUNCTIONS else len(data) if isinstance(data, (dict, list)) else None
             output = json.dumps({key: envelope[key] for key in ("status", "source", "function", "fetched_at_utc")} | {"envelope_file": str(args.output.resolve()), "record_count": record_count}, ensure_ascii=False)
         exit_code = 1 if envelope["status"] in {"error", "failed"} else 0
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - 顶层 CLI 守卫：任何失败都转成结构化错误信封
         envelope = {
             "status": "error", "source": source, "function": function_name,
             "fetched_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),

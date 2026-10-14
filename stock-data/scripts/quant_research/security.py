@@ -7,7 +7,7 @@ import re
 from typing import Any
 from urllib.parse import parse_qsl, quote, quote_plus, urlencode, urlsplit, urlunsplit
 
-_SENSITIVE = re.compile(r"^(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|authorization|cookie|set-cookie|password|secret|crumb|headers)$", re.I)
+_SENSITIVE = re.compile(r"^(?:api[_-]?key|access[_-]?token|refresh[_-]?token|token|authorization|cookie|set-cookie|password|secret|crumb|headers)$", re.IGNORECASE)
 _CONTROL = re.compile(r"[\x00-\x08\x0b-\x1f\x7f]")
 
 
@@ -48,7 +48,7 @@ def sanitize_data(value: Any) -> Any:
 def provider_failed(value: Any) -> bool:
     if not isinstance(value, dict):
         return False
-    if value.get("isError") is True or "is_success" in value and value["is_success"] is not True:
+    if value.get("isError") is True or ("is_success" in value and value["is_success"] is not True):
         return True
     if str(value.get("status", "")).lower() in {"failed", "error", "failure", "invalid"} or value.get("error") not in (None, "", False):
         return True

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import random
-from typing import Iterable
+from collections.abc import Iterable
 
 
 def mean(values: Iterable[float]) -> float | None:
@@ -21,10 +21,10 @@ def sample_std(values: Iterable[float]) -> float | None:
 
 
 def pearson(x: list[float], y: list[float]) -> float | None:
-    pairs = [(float(a), float(b)) for a, b in zip(x, y) if math.isfinite(float(a)) and math.isfinite(float(b))]
+    pairs = [(float(a), float(b)) for a, b in zip(x, y, strict=True) if math.isfinite(float(a)) and math.isfinite(float(b))]
     if len(pairs) < 3:
         return None
-    xs, ys = zip(*pairs)
+    xs, ys = zip(*pairs, strict=True)
     sx, sy = sample_std(xs), sample_std(ys)
     if not sx or not sy:
         return None
@@ -48,7 +48,7 @@ def average_ranks(values: list[float]) -> list[float]:
 
 
 def spearman(x: list[float], y: list[float]) -> float | None:
-    pairs = [(float(a), float(b)) for a, b in zip(x, y) if math.isfinite(float(a)) and math.isfinite(float(b))]
+    pairs = [(float(a), float(b)) for a, b in zip(x, y, strict=True) if math.isfinite(float(a)) and math.isfinite(float(b))]
     if len(pairs) < 3:
         return None
     rx = average_ranks([pair[0] for pair in pairs])
@@ -88,7 +88,7 @@ def benjamini_yekutieli(p_values: dict[str, float | None], *, trials: int | None
              if isinstance(value, (int, float)) and not isinstance(value, bool)
              and math.isfinite(float(value)) and 0 <= float(value) <= 1]
     family_size = max(len(valid), int(trials or 0))
-    adjusted: dict[str, float | None] = {name: None for name in p_values}
+    adjusted: dict[str, float | None] = dict.fromkeys(p_values)
     if family_size == 0:
         return adjusted
     harmonic = sum(1.0 / rank for rank in range(1, family_size + 1))
@@ -106,7 +106,7 @@ def circular_block_bootstrap_spearman(
     x: list[float], y: list[float], *, block_length: int, replicates: int = 500, seed: int = 0,
 ) -> dict[str, object]:
     """Approximate paired moving-block bootstrap interval for a time-series Spearman IC."""
-    pairs = [(float(a), float(b)) for a, b in zip(x, y)
+    pairs = [(float(a), float(b)) for a, b in zip(x, y, strict=True)
              if math.isfinite(float(a)) and math.isfinite(float(b))]
     count = len(pairs)
     if count < max(20, 4 * block_length) or block_length < 1 or replicates < 1:
@@ -120,7 +120,7 @@ def circular_block_bootstrap_spearman(
                 "replicates": 0, "block_length": block_length,
                 "method": "circular_moving_block_bootstrap_percentile",
                 "coverage_validated": False}
-    rng = random.Random(seed)
+    rng = random.Random(seed)  # noqa: S311 - seeded statistical bootstrap resampling, not cryptographic
     estimates: list[float] = []
     attempts = 0
     while len(estimates) < replicates and attempts < replicates * 5:
@@ -147,7 +147,7 @@ def circular_block_bootstrap_spearman(
 
 def circular_shift_spearman_p_value(x: list[float], y: list[float], *, block_length: int) -> dict[str, object]:
     """Circular-shift null diagnostic; interpretable as a p-value only under stationarity."""
-    pairs = [(float(a), float(b)) for a, b in zip(x, y)
+    pairs = [(float(a), float(b)) for a, b in zip(x, y, strict=True)
              if math.isfinite(float(a)) and math.isfinite(float(b))]
     count = len(pairs)
     observed = spearman([a for a, _ in pairs], [b for _, b in pairs])

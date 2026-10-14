@@ -9,14 +9,21 @@ import sys
 from pathlib import Path
 from typing import Any
 
+from quant_research.cleanup import (
+    cleanup_analysis,
+    cleanup_owned_run,
+    create_run_workspace,
+    mark_run_failed,
+    release_pipeline_lock,
+    update_run_workspace,
+)
 from quant_research.contracts import normalize_request, utc_now
-from quant_research.cleanup import cleanup_analysis, cleanup_owned_run, create_run_workspace, mark_run_failed, release_pipeline_lock, update_run_workspace
 from quant_research.delivery import validate_final_response
 from quant_research.orchestrator import run_analysis
-from quant_research.stock_data_adapter import StockDataAdapter
-from quant_research.snapshot import DOMAINS, freeze_snapshot
 from quant_research.paths import safe_output_destination
 from quant_research.security import bounded_text
+from quant_research.snapshot import DOMAINS, freeze_snapshot
+from quant_research.stock_data_adapter import StockDataAdapter
 
 
 def _json_file(path: Path, value: Any) -> None:
@@ -164,7 +171,7 @@ def main(argv: list[str] | None = None) -> int:
             # Machine-readable schema must survive Windows console code pages.
             print(json.dumps(_schema(args.kind), ensure_ascii=True, indent=2))
         return 0
-    except Exception as exc:
+    except Exception as exc:  # noqa: BLE001 - 顶层 CLI 守卫：任何失败都转成机器可读的错误输出
         print(json.dumps({"status": "error", "error_type": type(exc).__name__, "error": bounded_text(exc)}, ensure_ascii=False), file=sys.stderr)
         return 2
 

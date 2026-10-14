@@ -12,9 +12,15 @@ from statistics import mean
 from typing import Any
 
 from ..contracts import HORIZONS, parse_timestamp
-from ..snapshot import load_snapshot
 from ..security import provider_failed
-from .classify import direction_for, event_text, event_type_for, matched_topics, opinion_score
+from ..snapshot import load_snapshot
+from .classify import (
+    direction_for,
+    event_text,
+    event_type_for,
+    matched_topics,
+    opinion_score,
+)
 from .contracts import NewsInput
 from .decay import time_decay
 from .deduplicate import deduplicate_articles
@@ -175,7 +181,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
     """Analyze news records without Quant results, probabilities, or provider access."""
     policy = policy or {}
     if not isinstance(policy, dict):
-        raise ValueError("news policy must be an object")
+        raise ValueError("news policy must be an object")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     if set(policy) - {"half_life_sessions_by_event_type", "max_age_calendar_days", "minimum_time_decay"}:
         raise ValueError("unsupported news policy fields")
     half_lives = policy.get("half_life_sessions_by_event_type", {})

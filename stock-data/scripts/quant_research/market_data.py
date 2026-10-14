@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import math
-from datetime import date
 from typing import Any
 
 
@@ -12,7 +11,7 @@ def market_bars(block: dict[str, Any]) -> list[dict[str, Any]]:
         raise ValueError("prediction eligibility is blocked by fatal data gates; non-fatal calendar/adjustment/audit gaps are reported as degraded")
     bars = block.get("data", {}).get("bars")
     if not isinstance(bars, list):
-        raise ValueError("market data must contain normalized daily bars")
+        raise ValueError("market data must contain normalized daily bars")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     result: list[dict[str, Any]] = []
     for bar in bars:
         row = {"date": str(bar["date"])[:10]}

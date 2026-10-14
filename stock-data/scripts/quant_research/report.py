@@ -2,10 +2,11 @@
 
 from __future__ import annotations
 
-from decimal import Decimal
 import json
 import math
+from decimal import Decimal
 from typing import Any
+
 from .security import bounded_text, markdown_text, safe_url
 from .synthesis import reportable_quant_fields
 
@@ -151,8 +152,7 @@ def _probability_validation_lines(consensus: dict[str, Any]) -> list[str]:
                   "| Path | Probability interval | N | Mean predicted | Observed positive rate |",
                   "|---|---|---:|---:|---:|"])
     for name, metrics in common_metrics.items():
-        for bucket in metrics.get("reliability_diagram", []):
-            lines.append(f"| {_cell(name)} | {_cell(bucket.get('lower_bound'))}–{_cell(bucket.get('upper_bound'))} | {_cell(bucket.get('count'))} | {_cell(bucket.get('mean_probability'))} | {_cell(bucket.get('observed_positive_rate'))} |")
+        lines.extend(f"| {_cell(name)} | {_cell(bucket.get('lower_bound'))}–{_cell(bucket.get('upper_bound'))} | {_cell(bucket.get('count'))} | {_cell(bucket.get('mean_probability'))} | {_cell(bucket.get('observed_positive_rate'))} |" for bucket in metrics.get("reliability_diagram", []))
     replay_forecast = replay.get("forecast_metrics") or {}
     replay_baseline = replay.get("expanding_base_rate_on_same_dates") or {}
     path_counts = replay.get("path_count_by_prediction_date") or {}
@@ -224,7 +224,7 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
         names.append("diversity")
     if fields.get("horizon_type") == "estimated_observed_sessions":
         names.append("horizon_type")
-    required.update(zip(names, _quant_lines(fields)))
+    required.update(zip(names, _quant_lines(fields), strict=True))
     if fields["prob_up"] is None:
         required["unavailable_reason"] = "- 概率不可用原因：" + _cell(_unavailable_reasons(result)[0])
     else:
@@ -245,8 +245,7 @@ def render_final_response(result: dict[str, Any], *, summary: dict[str, Any] | N
     if "calibration" not in required:
         lines.append(required["unavailable_reason"])
     evidence = sections["technical_factor_evidence"][:3]
-    for row in evidence:
-        lines.append(f"- 核心依据：{_cell(row['factor'])}（{_cell(row['path'])} / {_cell(row['polarity'])}）")
+    lines.extend(f"- 核心依据：{_cell(row['factor'])}（{_cell(row['path'])} / {_cell(row['polarity'])}）" for row in evidence)
     if not evidence:
         lines.append("- 核心依据：没有可报告的技术/因子证据。")
 
@@ -276,8 +275,7 @@ def render_final_response(result: dict[str, Any], *, summary: dict[str, Any] | N
 
     lines.extend(["", "### News / Sentiment", "",
                   f"- 消息评估：{_cell(news.get('status'))}；事件方向：{_cell(news.get('event_bias'))}"])
-    for event in news.get("events", [])[:2]:
-        lines.append(f"- {_cell(event.get('first_published_at'))}：{_link(event.get('headline'), event.get('url'))}；方向 {_cell(event.get('direction'))}")
+    lines.extend(f"- {_cell(event.get('first_published_at'))}：{_link(event.get('headline'), event.get('url'))}；方向 {_cell(event.get('direction'))}" for event in news.get("events", [])[:2])
     if not news.get("events"):
         lines.append("- 无合格事件证据；不把消息缺失视为中性或已验证。")
     lines.extend(["", "### 综合", "", required["probability_note"], required["news_relationship"], required["analysis_status"]])
@@ -485,24 +483,20 @@ def render_markdown(result: dict[str, Any]) -> str:
         bucket_counts = "/".join(str(buckets.get(key, 0)) for key in ("low", "mid", "high"))
         lines.append(f"- Factor bucket sample budget: status {_cell(factor_budget.get('status'))}; current 30% calibration segment supports at most {_cell(factor_budget.get('max_non_overlapping_calibration_label_capacity'))} non-overlapping labels, with {_cell(factor_budget.get('calibration_observations_with_complete_factor_scores'))} complete factor-score observations and low/mid/high counts {bucket_counts}; balanced three-bucket minimum {_cell(factor_budget.get('required_calibration_observations_for_three_balanced_buckets'))}; estimated total history {_cell(factor_budget.get('estimated_minimum_daily_bars'))} daily bars ({_cell(factor_budget.get('estimate_assumptions'))}).")
     for name, item in result["researchers"].items():
-        for reason in item.get("forecast_exclusion_reasons", []):
-            lines.append(f"\n{name} exclusion: {_cell(reason)}")
+        lines.extend(f"\n{name} exclusion: {_cell(reason)}" for reason in item.get("forecast_exclusion_reasons", []))
     lines.extend(["", "## 3. Technical & Factor Evidence", ""])
     for name, item in result["researchers"].items():
         for polarity in ("positive", "negative"):
-            for row in item.get("evidence", {}).get(polarity, []):
-                lines.append(f"- {_cell(name)} / {polarity}: {_cell(row.get('factor_name', row.get('hypothesis', row.get('family'))))}; current contribution {_cell(row.get('current_contribution'))}; training IC {_cell(row.get('training_rank_ic'))}; samples {_cell(row.get('non_overlapping_samples'))}; Wilson IID-approximate interval {_cell(row.get('wilson_95_interval'))}")
+            lines.extend(f"- {_cell(name)} / {polarity}: {_cell(row.get('factor_name', row.get('hypothesis', row.get('family'))))}; current contribution {_cell(row.get('current_contribution'))}; training IC {_cell(row.get('training_rank_ic'))}; samples {_cell(row.get('non_overlapping_samples'))}; Wilson IID-approximate interval {_cell(row.get('wilson_95_interval'))}" for row in item.get("evidence", {}).get(polarity, []))
     if not any(item.get("evidence", {}).get(polarity) for item in result["researchers"].values() for polarity in ("positive", "negative")):
         lines.append("Evidence unavailable or computation skipped by data gates.")
     lines.extend(["", "## 4. Backtest / IC / Bias", "", f"- Audit: {_cell(audit.get('status'))}; verification scope: {_cell(audit.get('verification_scope'))}"])
-    for veto in audit.get("vetoes", []):
-        lines.append(f"- VETO: {_cell(veto)}")
+    lines.extend(f"- VETO: {_cell(veto)}" for veto in audit.get("vetoes", []))
     for name, check in audit.get("bias_audit", {}).items():
         if isinstance(check, dict):
             lines.append(f"- {_cell(name)}: {_cell(check.get('status'))}; {_cell(check.get('detail'))}")
         elif isinstance(check, list):
-            for row in check:
-                lines.append(f"- OOS {_cell(row.get('researcher_id'))}: Brier {_cell(row.get('brier'))} vs base rate {_cell(row.get('base_rate_brier'))}")
+            lines.extend(f"- OOS {_cell(row.get('researcher_id'))}: Brier {_cell(row.get('brier'))} vs base rate {_cell(row.get('base_rate_brier'))}" for row in check)
     lines.extend(_probability_validation_lines(quant))
     performance = result.get("performance") or {}
     if performance:
@@ -515,10 +509,10 @@ def render_markdown(result: dict[str, Any]) -> str:
     factor_validation = result["researchers"].get("factor", {}).get("validation") or {}
     factor_inference = factor_validation.get("oos_factor_inference") or {}
     if factor_inference:
-        lines.extend(["", "Factor OOS IC inference (evaluation only; no factor selection): "
-                      f"{_cell(factor_inference.get('method'))}; window {_cell(factor_inference.get('data_start'))} to "
-                      f"{_cell(factor_inference.get('data_end'))}; N={_cell(factor_inference.get('sample_count'))}; "
-                      f"trials={_cell(factor_inference.get('trials'))}; adjustment={_cell(factor_inference.get('p_adjustment_method'))}."])
+        lines.extend(["", ("Factor OOS IC inference (evaluation only; no factor selection): "
+                           f"{_cell(factor_inference.get('method'))}; window {_cell(factor_inference.get('data_start'))} to "
+                           f"{_cell(factor_inference.get('data_end'))}; N={_cell(factor_inference.get('sample_count'))}; "
+                           f"trials={_cell(factor_inference.get('trials'))}; adjustment={_cell(factor_inference.get('p_adjustment_method'))}.")])
         lines.extend(["| Candidate factor | OOS time-series IC | Approx. block-bootstrap interval | Raw p | Adjusted p | N |",
                       "|---|---:|---:|---:|---:|---:|"])
         for name, item in factor_inference.get("factors", {}).items():
@@ -552,10 +546,8 @@ def render_markdown(result: dict[str, Any]) -> str:
         sigma_note = (f", {pattern.get('trailing_sigma_observations')} trailing returns"
                       if pattern.get("trailing_sigma_observations") is not None else "")
         lines.append(f"  - Impact grading: magnitude {magnitude_text} (abs return {_pct(observed) if observed is not None else 'n/a'}); pattern {_cell(pattern.get('pattern'))} (ratio to own trailing sigma {_cell(pattern.get('ratio_to_trailing_sigma'))}{sigma_note}); source tier {_cell(tier.get('tier'))}; declared breadth {_cell(breadth.get('declared_scope'))} with observed breadth {_cell(breadth.get('observed_breadth'))}; composite impact score {_cell(full.get('composite_impact_score'))}")
-    for opinion in news.get("opinion_records", [])[:5]:
-        lines.append(f"- Opinion {_cell(opinion.get('sentiment'))}: {_link(opinion.get('headline'), opinion.get('url'))}")
-    for record in news.get("background_records", [])[:5]:
-        lines.append(f"- Background excluded from bias: {_cell(record.get('headline'))}; {_cell('; '.join(record.get('exclusion_reasons', [])))}")
+    lines.extend(f"- Opinion {_cell(opinion.get('sentiment'))}: {_link(opinion.get('headline'), opinion.get('url'))}" for opinion in news.get("opinion_records", [])[:5])
+    lines.extend(f"- Background excluded from bias: {_cell(record.get('headline'))}; {_cell('; '.join(record.get('exclusion_reasons', [])))}" for record in news.get("background_records", [])[:5])
     if not news.get("major_events"):
         lines.append("No eligible event evidence; event cross-validation is not assessed.")
     lines.extend(["",
@@ -565,18 +557,15 @@ def render_markdown(result: dict[str, Any]) -> str:
                   f"- Quant: {_cell(quant_fields['direction'])}; unchanged P(up): {_probability_text(quant_fields['prob_up'])}",
                   f"- News event bias: {_cell(synthesis.get('news_event_bias'))}; tone: {_cell(synthesis.get('news_sentiment'))}",
                   "- Events are candidate explanations for observed market behavior; temporal association does not establish causality.", "", "## 7. Risk & Counter-evidence", ""])
-    for risk in synthesis.get("key_risks", []):
-        lines.append(f"- {_cell(risk.get('source'))}: {_cell(risk.get('detail'))}")
+    lines.extend(f"- {_cell(risk.get('source'))}: {_cell(risk.get('detail'))}" for risk in synthesis.get("key_risks", []))
     for name, item in result["researchers"].items():
-        for warning in item.get("warnings", []):
-            lines.append(f"- {_cell(name)}: {_cell(warning)}")
+        lines.extend(f"- {_cell(name)}: {_cell(warning)}" for warning in item.get("warnings", []))
     lines.extend(["", "## 8. Final Synthesis", "", *_quant_lines(quant_fields), "",
                   *_economic_lines(quant.get("economic_viability")), "",
                   _final_probability_note(quant_fields, manifest["ticker"], manifest["horizon"]),
                   f"- 消息面与 Quant 的关系：{_relationship_text(synthesis)}（{_cell(synthesis.get('alignment'))}）；依据：{_cell(synthesis.get('alignment_basis'))}",
                   f"- Outcome: {_cell(result.get('analysis_status'))}; overall confidence: {_cell(synthesis.get('overall_confidence'))}"])
-    for warning in synthesis.get("warnings", []):
-        lines.append(f"- {_cell(warning)}")
+    lines.extend(f"- {_cell(warning)}" for warning in synthesis.get("warnings", []))
     lines.extend(["- Missing evidence is not filled with invented probabilities or causal claims. Historical validation does not prove future performance.", "", "Stage receipt:", ""])
     lines.extend(f"- {row['stage']}: {_cell(row['status'])}" for row in result.get("stages", []))
     return "\n".join(lines) + "\n"

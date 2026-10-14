@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 from typing import Any
 
-
 EVENT_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("EARNINGS", ("earnings", "quarterly results", "quarter results", "eps", "revenue beat", "revenue miss")),
     ("GUIDANCE", ("guidance", "outlook", "forecast raised", "forecast cut")),

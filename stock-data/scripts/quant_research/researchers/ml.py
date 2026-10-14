@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import math
+import time
 from dataclasses import dataclass
 from pathlib import Path
-import time
 from typing import Any
 
 from ..contracts import HORIZONS, researcher_result
 from ..market_data import market_bars, non_overlapping
 from ..math_utils import logistic, mean, sample_std
 from ..snapshot import load_snapshot
-from ..validation.purged_cv import SampleInterval, causal_walk_forward, count_interval_overlaps, purged_kfold
+from ..validation.purged_cv import (
+    SampleInterval,
+    causal_walk_forward,
+    count_interval_overlaps,
+    purged_kfold,
+)
 
 FEATURE_NAMES = ("return_1", "return_5", "return_20", "return_60", "volatility_20", "volume_z20", "range_position20", "gap_1", "close_location")
 FEATURE_FAMILIES = {
@@ -41,8 +46,8 @@ class LogisticModel:
 
     def score(self, row: Observation | tuple[float, ...]) -> float:
         values = row.features if isinstance(row, Observation) else row
-        standardized = [(float(value) - center) / scale for value, center, scale in zip(values, self.means, self.scales)]
-        return self.intercept + sum(weight * value for weight, value in zip(self.coefficients, standardized))
+        standardized = [(float(value) - center) / scale for value, center, scale in zip(values, self.means, self.scales, strict=True)]
+        return self.intercept + sum(weight * value for weight, value in zip(self.coefficients, standardized, strict=True))
 
     def predict(self, row: Observation | tuple[float, ...]) -> float:
         return logistic(self.score(row))
@@ -92,8 +97,8 @@ def _fit(rows: list[Observation], *, iterations: int = 500, learning_rate: float
     for _ in range(iterations):
         grad = [0.0] * width
         grad_intercept = 0.0
-        for values, row in zip(matrix, rows):
-            probability = logistic(intercept + sum(w * x for w, x in zip(coefficients, values)))
+        for values, row in zip(matrix, rows, strict=True):
+            probability = logistic(intercept + sum(w * x for w, x in zip(coefficients, values, strict=True)))
             residual = probability - row.target
             grad_intercept += residual
             for j, value in enumerate(values):
@@ -110,7 +115,7 @@ def _fit_platt(scores: list[float], targets: list[int]) -> tuple[float, float] |
     slope, intercept = 1.0, 0.0
     for _ in range(500):
         grad_slope = grad_intercept = 0.0
-        for score, target in zip(scores, targets):
+        for score, target in zip(scores, targets, strict=True):
             residual = logistic(intercept + slope * score) - target
             grad_slope += residual * score
             grad_intercept += residual

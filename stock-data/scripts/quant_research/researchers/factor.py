@@ -8,11 +8,17 @@ from typing import Any
 
 from ..contracts import HORIZONS, researcher_result
 from ..market_data import forward_returns, market_bars, non_overlapping
-from ..math_utils import (benjamini_yekutieli, circular_block_bootstrap_spearman,
-                          circular_shift_spearman_p_value, mean, pearson,
-                          quantile, sample_std, spearman)
+from ..math_utils import (
+    benjamini_yekutieli,
+    circular_block_bootstrap_spearman,
+    circular_shift_spearman_p_value,
+    mean,
+    pearson,
+    quantile,
+    sample_std,
+    spearman,
+)
 from ..snapshot import load_snapshot
-
 
 MINIMUM_FACTOR_BUCKET_OBSERVATIONS = 20
 
@@ -123,8 +129,8 @@ def _factor_metrics(values: list[float | None], labels: list[float | None], indi
     rank_ic = spearman(x, y)
     pearson_ic = pearson(x, y)
     q20, q80 = quantile(x, 0.2), quantile(x, 0.8)
-    low = [target for value, target in zip(x, y) if q20 is not None and value <= q20]
-    high = [target for value, target in zip(x, y) if q80 is not None and value >= q80]
+    low = [target for value, target in zip(x, y, strict=True) if q20 is not None and value <= q20]
+    high = [target for value, target in zip(x, y, strict=True) if q80 is not None and value >= q80]
     spread = mean(high) - mean(low) if high and low else None
     chunks: list[float] = []
     if len(used) >= 40:
@@ -166,7 +172,7 @@ def _oos_factor_inference(
     for name, (family, formula, values) in factors.items():
         x, y, used = _valid_pairs(values, labels, indices)
         observations = len(used)
-        block_length = max(horizon, int(round(observations ** (1 / 3)))) if observations else horizon
+        block_length = max(horizon, round(observations ** (1 / 3))) if observations else horizon
         bootstrap = circular_block_bootstrap_spearman(
             x, y, block_length=block_length, replicates=300, seed=1701 + len(rows),
         )

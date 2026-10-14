@@ -6,8 +6,8 @@ numerical forecast. Only explicitly fatal prediction-integrity codes veto it.
 
 from __future__ import annotations
 
-from typing import Any, Iterable
-
+from collections.abc import Iterable
+from typing import Any
 
 REASON_CATALOG: dict[str, dict[str, Any]] = {
     "INSUFFICIENT_OHLCV": {"severity": "fatal", "scope": "prediction", "can_veto_prediction": True},

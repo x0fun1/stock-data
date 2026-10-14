@@ -6,10 +6,13 @@ import math
 from typing import Any
 
 from .math_utils import mean, sample_std
-from .validation.probability_quality import (DEFAULT_BRIER_SKILL_EPSILON,
-                                             audit_oos_result, build_probability_validation,
-                                             path_has_detected_leakage, unique_research_paths)
-
+from .validation.probability_quality import (
+    DEFAULT_BRIER_SKILL_EPSILON,
+    audit_oos_result,
+    build_probability_validation,
+    path_has_detected_leakage,
+    unique_research_paths,
+)
 
 ROUND_TRIP_COST_SCENARIOS_BPS = (5, 10, 20)
 

@@ -116,11 +116,6 @@ def _self_report_cross_check(researchers: list[dict[str, Any]], consensus: dict[
 
 
 def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus: dict[str, Any]) -> dict[str, Any]:
-    forecasts = [
-        result for result in researchers
-        if result.get("result_role", "forecast") == "forecast"
-        and isinstance(result.get("prob_up"), (int, float))
-    ]
     auditable_paths = [result for result in researchers if result.get("status") not in {"failed", "invalid"}]
     leak_checks: list[bool] = []
     holdout_checks: list[bool] = []
@@ -272,8 +267,8 @@ def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus
         reason_codes.extend(blocked_codes)
         if not blocked_codes:
             reason_codes.append("PREDICTION_FAILED")
-        for item in gate.get("blockers", []) + gate.get("errors", []):
-            vetoes.append("Prediction eligibility: " + str(item))
+        vetoes.extend("Prediction eligibility: " + str(item)
+                      for item in gate.get("blockers", []) + gate.get("errors", []))
         if not vetoes:
             vetoes.append("Prediction eligibility is blocked by a fatal market-data integrity condition.")
     if consensus.get("available_paths", 0) == 0:

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import json
+import time
+from collections.abc import Callable
 from datetime import datetime, timezone
 from pathlib import Path
-import time
-from typing import Any, Callable
+from typing import Any
 
 from . import __version__
 from .audit import audit
@@ -17,11 +18,16 @@ from .gate_policy import aggregate_gate_telemetry
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
 from .paths import safe_output_destination
-from .report import build_agent_summary, enforce_agent_summary_budget, render_final_response, render_markdown
+from .report import (
+    build_agent_summary,
+    enforce_agent_summary_budget,
+    render_final_response,
+    render_markdown,
+)
 from .researchers import factor, factor_backtest, ml, quant
+from .security import bounded_text
 from .snapshot import load_snapshot
 from .synthesis import build_synthesis
-from .security import bounded_text
 from .validation.probability_quality import audit_oos_result
 
 RUNNERS: dict[str, Callable[[Path, tuple[dict[str, Any], dict[str, Any]] | None], dict[str, Any]]] = {
@@ -74,7 +80,7 @@ def run_analysis(
                 result = researcher_result(researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"], status="insufficient_data", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=["Prediction skipped: a fatal prediction-eligibility blocker was detected; non-fatal validation/audit gaps do not skip Quant."])
             else:
                 result = RUNNERS[researcher_id](snapshot_dir, (manifest, market))
-        except Exception as exc:  # isolate a path failure and continue the ensemble
+        except Exception as exc:  # noqa: BLE001 - isolate a path failure and continue the ensemble
             result = researcher_result(
                 researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
                 status="failed", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=[f"Research path failed: {type(exc).__name__}: {bounded_text(exc)}"],
@@ -146,7 +152,7 @@ def run_analysis(
         news_input = prepare_news_input(snapshot_dir, (manifest, market), loaded_news_domain=news_domain)
         news_result = run_news(news_input, news_policy)
         freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
-    except Exception as exc:  # a News-layer error must not erase the completed Quant output
+    except Exception as exc:  # noqa: BLE001 - a News-layer error must not erase the completed Quant output
         news_result = {
             "schema_version": "1.2",
             "status": "not_assessed",

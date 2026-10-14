@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import math
 from typing import Any
-from .security import bounded_text
 
+from .security import bounded_text
 
 CONFIDENCE_ORDER = {"unavailable": -1, "very_low": 0, "low": 1, "medium": 2, "medium_high": 3, "high": 4}
 
@@ -101,11 +101,10 @@ def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -
         final_confidence = q_confidence
     else:
         final_confidence = min((q_confidence, n_confidence), key=lambda item: CONFIDENCE_ORDER.get(item, -1))
-    risks = []
-    for message in snapshot.get("data_validation", {}).get("blockers", []) + quant_result.get("adversarial_audit", {}).get("vetoes", []):
-        risks.append({"source": "data_or_audit", "detail": bounded_text(message), "severity": "high"})
-    for item in news_result.get("risks", []):
-        risks.append({"source": "news", "detail": bounded_text(item.get("headline")), "event_id": item.get("event_id"), "severity": "medium"})
+    risks = [{"source": "data_or_audit", "detail": bounded_text(message), "severity": "high"}
+             for message in snapshot.get("data_validation", {}).get("blockers", []) + quant_result.get("adversarial_audit", {}).get("vetoes", [])]
+    risks.extend({"source": "news", "detail": bounded_text(item.get("headline")), "event_id": item.get("event_id"), "severity": "medium"}
+                 for item in news_result.get("risks", []))
     diagnostics = quant_result.get("researchers", {}).get("factor_backtest", {})
     validation = diagnostics.get("validation") or {}
     horizon = validation.get("requested_horizon")
@@ -115,8 +114,8 @@ def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -
             risks.append({"source": "factor_backtest", "detail": f"{name}: diagnostic holdout is {metric.get('status', 'not_assessed')}; not a forecast", "severity": "medium"})
         elif isinstance(metric.get("mean_forward_return"), (int, float)) and metric["mean_forward_return"] < 0:
             risks.append({"source": "factor_backtest", "detail": f"{name}: negative historical holdout mean return; no causal/directional implication", "severity": "medium"})
-    for message in quant_result.get("adversarial_audit", {}).get("warnings", []) + snapshot.get("warnings", []) + news_result.get("warnings", []):
-        risks.append({"source": "coverage_or_validation", "detail": bounded_text(message), "severity": "medium"})
+    risks.extend({"source": "coverage_or_validation", "detail": bounded_text(message), "severity": "medium"}
+                 for message in quant_result.get("adversarial_audit", {}).get("warnings", []) + snapshot.get("warnings", []) + news_result.get("warnings", []))
     unique_risks = list({(row["source"], row["detail"]): row for row in risks}.values())
     warnings = []
     if alignment in {"DIVERGENCE", "STRONG_DIVERGENCE", "MIXED"}:

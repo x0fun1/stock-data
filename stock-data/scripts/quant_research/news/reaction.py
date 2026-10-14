@@ -2,14 +2,12 @@
 
 from __future__ import annotations
 
-import math
 import statistics
 from datetime import time
 from typing import Any
 from zoneinfo import ZoneInfo
 
 from ..contracts import parse_timestamp
-
 
 EXCHANGE = {
     "US": {"timezone": "America/New_York", "close": time(16, 0)},

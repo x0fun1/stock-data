@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any
 
 from .contracts import normalize_request, parse_timestamp, utc_now
-from .snapshot import DOMAINS, freeze_snapshot
 from .security import provider_failed, sanitize_data
+from .snapshot import DOMAINS, freeze_snapshot
 
 
 def collected_asof(domains: dict[str, Any]) -> str | None:

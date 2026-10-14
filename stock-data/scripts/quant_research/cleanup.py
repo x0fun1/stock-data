@@ -2,22 +2,22 @@
 
 from __future__ import annotations
 
-from contextlib import contextmanager
-from datetime import datetime, timezone
 import errno
 import hashlib
 import json
 import os
-from pathlib import Path, PurePosixPath
 import secrets
 import stat
-from typing import Any, Iterator
+from collections.abc import Iterator
+from contextlib import contextmanager
+from datetime import datetime, timezone
+from pathlib import Path, PurePosixPath
+from typing import Any
 
 from .contracts import RESEARCHERS, utc_now
 from .delivery import validate_final_response
 from .paths import safe_output_destination, validate_path_component
 from .snapshot import DOMAINS
-
 
 RUN_MANIFEST = "run_manifest.json"
 CLEANUP_RECEIPT = "cleanup_receipt.txt"
@@ -160,9 +160,7 @@ def _pid_is_running(pid: int) -> bool:
     except PermissionError:
         return True
     except OSError as exc:
-        if exc.errno == errno.ESRCH:
-            return False
-        return True
+        return exc.errno != errno.ESRCH
     return True
 
 
@@ -395,9 +393,8 @@ def _target_path(root: Path, relative: str) -> Path:
     candidate = root
     for part in parts:
         candidate = candidate / part
-        if candidate.exists() or candidate.is_symlink():
-            if _is_link(candidate):
-                raise CleanupError(f"refusing to follow linked cleanup target: {relative}")
+        if (candidate.exists() or candidate.is_symlink()) and _is_link(candidate):
+            raise CleanupError(f"refusing to follow linked cleanup target: {relative}")
     try:
         candidate.resolve(strict=False).relative_to(root.resolve(strict=True))
     except (OSError, ValueError) as exc:
@@ -493,7 +490,7 @@ def _execute_cleanup(
             break
 
     if not errors:
-        dirs = [item for item in metadata.get("empty_directories", [])]
+        dirs = list(metadata.get("empty_directories", []))
         try:
             _remove_empty_directories(root, dirs)
         except (OSError, CleanupError) as exc:

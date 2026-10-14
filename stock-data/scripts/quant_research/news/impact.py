@@ -17,7 +17,6 @@ import math
 import re
 from typing import Any
 
-
 # Single-instrument bands. Cross-asset thresholds from the upstream rubric are
 # intentionally absent: the News layer only ever reads the one frozen OHLCV
 # series for the analysed ticker, so index/sector/yield/FX bands are unobservable.
