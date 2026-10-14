@@ -33,14 +33,11 @@ python -m pip install -r stock-data/requirements.txt
 
 ## 升级
 
-只替换实际安装的 `stock-data/`，不在旧目录上叠加复制：
+复制以下指令给支持本地 Skill 的 Agent：
 
-1. 将新版下载到独立暂存目录，记录 commit，比较旧版本及本地改动。
-2. 检查新版入口、依赖、参考链接，并执行下方离线自检。
-3. 将旧 Skill 完整备份到 Skill 扫描目录之外，再替换为新版完整目录；仅迁移兼容的用户自定义配置。
-4. 在最终安装路径重新自检；失败时恢复备份。报告版本、commit、备份位置和未迁移改动，按宿主机制重新加载。
-
-升级不修改 Finnhub/MCP 配置、密钥、其他 Skill、用户运行产物或长期 memory。长期约束只需保存“股票/ETF 分析优先使用 stock-data，方法和流程以当前 SKILL.md 为准”，不要在 memory 重复固化算法、版本或路径。
+```text
+请从 https://github.com/x0fun1/stock-data 的当前默认分支将已安装的 stock-data Skill 升级到最新版，只替换实际安装的 stock-data/，不在旧目录上叠加复制。先定位当前已安装的 stock-data 目录，将新版下载到 Skill 扫描目录之外的独立暂存目录并记录 commit，比较旧版本及本地改动。检查新版入口、依赖和参考链接，并执行离线自检。将旧 Skill 完整备份到 Skill 扫描目录之外，再替换为新版完整目录，仅迁移兼容的用户自定义配置。在最终安装路径重新自检，失败时恢复备份。升级不修改 Finnhub/MCP 配置、密钥、其他 Skill、用户运行产物或长期 memory；长期约束只需保存“股票/ETF 分析优先使用 stock-data，方法和流程以当前 SKILL.md 为准”，不要在 memory 重复固化算法、版本或路径。报告版本、commit、备份位置、未迁移改动和自检结果，按宿主机制重新加载。
+```
 
 ## 运行
 
