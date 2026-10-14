@@ -5,7 +5,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from .math_utils import mean, sample_std
+from .math_utils import logistic, mean, sample_std
 from .validation.probability_quality import (
     DEFAULT_BRIER_SKILL_EPSILON,
     audit_oos_result,
@@ -61,13 +61,22 @@ def _economic_viability(researchers: list[dict[str, Any]]) -> dict[str, Any]:
 
 def _oos_count(result: dict[str, Any], oos_evidence_audit: dict[str, Any] | None = None) -> int:
     if isinstance(oos_evidence_audit, dict):
-        value = oos_evidence_audit.get("valid_prediction_count", 0)
+        # Prefer the conservative non-overlapping count: the walk-forward ledger records daily
+        # predictions whose horizon labels overlap, so repeated labels are not counted as equal
+        # independent samples.
+        value = oos_evidence_audit.get("non_overlapping_prediction_count",
+                                       oos_evidence_audit.get("valid_prediction_count", 0))
         return value if isinstance(value, int) and not isinstance(value, bool) else 0
     validation = result.get("validation") or {}
     name = result.get("researcher_id")
-    value: Any = (validation.get("oos_predictions", 0) if name == "quant"
-                  else validation.get("holdout_predictions", 0) if name == "factor"
-                  else validation.get("final_holdout", {}).get("observations", validation.get("final_holdout", {}).get("n", 0)))
+    if name in {"quant", "ml"}:
+        value: Any = validation.get("non_overlapping_prediction_count")
+        if not isinstance(value, int) or isinstance(value, bool):
+            value = validation.get("oos_predictions", 0)
+    elif name == "factor":
+        value = validation.get("holdout_predictions", 0)
+    else:
+        value = validation.get("final_holdout", {}).get("observations", validation.get("final_holdout", {}).get("n", 0))
     return value if isinstance(value, int) and not isinstance(value, bool) else 0
 
 
@@ -131,7 +140,10 @@ def forecast_assessment(
         oos_status = "invalid"
     if oos_status in {"weak", "insufficient"}:
         codes.append("OOS_INSUFFICIENT")
-        messages.append(f"Chronological OOS support is {oos_status} (N={count}); this lowers confidence but does not erase the forecast.")
+        detail = f"N={count}"
+        if isinstance(oos_evidence_audit, dict) and isinstance(oos_evidence_audit.get("prediction_days"), int):
+            detail = f"N={count} non-overlapping of {oos_evidence_audit['prediction_days']} prediction days"
+        messages.append(f"Chronological OOS support is {oos_status} ({detail}); this lowers confidence but does not erase the forecast.")
     if calibration == "uncalibrated":
         codes.append("CALIBRATION_MISSING")
         messages.append("Probability calibration is unavailable; the raw model probability is retained with lower confidence.")
@@ -175,17 +187,28 @@ def _confidence_label(score: int) -> str:
 
 def _predictive_evidence_grade(quality: dict[str, Any]) -> str:
     replay = quality.get("algorithm_policy_replay") or {}
-    count = replay.get("predicted_dates", 0)
+    count = replay.get("non_overlapping_predicted_dates", replay.get("predicted_dates", 0))
     skill = replay.get("brier_skill_vs_expanding_base_rate")
     if (not isinstance(count, int) or isinstance(count, bool) or count < 20
             or isinstance(skill, bool) or not isinstance(skill, (int, float))
             or not math.isfinite(float(skill))):
         return "insufficient_oos_evidence"
+    uncertainty = replay.get("skill_uncertainty") or {}
+    ci_low = uncertainty.get("ci_low") if isinstance(uncertainty, dict) else None
+    ci_high = uncertainty.get("ci_high") if isinstance(uncertainty, dict) else None
+    ci_valid = (isinstance(ci_low, (int, float)) and not isinstance(ci_low, bool) and math.isfinite(float(ci_low))
+                and isinstance(ci_high, (int, float)) and not isinstance(ci_high, bool) and math.isfinite(float(ci_high)))
+    if ci_valid and float(ci_high) < 0:
+        return "observed_skill_below_expanding_base_rate"
     if skill <= 0:
         return "no_observed_skill_vs_expanding_base_rate"
     if count < 100:
         return "exploratory_positive_skill_unconfirmed"
-    return "positive_skill_point_estimate_uncertainty_unestimated"
+    if not ci_valid:
+        return "positive_skill_point_estimate_uncertainty_unestimated"
+    if float(ci_low) > 0:
+        return "positive_skill_with_estimated_interval_excluding_zero"
+    return "positive_skill_with_estimated_interval_including_zero"
 
 
 def build_consensus(
@@ -291,7 +314,10 @@ def build_consensus(
     calibration_statuses = [item.get("probability_calibration", "uncalibrated") for item in path_assessments]
     if "uncalibrated" in calibration_statuses:
         deduct(20, "uncalibrated_raw_probability")
-    deduct(10, "ensemble_calibration_unavailable")
+    ensemble_calibration = oos_probability_quality.get("ensemble_calibration") or {}
+    ensemble_calibrator_validated = ensemble_calibration.get("status") == "validated_on_chronological_holdout"
+    if not ensemble_calibrator_validated:
+        deduct(10, "ensemble_calibration_unavailable")
     oos_statuses = [(item.get("oos_validation") or {}).get("status", "insufficient") for item in path_assessments]
     if not oos_statuses or all(status in {"weak", "insufficient"} for status in oos_statuses):
         deduct(20, "oos_validation_insufficient")
@@ -310,18 +336,27 @@ def build_consensus(
     if diversity == "low" and len(valid) > 1:
         deduct(10, "low_evidence_family_diversity")
     policy_replay = oos_probability_quality.get("algorithm_policy_replay") or {}
-    replay_count = policy_replay.get("predicted_dates", 0)
+    replay_count = policy_replay.get("non_overlapping_predicted_dates", policy_replay.get("predicted_dates", 0))
     replay_skill = policy_replay.get("brier_skill_vs_expanding_base_rate")
+    skill_uncertainty = policy_replay.get("skill_uncertainty") or {}
+    ci_low = skill_uncertainty.get("ci_low") if isinstance(skill_uncertainty, dict) else None
+    ci_high = skill_uncertainty.get("ci_high") if isinstance(skill_uncertainty, dict) else None
+    ci_estimated = (isinstance(ci_low, (int, float)) and not isinstance(ci_low, bool) and math.isfinite(float(ci_low))
+                    and isinstance(ci_high, (int, float)) and not isinstance(ci_high, bool) and math.isfinite(float(ci_high)))
     if (not isinstance(replay_count, int) or isinstance(replay_count, bool) or replay_count < 20
             or isinstance(replay_skill, bool) or not isinstance(replay_skill, (int, float))
             or not math.isfinite(float(replay_skill))):
         deduct(10, "policy_oos_skill_evidence_insufficient")
-    elif replay_skill <= 0:
+    elif ci_estimated and float(ci_high) < 0:
+        deduct(20, "policy_oos_skill_below_expanding_base_rate_interval")
+    elif not ci_estimated and replay_skill <= 0:
         deduct(20, "policy_oos_not_better_than_expanding_base_rate")
     elif replay_count < 100:
         deduct(10, "policy_oos_skill_is_exploratory")
-    else:
+    elif not ci_estimated:
         deduct(10, "policy_oos_skill_uncertainty_unestimated")
+    elif not (float(ci_low) > 0):
+        deduct(10, "policy_oos_skill_uncertainty_includes_zero")
     confidence_score = max(0, min(100, round(confidence_score)))
     confidence = _confidence_label(confidence_score)
 
@@ -329,7 +364,10 @@ def build_consensus(
     all_codes = [code for item in path_assessments for code in (item.get("reason_codes") or [])]
     if "uncalibrated" in calibration_statuses:
         warnings.append("Consensus includes raw uncalibrated model probabilities; calibration cannot be inferred from the path mean.")
-    warnings.append("The equal-weight consensus has no independently validated ensemble calibrator; its probability reliability is not established by path-level calibration alone.")
+    if ensemble_calibrator_validated:
+        warnings.append("The ensemble probability carries a Platt calibrator validated on a chronological holdout of the walk-forward ledger; the holdout is retrospective and not fully independent of label autocorrelation.")
+    else:
+        warnings.append("The equal-weight consensus has no independently validated ensemble calibrator; its probability reliability is not established by path-level calibration alone.")
     if len(valid) < 2:
         warnings.append("Only one research path produced a probability; this is a single-path result, not an ensemble consensus.")
     if diversity == "low":
@@ -339,13 +377,25 @@ def build_consensus(
     for item in path_assessments:
         warnings.extend(item.get("warnings", []))
 
+    calibrated_probability = None
+    if ensemble_calibrator_validated:
+        calibrator = ensemble_calibration.get("calibrator") or {}
+        slope = calibrator.get("slope")
+        intercept = calibrator.get("intercept")
+        if (isinstance(slope, (int, float)) and not isinstance(slope, bool)
+                and isinstance(intercept, (int, float)) and not isinstance(intercept, bool)):
+            clipped = max(1e-6, min(1 - 1e-6, float(probability)))
+            calibrated_probability = logistic(intercept + slope * math.log(clipped / (1 - clipped)))
+    reportable_probability = calibrated_probability if calibrated_probability is not None else probability
     prediction = {
         "status": "available",
         "raw_probability": raw_probability,
-        "calibrated_probability": None,
-        "reportable_probability": probability,
-        "probability_basis": "equal_weight_mean_of_valid_path_estimates",
-        "calibration_status": "ensemble_calibration_unavailable",
+        "calibrated_probability": calibrated_probability,
+        "reportable_probability": reportable_probability,
+        "probability_basis": ("ensemble_calibrated_equal_weight_mean_of_valid_path_estimates"
+                              if calibrated_probability is not None else "equal_weight_mean_of_valid_path_estimates"),
+        "calibration_status": ("ensemble_calibrated_on_chronological_holdout"
+                               if calibrated_probability is not None else "ensemble_calibration_unavailable"),
     }
     economic = _economic_viability(valid)
     return {
@@ -356,16 +406,17 @@ def build_consensus(
         "skill_weight_validation": skill_weight_validation,
         "path_assessments": assessments,
         "path_input_rejections": input_rejections,
-        "calibration_status": "equal_weight_mean_not_ensemble_calibrated",
+        "calibration_status": ("ensemble_calibrated_on_chronological_holdout"
+                               if calibrated_probability is not None else "equal_weight_mean_not_ensemble_calibrated"),
         "available_paths": len(valid),
         "path_ids": [r["researcher_id"] for r in valid],
-        "prob_up": probability,
+        "prob_up": reportable_probability,
         "probability": prediction,
         "prediction": prediction,
         "raw_probability": raw_probability,
-        "calibrated_probability": None,
-        "reportable_probability": probability,
-        "direction": "bullish" if probability > 0.5 else "bearish" if probability < 0.5 else "neutral",
+        "calibrated_probability": calibrated_probability,
+        "reportable_probability": reportable_probability,
+        "direction": "bullish" if reportable_probability > 0.5 else "bearish" if reportable_probability < 0.5 else "neutral",
         "agreement": agreement,
         "probability_range": [min(probabilities), max(probabilities)],
         "probability_dispersion": dispersion,
@@ -385,6 +436,10 @@ def build_consensus(
                                   "final_score": confidence_score,
                                   "oos_validation": {key: assessments[key].get("oos_validation") for key in assessments},
                                   "calibration": {key: assessments[key].get("probability_calibration") for key in assessments},
+                                  "ensemble_calibration": {key: ensemble_calibration.get(key) for key in ("status", "fit_dates", "validation_dates", "validation_improvement")},
+                                  "policy_skill_uncertainty": {"estimated": ci_estimated,
+                                                               "ci_low": float(ci_low) if ci_estimated else None,
+                                                               "ci_high": (skill_uncertainty.get("ci_high") if ci_estimated else None)},
                                   "agreement": agreement, "diversity": diversity},
         "warnings": list(dict.fromkeys(warnings)),
     }

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -75,12 +76,16 @@ def causal_walk_forward(
     n_splits: int = 5,
     minimum_train: int = 100,
     pre_test_gap_sessions: int = 0,
+    first_test_floor_fraction: float = 0.5,
 ) -> list[Fold]:
     """Expanding-window validation. Every train label ends before test starts."""
     if n_splits < 1 or pre_test_gap_sessions < 0:
         raise ValueError("invalid walk-forward options")
+    if (isinstance(first_test_floor_fraction, bool) or not isinstance(first_test_floor_fraction, (int, float))
+            or not math.isfinite(first_test_floor_fraction) or not 0 <= first_test_floor_fraction <= 1):
+        raise ValueError("first_test_floor_fraction must be finite and within [0, 1]")
     n = len(intervals)
-    first_test = max(minimum_train + pre_test_gap_sessions, n // 2)
+    first_test = max(minimum_train + pre_test_gap_sessions, int(n * first_test_floor_fraction))
     if first_test >= n:
         return []
     block = max(1, (n - first_test) // n_splits)

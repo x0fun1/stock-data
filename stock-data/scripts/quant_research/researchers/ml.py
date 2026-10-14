@@ -200,13 +200,18 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     cv_decisions = set(non_overlapping([row.decision for row, _ in cv_prediction_rows], horizon))
     cv_predictions = [(prediction, row.target) for row, prediction in cv_prediction_rows if row.decision in cv_decisions]
 
-    wf_folds = causal_walk_forward(intervals, n_splits=4, minimum_train=100, pre_test_gap_sessions=horizon)
-    wf_predictions: list[tuple[Observation, float]] = []
+    # Full-history daily causal walk-forward ledger: expanding folds refit on matured rows only,
+    # predicting every session of their test block. Adjacent horizon labels overlap; conservative
+    # non-overlapping counts and block-based inference treat the ledger accordingly.
+    ledger_intervals = [SampleInterval(row.decision, row.information_start, row.label_end) for row in observations]
+    ledger_folds = causal_walk_forward(ledger_intervals, n_splits=8, minimum_train=100,
+                                       pre_test_gap_sessions=horizon, first_test_floor_fraction=0.15)
+    ledger_predictions: list[tuple[Observation, float, float]] = []
     wf_fit_boundaries: dict[int, dict[str, Any]] = {}
     wf_purged, wf_gap = 0, 0
-    for fold in wf_folds:
-        train = [train_rows[i] for i in fold.train]
-        test = [train_rows[i] for i in fold.test]
+    for fold in ledger_folds:
+        train = [observations[i] for i in fold.train]
+        test = [observations[i] for i in fold.test]
         wf_purged += fold.purged
         wf_gap += fold.embargoed
         if len({row.target for row in train}) < 2:
@@ -222,20 +227,27 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             "training_label_end_session": bars[max(row.label_end for row in train)]["date"],
         }
         for row in test:
-            wf_predictions.append((row, model.predict(row)))
+            ledger_predictions.append((row, model.predict(row), model.score(row)))
             wf_fit_boundaries[row.decision] = boundary
 
-    wf_predictions.sort(key=lambda pair: pair[0].decision)
-    wf_decisions = set(non_overlapping([row.decision for row, _ in wf_predictions], horizon))
-    wf_predictions = [(row, prediction) for row, prediction in wf_predictions if row.decision in wf_decisions]
+    ledger_predictions.sort(key=lambda item: item[0].decision)
+    # The frozen Platt mapping is fitted only from the non-overlapping pre-holdout subset of the
+    # ledger, so its training rows still end before the final holdout. The ledger records the
+    # frozen strategy's outputs, so the mapping is then applied retrospectively to every ledger
+    # row (rows within its fit range are partially in-sample; as-of availability is not simulated).
+    pre_holdout = [(row, prediction, score) for row, prediction, score in ledger_predictions
+                   if row.decision < holdout_start and row.label_end < max(0, holdout_start - 60)]
+    pre_holdout_decisions = set(non_overlapping([row.decision for row, _, _ in pre_holdout], horizon))
+    wf_fit_rows = [(row, prediction, score) for row, prediction, score in pre_holdout
+                   if row.decision in pre_holdout_decisions]
     calibration_oos_predictions = [
         {"decision_session": bars[row.decision]["date"], "label_end_session": bars[row.label_end]["date"],
          "target": row.target, "raw_probability": prediction,
          **wf_fit_boundaries[row.decision]}
-        for row, prediction in wf_predictions if row.decision in wf_fit_boundaries
+        for row, prediction, _ in wf_fit_rows if row.decision in wf_fit_boundaries
     ]
     calibration_started = time.perf_counter()
-    calibration = _fit_platt([math.log(max(1e-6, min(1 - 1e-6, p)) / (1 - max(1e-6, min(1 - 1e-6, p)))) for _, p in wf_predictions], [row.target for row, _ in wf_predictions])
+    calibration = _fit_platt([math.log(max(1e-6, min(1 - 1e-6, p)) / (1 - max(1e-6, min(1 - 1e-6, p)))) for _, p, _ in wf_fit_rows], [row.target for row, _, _ in wf_fit_rows])
     calibration_wall_seconds = time.perf_counter() - calibration_started
     holdout_model = fit(train_rows)
     holdout_pairs: list[tuple[float, int]] = []
@@ -272,7 +284,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         warnings = ["The latest OHLCV row does not have a complete feature vector."]
     elif calibration:
         probability = logistic(calibration[1] + calibration[0] * current_model.score(current_vector))
-        status = "success" if cv_predictions and wf_predictions and holdout_rows else "partial"
+        status = "success" if cv_predictions and wf_fit_rows and holdout_rows else "partial"
         warnings = []
     else:
         probability = raw_current
@@ -280,6 +292,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         warnings = ["Too few valid causal walk-forward predictions were available for Platt calibration; probability is the raw logistic predict_proba output."]
     warnings.append("XGBoost/LightGBM are not part of this native baseline; the ML path currently uses deterministic L2 logistic regression only.")
     warnings.append("Returns are gross close-to-close observations; this model path does not model execution, spreads, slippage or fees.")
+    warnings.append("The full-history walk-forward ledger records daily overlapping predictions; effective independent samples are fewer than prediction days and skill intervals use block resampling.")
     if status == "success":
         status = "partial"  # the planned boosted-model comparison is not implemented in this MVP
     if len(holdout_pairs) < 20:
@@ -297,6 +310,24 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
                                for row in holdout_oos_forecasts if row.get("raw_probability") is not None])
                          if holdout_oos_forecasts else None)
     calibrated_holdout_brier = holdout_metrics.get("brier")
+    ledger_records: list[dict[str, Any]] = []
+    for row, raw_probability, raw_score in ledger_predictions:
+        calibration_applied = calibration is not None
+        probability = logistic(calibration[1] + calibration[0] * raw_score) if calibration_applied else raw_probability
+        ledger_records.append({
+            "decision_session": bars[row.decision]["date"],
+            "label_end_session": bars[row.label_end]["date"],
+            "target": row.target,
+            "probability": probability,
+            "raw_probability": raw_probability,
+            "calibration_applied": calibration_applied,
+            **wf_fit_boundaries[row.decision],
+            "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
+        })
+    ledger_pairs = [(float(record["probability"]), int(record["target"])) for record in ledger_records]
+    ledger_metrics = _metrics(ledger_pairs)
+    ledger_metrics["base_rate_brier"] = mean([(train_prevalence - y) ** 2 for _, y in ledger_pairs]) if train_prevalence is not None else None
+    ledger_non_overlapping = len(non_overlapping([row.decision for row, _, _ in ledger_predictions], horizon))
     calibration_transfer = {
         "status": "evaluated_on_chronological_holdout" if calibration and holdout_pairs else "not_assessed",
         "method": "the migrated Platt mapping is compared against raw logits on the untouched chronological holdout",
@@ -305,7 +336,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "holdout_brier_delta_calibrated_minus_raw": (calibrated_holdout_brier - raw_holdout_brier
                                                      if isinstance(calibrated_holdout_brier, (int, float))
                                                      and isinstance(raw_holdout_brier, (int, float)) else None),
-        "separation": "the holdout evaluates the pre-holdout fold models whose causal walk-forward logits fitted the mapping",
+        "separation": "the holdout evaluates the frozen mapping fitted from non-overlapping pre-holdout walk-forward logits; the mapping's training rows end before the final holdout",
         "current_model_migration": "the frozen mapping is also applied to the current refit model, which has seen every matured label; that application is disclosed and cannot be re-validated against held-out data",
         "reason": None if calibration else "no validated Platt mapping was fitted; the raw logistic output is used",
     }
@@ -315,29 +346,45 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "feature_families": dict(FEATURE_FAMILIES),
         "random_seed": 0,
         "feature_availability": "close[t] and OHLCV through decision session t; target begins after t",
-        "leakage_audit": {"features_use_data_through_decision_close_only": True, "target_excluded_from_features": True, "fold_local_scaling": True, "purge_uses_closed_information_intervals": True, "causal_walk_forward": True, "chronological_holdout": True},
+        "leakage_audit": {"features_use_data_through_decision_close_only": True, "target_excluded_from_features": True, "fold_local_scaling": True, "purge_uses_closed_information_intervals": True, "causal_walk_forward": True, "chronological_holdout": True, "historical_ledger_labels_overlap": True},
         "label": f"close[t+{horizon}] / close[t] - 1 > 0",
         "purged_kfold": {**_metrics(cv_predictions), "folds": len(purged_folds), "purged_train_rows": purged_count, "embargoed_train_rows": embargo_count, "retained_interval_overlaps": overlap_count},
-        "causal_walk_forward": {**_metrics([(p, row.target) for row, p in wf_predictions]), "folds": len(wf_folds), "purged_train_rows": wf_purged, "pre_test_gap_rows": wf_gap},
-        "probability_calibration": {"method": "Platt scaling on causal walk-forward logits" if calibration else "none", "calibrated": bool(calibration), "calibration_observations": len(wf_predictions)},
+        "causal_walk_forward": {**_metrics([(prediction, row.target) for row, prediction, _ in ledger_predictions]), "folds": len(ledger_folds), "purged_train_rows": wf_purged, "pre_test_gap_rows": wf_gap, "scope": "full-history daily causal walk-forward ledger (overlapping labels)", "non_overlapping_predictions": ledger_non_overlapping},
+        "probability_calibration": {"method": "Platt scaling on causal walk-forward logits (non-overlapping pre-holdout subset of the ledger)" if calibration else "none", "calibrated": bool(calibration), "calibration_observations": len(wf_fit_rows)},
         "calibration_transfer": calibration_transfer,
         "calibration_training": {
-            "input": "strict causal walk-forward OOS predictions from the pre-holdout training range",
-            "observations": len(wf_predictions),
-            "prediction_start_session": bars[min((row.decision for row, _ in wf_predictions))]["date"] if wf_predictions else None,
-            "prediction_end_session": bars[max((row.decision for row, _ in wf_predictions))]["date"] if wf_predictions else None,
-            "latest_label_end_session": bars[max((row.label_end for row, _ in wf_predictions))]["date"] if wf_predictions else None,
+            "input": "strict causal walk-forward OOS predictions from the pre-holdout training range (non-overlapping subset of the full-history ledger)",
+            "observations": len(wf_fit_rows),
+            "prediction_start_session": bars[min((row.decision for row, _, _ in wf_fit_rows))]["date"] if wf_fit_rows else None,
+            "prediction_end_session": bars[max((row.decision for row, _, _ in wf_fit_rows))]["date"] if wf_fit_rows else None,
+            "latest_label_end_session": bars[max((row.label_end for row, _, _ in wf_fit_rows))]["date"] if wf_fit_rows else None,
             "final_holdout_used": False,
             "training_row_boundary": bars[max((row.label_end for row in train_rows), default=holdout_start)]["date"],
             "status": "calibrated" if calibration else "uncalibrated",
             "prediction_records": calibration_oos_predictions,
         },
+        "historical_asof_ledger": {
+            "scope": "full-history daily causal walk-forward ledger from the frozen snapshot; adjacent labels overlap",
+            "method": "expanding causal walk-forward folds; each row predicts from fold models fitted only on matured rows before its block; the frozen Platt mapping is applied retrospectively to every ledger row (rows within its fit range are partially in-sample; as-of mapping availability is not simulated)",
+            "observations": len(ledger_records),
+            "prediction_days": len(ledger_records),
+            "non_overlapping_prediction_count": ledger_non_overlapping,
+            "effective_sample_size_estimate": round(len(ledger_records) / (horizon + 1)),
+            "labels_overlap": True,
+            "brier": ledger_metrics.get("brier"),
+            "base_rate_brier": ledger_metrics.get("base_rate_brier"),
+        },
         "final_holdout": {**holdout_metrics, "oos_forecasts": holdout_oos_forecasts, "oos_evaluable_samples": len(holdout_oos_forecasts), "all_oos_label_observations": len(holdout_rows), "oos_coverage": 1.0 if holdout_oos_forecasts else 0.0, "oos_abstain_rate": 0.0 if holdout_oos_forecasts else None, "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0", "training_rows": len(train_rows), "training_decision_start_session": bars[min(row.decision for row in train_rows)]["date"], "training_decision_end_session": bars[max(row.decision for row in train_rows)]["date"], "training_label_end_session": bars[max(row.label_end for row in train_rows)]["date"], "start_session": bars[holdout_start]["date"] if holdout_start < n else None, "one_time_chronological_holdout": True},
-        "oos_forecasts": holdout_oos_forecasts,
-        "oos_evaluable_samples": len(holdout_oos_forecasts),
-        "oos_predictions": len(holdout_oos_forecasts),
-        "oos_coverage": 1.0 if holdout_oos_forecasts else 0.0,
-        "oos_abstain_rate": 0.0 if holdout_oos_forecasts else None,
+        "oos_forecasts": ledger_records,
+        "oos_evaluable_samples": len(ledger_records),
+        "oos_predictions": len(ledger_records),
+        "prediction_days": len(ledger_records),
+        "non_overlapping_prediction_count": ledger_non_overlapping,
+        "effective_sample_size_estimate": round(len(ledger_records) / (horizon + 1)),
+        "oos_scope": "full-history daily walk-forward ledger; adjacent labels overlap; non-overlapping count and effective size are the conservative references for thresholds; skill intervals use block resampling",
+        "oos_coverage": len(ledger_records) / len(observations) if observations else 0.0,
+        "oos_abstain_rate": 1 - len(ledger_records) / len(observations) if observations else None,
+        "all_oos_label_observations": len(observations),
         "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
         "model_training_performance": {**training_metrics, "calibration_fit_calls": int(bool(calibration)), "calibration_wall_seconds": calibration_wall_seconds},
         "model_selection": {"configured_default": "native deterministic L2 logistic regression", "xgboost_status": "not_implemented_not_loaded", "lightgbm_status": "not_implemented_not_loaded", "boosted_models_enabled": False},

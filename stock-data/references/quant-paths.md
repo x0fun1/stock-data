@@ -21,7 +21,7 @@ E 没有单独 `researcher_id` 或 `researchers/audit.json`；在共识之后执
 
 ## A — 假设与历史条件频率
 
-固定检验“20 个 session 动量符号与未来 H-session 收益”的假设，用同符号、非重叠历史标签计算上涨频率和均值收益；扩展窗口在每个决策日只使用标签结束日期不晚于该决策日的历史样本。OOS 决策和标签也按 horizon 非重叠，输出决策日、标签结束日、训练标签边界及 Brier / 基准。
+固定检验“20 个 session 动量符号与未来 H-session 收益”的假设，用同符号、非重叠历史标签计算上涨频率和均值收益；扩展窗口在每个决策日只使用标签结束日期不晚于该决策日的历史样本。历史账本为全历史逐日 causal walk-forward：每个成熟决策日记录当时会给出的预测（逐条保留训练标签边界）；相邻 H-session 标签重叠，因此同时披露 `prediction_days`、保守的 `non_overlapping_prediction_count` 与 `effective_sample_size_estimate`，阈值使用非重叠计数，重复标签不按等量独立样本计数。输出决策日、标签结束日、训练标签边界及 Brier / 基准。
 
 查看 `probability_source`、`n_raw`、`n_effective`、`n_oos`、历史跨度及 `validation.oos_forecasts`。当前至少 21 根收盘才能形成信号，至少 30 个非重叠成熟匹配才报告条件概率；历史 OOS 预测调用相同的 `MINIMUM_MATCHING_SAMPLES`，避免用较宽松规则评价较严格的当前规则。当前不使用 Bayesian prior 或时间衰减，故等权时 `n_effective = n_raw`。Wilson 值仅为 IID 近似区间，时间相关下的覆盖率尚未验证。无可用时间外预测时数值结果仅为 `partial`。这是固定动量假设 baseline，不是任意策略发现或成本后收益预测。
 
@@ -41,9 +41,9 @@ OOS 的 BY 调整以全部尝试候选作为检验家族，并计入无法计算
 
 ## C — 逻辑回归与防泄漏验证
 
-使用路径内独立 OHLCV 特征和确定性 L2 Logistic Regression。验证包含闭区间 Purged K-Fold、Embargo、仅用过去数据的 causal walk-forward、fold 内标准化和最后的 chronological holdout。当前预测可在验证固定后用已成熟标签重拟合，但不使用 holdout 指标调整特征或参数。
+使用路径内独立 OHLCV 特征和确定性 L2 Logistic Regression。验证包含闭区间 Purged K-Fold、Embargo、仅用过去数据的全历史逐日 causal walk-forward 账本、fold 内标准化和最后的 chronological holdout。当前预测可在验证固定后用已成熟标签重拟合，但不使用 holdout 指标调整特征或参数。
 
-核对 `validation.purged_kfold`、`causal_walk_forward`、`probability_calibration`、`calibration_training`、`calibration_transfer`、`final_holdout` 和两类 leakage 声明。当前前 holdout 训练至少需 160 个成熟样本且包含两类标签；Platt 校准至少需 40 个有效 walk-forward 预测且有两类标签。校准记录逐条保留预测时训练标签边界，训练标签必须早于对应决策日；校准范围限定在预留 holdout 之前，`final_holdout_used` 必须为 false。最终 holdout 只评价冻结训练/校准方案，不用于校准或选择参数。没有校准时保留 raw logistic probability 并明确标 `uncalibrated`、`partial`，不能称为校准概率；残留 train/test 区间重叠时为 `invalid`，概率置空。迁移后的 Platt 映射还会应用到在全部成熟标签上重拟合的当前模型，这一应用无法再用 holdout 复验；`calibration_transfer` 用未触碰的 chronological holdout 给出同一映射的 raw 与 calibrated Brier 对照，作为该迁移的唯一直观指标，不能当作迁移已校准证明。
+核对 `validation.purged_kfold`、`causal_walk_forward`、`probability_calibration`、`calibration_training`、`calibration_transfer`、`final_holdout`、`historical_asof_ledger` 和两类 leakage 声明。当前前 holdout 训练至少需 160 个成熟样本且包含两类标签；Platt 校准至少需 40 个有效 walk-forward 预测且有两类标签。校准记录逐条保留预测时训练标签边界，训练标签必须早于对应决策日；校准拟合范围限定在预留 holdout 之前的非重叠子集，`final_holdout_used` 必须为 false。账本记录的是冻结策略的输出，因此冻结的 Platt 映射会回顾性应用到全部账本行（落在其拟合范围内的行属部分 in-sample，不模拟映射的 as-of 可用时点）；逐日账本的相邻标签重叠，行级记录披露 `prediction_days`、`non_overlapping_prediction_count` 与 `effective_sample_size_estimate`。最终 holdout 只评价冻结训练/校准方案，不用于校准或选择参数。没有校准时保留 raw logistic probability 并明确标 `uncalibrated`、`partial`，不能称为校准概率；残留 train/test 区间重叠时为 `invalid`，概率置空。迁移后的 Platt 映射还会应用到在全部成熟标签上重拟合的当前模型，这一应用无法再用 holdout 复验；`calibration_transfer` 用未触碰的 chronological holdout 给出同一映射的 raw 与 calibrated Brier 对照，作为该迁移的唯一直观指标，不能当作迁移已校准证明。
 
 当前仓库没有 `_xgb_estimator.py`，也没有嵌套时序早停实现；Research C 只运行标准库确定性 L2 Logistic Regression。`model_selection` 将 XGBoost/LightGBM 标为 `not_implemented_not_loaded`，不会探测、导入、安装或重试这些可选依赖。即使本地计算与 Platt 校准完成，C 仍标为 `partial`。不得把基线称为完整 boosted-model 验证，也不得把交叉验证 AUC 单独作为方向结论。要引入 boosted 模型，必须先实现嵌套训练/早停、逐折 Purge/Embargo、隔离最终 holdout，并在独立 OOS 与性能验收通过前保持关闭。
 
@@ -57,7 +57,7 @@ D 自行构造固定因子，按时间 70/30 划分训练和 holdout，分位切
 
 ## 共识与 E — 偏差审计
 
-共识只纳入通过 `forecast_assessment()`、身份匹配、有定量来源且状态为 `success/partial` 的 A/B/C 数值预测，当前采用等权概率平均，报告 range、dispersion、证据家族重叠和分类 confidence。新增 `oos_probability_quality` 报告每路径证据审计、当前合格路径交集、全候选路径交集和共同完整预测样本的 Brier、Log Loss、可靠性分箱、ECE、覆盖率及弃权率。冻结行情验证决策 session、精确 H-session 标签、目标真值、目标定义、标签成熟度和预测时训练标签边界；无效样本不进入质量或权重指标。`algorithm_policy_replay` 按每个历史日期实际有有效预测的路径做等权均值，并与相同日期上的因果扩展基率比较，披露 coverage、`active_path_mask`、Brier Skill 和没有估计的不确定性。它是历史策略诊断，不因今天的活跃路径集合筛选过去日期，也不构成真实独立市场 OOS 验收。新增 `skill_weight_validation` 仅做严格先早后晚的实验性 Brier Skill 权重估计/评价；当前 `weighting` 仍为 equal，不能把实验权重用于当前预测。等权均值不等于经过独立校准的 ensemble 概率。`confidence_score` 是启发式研究支持度，不是预测准确率；`predictive_evidence_grade` 单独呈现基准技能点估计和证据限制。单路径称为 `single_path`；两路径结果披露缺失路径。详见 [consensus-protocol.md](consensus-protocol.md) 与 [probability-policy.md](probability-policy.md)。
+共识只纳入通过 `forecast_assessment()`、身份匹配、有定量来源且状态为 `success/partial` 的 A/B/C 数值预测，当前采用等权概率平均，报告 range、dispersion、证据家族重叠和分类 confidence。新增 `oos_probability_quality` 报告每路径证据审计、当前合格路径交集、全候选路径交集和共同完整预测样本的 Brier、Log Loss、可靠性分箱、ECE、覆盖率及弃权率；逐日账本的每路径记录同时披露 `prediction_days`、保守的 `non_overlapping_prediction_count` 与 `effective_sample_size_estimate`，阈值使用非重叠计数。冻结行情验证决策 session、精确 H-session 标签、目标真值、目标定义、标签成熟度和预测时训练标签边界；无效样本不进入质量或权重指标。`algorithm_policy_replay` 按每个历史日期实际有有效预测的路径做等权均值，并与相同日期上的因果扩展基率比较，披露 coverage、`active_path_mask`、Brier Skill、保守的非重叠预测日计数及 moving-block bootstrap 百分位区间（阈值使用非重叠计数）。它是历史策略诊断，不因今天的活跃路径集合筛选过去日期，也不构成真实独立市场 OOS 验收。`ensemble_calibration` 在预测日前 60% 上拟合确定性 Platt、在净化后的后段验证；仅当验证块 calibrated Brier 严格低于 raw 等权均值时，校准值才成为 reportable probability（`raw_probability` 保留等权均值），并更新 `calibration_status`；拟合与验证块均为时间序、不接触最终 holdout。新增 `skill_weight_validation` 仅做严格先早后晚（评价段从最后估计标签成熟后开始）的实验性 Brier Skill 权重估计/评价；当前 `weighting` 仍为 equal，不能把实验权重用于当前预测。等权均值不等于经过独立校准的 ensemble 概率——只有上述验证通过后才称校准 ensemble。`confidence_score` 是启发式研究支持度，不是预测准确率；`predictive_evidence_grade` 单独呈现基准技能点估计和证据限制。单路径称为 `single_path`；两路径结果披露缺失路径。详见 [consensus-protocol.md](consensus-protocol.md) 与 [probability-policy.md](probability-policy.md)。
 
 E 检查快照身份/digest、路径快照一致性、概率来源和范围、invalid 状态、残留区间重叠、结构化特征/标签时间声明、chronological OOS、Brier 基准与已观察的候选因子数量。声明检查不等于对每个特征实现的形式证明。
 

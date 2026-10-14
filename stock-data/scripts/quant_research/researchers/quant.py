@@ -58,19 +58,23 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     interval = wilson_interval(wins, len(outcomes)) if outcomes else None
     expected = mean(outcomes)
 
-    # Expanding conditional-frequency predictions on the latest chronological holdout.
+    # Full-history daily causal walk-forward ledger: every matured decision session records what
+    # the frozen policy would have predicted at that close, rebuilding its matching history from
+    # that boundary. Adjacent horizon labels overlap across sessions; conservative non-overlapping
+    # counts and block-based inference treat the ledger accordingly (see validation metadata).
     holdout_start = max(20 + horizon, int(len(bars) * 0.8))
     oos_forecasts: list[dict[str, Any]] = []
-    holdout_decisions = non_overlapping(
-        [i for i in range(holdout_start, current) if forward[i] is not None and i + horizon <= current], horizon,
-    )
-    for decision in holdout_decisions:
+    ledger_decisions = [i for i in range(20 + horizon, current) if forward[i] is not None and i + horizon <= current]
+    predicted_decisions: list[int] = []
+    for decision in ledger_decisions:
         candidates = _matured_matching_indices(closes, forward, decision, horizon)
         prior_outcomes = [float(forward[i]) for i in candidates if forward[i] is not None]
         probability_at_decision = (
             sum(value > 0 for value in prior_outcomes) / len(prior_outcomes)
             if len(prior_outcomes) >= MINIMUM_MATCHING_SAMPLES else None
         )
+        if probability_at_decision is not None:
+            predicted_decisions.append(decision)
         training_label_end = max((i + horizon for i in candidates), default=None)
         oos_forecasts.append({
             "decision_session": bars[decision]["date"],
@@ -86,8 +90,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         for row in oos_forecasts if row["probability"] is not None
     ]
     brier = mean([(p - y) ** 2 for p, y in oos_predictions])
-    baseline_indices = non_overlapping([i for i in range(20, holdout_start) if i + horizon < holdout_start and forward[i] is not None], horizon)
-    base_rate = mean([float(forward[i] > 0) for i in baseline_indices if forward[i] is not None])
+    base_rate = mean([float(value > 0) for value in outcomes]) if outcomes else None
     base_brier = mean([(base_rate - y) ** 2 for _, y in oos_predictions]) if base_rate is not None else None
     warnings: list[str] = []
     warnings.append("Returns are gross close-to-close observations; this baseline does not model execution, spreads, slippage or fees.")
@@ -99,7 +102,8 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         warnings.append(f"Only {len(outcomes)} non-overlapping historical matches; at least 30 are required to report a conditional probability.")
     if not oos_predictions:
         status = "partial" if probability is not None else "insufficient_data"
-        warnings.append("No sufficiently populated expanding-window holdout predictions were available.")
+        warnings.append("No sufficiently populated expanding-window ledger predictions were available.")
+    warnings.append("The walk-forward ledger records daily overlapping predictions; effective independent samples are fewer than prediction days and skill intervals use block resampling.")
     if current_signal >= 0:
         rationale = "The predeclared 20-session momentum signal is non-negative. Historical labels are selected only from earlier sessions with the same signal sign."
     else:
@@ -114,11 +118,15 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "quant", ticker, horizon_name, manifest["snapshot_id"], status=status,
         prob_up=probability, expected_return=expected, evidence=evidence,
         validation={
-            "method": "expanding conditional-frequency holdout; no Bayesian prior or time decay",
+            "method": "full-history daily causal walk-forward ledger on the frozen snapshot; expanding conditional frequency; no Bayesian prior or time decay",
             "minimum_matching_samples": MINIMUM_MATCHING_SAMPLES,
             "holdout_start_session": bars[holdout_start]["date"] if holdout_start < len(bars) else None,
+            "oos_scope": "full-history daily walk-forward ledger; adjacent labels overlap; non-overlapping count and effective size are the conservative references for thresholds; skill intervals use block resampling",
             "oos_predictions": len(oos_predictions),
+            "prediction_days": len(oos_predictions),
             "oos_evaluable_samples": len(oos_forecasts),
+            "non_overlapping_prediction_count": len(non_overlapping(predicted_decisions, horizon)),
+            "effective_sample_size_estimate": round(len(oos_predictions) / (horizon + 1)),
             "oos_coverage": len(oos_predictions) / len(oos_forecasts) if oos_forecasts else 0.0,
             "oos_abstain_rate": 1 - len(oos_predictions) / len(oos_forecasts) if oos_forecasts else None,
             "oos_forecasts": oos_forecasts,
@@ -133,7 +141,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             "prediction_decision_session": bars[current]["date"],
             "prior_policy": {"method": "none; empirical conditional frequency is retained", "bayesian_shrinkage": "not_implemented", "time_decay": "none"},
             "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
-            "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "training_labels_non_overlapping": True, "training_labels_matured_by_decision": True, "oos_labels_non_overlapping": True},
+            "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "training_labels_non_overlapping": True, "training_labels_matured_by_decision": True, "oos_labels_non_overlapping": False, "oos_labels_overlap_disclosure": f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; effective independent size is smaller than the prediction-day count"},
         },
         data_used=["daily raw OHLCV close"], warnings=warnings,
         probability_source="non_overlapping_historical_conditional_frequency" if probability is not None else None,

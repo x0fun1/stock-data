@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import math
+import random
 from datetime import date
 from typing import Any
 
 from ..contracts import HORIZONS
 from ..market_data import forward_returns, non_overlapping
-from ..math_utils import mean
+from ..math_utils import logistic, mean
 
 MINIMUM_WEIGHT_WINDOW_SAMPLES = 20
 DEFAULT_BRIER_SKILL_EPSILON = 0.05
@@ -197,6 +198,22 @@ def _audit_oos_path(
     summary["valid_samples"] = len(rows)
     summary["rejected_sample_rate"] = summary["rejected_samples"] / len(source_rows) if source_rows else None
     summary["valid_predictions"] = sum(_valid_probability(row.get("probability")) for row in rows.values())
+    summary["prediction_days"] = summary["valid_predictions"]
+    if session_index and horizon:
+        predicted_indices = sorted(
+            session_index[row["decision_session"]] for row in rows.values()
+            if _valid_probability(row.get("probability")) and row.get("decision_session") in session_index
+        )
+        summary["non_overlapping_prediction_count"] = len(non_overlapping(predicted_indices, horizon))
+        summary["effective_sample_size_estimate"] = round(summary["valid_predictions"] / (horizon + 1))
+        summary["overlap_disclosure"] = (
+            f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; "
+            "non-overlapping count and effective size are the conservative references for thresholds; "
+            "skill intervals use block resampling"
+        )
+    else:
+        summary["non_overlapping_prediction_count"] = None
+        summary["effective_sample_size_estimate"] = None
     summary["status"] = "rejected_records" if summary["rejected_samples"] else "validated"
     if bars is None:
         summary["structural_validation"] = "limited_no_frozen_session_index"
@@ -404,14 +421,36 @@ def _policy_replay_quality(
     skill = (1 - candidate_brier / baseline_brier
              if isinstance(candidate_brier, (int, float)) and isinstance(baseline_brier, (int, float))
              and baseline_brier > 0 else None)
+    strict_decisions = non_overlapping([index_by_date[row["decision_session"]] for row in predicted
+                                        if row["decision_session"] in index_by_date], horizon)
+    strict_dates = {sessions[index] for index in strict_decisions}
+    strict_rows = [row for row in predicted if row["decision_session"] in strict_dates]
+    strict_metrics = _probability_metrics(strict_rows, denominator=len(strict_rows)) if strict_rows else {}
+    strict_baseline_metrics = _probability_metrics(
+        [{**row, "probability": row["baseline_probability"]} for row in strict_rows],
+        denominator=len(strict_rows),
+    ) if strict_rows else {}
+    strict_candidate = strict_metrics.get("brier_score")
+    strict_baseline = strict_baseline_metrics.get("brier_score")
+    strict_skill = (1 - strict_candidate / strict_baseline
+                    if isinstance(strict_candidate, (int, float)) and isinstance(strict_baseline, (int, float))
+                    and strict_baseline > 0 else None)
+    uncertainty = _block_bootstrap_skill_interval(predicted, horizon=horizon)
+    if not predicted:
+        replay_status = "not_assessed"
+    elif uncertainty.get("status") == "estimated":
+        replay_status = "estimated_with_block_bootstrap_interval"
+    else:
+        replay_status = "descriptive_no_uncertainty_interval"
     return {
-        "status": "descriptive_no_uncertainty_interval" if predicted else "not_assessed",
+        "status": replay_status,
         "method": "date-by-date equal mean of every valid frozen OOS path; paths may abstain; compared on identical predicted dates with a Jeffreys-smoothed causal expanding base rate",
-        "evidence_scope": "retrospective_holdout_records_from_current_frozen_snapshot; not an independent historical as-of prediction ledger",
+        "evidence_scope": "full-history daily causal walk-forward ledger from the current frozen snapshot; overlapping labels; retrospective replay, not a prospective prediction ledger",
         "coverage_denominator_scope": "union_of_submitted_valid_dated_oos_records; dates omitted by every path are not observable here",
         "current_paths_used_for_filtering": False,
         "eligible_oos_label_dates": len(cohort),
         "predicted_dates": len(predicted),
+        "non_overlapping_predicted_dates": len(strict_rows),
         "oos_coverage": len(predicted) / len(cohort) if cohort else 0.0,
         "abstain_rate": 1 - len(predicted) / len(cohort) if cohort else None,
         "path_count_by_prediction_date": path_counts,
@@ -424,7 +463,143 @@ def _policy_replay_quality(
         "forecast_metrics": metrics,
         "expanding_base_rate_on_same_dates": baseline_metrics,
         "brier_skill_vs_expanding_base_rate": skill,
-        "skill_uncertainty": "not_estimated; do not treat positive point estimate as validated improvement",
+        "non_overlapping_brier_skill_vs_expanding_base_rate": strict_skill,
+        "skill_uncertainty": uncertainty,
+        "_predicted_rows": predicted,
+    }
+
+
+def _block_bootstrap_skill_interval(
+    predicted: list[dict[str, Any]], *, horizon: int, iterations: int = 2000, seed: int = 0,
+) -> dict[str, Any]:
+    """Moving-block bootstrap percentile interval for the Brier skill versus the expanding base rate.
+
+    The daily walk-forward ledger carries horizon-overlapping labels, so resampling must preserve
+    local dependence: blocks of consecutive predicted sessions are drawn with replacement and the
+    skill is recomputed inside every resample. The interval is retrospective, descriptive evidence,
+    not a prospective guarantee.
+    """
+    block = horizon + 1
+    if len(predicted) < 2:
+        return {"status": "insufficient_samples", "predicted_dates": len(predicted)}
+    pairs = [
+        ((float(row["probability"]) - int(row["target"])) ** 2,
+         (float(row["baseline_probability"]) - int(row["target"])) ** 2)
+        for row in predicted
+    ]
+    n = len(pairs)
+    rng = random.Random(seed)  # noqa: S311 - statistical block bootstrap, not cryptographic
+    starts_range = max(1, n - block + 1)
+    skills: list[float] = []
+    for _ in range(iterations):
+        sum_model = 0.0
+        sum_base = 0.0
+        drawn = 0
+        while drawn < n:
+            start = rng.randrange(0, starts_range)
+            for offset in range(block):
+                if drawn >= n:
+                    break
+                position = start + offset
+                if position < n:
+                    model_loss, base_loss = pairs[position]
+                    sum_model += model_loss
+                    sum_base += base_loss
+                    drawn += 1
+        if sum_base > 0:
+            skills.append(1 - sum_model / sum_base)
+    if not skills:
+        return {"status": "not_estimated", "reason": "bootstrap_resamples_degenerate"}
+    skills.sort()
+    lower = skills[int(0.025 * len(skills))]
+    upper = skills[min(len(skills) - 1, int(0.975 * len(skills)))]
+    return {
+        "status": "estimated",
+        "method": "moving_block_bootstrap_percentile",
+        "block_sessions": block,
+        "iterations": iterations,
+        "seed": seed,
+        "confidence_level": 0.95,
+        "ci_low": lower,
+        "ci_high": upper,
+        "excludes_zero": lower > 0,
+        "notes": "block resampling preserves horizon-overlap dependence; descriptive retrospective evidence, not a prospective guarantee",
+    }
+
+
+def _fit_platt_logits(scores: list[float], targets: list[int]) -> tuple[float, float] | None:
+    """Deterministic Platt fit on logits, mirroring the ML path's calibration style."""
+    if len(scores) < 40 or len(set(targets)) < 2:
+        return None
+    slope, intercept = 1.0, 0.0
+    for _ in range(500):
+        grad_slope = grad_intercept = 0.0
+        for score, target in zip(scores, targets, strict=True):
+            residual = logistic(intercept + slope * score) - target
+            grad_slope += residual * score
+            grad_intercept += residual
+        n = len(scores)
+        slope -= 0.05 * (grad_slope / n + 1e-3 * slope)
+        intercept -= 0.05 * grad_intercept / n
+    return slope, intercept
+
+
+def _apply_platt_logit(calibrator: tuple[float, float], probability: float) -> float:
+    clipped = max(1e-6, min(1 - 1e-6, float(probability)))
+    return logistic(calibrator[1] + calibrator[0] * math.log(clipped / (1 - clipped)))
+
+
+def _ensemble_calibration_quality(predicted: list[dict[str, Any]], *, horizon: int) -> dict[str, Any]:
+    """Chronological fit/validation split of a Platt calibrator for the equal-weight ensemble.
+
+    The calibrator is fitted on the earliest 60% of predicted dates and validated on later dates
+    whose decisions follow the fit block's last label end (purge). It is accepted only when the
+    validation block shows a strictly lower Brier score than the raw equal-weight ensemble.
+    Counts are prediction days; adjacent labels overlap and the validation is chronological, not
+    fully independent of label autocorrelation.
+    """
+    if not isinstance(horizon, int) or isinstance(horizon, bool) or horizon < 1:
+        return {"status": "not_assessed", "reason": "unsupported_horizon"}
+    if len(predicted) < 80:
+        return {"status": "insufficient_dates", "predicted_dates": len(predicted), "minimum_predicted_dates": 80}
+    split = int(len(predicted) * 0.6)
+    fit_rows = predicted[:split]
+    last_fit_label_end = fit_rows[-1]["label_end_session"]
+    validation_rows = [row for row in predicted[split:] if row["decision_session"] > last_fit_label_end]
+    if len(fit_rows) < 40 or len(validation_rows) < 40:
+        return {"status": "insufficient_dates", "fit_dates": len(fit_rows),
+                "validation_dates": len(validation_rows), "minimum_per_block": 40}
+    calibrator = _fit_platt_logits(
+        [math.log(max(1e-6, min(1 - 1e-6, float(row["probability"])))
+                  / (1 - max(1e-6, min(1 - 1e-6, float(row["probability"])))))
+         for row in fit_rows],
+        [int(row["target"]) for row in fit_rows],
+    )
+    if calibrator is None:
+        return {"status": "not_assessed", "reason": "calibrator_fit_unavailable"}
+    fit_pairs = [(float(row["probability"]), int(row["target"])) for row in fit_rows]
+    validation_pairs = [(float(row["probability"]), int(row["target"])) for row in validation_rows]
+    fit_raw_brier = mean([(p - y) ** 2 for p, y in fit_pairs])
+    validation_raw_brier = mean([(p - y) ** 2 for p, y in validation_pairs])
+    validation_calibrated_brier = mean([(_apply_platt_logit(calibrator, p) - y) ** 2 for p, y in validation_pairs])
+    improved = validation_calibrated_brier < validation_raw_brier
+    return {
+        "status": "validated_on_chronological_holdout" if improved else "not_validated_no_improvement_on_holdout",
+        "method": "Platt scaling on ensemble logits; fitted on the earliest 60% of predicted dates and validated on later dates after a purge gap",
+        "fit_dates": len(fit_rows),
+        "validation_dates": len(validation_rows),
+        "fit_start": fit_rows[0]["decision_session"],
+        "fit_end": fit_rows[-1]["decision_session"],
+        "validation_start": validation_rows[0]["decision_session"],
+        "validation_end": validation_rows[-1]["decision_session"],
+        "purge_rule": "every fit label matures before the first validation decision",
+        "fit_raw_brier": fit_raw_brier,
+        "validation_raw_brier": validation_raw_brier,
+        "validation_calibrated_brier": validation_calibrated_brier,
+        "validation_improvement": validation_raw_brier - validation_calibrated_brier,
+        "calibrator": {"kind": "platt_logit", "slope": calibrator[0], "intercept": calibrator[1]},
+        "overlap_disclosure": f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; the validation block is chronological, not fully independent of label autocorrelation",
+        "acceptance": "accepted only when the validation block's calibrated Brier is strictly lower than the raw ensemble's",
     }
 
 
@@ -451,9 +626,12 @@ def build_oos_probability_quality(
                    if not any(path.get("researcher_id") == name
                                and path_has_detected_leakage(path, assessments)
                               for path in researchers)}
+    replay = _policy_replay_quality(replay_rows, manifest, bars)
+    predicted_rows = replay.pop("_predicted_rows", [])
+    ensemble_calibration = _ensemble_calibration_quality(predicted_rows, horizon=HORIZONS.get(manifest.get("horizon")))
     return {
         "status": "available" if common_oos.get("common_oos_samples", 0) else "partial" if path_metrics else "not_assessed",
-        "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate",
+        "method": "Brier, log loss, ten equal-width reliability bins, ECE, coverage and abstain rate; full-history walk-forward ledger diagnostics; policy replay with block-bootstrap skill interval; ensemble calibrator chronological holdout",
         "current_forecast_paths": active_names,
         "assessment_source": "explicit_assessments" if assessments is not None else "legacy_path_annotations",
         "path_input_rejections": input_rejections,
@@ -462,7 +640,8 @@ def build_oos_probability_quality(
         "row_validation": row_audits,
         "common_oos": common_oos,
         "candidate_path_common_oos": _common_oos_metrics(rows_by_path, all_names),
-        "algorithm_policy_replay": _policy_replay_quality(replay_rows, manifest, bars),
+        "algorithm_policy_replay": replay,
+        "ensemble_calibration": ensemble_calibration,
     }
 
 
@@ -529,12 +708,16 @@ def build_brier_skill_weight_diagnostic(
         base["fallback_reason"] = "insufficient_complete_common_oos_samples_for_separate_estimation_and_evaluation_windows"
         return base
 
+    # The evaluation window starts strictly after the last estimation label so that every
+    # estimation label matures first; daily walk-forward ledgers need this because adjacent
+    # horizon labels overlap.
     split = len(complete_dates) // 2
-    estimation_dates, evaluation_dates = complete_dates[:split], complete_dates[split:]
+    estimation_dates = complete_dates[:split]
+    latest_estimation_label = max(rows_by_path[names[0]][date]["label_end_session"] for date in estimation_dates)
+    evaluation_dates = [date for date in complete_dates[split:] if date > latest_estimation_label]
     if len(estimation_dates) < minimum_per_window or len(evaluation_dates) < minimum_per_window:
         base["fallback_reason"] = "one_temporal_window_has_too_few_common_oos_samples"
         return base
-    latest_estimation_label = max(rows_by_path[names[0]][date]["label_end_session"] for date in estimation_dates)
     first_evaluation_decision = evaluation_dates[0]
     if latest_estimation_label >= first_evaluation_decision:
         base["fallback_reason"] = "estimation_labels_not_observable_before_independent_evaluation_window"
