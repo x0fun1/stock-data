@@ -8,6 +8,7 @@ from typing import Any
 from .math_utils import logistic, mean, sample_std
 from .validation.probability_quality import (
     DEFAULT_BRIER_SKILL_EPSILON,
+    MIN_BOOTSTRAP_INDEPENDENT_BLOCKS,
     audit_oos_result,
     build_probability_validation,
     path_has_detected_leakage,
@@ -315,7 +316,7 @@ def build_consensus(
     if "uncalibrated" in calibration_statuses:
         deduct(20, "uncalibrated_raw_probability")
     ensemble_calibration = oos_probability_quality.get("ensemble_calibration") or {}
-    ensemble_calibrator_validated = ensemble_calibration.get("status") == "validated_on_chronological_holdout"
+    ensemble_calibrator_validated = ensemble_calibration.get("status") == "improved_on_subsequent_ledger_block"
     if not ensemble_calibrator_validated:
         deduct(10, "ensemble_calibration_unavailable")
     oos_statuses = [(item.get("oos_validation") or {}).get("status", "insufficient") for item in path_assessments]
@@ -341,8 +342,11 @@ def build_consensus(
     skill_uncertainty = policy_replay.get("skill_uncertainty") or {}
     ci_low = skill_uncertainty.get("ci_low") if isinstance(skill_uncertainty, dict) else None
     ci_high = skill_uncertainty.get("ci_high") if isinstance(skill_uncertainty, dict) else None
+    independent_blocks = skill_uncertainty.get("independent_blocks") if isinstance(skill_uncertainty, dict) else None
     ci_estimated = (isinstance(ci_low, (int, float)) and not isinstance(ci_low, bool) and math.isfinite(float(ci_low))
-                    and isinstance(ci_high, (int, float)) and not isinstance(ci_high, bool) and math.isfinite(float(ci_high)))
+                    and isinstance(ci_high, (int, float)) and not isinstance(ci_high, bool) and math.isfinite(float(ci_high))
+                    and isinstance(independent_blocks, int) and not isinstance(independent_blocks, bool)
+                    and independent_blocks >= MIN_BOOTSTRAP_INDEPENDENT_BLOCKS)
     if (not isinstance(replay_count, int) or isinstance(replay_count, bool) or replay_count < 20
             or isinstance(replay_skill, bool) or not isinstance(replay_skill, (int, float))
             or not math.isfinite(float(replay_skill))):
@@ -365,9 +369,9 @@ def build_consensus(
     if "uncalibrated" in calibration_statuses:
         warnings.append("Consensus includes raw uncalibrated model probabilities; calibration cannot be inferred from the path mean.")
     if ensemble_calibrator_validated:
-        warnings.append("The ensemble probability carries a Platt calibrator validated on a chronological holdout of the walk-forward ledger; the holdout is retrospective and not fully independent of label autocorrelation.")
+        warnings.append("The ensemble probability carries a Platt calibrator estimated on the earliest 60% of the walk-forward ledger and checked on later ledger dates; the check block overlaps windows already used by path-level evaluation, so the improvement is descriptive rather than an independent confirmation.")
     else:
-        warnings.append("The equal-weight consensus has no independently validated ensemble calibrator; its probability reliability is not established by path-level calibration alone.")
+        warnings.append("The equal-weight consensus has no ensemble calibrator that improved the subsequent ledger check; its probability reliability is not established by path-level calibration alone.")
     if len(valid) < 2:
         warnings.append("Only one research path produced a probability; this is a single-path result, not an ensemble consensus.")
     if diversity == "low":
@@ -394,7 +398,7 @@ def build_consensus(
         "reportable_probability": reportable_probability,
         "probability_basis": ("ensemble_calibrated_equal_weight_mean_of_valid_path_estimates"
                               if calibrated_probability is not None else "equal_weight_mean_of_valid_path_estimates"),
-        "calibration_status": ("ensemble_calibrated_on_chronological_holdout"
+        "calibration_status": ("ensemble_calibrated_on_retrospective_ledger_check"
                                if calibrated_probability is not None else "ensemble_calibration_unavailable"),
     }
     economic = _economic_viability(valid)
@@ -406,7 +410,7 @@ def build_consensus(
         "skill_weight_validation": skill_weight_validation,
         "path_assessments": assessments,
         "path_input_rejections": input_rejections,
-        "calibration_status": ("ensemble_calibrated_on_chronological_holdout"
+        "calibration_status": ("ensemble_calibrated_on_retrospective_ledger_check"
                                if calibrated_probability is not None else "equal_weight_mean_not_ensemble_calibrated"),
         "available_paths": len(valid),
         "path_ids": [r["researcher_id"] for r in valid],

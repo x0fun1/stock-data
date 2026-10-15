@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.10.0"}
+metadata: {version: "2.11.0"}
 ---
 
 # Stock Data & Quant Research
@@ -16,7 +16,7 @@ metadata: {version: "2.10.0"}
 
 新 Yahoo gateway 需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA_YAHOO_CACHE_DIR`；collector 必须显式传 `--cache-dir`。保留 bar-label 源时间及未知 unit；response map 不自动等于合格预测输入，24h/source_before_close 等现有审计可能阻断，不能伪造字段或更改 gate。
 
-`yahoo_collect.py` 仅采集 market 域，生成现有 adapter 接受的 response map；新闻由宿主 Finnhub MCP 单独采集并映射。pipeline 仍离线，snapshot schema 1.2、Quant 中央 gate、Quant → 审计 → News → 综合时序保持不变。Research A/B 的时序 OOS、IC 推断和共识概率质量字段是可选研究输出，Skill 加权保持关闭；成本情景与预测置信度分离。Research C 继续使用标准库逻辑回归，只用 holdout 前的因果 OOS 预测拟合 Platt（映射回顾性应用于全部账本行并披露）；全历史逐日账本披露非重叠计数与有效样本估计，集成校准须通过时间序留出验证才会成为报告概率；XGBoost/LightGBM 未实现且不加载。yfinance 是 Yahoo 路由的必需依赖并按需懒加载；缺依赖时自动尝试旧兼容接口，失败或无映射时如实报告。`--list`/`--help` 不联网。版本/可安装来源、缓存、日期/复权和网络边界以参考与实际实现为准，不把声明当联网验收。旧 Yahoo 签名与结构保留，作为强制自动回退路径；不修改已安装 Skill 或长期 memory。
+`yahoo_collect.py` 仅采集 market 域，生成现有 adapter 接受的 response map；新闻由宿主 Finnhub MCP 单独采集并映射。pipeline 仍离线，snapshot schema 1.2、Quant 中央 gate、Quant → 审计 → News → 综合时序保持不变。Research A/B 的时序 OOS、IC 推断和共识概率质量字段是可选研究输出，Skill 加权保持关闭；成本情景与预测置信度分离。Research C 继续使用标准库逻辑回归，逐 origin 只用当时已成熟标签的因果 OOS 预测重拟合 Platt（校准标签边界逐条记录并审计；冻结映射只用于最终 holdout 转移检查与当前预测，不再回顾性应用于早期行）；账本披露非重叠计数、有效样本估计与校准/未校准行数；集成校准须通过时间序后段改进检查（回顾性、非独立确认）才会成为报告概率；XGBoost/LightGBM 未实现且不加载。yfinance 是 Yahoo 路由的必需依赖并按需懒加载；缺依赖时自动尝试旧兼容接口，失败或无映射时如实报告。`--list`/`--help` 不联网。版本/可安装来源、缓存、日期/复权和网络边界以参考与实际实现为准，不把声明当联网验收。旧 Yahoo 签名与结构保留，作为强制自动回退路径；不修改已安装 Skill 或长期 memory。
 
 ## 任务路由与按需阅读
 
@@ -64,10 +64,10 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 2. 一次采集并保存市场数据及可用新闻。行情与新闻抓取可并行；来源映射、收盘/freshness 检查、Quant 和最终综合有串行依赖。详细字段见 [collection-adapter.md](references/collection-adapter.md) 和 [reliability-gates.md](references/reliability-gates.md)。每路径不重新下载行情，短新闻窗口不冒充三年档案。
 3. 将 provider 数据明确映射成 `data.bars/articles`；原始 envelope 独立保留且脱敏。不要从字段名猜复权、发布时间、交易日、来源 symbol 或单位。global 调用优先 `--params-file` 和 `--output`，避免全量 stdout 进入上下文。
 4. 常规预测使用 `pipeline --cleanup-json`，让 collection、快照和分析文件进入本次独占的 `runtime/runs/<run_id>/`；交付文本校验后再调用 `cleanup-run`。审计、调试或要求复现的研究使用 `--keep-json`（或逐阶段命令），完整保留 JSON。两种模式都消费同一快照；只在预测资格存在致命阻断时跳过 Quant，其他缺口进入 Reporting Gate 降级或策略限制。
-5. 最低数据计算条件满足时必须尝试 A 条件频率、B 因子验证、C L2 Logistic Regression、D 时间序列 IC/forward-return 诊断；所有所选路径返回后才形成共识和 E 审计。A 当前与历史 OOS 共用同一个成熟匹配样本门槛；每条 OOS 记录要由冻结行情复核决策日、H-session 标签、目标真值及训练标签边界。共识 OOS 同时报告当前合格路径集合、全候选诊断和按日期可用路径组成的历史等权策略回放，并与因果扩展基率在相同有预测日期上比较。B 必须报告当前校准样本预算；不得自动扩窗、降门槛或把理论预算说成实际预测证据。D/E 不投概率票。策略级 PBO/DSR、交易成本和组合回测仅限制盈利策略声明，不否定单次方向概率。具体实现见 [quant-paths.md](references/quant-paths.md)。
+5. 最低数据计算条件满足时必须尝试 A 条件频率、B 因子验证、C L2 Logistic Regression、D 时间序列 IC/forward-return 诊断；所有所选路径返回后才形成共识和 E 审计。A 当前与历史 OOS 共用同一个成熟匹配样本门槛；每条 OOS 记录要由冻结行情复核决策日、H-session 标签、目标真值、训练标签边界，以及校准标签边界与校准系数（如适用，边界必须早于对应决策日）。共识 OOS 同时报告当前合格路径集合、全候选诊断和按日期可用路径组成的历史等权策略回放，并与因果扩展基率在相同有预测日期上比较。B 必须报告当前校准样本预算；不得自动扩窗、降门槛或把理论预算说成实际预测证据。D/E 不投概率票。策略级 PBO/DSR、交易成本和组合回测仅限制盈利策略声明，不否定单次方向概率。具体实现见 [quant-paths.md](references/quant-paths.md)。
 6. Quant 与 E 完成并冻结后才解释新闻。NewsInput 只有独立新闻、同快照行情和源日历元数据，不接收 Quant；按 [news-analysis.md](references/news-analysis.md) 做 PIT、相关性、时效、去重、事件/观点分离与行情关联。不可用 News 明确 `not_assessed`，不二次联网。
 7. 两份结果冻结并校验后综合。mixed/事件与观点冲突必须保留；neutral + 催化剂单列；News 不能改 Quant P(up) 或恢复被 veto 的概率。归因只能作为待验证解释。
-8. 先读取程序生成的 `final_response.md` summary；`agent_summary.json` 提供有界摘要，用户需要细节时再读取完整 `report.md`（standard）/debug。不得交付 `pre_veto_prob_up`、被排除路径概率或自行补数字。方向资格取 `may_report_direction`，总体完成度取 `analysis_status`，展示 `reporting_status` 和置信度原因。`confidence_score` 是启发式研究支持度评分，不是预测准确率；同时保留 `predictive_evidence_grade`、因果基准 Brier Skill、coverage 和无不确定性区间的限制。正向点估计不等于统计确认或已校准概率。
+8. 先读取程序生成的 `final_response.md` summary；`agent_summary.json` 提供有界摘要，用户需要细节时再读取完整 `report.md`（standard）/debug。不得交付 `pre_veto_prob_up`、被排除路径概率或自行补数字。方向资格取 `may_report_direction`，总体完成度取 `analysis_status`，展示 `reporting_status` 和置信度原因。`confidence_score` 是启发式研究支持度评分，不是预测准确率；同时保留 `predictive_evidence_grade`、因果基准 Brier Skill、coverage、有效独立块数（不足时技能区间标记为不可估计）和无不确定性区间的限制。正向点估计不等于统计确认或已校准概率。
 9. 将实际准备发送的完整文本保存为 UTF-8 Markdown，用 `validate-response` 校验。缺字段、标的/窗口/时间不符、Quant 值被替换、缺冻结阶段或报告被修改时拒绝交付；按实际产物修复文本并重验。常规预测使用 `--cleanup-json` 时，待发送文件通过校验且宿主已读取/复制这份文本后，运行 `cleanup-run --run-dir <run_dir> --analysis-dir <report_dir> --response-file <同一待发送文本.md>`；命令会再次校验并清理本次登记的 JSON，保留 `report.md`、`final_response.md` 和 `cleanup_receipt.txt`。之后发送同一文本，不再摘要或改写强制字段。CLI 无法判断聊天是否实际送达；若宿主提供送达回调，应由回调触发清理。此校验仍不能拦截宿主绕过 Skill 直接发送。
 
 仓库根目录示例，安装后改用已安装脚本绝对路径；输入与 runtime 位于用户可写目录：

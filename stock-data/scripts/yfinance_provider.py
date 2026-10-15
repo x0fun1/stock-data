@@ -241,9 +241,12 @@ def bounded_session_class(base):
     return BoundedSession
 
 
-def _legacy_yahoo_fallback(function, params, reason):
+_SYMBOL_RE = re.compile(r'[A-Za-z0-9^][A-Za-z0-9.^=-]{0,30}')
+
+
+def _legacy_yahoo_fallback(function, params, reason, policy=None):
     from yahoo_compat_fallback import fallback
-    return fallback(function, params, reason)
+    return fallback(function, params, reason, policy=policy)
 
 
 class YahooProvider:
@@ -295,7 +298,7 @@ class YahooProvider:
         self._ready = True
 
     def _ticker(self, symbol):
-        if not isinstance(symbol, str) or not re.fullmatch(r'[A-Za-z0-9^][A-Za-z0-9.^=\-]{0,30}', symbol):
+        if not isinstance(symbol, str) or not _SYMBOL_RE.fullmatch(symbol):
             raise GatewayError('InvalidParameters', 'Invalid Yahoo symbol')
         if symbol not in self._tickers:
             self._tickers[symbol] = self._yf.Ticker(symbol, session=self._session)
@@ -311,10 +314,9 @@ class YahooProvider:
             latched_reason = (reason['category'], 'Yahoo policy failure; legacy fallback is not permitted')
             latch_job_circuit(latched_reason)
             raise GatewayError(*latched_reason)
-        # A legacy-compatibility attempt consumes one job request. Its own HTTP
-        # calls are outside this transport and are not individually counted.
-        self.policy.reserve()
-        return _legacy_yahoo_fallback(name, params, reason)
+        # Legacy-compatibility dispatch counts each gateway call at the lowest level and
+        # enforces the same budget, deadline and circuit policy as the native transport.
+        return _legacy_yahoo_fallback(name, params, reason, policy=self.policy)
 
     def call(self, name, **params):
         """Use yfinance first; never bypass a terminal policy failure via fallback."""
@@ -327,9 +329,39 @@ class YahooProvider:
             if self.policy.blocked is not None:
                 latch_job_circuit(self.policy.blocked)
 
+    def _preflight(self, name, params):
+        """Validate parameters, batch limits and the cache requirement before dependency
+        detection or route selection, so a legacy fallback cannot bypass them."""
+        if not isinstance(self.cache_dir, str) or not self.cache_dir:
+            raise GatewayError('InvalidParameters', 'Explicit writable cache_dir required for Yahoo calls')
+        if name in ('yahoo_history', 'yahoo_history_batch'):
+            self._window(params.get('start'), params.get('end'), params.get('period'), params.get('interval', '1d'))
+        if name == 'yahoo_history':
+            symbol = params.get('symbol')
+            if not isinstance(symbol, str) or not _SYMBOL_RE.fullmatch(symbol):
+                raise GatewayError('InvalidParameters', 'Invalid Yahoo symbol')
+            if params.get('price_basis', 'provider') not in ('provider', 'adjusted'):
+                raise GatewayError('InvalidParameters', 'price_basis must be provider or adjusted')
+        if 'symbols' in params:
+            symbols = params.get('symbols')
+            if not isinstance(symbols, list) or not 1 <= len(symbols) <= 10:
+                raise GatewayError('InvalidParameters', 'Batch calls accept 1 to 10 symbols')
+            if any(not isinstance(symbol, str) or not _SYMBOL_RE.fullmatch(symbol) for symbol in symbols):
+                raise GatewayError('InvalidParameters', 'Invalid Yahoo symbol')
+            if len(set(symbols)) != len(symbols):
+                raise GatewayError('InvalidParameters', 'Batch symbols must be distinct')
+            if len({symbol.upper().endswith('.HK') for symbol in symbols}) > 1:
+                raise GatewayError('InvalidParameters', 'US and HK batches must be separate calls')
+            if params.get('concurrency', 1) not in (1, 2) or params.get('price_basis', 'provider') not in ('provider', 'adjusted'):
+                raise GatewayError('InvalidParameters', 'Invalid concurrency or price basis')
+        symbol = params.get('symbol')
+        if symbol is not None and (not isinstance(symbol, str) or not _SYMBOL_RE.fullmatch(symbol)):
+            raise GatewayError('InvalidParameters', 'Invalid Yahoo symbol')
+
     def _route(self, name, params):
         if name not in self.NAMES:
             raise GatewayError('UnsupportedCapability', 'Unregistered Yahoo capability')
+        self._preflight(name, params)
         try:
             result = self._call_yfinance(name, **params)
         except GatewayError as exc:

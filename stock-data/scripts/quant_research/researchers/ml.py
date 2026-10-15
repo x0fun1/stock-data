@@ -26,6 +26,11 @@ FEATURE_FAMILIES = {
     "gap_1": "momentum", "close_location": "trend",
 }
 
+# Absolute walk-forward anchoring: test blocks step by a fixed stride so that a shared history
+# prefix always produces the same folds — and the same as-of predictions — when the book of
+# history grows or its tail is truncated. 72 sessions ≈ 8 blocks per two-year post-warmup span.
+LEDGER_TEST_BLOCK_SESSIONS = 72
+
 
 @dataclass(frozen=True)
 class Observation:
@@ -201,11 +206,13 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     cv_predictions = [(prediction, row.target) for row, prediction in cv_prediction_rows if row.decision in cv_decisions]
 
     # Full-history daily causal walk-forward ledger: expanding folds refit on matured rows only,
-    # predicting every session of their test block. Adjacent horizon labels overlap; conservative
-    # non-overlapping counts and block-based inference treat the ledger accordingly.
+    # predicting every session of their test block; fold anchors are absolute (fixed stride) so
+    # as-of predictions are stable under history growth and tail truncation. Adjacent horizon
+    # labels overlap; conservative non-overlapping counts and block-based inference treat the
+    # ledger accordingly.
     ledger_intervals = [SampleInterval(row.decision, row.information_start, row.label_end) for row in observations]
     ledger_folds = causal_walk_forward(ledger_intervals, n_splits=8, minimum_train=100,
-                                       pre_test_gap_sessions=horizon, first_test_floor_fraction=0.15)
+                                       pre_test_gap_sessions=horizon, block_sessions=LEDGER_TEST_BLOCK_SESSIONS)
     ledger_predictions: list[tuple[Observation, float, float]] = []
     wf_fit_boundaries: dict[int, dict[str, Any]] = {}
     wf_purged, wf_gap = 0, 0
@@ -232,9 +239,9 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
 
     ledger_predictions.sort(key=lambda item: item[0].decision)
     # The frozen Platt mapping is fitted only from the non-overlapping pre-holdout subset of the
-    # ledger, so its training rows still end before the final holdout. The ledger records the
-    # frozen strategy's outputs, so the mapping is then applied retrospectively to every ledger
-    # row (rows within its fit range are partially in-sample; as-of availability is not simulated).
+    # ledger, so its training rows still end before the final holdout. It is used only for the
+    # one-time holdout transfer check and the current prediction; it is never applied to earlier
+    # ledger rows, which are calibrated at their own origin in the ledger loop below.
     pre_holdout = [(row, prediction, score) for row, prediction, score in ledger_predictions
                    if row.decision < holdout_start and row.label_end < max(0, holdout_start - 60)]
     pre_holdout_decisions = set(non_overlapping([row.decision for row, _, _ in pre_holdout], horizon))
@@ -311,16 +318,48 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
                          if holdout_oos_forecasts else None)
     calibrated_holdout_brier = holdout_metrics.get("brier")
     ledger_records: list[dict[str, Any]] = []
+    # Per-origin causal calibration: every ledger row's probability is mapped by a Platt
+    # calibrator refitted at that origin from walk-forward OOS logits whose labels had matured
+    # strictly before the row's decision; no mapping fitted on later evidence is ever applied
+    # to an earlier row. Rows without at least 40 matured observations from both classes keep
+    # the raw walk-forward output and are recorded as uncalibrated.
+    ledger_calibration_refits = 0
+    ledger_calibration_seconds = 0.0
+    matured_cursor = 0
+    matured: list[tuple[Observation, float, float]] = []
     for row, raw_probability, raw_score in ledger_predictions:
-        calibration_applied = calibration is not None
-        probability = logistic(calibration[1] + calibration[0] * raw_score) if calibration_applied else raw_probability
+        while (matured_cursor < len(ledger_predictions)
+               and ledger_predictions[matured_cursor][0].decision < row.decision - horizon):
+            matured.append(ledger_predictions[matured_cursor])
+            matured_cursor += 1
+        refit_started = time.perf_counter()
+        causal_calibration = (_fit_platt([score for _, _, score in matured], [item[0].target for item in matured])
+                              if len(matured) >= 40 else None)
+        ledger_calibration_seconds += time.perf_counter() - refit_started
+        if causal_calibration is not None:
+            ledger_calibration_refits += 1
+            row_probability = logistic(causal_calibration[1] + causal_calibration[0] * raw_score)
+            calibration_applied = True
+            calibration_label_end_session = bars[max(item[0].label_end for item in matured)]["date"]
+            calibration_slope = float(causal_calibration[0])
+            calibration_intercept = float(causal_calibration[1])
+        else:
+            row_probability = raw_probability
+            calibration_applied = False
+            calibration_label_end_session = None
+            calibration_slope = None
+            calibration_intercept = None
         ledger_records.append({
             "decision_session": bars[row.decision]["date"],
             "label_end_session": bars[row.label_end]["date"],
             "target": row.target,
-            "probability": probability,
+            "probability": row_probability,
             "raw_probability": raw_probability,
             "calibration_applied": calibration_applied,
+            "calibration_fit_observations": len(matured),
+            "calibration_label_end_session": calibration_label_end_session,
+            "calibration_slope": calibration_slope,
+            "calibration_intercept": calibration_intercept,
             **wf_fit_boundaries[row.decision],
             "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
         })
@@ -346,11 +385,11 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "feature_families": dict(FEATURE_FAMILIES),
         "random_seed": 0,
         "feature_availability": "close[t] and OHLCV through decision session t; target begins after t",
-        "leakage_audit": {"features_use_data_through_decision_close_only": True, "target_excluded_from_features": True, "fold_local_scaling": True, "purge_uses_closed_information_intervals": True, "causal_walk_forward": True, "chronological_holdout": True, "historical_ledger_labels_overlap": True},
+        "leakage_audit": {"features_use_data_through_decision_close_only": True, "target_excluded_from_features": True, "fold_local_scaling": True, "purge_uses_closed_information_intervals": True, "causal_walk_forward": True, "chronological_holdout": True, "historical_ledger_labels_overlap": True, "asof_calibration_per_origin": True, "frozen_mapping_not_retrofitted": True},
         "label": f"close[t+{horizon}] / close[t] - 1 > 0",
         "purged_kfold": {**_metrics(cv_predictions), "folds": len(purged_folds), "purged_train_rows": purged_count, "embargoed_train_rows": embargo_count, "retained_interval_overlaps": overlap_count},
         "causal_walk_forward": {**_metrics([(prediction, row.target) for row, prediction, _ in ledger_predictions]), "folds": len(ledger_folds), "purged_train_rows": wf_purged, "pre_test_gap_rows": wf_gap, "scope": "full-history daily causal walk-forward ledger (overlapping labels)", "non_overlapping_predictions": ledger_non_overlapping},
-        "probability_calibration": {"method": "Platt scaling on causal walk-forward logits (non-overlapping pre-holdout subset of the ledger)" if calibration else "none", "calibrated": bool(calibration), "calibration_observations": len(wf_fit_rows)},
+        "probability_calibration": {"method": "Platt scaling on causal walk-forward logits (non-overlapping pre-holdout subset of the ledger); applies only to the one-time holdout transfer check and the current prediction, never to historical ledger rows" if calibration else "none", "calibrated": bool(calibration), "calibration_observations": len(wf_fit_rows)},
         "calibration_transfer": calibration_transfer,
         "calibration_training": {
             "input": "strict causal walk-forward OOS predictions from the pre-holdout training range (non-overlapping subset of the full-history ledger)",
@@ -365,11 +404,13 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         },
         "historical_asof_ledger": {
             "scope": "full-history daily causal walk-forward ledger from the frozen snapshot; adjacent labels overlap",
-            "method": "expanding causal walk-forward folds; each row predicts from fold models fitted only on matured rows before its block; the frozen Platt mapping is applied retrospectively to every ledger row (rows within its fit range are partially in-sample; as-of mapping availability is not simulated)",
+            "method": "expanding causal walk-forward folds with absolute anchors; each row predicts from fold models fitted only on matured rows before their block; every row's probability is calibrated at its own origin by a Platt refit that sees only walk-forward OOS logits whose labels had matured strictly before the row's decision (fewer than 40 matured observations or a single class keeps the raw output, marked uncalibrated); no mapping fitted on later evidence is applied to an earlier row",
             "observations": len(ledger_records),
             "prediction_days": len(ledger_records),
             "non_overlapping_prediction_count": ledger_non_overlapping,
             "effective_sample_size_estimate": round(len(ledger_records) / (horizon + 1)),
+            "calibrated_prediction_count": ledger_calibration_refits,
+            "uncalibrated_prediction_count": len(ledger_records) - ledger_calibration_refits,
             "labels_overlap": True,
             "brier": ledger_metrics.get("brier"),
             "base_rate_brier": ledger_metrics.get("base_rate_brier"),
@@ -386,7 +427,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "oos_abstain_rate": 1 - len(ledger_records) / len(observations) if observations else None,
         "all_oos_label_observations": len(observations),
         "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
-        "model_training_performance": {**training_metrics, "calibration_fit_calls": int(bool(calibration)), "calibration_wall_seconds": calibration_wall_seconds},
+        "model_training_performance": {**training_metrics, "calibration_fit_calls": int(bool(calibration)), "per_origin_calibration_refits": ledger_calibration_refits, "calibration_wall_seconds": calibration_wall_seconds + ledger_calibration_seconds},
         "model_selection": {"configured_default": "native deterministic L2 logistic regression", "xgboost_status": "not_implemented_not_loaded", "lightgbm_status": "not_implemented_not_loaded", "boosted_models_enabled": False},
         "current_prediction_model_fit_rows": len(current_rows),
         "current_prediction_model_training_boundary": {

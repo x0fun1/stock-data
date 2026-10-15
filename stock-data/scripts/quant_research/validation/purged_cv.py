@@ -77,6 +77,7 @@ def causal_walk_forward(
     minimum_train: int = 100,
     pre_test_gap_sessions: int = 0,
     first_test_floor_fraction: float = 0.5,
+    block_sessions: int | None = None,
 ) -> list[Fold]:
     """Expanding-window validation. Every train label ends before test starts."""
     if n_splits < 1 or pre_test_gap_sessions < 0:
@@ -84,11 +85,21 @@ def causal_walk_forward(
     if (isinstance(first_test_floor_fraction, bool) or not isinstance(first_test_floor_fraction, (int, float))
             or not math.isfinite(first_test_floor_fraction) or not 0 <= first_test_floor_fraction <= 1):
         raise ValueError("first_test_floor_fraction must be finite and within [0, 1]")
+    if block_sessions is not None and (isinstance(block_sessions, bool) or not isinstance(block_sessions, int)
+                                       or block_sessions < 1):
+        raise ValueError("block_sessions must be a positive integer when provided")
     n = len(intervals)
-    first_test = max(minimum_train + pre_test_gap_sessions, int(n * first_test_floor_fraction))
+    if block_sessions is None:
+        first_test = max(minimum_train + pre_test_gap_sessions, int(n * first_test_floor_fraction))
+        block = max(1, (n - first_test) // n_splits)
+    else:
+        # Absolute anchoring: the test-block geometry does not depend on the total history
+        # length, so recomputing on a truncated book of history reproduces the same folds —
+        # and the same as-of predictions — for every row of the shared prefix.
+        first_test = minimum_train + pre_test_gap_sessions
+        block = block_sessions
     if first_test >= n:
         return []
-    block = max(1, (n - first_test) // n_splits)
     folds: list[Fold] = []
     start = first_test
     while start < n:

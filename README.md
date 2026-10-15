@@ -75,9 +75,10 @@ python -B stock-data/scripts/global_stock_data.py --list
 python -B stock-data/scripts/yahoo_collect.py --help
 python -B stock-data/scripts/quant_research.py --help
 python -B stock-data/scripts/quant_research.py schema --kind request
+python -B stock-data/scripts/selfcheck.py
 ```
 
-自检只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性。本仓库仅保留运行 Skill、必需参考和安装说明，不附带测试、历史审计或上游源码档案。
+前四步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验（覆盖校准因果性与前缀不变性、脱敏、交付/清理校验、数据门槛边界、Yahoo 预检与区间可估计性），不访问网络。本仓库仅保留运行 Skill、必需参考和安装说明，不附带独立测试套件、历史审计或上游源码档案；离线回归校验以 `selfcheck.py` 为唯一入口。
 
 ## 边界与参考
 

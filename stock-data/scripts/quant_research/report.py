@@ -55,7 +55,7 @@ CONFIDENCE_REASON_LABELS = {
     "extreme_path_disagreement": "路径间极度分歧",
     "low_evidence_family_diversity": "证据来源多样性较低",
     "limited_history_depth": "可用日线历史偏短",
-    "ensemble_calibration_unavailable": "等权共识没有独立验证的 ensemble 校准器",
+    "ensemble_calibration_unavailable": "等权共识没有通过时间序后段改进检查的 ensemble 校准器",
     "oos_evidence_invalid": "部分 OOS 记录未通过冻结行情核验",
     "policy_oos_skill_evidence_insufficient": "整套历史预测策略的 OOS 样本不足",
     "policy_oos_not_better_than_expanding_base_rate": "整套历史预测策略未优于因果扩展基准",
@@ -91,9 +91,9 @@ def _quant_lines(fields: dict[str, Any]) -> list[str]:
         lines.append(f"- 原始路径估计均值：{_probability_text(fields['raw_probability'])}")
     if fields.get("calibrated_probability") is not None:
         lines.append(f"- 校准概率：{_probability_text(fields['calibrated_probability'])}")
-        calibration_line = "- 联合概率校准：可用（按已验证的 ensemble calibration）"
+        calibration_line = "- 联合概率校准：可用（按通过时间序后段检查的 ensemble calibration；回顾性检查，非独立确认）"
     else:
-        calibration_line = "- 联合概率校准：不可用（等权路径均值未经独立 ensemble calibration）"
+        calibration_line = "- 联合概率校准：不可用（等权路径均值未通过 ensemble calibration 的时间序后段改进检查）"
     lines.append(calibration_line)
     if fields.get("confidence_reasons"):
         reasons = ", ".join(_confidence_reason_text(item) for item in fields["confidence_reasons"][:4])
@@ -185,7 +185,7 @@ def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -
         return "上涨概率：不可用。Quant 未提供通过报告资格的有效概率；不得由 LLM 或新闻补算。"
     probability = _probability_text(fields["prob_up"])
     if fields.get("calibrated_probability") is not None:
-        return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的报告概率（等权均值经时间序留出验证的 ensemble calibration）。"
+        return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的报告概率（等权均值经时间序后段检查的 ensemble calibration；回顾性检查，非独立确认）。"
                 f"News 只补充驱动解释和风险证据，不改变这份 Quant 报告概率。若需 raw/calibrated 原值，见调试 JSON。")
     return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的报告概率（合格路径等权均值，未单独进行 ensemble calibration）。"
             f"News 只补充驱动解释和风险证据，不改变这份 Quant 报告概率（等权路径均值）。若需 raw/calibrated 原值，见调试 JSON。")
@@ -445,7 +445,7 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
             "analysis_status": result["analysis_status"], "reporting_status": result.get("reporting_status", "veto"), "stages": result["stages"],
             "sections": {
                 "price_time": snapshot.get("latest_confirmed_close"),
-                "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "economic_viability": quant.get("economic_viability"), "oos_probability_quality": {"status": oos_quality.get("status"), "method": oos_quality.get("method"), "current_forecast_paths": oos_quality.get("current_forecast_paths"), "common_oos_samples": oos_common.get("common_oos_samples"), "all_paths_valid_prediction_samples": oos_common.get("all_paths_valid_prediction_samples"), "row_validation": oos_quality.get("row_validation"), "algorithm_policy_replay": {key: policy_replay.get(key) for key in ("status", "evidence_scope", "coverage_denominator_scope", "predicted_dates", "non_overlapping_predicted_dates", "eligible_oos_label_dates", "oos_coverage", "abstain_rate", "path_count_by_prediction_date", "forecast_metrics", "expanding_base_rate_on_same_dates", "brier_skill_vs_expanding_base_rate", "non_overlapping_brier_skill_vs_expanding_base_rate", "skill_uncertainty", "reason")}, "ensemble_calibration": {key: (oos_quality.get("ensemble_calibration") or {}).get(key) for key in ("status", "fit_dates", "validation_dates", "validation_raw_brier", "validation_calibrated_brier", "validation_improvement")}, "path_metrics": {name: {key: row.get(key) for key in ("all_evaluable_oos_samples", "valid_probability_predictions", "prediction_days", "non_overlapping_prediction_count", "oos_coverage", "abstain_rate", "brier_score", "log_loss", "expected_calibration_error")} for name, row in oos_quality.get("paths", {}).items()}}, "skill_weight_validation": {key: skill_weight.get(key) for key in ("status", "weighting", "current_weighting_enabled", "deployment_status", "common_oos_samples", "common_complete_prediction_samples", "weight_estimation_start", "weight_estimation_end", "evaluation_start", "evaluation_end", "candidate_weights", "fallback_reason", "evaluation")}, "paths": paths},
+                "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "economic_viability": quant.get("economic_viability"), "oos_probability_quality": {"status": oos_quality.get("status"), "method": oos_quality.get("method"), "current_forecast_paths": oos_quality.get("current_forecast_paths"), "common_oos_samples": oos_common.get("common_oos_samples"), "all_paths_valid_prediction_samples": oos_common.get("all_paths_valid_prediction_samples"), "row_validation": oos_quality.get("row_validation"), "algorithm_policy_replay": {key: policy_replay.get(key) for key in ("status", "evidence_scope", "coverage_denominator_scope", "predicted_dates", "non_overlapping_predicted_dates", "eligible_oos_label_dates", "oos_coverage", "abstain_rate", "path_count_by_prediction_date", "forecast_metrics", "expanding_base_rate_on_same_dates", "brier_skill_vs_expanding_base_rate", "non_overlapping_brier_skill_vs_expanding_base_rate", "skill_uncertainty", "reason")}, "ensemble_calibration": {key: (oos_quality.get("ensemble_calibration") or {}).get(key) for key in ("status", "evidence_scope", "fit_dates", "validation_dates", "validation_raw_brier", "validation_calibrated_brier", "validation_improvement")}, "path_metrics": {name: {key: row.get(key) for key in ("all_evaluable_oos_samples", "valid_probability_predictions", "prediction_days", "non_overlapping_prediction_count", "oos_coverage", "abstain_rate", "brier_score", "log_loss", "expected_calibration_error")} for name, row in oos_quality.get("paths", {}).items()}}, "skill_weight_validation": {key: skill_weight.get(key) for key in ("status", "weighting", "current_weighting_enabled", "deployment_status", "common_oos_samples", "common_complete_prediction_samples", "weight_estimation_start", "weight_estimation_end", "evaluation_start", "evaluation_end", "candidate_weights", "fallback_reason", "evaluation")}, "paths": paths},
                 "technical_factor_evidence": evidence,
                 "backtest_ic_bias": {"audit_status": result["adversarial_audit"]["status"], "checks": {key: value.get("status") for key, value in bias.items() if isinstance(value, dict)}, "diagnostic_examples": ic, "factor_oos_inference": {key: factor_inference.get(key) for key in ("status", "method", "data_start", "data_end", "sample_count", "trials", "tests_with_p_value", "p_adjustment_method", "factor_selection_used_this_window")}, "scope": "D: single-security time-series diagnostics; B: OOS time-series IC inference; full portfolio backtest/PBO/DSR not computed"},
                 "news": {"status": news.get("status"), "event_bias": news.get("overall_direction"), "events": events, "impact_rubric": IMPACT_RUBRIC_MARKER, "coverage": {key: news.get("coverage", {}).get(key) for key in ("observed_publication_start", "observed_publication_end", "eligible_event_count", "eligible_opinion_count", "excluded_evidence_count")}},
@@ -477,7 +477,7 @@ def render_markdown(result: dict[str, Any]) -> str:
              *_economic_lines(quant.get("economic_viability")),
              f"- Status: {_cell(quant.get('status'))}",
              "- Confidence、agreement 与 diversity 保留 Quant 原值/原尺度；分类标签不换算为百分比。",
-             f"- Calibration: {_cell(quant.get('calibration_status'))}; " + ("equal-weight mean carries a validated chronological-holdout ensemble calibrator." if quant.get("calibrated_probability") is not None else "equal-weight mean is not an independently calibrated ensemble probability.")]
+             f"- Calibration: {_cell(quant.get('calibration_status'))}; " + ("equal-weight mean carries an ensemble calibrator that improved the subsequent ledger block (retrospective check, non-independent)." if quant.get("calibrated_probability") is not None else "equal-weight mean does not carry an ensemble calibrator that improved the subsequent ledger check.")]
     probability_range = quant.get("probability_range")
     lines.append(f"- Range across eligible paths (not a statistical confidence interval): {_probability_text(probability_range[0])}–{_probability_text(probability_range[1])}" if probability_range else "- Range across eligible paths: Unavailable")
     lines.extend(["", "| Path | Role / status | Eligible | Reportable P(up) | OOS N | Calibration |", "|---|---|---|---:|---:|---|"])

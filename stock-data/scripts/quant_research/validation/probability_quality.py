@@ -14,6 +14,11 @@ from ..math_utils import logistic, mean
 MINIMUM_WEIGHT_WINDOW_SAMPLES = 20
 DEFAULT_BRIER_SKILL_EPSILON = 0.05
 
+# A moving-block bootstrap needs several independent blocks before its percentile interval
+# can drive grading: with fewer, the resampling collapses onto a handful of arrangements
+# (or a single deterministic draw) and can report a misleading zero-width interval.
+MIN_BOOTSTRAP_INDEPENDENT_BLOCKS = 4
+
 
 def unique_research_paths(
     researchers: list[dict[str, Any]],
@@ -182,6 +187,45 @@ def _audit_oos_path(
                 reasons.append("training_label_not_matured_by_decision")
         elif _valid_probability(probability) and bars is not None:
             reasons.append("training_label_boundary_missing_for_prediction")
+        calibration_applied = row.get("calibration_applied")
+        calibration_end = row.get("calibration_label_end_session")
+        calibration_count = row.get("calibration_fit_observations")
+        raw_probability = row.get("raw_probability")
+        if calibration_applied is True:
+            if not _valid_probability(raw_probability):
+                reasons.append("raw_probability_missing_for_calibrated_record")
+            if isinstance(calibration_count, bool) or not isinstance(calibration_count, int) or calibration_count < 40:
+                reasons.append("calibration_fit_set_insufficient_or_invalid")
+            slope, intercept = row.get("calibration_slope"), row.get("calibration_intercept")
+            if not (isinstance(slope, (int, float)) and not isinstance(slope, bool)
+                    and isinstance(intercept, (int, float)) and not isinstance(intercept, bool)):
+                reasons.append("calibration_coefficients_missing")
+            elif _valid_probability(probability) and _valid_probability(raw_probability) and 1e-9 < float(raw_probability) < 1 - 1e-9:
+                raw_score = math.log(float(raw_probability) / (1 - float(raw_probability)))
+                mapped = 1 / (1 + math.exp(-max(-60.0, min(60.0, intercept + slope * raw_score))))
+                if abs(float(probability) - mapped) > 1e-6:
+                    reasons.append("calibrated_probability_mismatch")
+            if not isinstance(calibration_end, str):
+                reasons.append("calibration_label_boundary_missing")
+            elif bars is not None and not bars_error:
+                if calibration_end not in session_index:
+                    reasons.append("calibration_label_end_missing_from_frozen_market_bars")
+                elif decision_index is not None and session_index[calibration_end] >= decision_index:
+                    reasons.append("calibration_label_not_matured_before_decision")
+            elif bars is None and isinstance(decision, str) and calibration_end >= decision:
+                reasons.append("calibration_label_not_matured_before_decision")
+        elif calibration_applied is False:
+            if (_valid_probability(raw_probability) and _valid_probability(probability)
+                    and abs(float(raw_probability) - float(probability)) > 1e-9):
+                reasons.append("uncalibrated_probability_differs_from_raw")
+        else:
+            if calibration_applied is not None:
+                reasons.append("invalid_calibration_marker")
+            # A mapped probability that differs from its raw output without a recorded origin
+            # boundary is exactly the retrofitted-calibration pattern the audit must reject.
+            if (_valid_probability(raw_probability) and _valid_probability(probability)
+                    and abs(float(raw_probability) - float(probability)) > 1e-9):
+                reasons.append("calibrated_probability_without_recorded_origin_boundary")
         if isinstance(decision, str) and decision in duplicates:
             reasons.append("duplicate_decision_session")
         if reasons:
@@ -477,17 +521,25 @@ def _block_bootstrap_skill_interval(
     The daily walk-forward ledger carries horizon-overlapping labels, so resampling must preserve
     local dependence: blocks of consecutive predicted sessions are drawn with replacement and the
     skill is recomputed inside every resample. The interval is retrospective, descriptive evidence,
-    not a prospective guarantee.
+    not a prospective guarantee. It is reported only when the ledger supplies at least
+    MIN_BOOTSTRAP_INDEPENDENT_BLOCKS independent blocks and the resamples vary; otherwise the
+    interval is marked not estimable.
     """
     block = horizon + 1
     if len(predicted) < 2:
-        return {"status": "insufficient_samples", "predicted_dates": len(predicted)}
+        return {"status": "insufficient_samples", "predicted_dates": len(predicted),
+                "block_sessions": block, "independent_blocks": 0}
     pairs = [
         ((float(row["probability"]) - int(row["target"])) ** 2,
          (float(row["baseline_probability"]) - int(row["target"])) ** 2)
         for row in predicted
     ]
     n = len(pairs)
+    independent_blocks = n // block
+    if independent_blocks < MIN_BOOTSTRAP_INDEPENDENT_BLOCKS:
+        return {"status": "insufficient_independent_blocks", "predicted_dates": n,
+                "block_sessions": block, "independent_blocks": independent_blocks,
+                "minimum_independent_blocks": MIN_BOOTSTRAP_INDEPENDENT_BLOCKS}
     rng = random.Random(seed)  # noqa: S311 - statistical block bootstrap, not cryptographic
     starts_range = max(1, n - block + 1)
     skills: list[float] = []
@@ -509,7 +561,12 @@ def _block_bootstrap_skill_interval(
         if sum_base > 0:
             skills.append(1 - sum_model / sum_base)
     if not skills:
-        return {"status": "not_estimated", "reason": "bootstrap_resamples_degenerate"}
+        return {"status": "not_estimated", "reason": "bootstrap_resamples_degenerate",
+                "independent_blocks": independent_blocks}
+    if min(skills) == max(skills):
+        return {"status": "degenerate_zero_width_interval", "predicted_dates": n,
+                "block_sessions": block, "independent_blocks": independent_blocks,
+                "reason": "every resample reproduced the same skill; the interval is not informative"}
     skills.sort()
     lower = skills[int(0.025 * len(skills))]
     upper = skills[min(len(skills) - 1, int(0.975 * len(skills)))]
@@ -517,6 +574,7 @@ def _block_bootstrap_skill_interval(
         "status": "estimated",
         "method": "moving_block_bootstrap_percentile",
         "block_sessions": block,
+        "independent_blocks": independent_blocks,
         "iterations": iterations,
         "seed": seed,
         "confidence_level": 0.95,
@@ -552,11 +610,13 @@ def _apply_platt_logit(calibrator: tuple[float, float], probability: float) -> f
 def _ensemble_calibration_quality(predicted: list[dict[str, Any]], *, horizon: int) -> dict[str, Any]:
     """Chronological fit/validation split of a Platt calibrator for the equal-weight ensemble.
 
-    The calibrator is fitted on the earliest 60% of predicted dates and validated on later dates
+    The calibrator is fitted on the earliest 60% of predicted dates and checked on later dates
     whose decisions follow the fit block's last label end (purge). It is accepted only when the
-    validation block shows a strictly lower Brier score than the raw equal-weight ensemble.
-    Counts are prediction days; adjacent labels overlap and the validation is chronological, not
-    fully independent of label autocorrelation.
+    check block shows a strictly lower Brier score than the raw equal-weight ensemble.
+    Counts are prediction days; adjacent labels overlap and the check is chronological. Both
+    blocks are retrospective ledger dates that overlap windows already consumed by path-level
+    evaluation (including the ML path's final chronological holdout), so the comparison is a
+    descriptive retrospective check, not an independent confirmation.
     """
     if not isinstance(horizon, int) or isinstance(horizon, bool) or horizon < 1:
         return {"status": "not_assessed", "reason": "unsupported_horizon"}
@@ -584,8 +644,9 @@ def _ensemble_calibration_quality(predicted: list[dict[str, Any]], *, horizon: i
     validation_calibrated_brier = mean([(_apply_platt_logit(calibrator, p) - y) ** 2 for p, y in validation_pairs])
     improved = validation_calibrated_brier < validation_raw_brier
     return {
-        "status": "validated_on_chronological_holdout" if improved else "not_validated_no_improvement_on_holdout",
-        "method": "Platt scaling on ensemble logits; fitted on the earliest 60% of predicted dates and validated on later dates after a purge gap",
+        "status": "improved_on_subsequent_ledger_block" if improved else "no_improvement_on_subsequent_ledger_block",
+        "method": "Platt scaling on ensemble logits; fitted on the earliest 60% of predicted dates and checked on later dates after a purge gap (retrospective ledger check, not an independent holdout)",
+        "evidence_scope": "retrospective; the check block reuses ledger dates that overlap windows already consumed by path-level evaluation (including the ML path's final holdout), so the improvement is descriptive and not an independent confirmation",
         "fit_dates": len(fit_rows),
         "validation_dates": len(validation_rows),
         "fit_start": fit_rows[0]["decision_session"],
@@ -598,8 +659,8 @@ def _ensemble_calibration_quality(predicted: list[dict[str, Any]], *, horizon: i
         "validation_calibrated_brier": validation_calibrated_brier,
         "validation_improvement": validation_raw_brier - validation_calibrated_brier,
         "calibrator": {"kind": "platt_logit", "slope": calibrator[0], "intercept": calibrator[1]},
-        "overlap_disclosure": f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; the validation block is chronological, not fully independent of label autocorrelation",
-        "acceptance": "accepted only when the validation block's calibrated Brier is strictly lower than the raw ensemble's",
+        "overlap_disclosure": f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; the check block is chronological but overlaps windows already consumed by path-level evaluation, so it is not an independent confirmation",
+        "acceptance": "accepted only when the check block's calibrated Brier is strictly lower than the raw ensemble's",
     }
 
 

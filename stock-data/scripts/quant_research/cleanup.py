@@ -15,8 +15,9 @@ from pathlib import Path, PurePosixPath
 from typing import Any
 
 from .contracts import RESEARCHERS, utc_now
-from .delivery import validate_final_response
+from .delivery import validate_final_response, validate_response_text
 from .paths import safe_output_destination, validate_path_component
+from .report import render_final_response, render_markdown
 from .snapshot import DOMAINS
 
 RUN_MANIFEST = "run_manifest.json"
@@ -565,6 +566,30 @@ def _verify_retained_hashes(analysis_dir: Path, receipt: dict[str, Any]) -> None
             raise CleanupError(f"retained artifact changed after cleanup inventory: {name}")
 
 
+def _verify_retained_artifacts(analysis_dir: Path) -> None:
+    """Verify the artifacts that survive cleanup still reproduce from the frozen report.
+
+    This runs before any deletion: a report or response rewritten after the response was
+    validated no longer reproduces from report.json (plus agent_summary.json), so cleanup
+    stops instead of deleting the JSON evidence or blessing the rewrite.
+    """
+    report_path = analysis_dir / "report.json"
+    if not report_path.is_file():
+        raise CleanupError("report.json is required to verify the retained artifacts")
+    report = json.loads(report_path.read_text(encoding="utf-8"))
+    report_md_path = analysis_dir / "report.md"
+    if report_md_path.is_file() and report_md_path.read_text(encoding="utf-8") != render_markdown(report):
+        raise CleanupError("retained report.md does not reproduce from report.json; cleanup stopped")
+    response_path = analysis_dir / "final_response.md"
+    if response_path.is_file():
+        summary_path = analysis_dir / "agent_summary.json"
+        summary = json.loads(summary_path.read_text(encoding="utf-8")) if summary_path.is_file() else None
+        response_text = response_path.read_text(encoding="utf-8")
+        if response_text != render_final_response(report, summary=summary):
+            raise CleanupError("retained final_response.md does not reproduce from report.json; cleanup stopped")
+        validate_response_text(report, response_text)
+
+
 def cleanup_analysis(
     analysis_dir: Path, *, response_file: Path | None = None,
     dry_run: bool = False, force_incomplete: bool = False,
@@ -663,6 +688,7 @@ def cleanup_analysis(
                 if validation.get("analysis_id") != analysis_id:
                     raise CleanupError("prepared response validation returned a different analysis identity")
                 response_hash = _sha256(response_file)
+            _verify_retained_artifacts(analysis)
         retained = _retained_hashes(analysis, required=not force_incomplete)
         targets = [(name, _sha256(analysis / name), (analysis / name).stat().st_size)
                    for name in sorted(expected & actual)]
@@ -796,6 +822,11 @@ def cleanup_owned_run(
                 raise CleanupError("prepared response differs from the response previously validated")
         else:
             response_hash = None
+
+        if not resuming and not force_mode:
+            if not analysis_id:
+                raise CleanupError("completed run has no registered analysis directory")
+            _verify_retained_artifacts(root / "research" / analysis_id)
 
         expected = _expected_full_targets(manifest)
         allowed_dirs = _allowed_directories(analysis_id, snapshot_id, full_run=True)

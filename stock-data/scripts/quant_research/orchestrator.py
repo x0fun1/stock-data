@@ -14,7 +14,7 @@ from .audit import audit
 from .consensus import build_consensus, forecast_assessment
 from .contracts import RESEARCHERS, researcher_result
 from .delivery import validate_response_text
-from .gate_policy import aggregate_gate_telemetry
+from .gate_policy import aggregate_gate_telemetry, analysis_status
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
 from .paths import safe_output_destination
@@ -186,12 +186,12 @@ def run_analysis(
         "prediction_available": bool(adversarial.get("may_report_direction")) and final.get("consensus", {}).get("reportable_probability") is not None,
         "reporting_status": final["reporting_status"],
     }])
-    if not adversarial.get("may_report_direction"):
-        final["analysis_status"] = "abstain"
-    elif final["reporting_status"] == "degraded" or any(row.get("status") not in {"success", "partial"} for row in results.values()) or news_frozen.get("status") != "complete":
-        final["analysis_status"] = "degraded"
-    else:
-        final["analysis_status"] = "complete_with_limitations"
+    final["analysis_status"] = analysis_status(
+        may_report_direction=bool(adversarial.get("may_report_direction")),
+        reporting_state=str(final["reporting_status"]),
+        researcher_statuses=[row.get("status") for row in results.values()],
+        news_status=str(news_frozen.get("status", "not_assessed")),
+    )
     final["stages"] = [
         {"stage": "request", "status": "validated"},
         {"stage": "collection", "status": "source_receipt_loaded", "fresh_fetch_performed_by_analyze": False},

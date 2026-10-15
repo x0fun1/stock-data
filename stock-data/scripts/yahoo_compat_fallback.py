@@ -48,10 +48,11 @@ def _adjusted_values(payload: dict[str, Any]) -> list[Any] | None:
     return value if isinstance(value, list) else None
 
 
-def _legacy_history(gateway: Any, symbol: str, params: dict[str, Any]) -> dict[str, Any]:
+def _legacy_history(gateway: Any, symbol: str, params: dict[str, Any], policy: Any = None) -> dict[str, Any]:
     from yfinance_normalize import normalize_history
 
     interval = params.get("interval", "1d")
+    _reserve(policy)
     raw = gateway.stock_kline_yahoo(symbol, interval=interval, range_=_range_for(params), include_metadata=True)
     if not isinstance(raw, dict):
         raw = {"bars": raw if isinstance(raw, list) else [], "meta": {}}
@@ -147,16 +148,27 @@ def _route(function: str, params: dict[str, Any]) -> tuple[str, str, Any, list[s
     return None
 
 
-def _call_legacy(gateway: Any, function: str, params: dict[str, Any]) -> tuple[Any, str, str, list[str]]:
+_POLICY_ERROR_CODES = {"BudgetExceeded", "DeadlineExceeded", "JobCircuitOpen", "AccessDenied", "RateLimited"}
+
+
+def _reserve(policy: Any) -> None:
+    """Count one legacy gateway call against the shared transport policy, at the lowest level."""
+    if policy is not None:
+        policy.reserve()
+
+
+def _call_legacy(gateway: Any, function: str, params: dict[str, Any], policy: Any = None) -> tuple[Any, str, str, list[str]]:
     if function == "yahoo_history":
-        return _legacy_history(gateway, params["symbol"], params), "Yahoo Finance", "stock_kline_yahoo", []
+        return _legacy_history(gateway, params["symbol"], params, policy), "Yahoo Finance", "stock_kline_yahoo", []
     if function == "yahoo_history_batch":
         symbols = params.get("symbols") or []
         symbols_result = {}
         for symbol in symbols:
             try:
-                symbols_result[symbol] = _legacy_history(gateway, symbol, params)
+                symbols_result[symbol] = _legacy_history(gateway, symbol, params, policy)
             except Exception as exc:  # noqa: BLE001, PERF203 - bounded per-symbol isolation; one bad symbol must not fail the batch
+                if getattr(exc, "code", None) in _POLICY_ERROR_CODES:
+                    raise
                 symbols_result[symbol] = {"status": "failed", "error": {"category": type(exc).__name__}}
         any_data = any(_has_data(item.get("data")) for item in symbols_result.values())
         status = "partial" if any_data else "empty"
@@ -164,14 +176,17 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any]) -> tuple[A
     if function == "yahoo_options":
         symbol, expiration = params.get("symbol"), params.get("expiration")
         if expiration is None:
+            _reserve(policy)
             data = gateway.options_chain(symbol)
         else:
             target = date.fromisoformat(expiration)
+            _reserve(policy)
             listing = gateway.options_chain(symbol)
             expiries = listing.get("expiration_dates", []) if isinstance(listing, dict) else []
             matches = [value for value in expiries if datetime.fromtimestamp(value, timezone.utc).date() == target]
             if not matches:
                 raise ValueError("Legacy options route did not list the requested expiration.")
+            _reserve(policy)
             data = gateway.options_chain(symbol, expiration=matches[0])
         return data, "Yahoo Finance", "options_chain", ["Legacy option-chain field names and coverage differ from yfinance."]
     route = _route(function, params)
@@ -180,6 +195,7 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any]) -> tuple[A
     name, source, mapped, warnings = route
     if mapped is None:
         raise LookupError("Legacy compatibility parameters cannot be mapped safely.")
+    _reserve(policy)
     data = gateway.FUNCTIONS[name](**mapped)
     return data, source, name, warnings
 
@@ -193,7 +209,7 @@ def _job_circuit_reason():
     return job_circuit_block()
 
 
-def fallback(function: str, params: dict[str, Any], reason: dict[str, Any]) -> dict[str, Any]:
+def fallback(function: str, params: dict[str, Any], reason: dict[str, Any], policy: Any = None) -> dict[str, Any]:
     """Try one registered compatibility route after a yfinance failure."""
     from datetime import datetime, timezone
     latched = _job_circuit_reason()
@@ -217,7 +233,7 @@ def fallback(function: str, params: dict[str, Any], reason: dict[str, Any]) -> d
                 "warnings": ["Automatic legacy fallback was evaluated; no equivalent route is available."]}
     try:
         import global_stock_data as gateway
-        data, source, route, warnings = _call_legacy(gateway, function, params)
+        data, source, route, warnings = _call_legacy(gateway, function, params, policy)
         if isinstance(data, dict) and data.get("fallback_used") is True:
             result = dict(data)
             result["fallback_reason"] = reason
@@ -237,6 +253,8 @@ def fallback(function: str, params: dict[str, Any], reason: dict[str, Any]) -> d
                 "provenance": {"library": "legacy_compat", "route": route,
                                "raw_http_payload_captured": False}}
     except Exception as exc:  # noqa: BLE001 - fallback guard; any failure is reported as a structured error envelope
+        if getattr(exc, "code", None) in _POLICY_ERROR_CODES:
+            raise
         category = "NoLegacyRoute" if isinstance(exc, LookupError) else "LegacyFallbackFailed"
         if function in {"yahoo_history", "yahoo_history_batch"}:
             attempted_route = "stock_kline_yahoo"

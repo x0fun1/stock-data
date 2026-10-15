@@ -124,7 +124,7 @@ def _check_price_observations(block: dict[str, Any], bars: list[dict[str, Any]],
     # Only a recognized, matching convention may verify or conflict; unknown
     # bases stay retained but unusable (documented in collection-adapter.md).
     same_session = [row for row in same_session_currency
-                    if base_basis in ADJUSTMENTS and row["price_basis"] == base_basis]
+                    if isinstance(base_basis, str) and base_basis in ADJUSTMENTS and row["price_basis"] == base_basis]
     if observations and len(same_session) < len(same_session_currency):
         warnings.append("Same-session price observations with unknown or incompatible adjustment/price_basis were retained but not used for cross-source verification.")
     distinct = {row["source"] for row in same_session}
@@ -193,8 +193,10 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
         if block.get(field) is not None and (not isinstance(block[field], str) or not 0 < len(block[field]) <= 200):
             errors.append(f"market {field} must be a bounded non-empty provenance string")
             reason_codes.append("SOURCE_IDENTITY_CONFLICT" if field == "actual_source" else "MARKET_UNITS_CONFLICT")
-    data = block.get("data") or {}
-    bars = data.get("bars") or []
+    data = block.get("data")
+    data = data if isinstance(data, dict) else {}
+    bars = data.get("bars")
+    bars = bars if isinstance(bars, list) and all(isinstance(row, dict) for row in bars) else []
     if not bars:
         fatal("INSUFFICIENT_OHLCV", "no closed OHLCV bars")
         return _gate(reason_codes, errors, blockers, warnings, None, calendar_status="unavailable", horizon_type="unavailable")
@@ -207,7 +209,8 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
         fatal("INSUFFICIENT_OHLCV", f"only {len(bars)} daily observations; at least {MIN_OBSERVATION_BARS} are required for the minimum 20-observation feature")
 
     symbol = data.get("symbol", block.get("source_symbol"))
-    instrument = request.get("instrument") or {}
+    instrument = request.get("instrument")
+    instrument = instrument if isinstance(instrument, dict) else {}
     expected = (instrument.get("provider_symbols") or {}).get(block.get("actual_source"), request["ticker"]) if isinstance(block.get("actual_source"), str) else request["ticker"]
     if symbol is None:
         fatal("SOURCE_IDENTITY_UNVERIFIED", "market source symbol is missing")
@@ -217,7 +220,7 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
     frequency = data.get("frequency", block.get("frequency"))
     if frequency is None:
         fatal("FREQUENCY_UNVERIFIED", "market frequency is missing")
-    elif frequency not in {"1d", "1D", "daily"}:
+    elif not isinstance(frequency, str) or frequency not in {"1d", "1D", "daily"}:
         errors.append("direction research requires daily frequency, not a compressed/weekly series")
         reason_codes.append("FREQUENCY_UNVERIFIED")
     if not block.get("actual_source"):
@@ -280,7 +283,8 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
         except (KeyError, TypeError, ValueError):
             errors.append("market history_window has invalid start/end")
             reason_codes.append("SOURCE_IDENTITY_CONFLICT")
-    requested = request.get("history_window") or {}
+    requested = request.get("history_window")
+    requested = requested if isinstance(requested, dict) else {}
     if (requested.get("start") and first < requested["start"]) or (requested.get("end") and last > requested["end"]):
         errors.append("market bars extend outside the user-requested history window")
         reason_codes.append("SOURCE_IDENTITY_CONFLICT")
@@ -371,9 +375,10 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
                 latest_close["kind"] = "calendar_verified"
 
     adjustment = block.get("adjustment")
+    adjustment_known = isinstance(adjustment, str) and adjustment in ADJUSTMENTS
     evidence = block.get("adjustment_evidence")
     corporate_action_status = "unavailable"
-    if adjustment not in ADJUSTMENTS:
+    if not adjustment_known:
         degraded("ADJUSTMENT_UNKNOWN", "OHLCV adjustment convention is unknown; short-horizon direction remains computable with lower confidence")
     if not isinstance(evidence, dict) or not evidence.get("source") or not isinstance(evidence.get("actions"), list):
         degraded("ADJUSTMENT_EVIDENCE_UNAVAILABLE", "source-backed adjustment/company-action coverage is unavailable; unknown does not mean contaminated")
@@ -408,13 +413,14 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
             degraded("EXTREME_PRICE_MOVE_UNRECONCILED", "an extreme close-to-close move needs review; it was not automatically treated as a confirmed corporate action")
     except (KeyError, TypeError, ValueError, ZeroDivisionError):
         fatal("INVALID_PRICE_VALUES", "OHLCV price values cannot be evaluated")
-    if request.get("asset_type") in {None, "unknown"}:
+    asset_type = request.get("asset_type")
+    if not isinstance(asset_type, str) or asset_type in {None, "unknown"}:
         degraded("ASSET_TYPE_UNVERIFIED", "asset type is unverified; ETF-specific exposure/NAV/leverage checks are not assessed")
-    if request.get("asset_type") == "etf":
+    if asset_type == "etf":
         degraded("ASSET_TYPE_UNVERIFIED", "ETF NAV, holdings-date, tracking error and leverage/path risks are not assessed by the OHLCV engine")
     result = _gate(reason_codes, errors, blockers, warnings, latest_close,
                    calendar_status=calendar_status, horizon_type=horizon_type,
                    resolved_calendar_evidence=resolved if calendar_status == "library_verified" else None)
-    result["adjustment_status"] = "provider_declared" if adjustment in ADJUSTMENTS else "unknown"
+    result["adjustment_status"] = "provider_declared" if adjustment_known else "unknown"
     result["corporate_action_status"] = corporate_action_status
     return result

@@ -102,6 +102,22 @@ def reporting_status(*, prediction_available: bool, veto_codes: Iterable[str] = 
     return classified["status"]
 
 
+def analysis_status(*, may_report_direction: bool, reporting_state: str, researcher_statuses: Iterable[str],
+                    news_status: str) -> str:
+    """Derive the final analysis status from stage outcomes only.
+
+    The report embeds this value, and its validation re-derives the same value from the
+    frozen stages, so an edited status field cannot claim a state the stages did not reach.
+    """
+    if not may_report_direction:
+        return "abstain"
+    if (reporting_state == "degraded"
+            or any(status not in {"success", "partial"} for status in researcher_statuses)
+            or news_status != "complete"):
+        return "degraded"
+    return "complete_with_limitations"
+
+
 def aggregate_gate_telemetry(records: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """Aggregate per-analysis rows; callers can combine daily multi-ticker runs."""
     rows = list(records)
