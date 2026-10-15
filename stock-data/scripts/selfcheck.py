@@ -17,6 +17,10 @@ offline with synthetic data (no network, no yfinance dependency):
 - F09      block-bootstrap estimability: insufficient independent blocks and
            zero-width resamples are marked, not reported as certainty.
 - F10      ensemble check naming: retrospective scope is explicit.
+- F11      legacy option expiries accept Unix seconds: direct gateway validation
+           and the fallback envelope with an explicit expiry.
+- F12      PathLike cache_dir is normalized at the provider entry; non-path
+           values stay rejected.
 
 Usage: python stock-data/scripts/selfcheck.py
 """
@@ -451,6 +455,85 @@ def check_f10_ensemble_scope() -> None:
     assert "validated_on_chronological_holdout" not in json.dumps(quality)
 
 
+# ---------------------------------------------------------------- F11 / F12
+def check_f11_options_expiry_unix_seconds() -> None:
+    import importlib.util
+
+    if importlib.util.find_spec("requests") is None:
+        # The Yahoo session is stubbed below, so the legacy gateway only needs a
+        # placeholder when requests is not installed.
+        sys.modules["requests"] = types.ModuleType("requests")
+
+    import global_stock_data as gsd
+    import yahoo_compat_fallback as fb
+
+    unix = int(dt.datetime(2026, 11, 20, tzinfo=dt.timezone.utc).timestamp())
+    captured: dict = {}
+
+    class StubSession:
+        _crumb = "stub"
+
+    class StubResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self) -> dict:
+            return {"optionChain": {"error": None, "result": [{
+                "expirationDates": [unix],
+                "options": [{"calls": [], "puts": []}],
+                "quote": {"regularMarketPrice": 101.5},
+            }]}}
+
+    def stub_session():
+        return StubSession()
+
+    def stub_get(session, url, params=None, timeout=None):
+        captured["params"] = dict(params or {})
+        return StubResponse()
+
+    real_session, real_get = gsd.get_yahoo_session, gsd._session_get
+    gsd.get_yahoo_session, gsd._session_get = stub_session, stub_get
+    try:
+        chain = gsd.options_chain("AAPL", expiration=unix)
+        assert captured["params"].get("date") == unix, captured
+        assert chain["expiration_dates"] == [unix], chain
+
+        for bad in (0, -1, True, 4102444801, "2026-11-20"):
+            rejected = False
+            try:
+                gsd.options_chain("AAPL", expiration=bad)
+            except ValueError:
+                rejected = True
+            assert rejected, f"expiration={bad!r} must still be rejected"
+
+        envelope = fb.fallback("yahoo_options", {"symbol": "AAPL", "expiration": "2026-11-20"},
+                               {"category": "DependencyUnavailable"}, policy=None)
+        assert envelope["status"] == "partial", envelope
+        assert envelope["fallback_used"] is True and envelope["fallback_route"] == "options_chain", envelope
+        assert (envelope.get("data") or {}).get("expiration_dates") == [unix], envelope.get("data")
+    finally:
+        gsd.get_yahoo_session, gsd._session_get = real_session, real_get
+
+
+def check_f12_cache_dir_pathlike() -> None:
+    os.environ.pop("STOCK_DATA_YAHOO_CACHE_DIR", None)
+    from yfinance_provider import GatewayError, YahooProvider
+
+    sentinel = {"sentinel": True}
+    provider = YahooProvider(cache_dir=Path(tempfile.mkdtemp()))
+    assert isinstance(provider.cache_dir, str), type(provider.cache_dir)
+    provider._call_yfinance = lambda name, **params: sentinel
+    assert provider.call("yahoo_quote", symbol="AAPL") is sentinel
+
+    non_path = YahooProvider(cache_dir=123)
+    try:
+        non_path._preflight("yahoo_quote", {"symbol": "AAPL"})
+    except GatewayError as exc:
+        assert exc.code == "InvalidParameters", exc.code
+    else:
+        raise AssertionError("non-path cache_dir must be rejected")
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -463,6 +546,8 @@ CHECKS = [
     ("F08 preflight and fallback counting", check_f08_preflight_and_counting),
     ("F09 bootstrap estimability", check_f09_bootstrap_estimability),
     ("F10 ensemble check scope", check_f10_ensemble_scope),
+    ("F11 options expiry Unix seconds", check_f11_options_expiry_unix_seconds),
+    ("F12 cache_dir PathLike normalized", check_f12_cache_dir_pathlike),
 ]
 
 if __name__ == "__main__":

@@ -258,6 +258,8 @@ class YahooProvider:
             max_requests = budget
         if kwargs:
             raise GatewayError('InvalidParameters', 'Unknown provider configuration')
+        if isinstance(cache_dir, os.PathLike):
+            cache_dir = os.fspath(cache_dir)
         self.cache_dir = cache_dir or os.environ.get('STOCK_DATA_YAHOO_CACHE_DIR')
         self._default_deadline, self._default_budget = deadline is None, max_requests is None
         self.policy = TransportPolicy(timeout=timeout, deadline=120 if deadline is None else deadline,

@@ -102,9 +102,12 @@ def _nonempty_text(value, name: str) -> str:
     return value.strip()
 
 
-def _positive_int(value, name: str) -> int:
-    if not isinstance(value, int) or isinstance(value, bool) or not 0 < value <= 10000:
-        raise ValueError(f"{name} must be a positive integer no larger than 10000.")
+_MAX_UNIX_TIMESTAMP = 4102444800  # 2100-01-01; ceiling for Unix-seconds fields (option expiries)
+
+
+def _positive_int(value, name: str, maximum: int = 10000) -> int:
+    if not isinstance(value, int) or isinstance(value, bool) or not 0 < value <= maximum:
+        raise ValueError(f"{name} must be a positive integer no larger than {maximum}.")
     return value
 
 
@@ -1370,7 +1373,7 @@ def options_chain(symbol: str, expiration: int | None = None) -> dict:
     """
     symbol = assert_us_ticker(symbol)
     if expiration is not None:
-        _positive_int(expiration, "expiration")
+        _positive_int(expiration, "expiration", maximum=_MAX_UNIX_TIMESTAMP)
     s = get_yahoo_session()
     params = {"crumb": s._crumb}
     if expiration:
