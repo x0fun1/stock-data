@@ -620,15 +620,15 @@ def _ensemble_calibration_quality(predicted: list[dict[str, Any]], *, horizon: i
     """
     if not isinstance(horizon, int) or isinstance(horizon, bool) or horizon < 1:
         return {"status": "not_assessed", "reason": "unsupported_horizon"}
-    if len(predicted) < 80:
-        return {"status": "insufficient_dates", "predicted_dates": len(predicted), "minimum_predicted_dates": 80}
+    if len(predicted) < 60:
+        return {"status": "insufficient_dates", "predicted_dates": len(predicted), "minimum_predicted_dates": 60}
     split = int(len(predicted) * 0.6)
     fit_rows = predicted[:split]
     last_fit_label_end = fit_rows[-1]["label_end_session"]
     validation_rows = [row for row in predicted[split:] if row["decision_session"] > last_fit_label_end]
-    if len(fit_rows) < 40 or len(validation_rows) < 40:
+    if len(fit_rows) < 30 or len(validation_rows) < 30:
         return {"status": "insufficient_dates", "fit_dates": len(fit_rows),
-                "validation_dates": len(validation_rows), "minimum_per_block": 40}
+                "validation_dates": len(validation_rows), "minimum_per_block": 30}
     calibrator = _fit_platt_logits(
         [math.log(max(1e-6, min(1 - 1e-6, float(row["probability"])))
                   / (1 - max(1e-6, min(1 - 1e-6, float(row["probability"])))))

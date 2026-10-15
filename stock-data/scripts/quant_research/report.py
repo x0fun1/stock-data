@@ -58,8 +58,9 @@ CONFIDENCE_REASON_LABELS = {
     "ensemble_calibration_unavailable": "等权共识没有通过时间序后段改进检查的 ensemble 校准器",
     "oos_evidence_invalid": "部分 OOS 记录未通过冻结行情核验",
     "policy_oos_skill_evidence_insufficient": "整套历史预测策略的 OOS 样本不足",
+    "policy_oos_skill_below_expanding_base_rate_interval": "整套历史预测策略的观测技能区间整体低于因果扩展基准",
     "policy_oos_not_better_than_expanding_base_rate": "整套历史预测策略未优于因果扩展基准",
-    "policy_oos_skill_is_exploratory": "整套策略的 OOS 技能证据尚属探索性",
+    "policy_oos_skill_is_exploratory": "整套策略的正向 OOS 技能非重叠样本低于完整支持（探索性）",
     "policy_oos_skill_uncertainty_unestimated": "整套策略的正向 OOS 技能尚未估计不确定性",
     "policy_oos_skill_uncertainty_includes_zero": "整套策略的正向 OOS 技能区间含零，尚未与基准区分",
 }

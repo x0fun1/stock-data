@@ -10,7 +10,10 @@ from ..market_data import forward_returns, market_bars, non_overlapping
 from ..math_utils import mean, wilson_interval
 from ..snapshot import load_snapshot
 
-MINIMUM_MATCHING_SAMPLES = 30
+# Minimum non-overlapping same-sign matured matches required to report a conditional
+# probability; calibrated so that the one-year default research window can support the
+# path (the previous value of 30 implicitly required roughly two years of sessions).
+MINIMUM_MATCHING_SAMPLES = 12
 
 
 def _momentum(values: list[float], index: int, window: int) -> float | None:
@@ -99,7 +102,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         probability = None
         expected = None
         status = "insufficient_data"
-        warnings.append(f"Only {len(outcomes)} non-overlapping historical matches; at least 30 are required to report a conditional probability.")
+        warnings.append(f"Only {len(outcomes)} non-overlapping historical matches; at least {MINIMUM_MATCHING_SAMPLES} are required to report a conditional probability.")
     if not oos_predictions:
         status = "partial" if probability is not None else "insufficient_data"
         warnings.append("No sufficiently populated expanding-window ledger predictions were available.")

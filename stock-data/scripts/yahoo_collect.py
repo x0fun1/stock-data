@@ -38,7 +38,7 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def _year_back(day: date, years: int = 3) -> date:
+def _year_back(day: date, years: int = 1) -> date:
     try:
         return day.replace(year=day.year - years)
     except ValueError:
@@ -152,7 +152,7 @@ def _market(envelope: dict[str, Any], request: dict[str, Any], start: str, end: 
         return block
     first, last = kept[0]["date"], kept[-1]["date"]
     data["history_window"] = {"start": first, "end": last,
-        "selection": "explicit user window" if request.get("history_window") else "three years from latest calendar-confirmed close; calendar uncertainty declared"}
+        "selection": "explicit user window" if request.get("history_window") else "one year from latest calendar-confirmed close; calendar uncertainty declared"}
     data["frequency"] = block["frequency"] = data.get("frequency", block.get("frequency", "1d"))
     if block.get("source_symbol") is not None:
         data["symbol"] = block["source_symbol"]

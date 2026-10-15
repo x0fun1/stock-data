@@ -21,6 +21,12 @@ offline with synthetic data (no network, no yfinance dependency):
            and the fallback envelope with an explicit expiry.
 - F12      PathLike cache_dir is normalized at the provider entry; non-path
            values stay rejected.
+- F13      horizon-scaled OOS support thresholds (one-year default window) and the
+           matching evidence grades.
+- F14      weighted confidence composite bands: fully validated evidence reaches the
+           high band; contradicted skill is capped below medium.
+- F15      one-year window defaults: the collector window helper and the recalibrated
+           quant/ML sample floors keep both paths feasible at ~252 sessions.
 
 Usage: python stock-data/scripts/selfcheck.py
 """
@@ -127,9 +133,13 @@ def check_f01_current_probability_not_clobbered() -> None:
 
     features = ml._features(bars)
     feature_vector = tuple(features[-1])
-    raw_current = fits[-1].predict(feature_vector)
     frozen = platt[0][2]
-    expected = logistic(frozen[1] + frozen[0] * raw_current) if frozen else raw_current
+    if frozen:
+        # The frozen Platt mapping is applied to the current refit model's logit; the
+        # check proves the current probability is not clobbered by any ledger row.
+        expected = logistic(frozen[1] + frozen[0] * fits[-1].score(feature_vector))
+    else:
+        expected = fits[-1].predict(feature_vector)
     assert abs(result["prob_up"] - expected) < 1e-9, (result["prob_up"], expected)
     assert abs((result["prob_up"] or -1) - rows[-1]["probability"]) > 1e-12, "prob_up equals the last ledger row"
 
@@ -534,6 +544,92 @@ def check_f12_cache_dir_pathlike() -> None:
         raise AssertionError("non-path cache_dir must be rejected")
 
 
+def check_f13_horizon_scaled_support() -> None:
+    from quant_research.consensus import (
+        _predictive_evidence_grade,
+        oos_support_thresholds,
+    )
+
+    table = oos_support_thresholds(5)
+    assert table == {"strong": 38, "acceptable": 20, "weak": 11}, table
+    for horizon in (1, 2, 3, 5, 10, 20, 60):
+        scaled = oos_support_thresholds(horizon)
+        assert 0 < scaled["weak"] <= scaled["acceptable"] <= scaled["strong"], (horizon, scaled)
+
+    def replay(**over):
+        payload = {"non_overlapping_predicted_dates": 25, "brier_skill_vs_expanding_base_rate": 0.01}
+        payload.update(over)
+        return {"algorithm_policy_replay": payload}
+
+    manifest = {"horizon": "5D"}
+    assert _predictive_evidence_grade(replay(non_overlapping_predicted_dates=10), manifest) == "insufficient_oos_evidence"
+    assert _predictive_evidence_grade(replay(), manifest) == "exploratory_positive_skill_unconfirmed"
+    assert _predictive_evidence_grade(
+        replay(non_overlapping_predicted_dates=40, skill_uncertainty={"ci_low": 0.001, "ci_high": 0.05}),
+        manifest) == "positive_skill_with_estimated_interval_excluding_zero"
+    assert _predictive_evidence_grade(
+        replay(non_overlapping_predicted_dates=40, skill_uncertainty={"ci_low": -0.02, "ci_high": 0.05}),
+        manifest) == "positive_skill_with_estimated_interval_including_zero"
+    assert _predictive_evidence_grade(
+        replay(non_overlapping_predicted_dates=40, brier_skill_vs_expanding_base_rate=-0.01,
+               skill_uncertainty={"ci_low": -0.05, "ci_high": -0.001}),
+        manifest) == "observed_skill_below_expanding_base_rate"
+
+
+def check_f14_confidence_composite() -> None:
+    from quant_research.consensus import _confidence_composite
+
+    strong_path = {"oos_validation": {"status": "strong"}, "probability_calibration": "calibrated", "reason_codes": []}
+    ok_path = {"oos_validation": {"status": "acceptable"}, "probability_calibration": "empirical_frequency", "reason_codes": []}
+    weak_path = {"oos_validation": {"status": "weak"}, "probability_calibration": "uncalibrated", "reason_codes": []}
+
+    validated = _confidence_composite(
+        base_score=90, path_assessments=[strong_path, ok_path], valid_count=2, agreement="high", diversity="medium",
+        manifest={"horizon": "5D"},
+        oos_probability_quality={
+            "algorithm_policy_replay": {"non_overlapping_predicted_dates": 40, "brier_skill_vs_expanding_base_rate": 0.05,
+                                        "skill_uncertainty": {"ci_low": 0.01, "ci_high": 0.09, "independent_blocks": 6}},
+            "ensemble_calibration": {"status": "improved_on_subsequent_ledger_block"}})
+    assert validated["label"] == "high" and validated["score"] >= 80, validated
+
+    typical = _confidence_composite(
+        base_score=75, path_assessments=[ok_path, weak_path], valid_count=2, agreement="medium", diversity="medium",
+        manifest={"horizon": "5D"},
+        oos_probability_quality={
+            "algorithm_policy_replay": {"non_overlapping_predicted_dates": 18, "brier_skill_vs_expanding_base_rate": 0.01,
+                                        "skill_uncertainty": {"ci_low": -0.02, "ci_high": 0.04, "independent_blocks": 5}},
+            "ensemble_calibration": {}})
+    assert 60 <= typical["score"] < 80, typical
+
+    contradicted = _confidence_composite(
+        base_score=75, path_assessments=[ok_path, weak_path], valid_count=2, agreement="medium", diversity="medium",
+        manifest={"horizon": "5D"},
+        oos_probability_quality={
+            "algorithm_policy_replay": {"non_overlapping_predicted_dates": 30, "brier_skill_vs_expanding_base_rate": -0.05,
+                                        "skill_uncertainty": {"ci_low": -0.09, "ci_high": -0.01, "independent_blocks": 6}},
+            "ensemble_calibration": {}})
+    assert contradicted["score"] <= 64, contradicted
+    assert "policy_oos_skill_below_expanding_base_rate_interval" in contradicted["reasons"], contradicted
+
+
+def check_f15_one_year_window_defaults() -> None:
+    from quant_research.researchers import ml, quant
+    from yahoo_collect import _year_back
+
+    assert _year_back(dt.date(2026, 1, 2)) == dt.date(2025, 1, 2)
+    assert _year_back(dt.date(2026, 1, 2), 3) == dt.date(2023, 1, 2)
+
+    bars = synth_bars(252)
+    manifest, market = ml_snapshot_stub(bars)
+    loaded = (manifest, market)
+    for module in (quant, ml):
+        result = module.run(Path("unused"), loaded)
+        validation = result.get("validation") or {}
+        count = validation.get("non_overlapping_prediction_count")
+        assert result.get("prob_up") is not None, (module.__name__, result.get("status"), result.get("warnings"))
+        assert isinstance(count, int) and count >= 11, (module.__name__, count)  # weak-support floor at the 5D horizon
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -548,6 +644,9 @@ CHECKS = [
     ("F10 ensemble check scope", check_f10_ensemble_scope),
     ("F11 options expiry Unix seconds", check_f11_options_expiry_unix_seconds),
     ("F12 cache_dir PathLike normalized", check_f12_cache_dir_pathlike),
+    ("F13 horizon-scaled OOS support", check_f13_horizon_scaled_support),
+    ("F14 confidence composite bands", check_f14_confidence_composite),
+    ("F15 one-year window defaults", check_f15_one_year_window_defaults),
 ]
 
 if __name__ == "__main__":

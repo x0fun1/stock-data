@@ -129,11 +129,12 @@ def forecast_assessment(
         messages.append("Purged validation reports overlapping train/test information intervals.")
 
     count = _oos_count(result, oos_evidence_audit)
-    if count >= 100:
+    thresholds = oos_support_thresholds(_horizon_sessions(manifest))
+    if count >= thresholds["strong"]:
         oos_status = "strong"
-    elif count >= 40:
+    elif count >= thresholds["acceptable"]:
         oos_status = "acceptable"
-    elif count >= 20:
+    elif count >= thresholds["weak"]:
         oos_status = "weak"
     else:
         oos_status = "insufficient"
@@ -186,11 +187,33 @@ def _confidence_label(score: int) -> str:
     return "high" if score >= 80 else "medium" if score >= 60 else "low" if score >= 40 else "very_low"
 
 
-def _predictive_evidence_grade(quality: dict[str, Any]) -> str:
+def _horizon_sessions(manifest: dict[str, Any]) -> int:
+    digits = "".join(ch for ch in str(manifest.get("horizon", "5D")) if ch.isdigit())
+    horizon = int(digits) if digits else 5
+    return horizon if horizon >= 1 else 5
+
+
+def oos_support_thresholds(horizon_sessions: int) -> dict[str, int]:
+    """Non-overlapping OOS sample targets scaled to the one-year default research window.
+
+    One default window (~252 sessions) defines full support: `strong` is ~90% of its
+    non-overlapping budget (floor 20 so short horizons still need a working sample),
+    with `acceptable` at ~55% and `weak` at ~30% of that target. Longer windows earn
+    the same top tier once these counts are met. Thresholds use non-overlapping counts.
+    """
+    budget = max(1, 252 // (horizon_sessions + 1))
+    strong = max(20, budget - budget // 10)
+    acceptable = max(10, (strong * 55) // 100)
+    weak = max(5, (strong * 30) // 100)
+    return {"strong": strong, "acceptable": acceptable, "weak": weak}
+
+
+def _predictive_evidence_grade(quality: dict[str, Any], manifest: dict[str, Any]) -> str:
     replay = quality.get("algorithm_policy_replay") or {}
+    thresholds = oos_support_thresholds(_horizon_sessions(manifest))
     count = replay.get("non_overlapping_predicted_dates", replay.get("predicted_dates", 0))
     skill = replay.get("brier_skill_vs_expanding_base_rate")
-    if (not isinstance(count, int) or isinstance(count, bool) or count < 20
+    if (not isinstance(count, int) or isinstance(count, bool) or count < thresholds["weak"]
             or isinstance(skill, bool) or not isinstance(skill, (int, float))
             or not math.isfinite(float(skill))):
         return "insufficient_oos_evidence"
@@ -203,13 +226,124 @@ def _predictive_evidence_grade(quality: dict[str, Any]) -> str:
         return "observed_skill_below_expanding_base_rate"
     if skill <= 0:
         return "no_observed_skill_vs_expanding_base_rate"
-    if count < 100:
+    if count < thresholds["strong"]:
         return "exploratory_positive_skill_unconfirmed"
     if not ci_valid:
         return "positive_skill_point_estimate_uncertainty_unestimated"
     if float(ci_low) > 0:
         return "positive_skill_with_estimated_interval_excluding_zero"
     return "positive_skill_with_estimated_interval_including_zero"
+
+
+def _confidence_composite(*, base_score: float, path_assessments: list[dict[str, Any]], valid_count: int,
+                          oos_probability_quality: dict[str, Any], agreement: str, diversity: str,
+                          manifest: dict[str, Any]) -> dict[str, Any]:
+    """Blend evidence dimensions into the reported confidence score.
+
+    Dimensions and weights (see references/reliability-gates.md): data integrity 0.20,
+    OOS validation 0.25, policy replay skill 0.25, calibration 0.15, consensus robustness
+    0.15. Each dimension scores 0-100, so closed gaps earn full credit and a fully
+    validated study can reach the high band while thin or contradicted evidence cannot.
+    """
+    thresholds = oos_support_thresholds(_horizon_sessions(manifest))
+    confidence_reasons: list[str] = []
+
+    oos_status_points = {"strong": 100.0, "acceptable": 80.0, "weak": 45.0, "insufficient": 20.0, "invalid": 0.0}
+    oos_statuses = [(item.get("oos_validation") or {}).get("status", "insufficient") for item in path_assessments]
+    oos_component = (sum(oos_status_points.get(status, 20.0) for status in oos_statuses) / len(oos_statuses)) if oos_statuses else 0.0
+    if not oos_statuses or all(status in {"weak", "insufficient"} for status in oos_statuses):
+        confidence_reasons.append("oos_validation_insufficient")
+    elif "weak" in oos_statuses or "insufficient" in oos_statuses:
+        confidence_reasons.append("some_oos_validation_weak")
+
+    calibration_statuses = [item.get("probability_calibration", "uncalibrated") for item in path_assessments]
+    calibrated_fraction = (sum(1 for status in calibration_statuses if status in {"calibrated", "empirical_frequency"}) / len(calibration_statuses)) if calibration_statuses else 0.0
+    ensemble_calibration = oos_probability_quality.get("ensemble_calibration") or {}
+    ensemble_calibrator_validated = ensemble_calibration.get("status") == "improved_on_subsequent_ledger_block"
+    calibration_component = min(100.0, 40.0 + 45.0 * calibrated_fraction + (15.0 if ensemble_calibrator_validated else 0.0))
+    if "uncalibrated" in calibration_statuses:
+        confidence_reasons.append("uncalibrated_raw_probability")
+    if not ensemble_calibrator_validated:
+        confidence_reasons.append("ensemble_calibration_unavailable")
+
+    if any("LEAKAGE_AUDIT_INCOMPLETE" in (item.get("reason_codes") or []) for item in path_assessments):
+        oos_component = max(0.0, oos_component - 15.0)
+        confidence_reasons.append("leakage_audit_incomplete")
+    if any("OOS_EVIDENCE_INVALID" in (item.get("reason_codes") or []) for item in path_assessments):
+        oos_component = max(0.0, oos_component - 10.0)
+        confidence_reasons.append("oos_evidence_invalid")
+
+    agreement_points = {"high": 100.0, "medium": 80.0, "high_disagreement": 45.0, "extreme_disagreement": 20.0}
+    diversity_points = {"high": 100.0, "medium": 85.0, "low": 60.0}
+    robustness_component = 0.75 * agreement_points.get(agreement, 60.0) + 0.25 * diversity_points.get(diversity, 60.0)
+    if agreement == "high_disagreement":
+        confidence_reasons.append("high_path_disagreement")
+    elif agreement == "extreme_disagreement":
+        confidence_reasons.append("extreme_path_disagreement")
+    if diversity == "low" and valid_count > 1:
+        confidence_reasons.append("low_evidence_family_diversity")
+
+    policy_replay = oos_probability_quality.get("algorithm_policy_replay") or {}
+    replay_count = policy_replay.get("non_overlapping_predicted_dates", policy_replay.get("predicted_dates", 0))
+    replay_skill = policy_replay.get("brier_skill_vs_expanding_base_rate")
+    skill_uncertainty = policy_replay.get("skill_uncertainty") or {}
+    ci_low = skill_uncertainty.get("ci_low") if isinstance(skill_uncertainty, dict) else None
+    ci_high = skill_uncertainty.get("ci_high") if isinstance(skill_uncertainty, dict) else None
+    independent_blocks = skill_uncertainty.get("independent_blocks") if isinstance(skill_uncertainty, dict) else None
+    ci_estimated = (isinstance(ci_low, (int, float)) and not isinstance(ci_low, bool) and math.isfinite(float(ci_low))
+                    and isinstance(ci_high, (int, float)) and not isinstance(ci_high, bool) and math.isfinite(float(ci_high))
+                    and isinstance(independent_blocks, int) and not isinstance(independent_blocks, bool)
+                    and independent_blocks >= MIN_BOOTSTRAP_INDEPENDENT_BLOCKS)
+    replay_component = 20.0
+    if (not isinstance(replay_count, int) or isinstance(replay_count, bool) or replay_count < thresholds["weak"]
+            or isinstance(replay_skill, bool) or not isinstance(replay_skill, (int, float))
+            or not math.isfinite(float(replay_skill))):
+        replay_component = 20.0
+        confidence_reasons.append("policy_oos_skill_evidence_insufficient")
+    elif ci_estimated and float(ci_high) < 0:
+        replay_component = 10.0
+        confidence_reasons.append("policy_oos_skill_below_expanding_base_rate_interval")
+    elif replay_skill <= 0:
+        replay_component = 15.0
+        confidence_reasons.append("policy_oos_not_better_than_expanding_base_rate")
+    elif ci_estimated and float(ci_low) > 0:
+        # Full credit is earned by a block-bootstrap interval that excludes zero; sample
+        # breadth below the full-support target still shows as a caveat reason.
+        replay_component = 100.0
+        if replay_count < thresholds["strong"]:
+            confidence_reasons.append("policy_oos_skill_is_exploratory")
+    else:
+        replay_component = 65.0
+        if not ci_estimated:
+            confidence_reasons.append("policy_oos_skill_uncertainty_unestimated")
+        else:
+            confidence_reasons.append("policy_oos_skill_uncertainty_includes_zero")
+
+    component_weights = {"data_integrity": 0.20, "oos_validation": 0.25, "policy_replay": 0.25,
+                         "calibration": 0.15, "consensus_robustness": 0.15}
+    component_scores = {"data_integrity": max(0.0, min(100.0, float(base_score))), "oos_validation": oos_component,
+                        "policy_replay": replay_component, "calibration": calibration_component,
+                        "consensus_robustness": robustness_component}
+    confidence_score = round(sum(component_weights[key] * component_scores[key] for key in component_weights))
+    if valid_count < 2:
+        confidence_score = min(confidence_score, 74)
+        confidence_reasons.append("only_one_quant_path")
+    if ci_estimated and float(ci_high) < 0:
+        confidence_score = min(confidence_score, 64)
+    elif (isinstance(replay_skill, (int, float)) and not isinstance(replay_skill, bool)
+          and math.isfinite(float(replay_skill)) and replay_skill <= 0):
+        confidence_score = min(confidence_score, 74)
+    confidence_score = max(0, min(100, confidence_score))
+    confidence_penalties = [{"points": round(component_weights[key] * (100.0 - component_scores[key])),
+                             "reason": f"{key}_below_full_support"}
+                            for key in component_weights if component_scores[key] < 100.0]
+    return {"score": confidence_score, "label": _confidence_label(confidence_score),
+            "reasons": list(dict.fromkeys(confidence_reasons)), "penalties": confidence_penalties,
+            "thresholds": thresholds, "component_scores": component_scores, "component_weights": component_weights,
+            "calibration_statuses": calibration_statuses, "ensemble_calibration": ensemble_calibration,
+            "ensemble_calibrator_validated": ensemble_calibrator_validated,
+            "ci_estimated": ci_estimated, "ci_low": ci_low, "ci_high": ci_high,
+            "skill_uncertainty": skill_uncertainty}
 
 
 def build_consensus(
@@ -255,7 +389,7 @@ def build_consensus(
             "status": "unavailable", "weighting": "equal", "available_paths": 0,
             "economic_viability": _economic_viability([]),
             "oos_probability_quality": oos_probability_quality,
-            "predictive_evidence_grade": _predictive_evidence_grade(oos_probability_quality),
+            "predictive_evidence_grade": _predictive_evidence_grade(oos_probability_quality, manifest),
             "confidence_score_kind": "heuristic_evidence_support",
             "skill_weight_validation": skill_weight_validation,
             "prob_up": None, "direction": "unavailable", "agreement": "unavailable",
@@ -301,68 +435,23 @@ def build_consensus(
     if not isinstance(base_score, (int, float)):
         raw_score = data_quality.get("score")
         base_score = float(raw_score) * 100 if isinstance(raw_score, (int, float)) else {"high": 85, "medium": 65, "low": 35}.get(data_quality.get("overall"), 35)
-    confidence_score = float(base_score)
-    confidence_reasons: list[str] = []
-    confidence_penalties: list[dict[str, Any]] = []
     path_assessments = [assessments.get(r["researcher_id"], {}) for r in valid]
-    def deduct(points: int, reason: str) -> None:
-        nonlocal confidence_score
-        confidence_score -= points
-        confidence_penalties.append({"points": points, "reason": reason})
-        confidence_reasons.append(reason)
-    if len(valid) < 2:
-        deduct(10, "only_one_quant_path")
-    calibration_statuses = [item.get("probability_calibration", "uncalibrated") for item in path_assessments]
-    if "uncalibrated" in calibration_statuses:
-        deduct(20, "uncalibrated_raw_probability")
-    ensemble_calibration = oos_probability_quality.get("ensemble_calibration") or {}
-    ensemble_calibrator_validated = ensemble_calibration.get("status") == "improved_on_subsequent_ledger_block"
-    if not ensemble_calibrator_validated:
-        deduct(10, "ensemble_calibration_unavailable")
-    oos_statuses = [(item.get("oos_validation") or {}).get("status", "insufficient") for item in path_assessments]
-    if not oos_statuses or all(status in {"weak", "insufficient"} for status in oos_statuses):
-        deduct(20, "oos_validation_insufficient")
-    elif "weak" in oos_statuses or "insufficient" in oos_statuses:
-        deduct(10, "some_oos_validation_weak")
-    if any("LEAKAGE_AUDIT_INCOMPLETE" in (item.get("reason_codes") or []) for item in path_assessments):
-        deduct(15, "leakage_audit_incomplete")
-    if any("OOS_EVIDENCE_INVALID" in (item.get("reason_codes") or []) for item in path_assessments):
-        deduct(20, "oos_evidence_invalid")
-    if agreement == "medium":
-        deduct(5, "moderate_path_disagreement")
-    elif agreement == "high_disagreement":
-        deduct(20, "high_path_disagreement")
-    elif agreement == "extreme_disagreement":
-        deduct(30, "extreme_path_disagreement")
-    if diversity == "low" and len(valid) > 1:
-        deduct(10, "low_evidence_family_diversity")
-    policy_replay = oos_probability_quality.get("algorithm_policy_replay") or {}
-    replay_count = policy_replay.get("non_overlapping_predicted_dates", policy_replay.get("predicted_dates", 0))
-    replay_skill = policy_replay.get("brier_skill_vs_expanding_base_rate")
-    skill_uncertainty = policy_replay.get("skill_uncertainty") or {}
-    ci_low = skill_uncertainty.get("ci_low") if isinstance(skill_uncertainty, dict) else None
-    ci_high = skill_uncertainty.get("ci_high") if isinstance(skill_uncertainty, dict) else None
-    independent_blocks = skill_uncertainty.get("independent_blocks") if isinstance(skill_uncertainty, dict) else None
-    ci_estimated = (isinstance(ci_low, (int, float)) and not isinstance(ci_low, bool) and math.isfinite(float(ci_low))
-                    and isinstance(ci_high, (int, float)) and not isinstance(ci_high, bool) and math.isfinite(float(ci_high))
-                    and isinstance(independent_blocks, int) and not isinstance(independent_blocks, bool)
-                    and independent_blocks >= MIN_BOOTSTRAP_INDEPENDENT_BLOCKS)
-    if (not isinstance(replay_count, int) or isinstance(replay_count, bool) or replay_count < 20
-            or isinstance(replay_skill, bool) or not isinstance(replay_skill, (int, float))
-            or not math.isfinite(float(replay_skill))):
-        deduct(10, "policy_oos_skill_evidence_insufficient")
-    elif ci_estimated and float(ci_high) < 0:
-        deduct(20, "policy_oos_skill_below_expanding_base_rate_interval")
-    elif not ci_estimated and replay_skill <= 0:
-        deduct(20, "policy_oos_not_better_than_expanding_base_rate")
-    elif replay_count < 100:
-        deduct(10, "policy_oos_skill_is_exploratory")
-    elif not ci_estimated:
-        deduct(10, "policy_oos_skill_uncertainty_unestimated")
-    elif not (float(ci_low) > 0):
-        deduct(10, "policy_oos_skill_uncertainty_includes_zero")
-    confidence_score = max(0, min(100, round(confidence_score)))
-    confidence = _confidence_label(confidence_score)
+    composite = _confidence_composite(base_score=float(base_score), path_assessments=path_assessments,
+                                      valid_count=len(valid), oos_probability_quality=oos_probability_quality,
+                                      agreement=agreement, diversity=diversity, manifest=manifest)
+    confidence_score = composite["score"]
+    confidence = composite["label"]
+    confidence_reasons = list(composite["reasons"])
+    confidence_penalties = composite["penalties"]
+    thresholds = composite["thresholds"]
+    component_scores = composite["component_scores"]
+    component_weights = composite["component_weights"]
+    calibration_statuses = composite["calibration_statuses"]
+    ensemble_calibration = composite["ensemble_calibration"]
+    ensemble_calibrator_validated = composite["ensemble_calibrator_validated"]
+    ci_estimated = composite["ci_estimated"]
+    ci_low = composite["ci_low"]
+    ci_high = composite["ci_high"]
 
     warnings: list[str] = (["Ambiguous path IDs or missing assessments were excluded; see path_input_rejections."] if input_rejections else [])
     all_codes = [code for item in path_assessments for code in (item.get("reason_codes") or [])]
@@ -430,20 +519,23 @@ def build_consensus(
         "confidence": confidence,
         "confidence_score": confidence_score,
         "confidence_score_kind": "heuristic_evidence_support",
-        "predictive_evidence_grade": _predictive_evidence_grade(oos_probability_quality),
+        "predictive_evidence_grade": _predictive_evidence_grade(oos_probability_quality, manifest),
         "confidence_reasons": list(dict.fromkeys(confidence_reasons)),
         "confidence_penalties": confidence_penalties,
         "reason_codes": list(dict.fromkeys(all_codes)),
         "evidence_overlap": {"mean_pairwise_jaccard": (sum(overlaps) / len(overlaps)) if overlaps else None, "path_families": [sorted(items) for items in path_families]},
         "confidence_components": {"base_data_quality_score": round(float(base_score)),
-                                  "data_quality_penalties": manifest.get("data_quality", {}).get("confidence_penalties", []),
+                                  "data_quality_penalties": data_quality.get("confidence_penalties", []),
+                                  "component_scores": {key: round(component_scores[key]) for key in component_scores},
+                                  "component_weights": component_weights,
+                                  "oos_support_thresholds": thresholds,
                                   "final_score": confidence_score,
                                   "oos_validation": {key: assessments[key].get("oos_validation") for key in assessments},
                                   "calibration": {key: assessments[key].get("probability_calibration") for key in assessments},
                                   "ensemble_calibration": {key: ensemble_calibration.get(key) for key in ("status", "fit_dates", "validation_dates", "validation_improvement")},
                                   "policy_skill_uncertainty": {"estimated": ci_estimated,
                                                                "ci_low": float(ci_low) if ci_estimated else None,
-                                                               "ci_high": (skill_uncertainty.get("ci_high") if ci_estimated else None)},
+                                                               "ci_high": (float(ci_high) if ci_estimated else None)},
                                   "agreement": agreement, "diversity": diversity},
         "warnings": list(dict.fromkeys(warnings)),
     }

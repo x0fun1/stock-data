@@ -2,7 +2,7 @@
 
 ## Primary research window
 
-- The default direction-research window is the latest three calendar years ending at the latest market session whose close is confirmed at the snapshot as-of time.
+- The default direction-research window is the latest one year ending at the latest market session whose close is confirmed at the snapshot as-of time.
 - Preserve any longer provider response in the raw envelope, but keep the selected primary window in normalized daily bars and record its actual start and end dates.
 - Honor an explicit user-selected period. Do not silently widen a short window to satisfy calibration or holdout minimums; report the affected path as partial or insufficient with a null probability.
 - A longer-history sensitivity analysis is a separate run with its own snapshot and results. Do not blend its probabilities into the primary window's consensus.
@@ -22,7 +22,7 @@ For a daily close signal at session `t`, features may use data available through
 - Research A/B/C/D numeric forecast and factor-diagnostic paths continue to use OHLCV only. After Quant is complete and frozen, the separate News layer can analyze only articles with timezone-aware publication/update timestamps no later than the shared snapshot as-of. It does not extend the selected OHLCV window or fetch again.
 - The News layer uses a source-reported score only when present; deterministic event/opinion screening is marked heuristic and uncalibrated. It deduplicates articles into canonical events, counts opinion clusters separately, and computes recency in observed exchange sessions. The default half-life is the requested forecast horizon in sessions; `--news-policy` may configure `half_life_sessions_by_event_type`.
 - Market reaction uses supplied close times when available; nominal 16:00 is an unverified fallback. Intraday news is whole-day association without a post-publication opening gap. Divergence does not establish sell-the-news/priced-in causality. Benchmark-relative return and immature windows remain unavailable.
-- No historical point-in-time news archive is fabricated from a short current-news feed. A three-calendar-year Quant price window does not imply three years of News coverage; report source coverage separately.
+- No historical point-in-time news archive is fabricated from a short current-news feed. A one-year Quant price window does not imply one year of News coverage; report source coverage separately.
 
 ## Leakage controls
 

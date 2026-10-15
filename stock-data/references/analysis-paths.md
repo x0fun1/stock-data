@@ -25,7 +25,7 @@ Yahoo 新 gateway 执行需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA
 
 ## 历史走势与技术指标
 
-- 区间表现优先 `get-price-summary`；其基线 `period` 仅为 `7d/30d/90d/1y`，默认 `30d`，其中 `1y` 是周线。需要原始 candles 时核验 `full` 实际返回的内容。三年日线研究不能用一年周线替代；所需日线范围不足时只对缺项走 global K 线路由。
+- 区间表现优先 `get-price-summary`；其基线 `period` 仅为 `7d/30d/90d/1y`，默认 `30d`，其中 `1y` 是周线。需要原始 candles 时核验 `full` 实际返回的内容。日线研究不能用一年周线替代；所需日线范围不足时只对缺项走 global K 线路由。
 - MA、MACD、RSI、KDJ、BOLL 使用 [global 来源说明](global-stock-data.md) 中对应本地函数；先用脚本 `--list` 核对签名、必需 OHLCV 字段、时间排序和样本窗口。不足的 warmup 输出不当成熟指标。
 - 核对频率、交易日、复权、币种和算法。当前 RSI 为简单窗口平均，MACD 柱为 DIF−DEA 的两倍；不同平台计算口径可能不同。
 - 只报告计算支持的历史趋势、波动和信号，不把金叉、超买、单一因子 IC 或图形直接换成未来上涨概率。未来方向统一运行 方向研究流程；A/B/C/D 从 raw OHLCV 各自生成特征，不共用这些预计算指标。

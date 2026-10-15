@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.11.1"}
+metadata: {version: "2.12.0"}
 ---
 
 # Stock Data & Quant Research
@@ -60,8 +60,8 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 
 ## 通用分析、方向或概率研究
 
-1. 确认证券身份、资产类型、意图、horizon、as-of 与用户区间。请求契约见 [researcher-contract.md](references/researcher-contract.md)。默认行情窗口是最新已确认收盘日前推三年，用户区间优先；样本不足不能自动扩窗或降低门槛。
-2. 一次采集并保存市场数据及可用新闻。行情与新闻抓取可并行；来源映射、收盘/freshness 检查、Quant 和最终综合有串行依赖。详细字段见 [collection-adapter.md](references/collection-adapter.md) 和 [reliability-gates.md](references/reliability-gates.md)。每路径不重新下载行情，短新闻窗口不冒充三年档案。
+1. 确认证券身份、资产类型、意图、horizon、as-of 与用户区间。请求契约见 [researcher-contract.md](references/researcher-contract.md)。默认行情窗口是最新已确认收盘日前推一年，用户区间优先；样本不足不能自动扩窗或降低门槛。
+2. 一次采集并保存市场数据及可用新闻。行情与新闻抓取可并行；来源映射、收盘/freshness 检查、Quant 和最终综合有串行依赖。详细字段见 [collection-adapter.md](references/collection-adapter.md) 和 [reliability-gates.md](references/reliability-gates.md)。每路径不重新下载行情，短新闻窗口不冒充行情档案。
 3. 将 provider 数据明确映射成 `data.bars/articles`；原始 envelope 独立保留且脱敏。不要从字段名猜复权、发布时间、交易日、来源 symbol 或单位。global 调用优先 `--params-file` 和 `--output`，避免全量 stdout 进入上下文。
 4. 常规预测使用 `pipeline --cleanup-json`，让 collection、快照和分析文件进入本次独占的 `runtime/runs/<run_id>/`；交付文本校验后再调用 `cleanup-run`。审计、调试或要求复现的研究使用 `--keep-json`（或逐阶段命令），完整保留 JSON。两种模式都消费同一快照；只在预测资格存在致命阻断时跳过 Quant，其他缺口进入 Reporting Gate 降级或策略限制。
 5. 最低数据计算条件满足时必须尝试 A 条件频率、B 因子验证、C L2 Logistic Regression、D 时间序列 IC/forward-return 诊断；所有所选路径返回后才形成共识和 E 审计。A 当前与历史 OOS 共用同一个成熟匹配样本门槛；每条 OOS 记录要由冻结行情复核决策日、H-session 标签、目标真值、训练标签边界，以及校准标签边界与校准系数（如适用，边界必须早于对应决策日）。共识 OOS 同时报告当前合格路径集合、全候选诊断和按日期可用路径组成的历史等权策略回放，并与因果扩展基率在相同有预测日期上比较。B 必须报告当前校准样本预算；不得自动扩窗、降门槛或把理论预算说成实际预测证据。D/E 不投概率票。策略级 PBO/DSR、交易成本和组合回测仅限制盈利策略声明，不否定单次方向概率。具体实现见 [quant-paths.md](references/quant-paths.md)。
@@ -88,7 +88,7 @@ Quant 成功生成且通过报告资格时，最终用户回复必须展示 `pro
 
 概率按来源原值转为百分比，JSON 保留原值，显示精度不改变模型概率。confidence/agreement/diversity 按其标签/评分原尺度展示，不能编造百分比。`confidence < 40` 不自动 VETO。没有有效可报告 `prob_up` 时写 **上涨概率：不可用** 并解释真实缺失/否决原因。所有数值绑定当前标的、horizon 和 as-of，不复用示例结果。
 
-只有一个月的日线收盘价不能替代默认三年 OHLCV 研究，也不能证明 A/B/C 已满足样本与验证要求。403 回退只替换取数来源，不降低数据完整性标准。日历/复权未知、OOS/校准不足及策略审计缺失降低 confidence 或限制策略声明，不取消合格的短周期预测。若采集或快照校验失败到无法生成产物，回复“上涨概率：不可用”、失败阶段及实际缺口，标明研究未完成；不能声称完成 Quant 或自行计算替代概率。不要编造日历/复权证据。
+只有一个月的日线收盘价不能替代默认一年 OHLCV 研究，也不能证明 A/B/C 已满足样本与验证要求。403 回退只替换取数来源，不降低数据完整性标准。日历/复权未知、OOS/校准不足及策略审计缺失降低 confidence 或限制策略声明，不取消合格的短周期预测。若采集或快照校验失败到无法生成产物，回复“上涨概率：不可用”、失败阶段及实际缺口，标明研究未完成；不能声称完成 Quant 或自行计算替代概率。不要编造日历/复权证据。
 
 常规预测在校验交付文本后清理本次私有运行的 JSON，保留 `report.md`、`final_response.md` 和只含身份、哈希、清理状态与相对目标名的 `cleanup_receipt.txt`。需要复现、审计或调试时使用 `--keep-json`，不能把清理回执当成完整研究档案。外部输入、旧共享快照、其他分析、用户文件和 Yahoo 缓存不会被自动删除。原始 K 线、新闻正文、中间矩阵和 debug 不进入 LLM；关键驱动解释引用事件 ID/原文链接及 Quant 证据，区分事实、来源观点、推断和未知。
 

@@ -168,10 +168,10 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
     sources = {name: {key: block.get(key) for key in ("actual_source", "source_timestamp", "currency", "unit", "adjustment", "adjustment_evidence", "session_calendar", "latest_price_observations", "fallback_used", "fallback_reason")} | {"fetched_at": block.get("fetched_at_utc", block.get("fetched_at"))} for name, block in domains.items()}
     penalties = {
         "CALENDAR_FALLBACK_USED": 10, "ADJUSTMENT_UNKNOWN": 10,
-        "CORPORATE_ACTION_UNKNOWN": 5, "LATEST_CLOSE_SINGLE_PROVIDER": 10,
-        "EXTREME_PRICE_MOVE_UNRECONCILED": 10,
+        "CORPORATE_ACTION_UNKNOWN": 5, "LATEST_CLOSE_SINGLE_PROVIDER": 5,
+        "EXTREME_PRICE_MOVE_UNRECONCILED": 10, "MARKET_UNITS_UNVERIFIED": 5,
     }
-    history_penalty = round(min(20.0, max(0.0, (504 - count) / 504 * 20.0)))
+    history_penalty = round(min(20.0, max(0.0, (252 - count) / 252 * 20.0)))
     reason_penalties = [{"reason_code": code, "points": penalties[code]} for code in sorted(set(gate["reason_codes"])) if code in penalties]
     confidence_score = 100.0 - history_penalty - sum(item["points"] for item in reason_penalties)
     confidence_penalties = ([{"reason": "limited_history_depth", "points": history_penalty}] if history_penalty else []) + reason_penalties
@@ -186,7 +186,7 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
             "latest_confirmed_close": gate["latest_confirmed_close"], "warnings": warnings,
             "data_quality": {"overall": quality, "score": score, "confidence_score": round(confidence_score),
                              "confidence_penalties": confidence_penalties,
-                             "components": {"history_depth": min(1.0, count / 504), "prediction_eligible": gate["forecast_eligible"], "required_domains": ["market"]},
+                             "components": {"history_depth": min(1.0, count / 252), "prediction_eligible": gate["forecast_eligible"], "required_domains": ["market"]},
                              "issues": warnings, "reason_codes": gate["reason_codes"]}}
 
 

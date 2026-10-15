@@ -166,8 +166,8 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
 
     train_rows = [row for row in observations if row.decision < holdout_start and row.label_end < max(0, holdout_start - 60)]
     holdout_rows = [row for row in observations if row.decision >= holdout_start]
-    if len(train_rows) < 160 or len({row.target for row in train_rows}) < 2:
-        return researcher_result("ml", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", warnings=[f"The pre-holdout training sample has {len(train_rows)} matured rows; the native logistic baseline requires at least 160 and both labels."])
+    if len(train_rows) < 60 or len({row.target for row in train_rows}) < 2:
+        return researcher_result("ml", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", warnings=[f"The pre-holdout training sample has {len(train_rows)} matured rows; the native logistic baseline requires at least 60 and both labels."])
 
     training_metrics = {"attempts": 0, "successful_fits": 0, "rows_seen": 0, "wall_seconds": 0.0}
 
@@ -192,7 +192,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         purged_count += fold.purged
         embargo_count += fold.embargoed
         overlap_count += count_interval_overlaps(intervals, fold.train, fold.test)
-        if len(train) < 100 or len({row.target for row in train}) < 2:
+        if len(train) < 50 or len({row.target for row in train}) < 2:
             continue
         try:
             model = fit(train)
@@ -209,9 +209,10 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     # predicting every session of their test block; fold anchors are absolute (fixed stride) so
     # as-of predictions are stable under history growth and tail truncation. Adjacent horizon
     # labels overlap; conservative non-overlapping counts and block-based inference treat the
-    # ledger accordingly.
+    # ledger accordingly. The minimum training size is pinned to the smallest purge-consistent
+    # fold the one-year default research window can support (a matured pre-fold sample of ~30).
     ledger_intervals = [SampleInterval(row.decision, row.information_start, row.label_end) for row in observations]
-    ledger_folds = causal_walk_forward(ledger_intervals, n_splits=8, minimum_train=100,
+    ledger_folds = causal_walk_forward(ledger_intervals, n_splits=8, minimum_train=30,
                                        pre_test_gap_sessions=horizon, block_sessions=LEDGER_TEST_BLOCK_SESSIONS)
     ledger_predictions: list[tuple[Observation, float, float]] = []
     wf_fit_boundaries: dict[int, dict[str, Any]] = {}
@@ -282,7 +283,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     # No final-holdout metric is used to select features or hyperparameters. Once its
     # one-time report is fixed, refit the frozen baseline on all matured labels for today.
     current_rows = [row for row in observations if row.label_end <= n - 1]
-    current_model = fit(current_rows) if len(current_rows) >= 160 and len({row.target for row in current_rows}) == 2 else holdout_model
+    current_model = fit(current_rows) if len(current_rows) >= 60 and len({row.target for row in current_rows}) == 2 else holdout_model
     current_vector = features[-1] if features else None
     raw_current = current_model.predict(current_vector) if current_vector is not None else None
     if raw_current is None:

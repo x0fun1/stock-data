@@ -2,7 +2,7 @@
 
 `stock-data` 是面向美股、港股及相应 ETF 的可安装 Skill。行情、基本面、技术指标、专项数据经已连接的 Finnhub MCP 或本包 global gateway 获取；新闻唯一来源为宿主 Finnhub MCP `get-news-pulse`。量化研究脚本只处理已采集的数据，不联网更新快照。
 
-普通个股/ETF 的“分析、简析、怎么看、综合分析”和方向判断默认执行 **数据验证 → Quant → 验证/审计 → News → 综合 → 交付校验**，使用 `intent=forecast`，未指定 horizon 时为 `5D`。简析只缩短篇幅，不省略 Quant。明确的事实、历史或专项请求按需取数。完整规则以 [SKILL.md](stock-data/SKILL.md) 及其引用文档为准。
+普通个股/ETF 的“分析、简析、怎么看、综合分析”和方向判断默认执行 **数据验证 → Quant → 验证/审计 → News → 综合 → 交付校验**，使用 `intent=forecast`，未指定 horizon 时为 `5D`，行情窗口默认为最近一年。简析只缩短篇幅，不省略 Quant。明确的事实、历史或专项请求按需取数。完整规则以 [SKILL.md](stock-data/SKILL.md) 及其引用文档为准。
 
 ## 安装
 
