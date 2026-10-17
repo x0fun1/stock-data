@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.13.0"}
+metadata: {version: "2.14.0"}
 ---
 
 # Stock Data & Quant Research
@@ -49,6 +49,7 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 
 - 美股优先使用实际已连接、覆盖该字段的 Finnhub MCP；参数按当前会话 schema。仅在需要时读取 [Finnhub schema](references/finnhub-mcp-1.21.3-schema.md)。本包不提供 Finnhub 连接或密钥。
 - 新闻唯一来源是宿主 Finnhub MCP `get-news-pulse`（接口基线 7 天，返回 headline/source/datetime_utc，无正文）。证据窗口按近 3 个月（90 天）策略过滤：超过 90 天的视为已被市场定价，不进入打分；若来源只覆盖 7 天，报告必须披露实际覆盖天数，不能把 7 天覆盖说成 90 天。本包已移除全部 Yahoo 新闻路由；宿主未连接 Finnhub MCP 时 News 记 `not_assessed`，不做二次联网。
+- 新闻方向要给用户可追溯的指向：宿主在对新闻完成 Quant 后的 News 阶段，按 [news-analysis.md](references/news-analysis.md) 产出逐条 `news_ai_assessment` 工件（每条：新闻 ID、利多/利空/混合/中性/不明确、判断依据、证据性质），并用 `analyze|pipeline --news-ai-assessment` 交给本包校验与展示。工件只能引用本次分析实际存在的新闻 ID，且不得包含任何 Quant 词汇或概率；`lean` 是**展示证据**：不进入方向聚合、置信度、事件打分与交叉验证标签，也绝不改变 Quant 概率。未提供工件记 `not_assessed`（不是中性）。宿主未连接 Finnhub MCP 或未产出工件时不做二次联网、不自行编造利多/利空。
 - 港股及 Finnhub 缺项使用本包 global gateway；调用前按需读取 [global-stock-data.md](references/global-stock-data.md) 与 [source-policies.md](references/source-policies.md)。函数和参数以 `--list` 为准。
 - 每轮维护已成功查询及缺项清单；复用成功响应，仅补缺项。403/Premium 不重试同端点；429 停止新增 Finnhub 调用。失败响应不能改成成功空数组。
 - ETF 使用自身 OHLCV，标明 `asset_type=etf`。成分股/指数只作有明确敞口的背景，不代填基金价格、财务或 NAV。当前不实现 ETF 穿透估值、跟踪误差或杠杆路径模型。
@@ -85,6 +86,8 @@ python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回�
 通用分析、简析及方向研究要求完整研究链路及八类证据；默认聊天回复为 **summary**，应包括价格/数据时间、Quant 概率/方向/confidence/报告状态、核心技术/因子证据、关键验证限制、News/事件、Quant-News 关系、主要风险和综合结论。完整 Backtest/IC/bias 范围在 `report.md`（standard），源、manifest、原因码与逐路径细节留在 JSON/debug。缺失项明确写未评估；摘要不重复内部 gate/debug 噪音。所有层级保留预测不确定性和历史证据非未来保证说明。
 
 Quant 成功生成且通过报告资格时，最终用户回复必须展示 `prob_up/direction/confidence/agreement`、数值 `confidence_score`、`confidence_score_kind`、`predictive_evidence_grade`、`PASS/DEGRADED/VETO`，并说明 raw/reportable basis 和 ensemble calibration 是否可用。分数须标注为启发式研究支持度，不是预测准确率；等级须区分证据不足、未观察到优于因果基准、探索性正向点估计和不确定性未估计的正向点估计。字段直接来自 `quant_result.json.consensus` / `synthesis.quant`；News 完成后仍显示同一 reportable Quant 概率并说明 aligned/mildly aligned/neutral/conflicting/unavailable；不通过主观新闻修改 Quant 概率。VETO 时对用户隐藏所有预测概率，说明致命原因；原始调试值只留在 debug artifact。
+
+消息面必须给出结果指向且可追溯到具体新闻：回复包含 `- 消息面逐条依据：…`（由冻结 News 结果生成的强制字段），写明据以判断利多/利空的标题与理由；没有依据时如实写“未评估/未得出有依据的利多或利空线索”，不得用标题数量或主观阅读充当结论，也不得把消息缺失说成中性。该字段是宿主交付契约的一部分，`validate-response` 会校验。
 
 概率按来源原值转为百分比，JSON 保留原值，显示精度不改变模型概率。confidence/agreement/diversity 按其标签/评分原尺度展示，不能编造百分比。`confidence < 40` 不自动 VETO。没有有效可报告 `prob_up` 时写 **上涨概率：不可用** 并解释真实缺失/否决原因。所有数值绑定当前标的、horizon 和 as-of，不复用示例结果。
 

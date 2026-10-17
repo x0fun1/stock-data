@@ -192,6 +192,34 @@ def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -
             f"News 只补充驱动解释和风险证据，不改变这份 Quant 报告概率（等权路径均值）。若需 raw/calibrated 原值，见调试 JSON。")
 
 
+def _ai_lean_line_text(news: dict[str, Any]) -> str:
+    """One-line, source-traceable summary of the host AI headline lean.
+
+    The lean is display evidence: this text never feeds a probability, a
+    direction aggregate or a cross-validation label.
+    """
+    lean = news.get("ai_lean") or {}
+    status = lean.get("status") or "not_assessed"
+    if status == "not_assessed":
+        return "未评估（本次未提供宿主 AI 逐条判断）"
+    if status == "invalid":
+        return f"不可用（宿主 AI 判断未通过校验并被排除：{_cell(lean.get('reason'))}）"
+    parts: list[str] = []
+    for label, key in (("利多", "bullish"), ("利空", "bearish"), ("混合", "mixed")):
+        items = lean.get(key) or []
+        if items:
+            first = items[0]
+            parts.append(f"{label}：{_cell(first.get('headline'))}（{_cell(first.get('reason'))}）")
+    if not parts:
+        parts.append("已逐条判断，未得出有依据的利多或利空线索")
+    coverage = lean.get("coverage") or {}
+    parts.append(
+        f"共判断 {_cell(coverage.get('assessed_count'))}/{_cell(coverage.get('candidate_count'))} 条；"
+        "标题级 AI 判断，仅作展示证据，不参与方向聚合、置信度或 Quant 概率"
+    )
+    return "；".join(parts)
+
+
 def _relationship_text(synthesis: dict[str, Any]) -> str:
     return {"STRONG_ALIGNMENT": "一致（事件方向及日线关联同向）", "ALIGNMENT": "一致",
             "MIXED": "部分一致或存在冲突，保留混合证据", "DIVERGENCE": "冲突", "STRONG_DIVERGENCE": "冲突（存在反向日线关联）",
@@ -211,12 +239,19 @@ def _unavailable_reasons(result: dict[str, Any]) -> list[str]:
 
 
 def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
-    """Literal delivery fields generated from this result, never from News values."""
+    """Literal delivery fields generated from this result.
+
+    Quant and identity fields are never taken from News values. The single
+    News-derived literal is the headline-lean line, generated from the frozen
+    News result so a host cannot summarize the message side freely or omit the
+    per-item bullish/bearish basis.
+    """
     snapshot, fields = result["snapshot"], reportable_quant_fields(result)
     required = {
         "identity": f"- 标的：{_cell(snapshot['ticker'])}；市场：{_cell(snapshot['market'])}；预测窗口：{_cell(snapshot['horizon'])}（交易 session）；分析截至：{_cell(snapshot['asof_timestamp'])}",
         "probability_note": _final_probability_note(fields, snapshot["ticker"], snapshot["horizon"]),
         "news_relationship": f"- 消息面与 Quant 的关系：{_relationship_text(result.get('synthesis', {}))}",
+        "news_lean": f"- 消息面逐条依据：{bounded_text(_ai_lean_line_text(result.get('news_result', {})), 600)}",
         "reporting_status": f"- 报告状态：{_cell(fields.get('reporting_status', result.get('reporting_status', 'degraded')))}",
         "analysis_status": f"- 执行状态：{_cell(result['analysis_status'])}",
     }
@@ -286,6 +321,7 @@ def render_final_response(result: dict[str, Any], *, summary: dict[str, Any] | N
     lines.extend(f"- {_cell(event.get('first_published_at'))}：{_link(event.get('headline'), event.get('url'))}；方向 {_cell(event.get('direction'))}" for event in news.get("events", [])[:2])
     if not news.get("events"):
         lines.append("- 无合格事件证据；不把消息缺失视为中性或已验证。")
+    lines.append(required["news_lean"])
     lines.extend(["", "### 综合", "", required["probability_note"], required["news_relationship"], required["analysis_status"]])
     risks = sections["risk_counter_evidence"]["items"]
     lines.extend(f"- 风险：{_cell(row['detail'])}" for row in risks[:2])
@@ -449,7 +485,16 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "quant": {**quant_fields, "field_source": "quant_result.json.consensus", "status": quant.get("status"), "calibration_status": quant.get("calibration_status"), "economic_viability": quant.get("economic_viability"), "oos_probability_quality": {"status": oos_quality.get("status"), "method": oos_quality.get("method"), "current_forecast_paths": oos_quality.get("current_forecast_paths"), "common_oos_samples": oos_common.get("common_oos_samples"), "all_paths_valid_prediction_samples": oos_common.get("all_paths_valid_prediction_samples"), "row_validation": oos_quality.get("row_validation"), "algorithm_policy_replay": {key: policy_replay.get(key) for key in ("status", "evidence_scope", "coverage_denominator_scope", "predicted_dates", "non_overlapping_predicted_dates", "eligible_oos_label_dates", "oos_coverage", "abstain_rate", "path_count_by_prediction_date", "forecast_metrics", "expanding_base_rate_on_same_dates", "brier_skill_vs_expanding_base_rate", "non_overlapping_brier_skill_vs_expanding_base_rate", "skill_uncertainty", "reason")}, "ensemble_calibration": {key: (oos_quality.get("ensemble_calibration") or {}).get(key) for key in ("status", "evidence_scope", "fit_dates", "validation_dates", "validation_raw_brier", "validation_calibrated_brier", "validation_improvement")}, "path_metrics": {name: {key: row.get(key) for key in ("all_evaluable_oos_samples", "valid_probability_predictions", "prediction_days", "non_overlapping_prediction_count", "oos_coverage", "abstain_rate", "brier_score", "log_loss", "expected_calibration_error")} for name, row in oos_quality.get("paths", {}).items()}}, "skill_weight_validation": {key: skill_weight.get(key) for key in ("status", "weighting", "current_weighting_enabled", "deployment_status", "common_oos_samples", "common_complete_prediction_samples", "weight_estimation_start", "weight_estimation_end", "evaluation_start", "evaluation_end", "candidate_weights", "fallback_reason", "evaluation")}, "paths": paths},
                 "technical_factor_evidence": evidence,
                 "backtest_ic_bias": {"audit_status": result["adversarial_audit"]["status"], "checks": {key: value.get("status") for key, value in bias.items() if isinstance(value, dict)}, "diagnostic_examples": ic, "factor_oos_inference": {key: factor_inference.get(key) for key in ("status", "method", "data_start", "data_end", "sample_count", "trials", "tests_with_p_value", "p_adjustment_method", "factor_selection_used_this_window")}, "scope": "D: single-security time-series diagnostics; B: OOS time-series IC inference; full portfolio backtest/PBO/DSR not computed"},
-                "news": {"status": news.get("status"), "event_bias": news.get("overall_direction"), "events": events, "impact_rubric": IMPACT_RUBRIC_MARKER, "coverage": {key: news.get("coverage", {}).get(key) for key in ("observed_publication_start", "observed_publication_end", "eligible_event_count", "eligible_opinion_count", "excluded_evidence_count")}},
+                "news": {"status": news.get("status"), "event_bias": news.get("overall_direction"), "events": events, "impact_rubric": IMPACT_RUBRIC_MARKER,
+                         "ai_lean": {"status": (news.get("ai_lean") or {}).get("status"),
+                                     "basis": (news.get("ai_lean") or {}).get("basis"),
+                                     "probability_effect": (news.get("ai_lean") or {}).get("probability_effect"),
+                                     "coverage": (news.get("ai_lean") or {}).get("coverage"),
+                                     "bullish": [{"headline": bounded_text(item.get("headline"), 300), "url": item.get("url"), "reason": bounded_text(item.get("reason"), 300), "published_at": item.get("published_at"), "ticker_relevance": item.get("ticker_relevance")} for item in (news.get("ai_lean") or {}).get("bullish", [])[:3]],
+                                     "bearish": [{"headline": bounded_text(item.get("headline"), 300), "url": item.get("url"), "reason": bounded_text(item.get("reason"), 300), "published_at": item.get("published_at"), "ticker_relevance": item.get("ticker_relevance")} for item in (news.get("ai_lean") or {}).get("bearish", [])[:3]],
+                                     "mixed": [{"headline": bounded_text(item.get("headline"), 300), "url": item.get("url"), "reason": bounded_text(item.get("reason"), 300)} for item in (news.get("ai_lean") or {}).get("mixed", [])[:2]],
+                                     "limitations": [bounded_text(item, 240) for item in (news.get("ai_lean") or {}).get("limitations", [])[:3]]},
+                         "coverage": {key: news.get("coverage", {}).get(key) for key in ("observed_publication_start", "observed_publication_end", "eligible_event_count", "eligible_opinion_count", "excluded_evidence_count")}},
                 "cross_validation": {key: synthesis.get(key) for key in ("alignment", "alignment_basis", "news_evidence_direction", "overall_confidence", "evidence_links")},
                 "risk_counter_evidence": {"items": selected_risks, "total": len(risks), "omitted": len(risks) - len(selected_risks)},
                 "final_synthesis": {"status": result["analysis_status"], "may_report_direction": result["adversarial_audit"].get("may_report_direction", False), "quant": dict(quant_fields), "quant_field_source": "quant_result.json.consensus", "economic_viability": quant.get("economic_viability"), "quant_display": _quant_lines(quant_fields), "probability_note": _final_probability_note(quant_fields, snapshot["ticker"], snapshot["horizon"]), "news_relationship": _relationship_text(synthesis), "probability_unavailable_reasons": _unavailable_reasons(result)[:5] if quant_fields["prob_up"] is None else [], "quant_probability_preserved": synthesis.get("quant_probability_preserved", False), "warnings": [bounded_text(item, 240) for item in synthesis.get("warnings", [])[:5]]},
@@ -535,6 +580,13 @@ def render_markdown(result: dict[str, Any]) -> str:
     lines.extend(["", "## 5. News & Event Analysis", "", f"- Status: {_cell(news.get('status'))}; eligible event bias: {_cell(news.get('overall_direction'))}; confidence: {_cell(news.get('confidence'))}",
                   f"- Coverage: {_cell(news.get('coverage', {}).get('observed_publication_start'))} to {_cell(news.get('coverage', {}).get('observed_publication_end'))}; excluded records: {_cell(news.get('coverage', {}).get('excluded_evidence_count'))}",
                   "- Reported events, opinions and provider aggregates are separate, uncalibrated DATA. News does not generate a probability."])
+    lean = news.get("ai_lean") or {}
+    lines.append(f"- Host AI headline lean: {_cell(lean.get('status'))}; basis {_cell(lean.get('basis'))}; judged {_cell((lean.get('coverage') or {}).get('assessed_count'))}/{_cell((lean.get('coverage') or {}).get('candidate_count'))}; effect on probability: {_cell(lean.get('probability_effect'))}")
+    for label, key in (("Bullish", "bullish"), ("Bearish", "bearish"), ("Mixed", "mixed"), ("Neutral/unclear", "neutral_or_unclear")):
+        for item in lean.get(key) or []:
+            lines.append(f"  - {label} lean [{_cell(item.get('evidence_grade'))}; relevance {_cell(item.get('ticker_relevance'))}]: {_link(item.get('headline'), item.get('url'))} — {_cell(item.get('reason'))}")
+    if lean.get("status") == "not_assessed":
+        lines.append("  - No host AI lean artifact was supplied; the message side has no per-item lean evidence (this is not the same as neutral).")
     for event in news.get("major_events", []):
         # report.md is a retained artifact and is not size-bounded, so it renders
         # the full impact block rather than the compact summary projection.

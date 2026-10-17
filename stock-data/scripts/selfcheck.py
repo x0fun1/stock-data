@@ -679,6 +679,115 @@ def check_f16_factor_path_fits_52_weeks() -> None:
     assert short_result["prob_up"] is None
 
 
+def _news_input(bars: list[dict], articles: list[dict], ticker: str = "MU"):
+    from quant_research.news.contracts import NewsInput
+
+    return NewsInput(
+        ticker=ticker, market="US", horizon="5D",
+        asof_timestamp=f"{bars[-1]['date']}T21:30:00Z", snapshot_id="snap_f17",
+        news_status="complete", source_sentiment=None,
+        articles=tuple(articles), bars=tuple(bars), warnings=(),
+        coverage={"session_closes": {}, "calendar_verification": "source_supplied_schedule"},
+    )
+
+
+def _f17_articles(bars: list[dict]) -> list[dict]:
+    dates = [bar["date"] for bar in bars[-5:]]
+    return [
+        {"article_id": "a1", "title": f"MU raises guidance on strong demand ({dates[-1]})", "url": "https://example.com/a1",
+         "source": "Reuters", "source_type": "news", "record_type": "news", "published_at": f"{dates[-1]}T13:00:00Z",
+         "tickers": ["MU"], "summary": None},
+        {"article_id": "a2", "title": f"MU misses estimates as demand weak ({dates[-2]})", "url": "https://example.com/a2",
+         "source": "Bloomberg", "source_type": "news", "record_type": "news", "published_at": f"{dates[-2]}T13:00:00Z",
+         "tickers": ["MU"], "summary": None},
+        {"article_id": "a3", "title": f"MU wins contract ({dates[-3]})", "url": "https://example.com/a3",
+         "source": "Reuters", "source_type": "news", "record_type": "news", "published_at": f"{dates[-3]}T13:00:00Z",
+         "tickers": ["MU"], "summary": None, "canonical_event_id": "dup"},
+        {"article_id": "a4", "title": f"MU profit falls after lawsuit ({dates[-3]})", "url": "https://example.com/a4",
+         "source": "Bloomberg", "source_type": "news", "record_type": "news", "published_at": f"{dates[-3]}T15:00:00Z",
+         "tickers": ["MU"], "summary": None, "canonical_event_id": "dup"},
+        {"article_id": "a5", "title": f"Chipmaker expands capacity in Asia ({dates[-1]})", "url": "https://example.com/a5",
+         "source": "Wire", "source_type": "news", "record_type": "news", "published_at": f"{dates[-1]}T14:00:00Z",
+         "tickers": [], "summary": None},
+    ]
+
+
+def check_f17_ai_lean_layer() -> None:
+    from quant_research.news import AI_ASSESSMENT_SCHEMA_VERSION, analyze_news
+
+    bars = synth_bars(60, seed=7)
+    news_input = _news_input(bars, _f17_articles(bars))
+    baseline = analyze_news(news_input)
+    core = ("overall_direction", "confidence", "event_strength", "market_confirmation", "status")
+
+    risk_ids = {row["event_id"] for row in baseline["risks"]}
+    mixed_ids = {row["event_id"] for row in baseline["mixed_events"]}
+    assert not (risk_ids & mixed_ids), "mixed-direction events must not be reported as bearish risks"
+    assert baseline["mixed_events"], "the conflicting-headline cluster should be reported as mixed"
+    assert baseline["method"]["news_probability"] == "not_emitted"
+    assert baseline["method"]["calibrated"] is False
+
+    candidates = baseline["ai_lean_candidates"]
+    candidate_ids = {row["news_id"] for row in candidates}
+    assert len(candidate_ids) == len(candidates) >= 3
+    pregated = [row for row in candidates if row["eligible_evidence"] is False]
+    assert pregated, "a record failing the relevance gate must still be offered to the lean stage"
+
+    def artifact(items):
+        return {"schema_version": AI_ASSESSMENT_SCHEMA_VERSION, "ticker": "MU",
+                "asof_timestamp": news_input.asof_timestamp, "basis": "headline_level_ai_screen_v1",
+                "model": {"id": "selfcheck-stub", "prompt_sha256": "0" * 64, "generated_at_utc": news_input.asof_timestamp},
+                "items": items}
+
+    bullish_id = next(row["news_id"] for row in candidates if row["direction"] == "positive")
+    bearish_id = next(row["news_id"] for row in candidates if row["direction"] == "negative")
+    pregated_id = pregated[0]["news_id"]
+    good = artifact([
+        {"news_id": bullish_id, "lean": "bullish", "reason": "标题称指引上调", "evidence_grade": "reported_event"},
+        {"news_id": bearish_id, "lean": "bearish", "reason": "标题称不及预期", "evidence_grade": "reported_event"},
+        {"news_id": pregated_id, "lean": "unclear", "reason": "标题未点明标的", "evidence_grade": "headline_only",
+         "relevance_basis": "not_explicitly_matched"},
+    ])
+    scored = analyze_news(news_input, None, good)
+    lean = scored["ai_lean"]
+    assert lean["status"] == "assessed"
+    assert [item["news_id"] for item in lean["bullish"]] == [bullish_id]
+    assert [item["news_id"] for item in lean["bearish"]] == [bearish_id]
+    assert lean["bullish"][0]["reason"] == "标题称指引上调"
+    assert lean["display_only"] is True
+    assert lean["coverage"]["candidate_count"] == len(candidates) and lean["coverage"]["assessed_count"] == 3
+    for key in core:
+        assert scored[key] == baseline[key], f"lean must not change News {key}"
+    assert [row["direction"] for row in scored["major_events"]] == [row["direction"] for row in baseline["major_events"]]
+    assert {row["event_id"] for row in scored["risks"]} == risk_ids
+    attached = {row["event_id"]: row for row in scored["major_events"]}
+    assert attached[bullish_id]["ai_lean"] == "bullish" and attached[bullish_id]["direction"] == "positive"
+
+    rejections = {
+        "unknown news id": artifact([{"news_id": "event_deadbeef", "lean": "bullish", "reason": "x"}]),
+        "quant vocabulary": artifact([{"news_id": bullish_id, "lean": "bullish", "reason": "prob_up should rise"}]),
+        "identity mismatch": {**artifact([{"news_id": bullish_id, "lean": "bullish", "reason": "x"}]), "ticker": "NVDA"},
+        "unsupported field": artifact([{"news_id": bullish_id, "lean": "bullish", "reason": "x", "probability": 0.9}]),
+        "bad label": artifact([{"news_id": bullish_id, "lean": "very bullish", "reason": "x"}]),
+    }
+    for name, bad in rejections.items():
+        rejected = analyze_news(news_input, None, bad)
+        assert rejected["ai_lean"]["status"] == "invalid", f"{name} should be rejected"
+        for key in core:
+            assert rejected[key] == baseline[key], f"{name} must not change News {key}"
+        assert any("lean artifact rejected" in warning for warning in rejected["warnings"])
+
+    absent = analyze_news(news_input, None, None)
+    assert absent["ai_lean"]["status"] == "not_assessed"
+    assert absent["ai_lean"]["bullish"] == [] and absent["ai_lean"]["bearish"] == []
+    assert absent["ai_lean"]["probability_effect"].startswith("none")
+    assert absent["status"] == baseline["status"]
+
+    empty = _news_input(bars, [])
+    empty_result = analyze_news(empty, None, artifact([{"news_id": "event_x", "lean": "bullish", "reason": "x"}]))
+    assert empty_result["ai_lean"]["status"] == "invalid"
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -697,6 +806,7 @@ CHECKS = [
     ("F14 confidence composite bands", check_f14_confidence_composite),
     ("F15 52-week window defaults", check_f15_52_week_window_defaults),
     ("F16 factor path fits 52 weeks", check_f16_factor_path_fits_52_weeks),
+    ("F17 host AI lean layer", check_f17_ai_lean_layer),
 ]
 
 if __name__ == "__main__":

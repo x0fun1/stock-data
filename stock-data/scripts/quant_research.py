@@ -44,7 +44,8 @@ def _schema(kind: str) -> dict[str, Any]:
     if kind == "final":
         return {"schema_version": "1.2", "required": ["analysis_id", "analysis_status", "reporting_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "confidence_score", "confidence_score_kind", "predictive_evidence_grade", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": "上涨概率：不可用", "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json", "final_response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; preserve literal Quant/identity/relationship/reporting-status fields from final_response.md", "artifact_lifecycle": {"owned_pipeline": "pipeline --cleanup-json writes into runtime/runs/<run_id>; cleanup-run validates the actual prepared reply before deleting only registered JSON", "retained": ["report.md", "final_response.md", "cleanup_receipt.txt"], "research_archive": "omit --cleanup-json or use --keep-json; existing shared snapshots/analyses are never included in run cleanup", "schema_change": False}, "probability_blending": "prohibited"}
     if kind == "news":
-        return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["overall_direction", "event_strength", "sentiment", "source_agreement", "market_confirmation", "major_events", "background_records", "catalysts", "risks", "confidence", "warnings"], "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only"}
+        return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["overall_direction", "event_strength", "sentiment", "source_agreement", "market_confirmation", "major_events", "background_records", "catalysts", "risks", "mixed_events", "confidence", "warnings", "ai_lean_candidates", "ai_lean"], "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only",
+                "ai_lean_artifact": {"path": "--news-ai-assessment <json>", "schema_version": "1.0", "required": ["schema_version", "ticker", "asof_timestamp", "items"], "optional": ["basis", "model"], "item_fields": ["news_id", "lean", "reason", "evidence_grade", "headline", "source", "published_at", "url", "relevance_basis"], "lean_values": ["bullish", "bearish", "mixed", "neutral", "unclear"], "score_generation": "aggregator_only_from_quant_gate", "probability_effect": "none; display-only evidence, never enters direction/confidence/cross-validation or Quant P(up)", "rejected_when": ["unknown or repeated news_id", "ticker/as-of mismatch", "unsupported field", "Quant vocabulary in any text field", "non-allow-listed lean label"]}}
     raise ValueError(f"unknown schema kind: {kind}")
 
 
@@ -66,11 +67,13 @@ def main(argv: list[str] | None = None) -> int:
     analyze.add_argument("--snapshot-dir", type=Path, required=True)
     analyze.add_argument("--output-root", type=Path, default=Path("runtime/research"))
     analyze.add_argument("--news-policy", type=Path, help="optional JSON event-type half-life policy for session-based decay")
+    analyze.add_argument("--news-ai-assessment", type=Path, help="optional host-produced headline-level AI lean artifact (display-only evidence)")
     pipeline = commands.add_parser("pipeline", help="compose request/adapt/freeze/analyze from already collected gateway DATA")
     pipeline.add_argument("--request", type=Path, required=True)
     pipeline.add_argument("--responses", type=Path, required=True)
     pipeline.add_argument("--output-root", type=Path, default=Path("runtime"))
     pipeline.add_argument("--captured-at-utc")
+    pipeline.add_argument("--news-ai-assessment", type=Path, help="optional host-produced headline-level AI lean artifact (display-only evidence)")
     pipeline_mode = pipeline.add_mutually_exclusive_group()
     pipeline_mode.add_argument("--cleanup-json", action="store_true", help="isolate this pipeline run for explicit post-validation JSON cleanup")
     pipeline_mode.add_argument("--keep-json", action="store_true", help="retain JSON in the legacy shared output layout (default)")
@@ -134,12 +137,17 @@ def main(argv: list[str] | None = None) -> int:
                 policy = json.loads(args.news_policy.read_text(encoding="utf-8-sig")) if getattr(args, "news_policy", None) else None
                 if policy is not None and not isinstance(policy, dict):
                     raise ValueError("news policy file must contain a JSON object")
+                ai_assessment_path = getattr(args, "news_ai_assessment", None)
+                ai_assessment = json.loads(ai_assessment_path.read_text(encoding="utf-8-sig")) if ai_assessment_path else None
+                if ai_assessment is not None and not isinstance(ai_assessment, dict):
+                    raise ValueError("news AI assessment file must contain a JSON object")
                 if owned_run is None:
-                    location = run_analysis(snapshot_dir, output_root, policy)
+                    location = run_analysis(snapshot_dir, output_root, policy, news_ai_assessment=ai_assessment)
                 else:
                     location = run_analysis(
                         snapshot_dir, output_root, policy,
                         on_analysis_created=lambda path: update_run_workspace(owned_run, analysis_id=path.name),
+                        news_ai_assessment=ai_assessment,
                     )
                     update_run_workspace(owned_run, state="awaiting_cleanup")
                 summary = json.loads((location / "agent_summary.json").read_text(encoding="utf-8"))

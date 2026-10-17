@@ -45,6 +45,7 @@ def _write_json(path: Path, value: Any) -> None:
 def run_analysis(
     snapshot_dir: Path, output_root: Path, news_policy: dict[str, Any] | None = None,
     *, on_analysis_created: Callable[[Path], None] | None = None,
+    news_ai_assessment: dict[str, Any] | None = None,
 ) -> Path:
     pipeline_started = time.perf_counter()
     snapshot_load_started = time.perf_counter()
@@ -150,7 +151,7 @@ def run_analysis(
         # Snapshot loading is separate from the analyst entrypoint. After this
         # conversion, run_news receives only the restricted in-memory contract.
         news_input = prepare_news_input(snapshot_dir, (manifest, market), loaded_news_domain=news_domain)
-        news_result = run_news(news_input, news_policy)
+        news_result = run_news(news_input, news_policy, news_ai_assessment)
         freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
     except Exception as exc:  # noqa: BLE001 - a News-layer error must not erase the completed Quant output
         news_result = {

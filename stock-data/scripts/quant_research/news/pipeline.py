@@ -12,8 +12,15 @@ from statistics import mean
 from typing import Any
 
 from ..contracts import parse_timestamp
-from ..security import provider_failed
+from ..security import bounded_text, provider_failed
 from ..snapshot import load_snapshot
+from .ai_assessment import (
+    AI_LEAN_LAYER,
+    attach_lean_to_records,
+    build_ai_lean_block,
+    lean_candidates,
+    validate_ai_assessment,
+)
 from .classify import (
     direction_for,
     event_text,
@@ -177,8 +184,18 @@ def prepare_news_input(
     )
 
 
-def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Analyze news records without Quant results, probabilities, or provider access."""
+def analyze_news(
+    news_input: NewsInput,
+    policy: dict[str, Any] | None = None,
+    ai_assessment: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Analyze news records without Quant results, probabilities, or provider access.
+
+    ``ai_assessment`` is an optional host-supplied, headline-level lean artifact.
+    It is validated against this run's own records and attached as display-only
+    evidence; it never enters direction, confidence, event scoring or any
+    probability.
+    """
     policy = policy or {}
     if not isinstance(policy, dict):
         raise ValueError("news policy must be an object")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
@@ -351,6 +368,9 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
     } for cluster in unclassified_clusters]
 
     all_events, all_opinions = events, opinions
+    # The lean stage sees every analyzable record, including pre-gate ones, so a
+    # headline excluded from directional bias can still be judged and disclosed.
+    lean_inputs = lean_candidates(all_events, all_opinions)
     events = [item for item in all_events if item["eligible_evidence"]]
     opinions = [item for item in all_opinions if item["eligible_evidence"]]
     excluded_evidence = [item for item in all_events + all_opinions if not item["eligible_evidence"]]
@@ -411,18 +431,20 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
 
     events.sort(key=lambda item: (item["effective_event_score"] is not None, item["effective_event_score"] or 0, item["first_published_at"]), reverse=True)
     positive = [event for event in events if event["direction"] == "positive"]
-    negative = [event for event in events if event["direction"] in {"negative", "mixed"}]
+    negative = [event for event in events if event["direction"] == "negative"]
+    mixed_events = [event for event in events if event["direction"] == "mixed"]
     independent_count = len({identity for event in events for identity in event["independent_reporting_ids"]})
     confidence = "medium" if len(events) >= 3 and independent_count >= 2 and all(event["source_quality"] is not None and event["source_quality"] >= 0.5 for event in events) and market_confirmation in {"positive", "negative"} and news_input.coverage.get("calendar_verification") in {"source_supplied_schedule", "library_verified"} else "low"
     limitations = [
         "Event classification and opinion tone use deterministic keyword screening; they are not a calibrated semantic model.",
         "News direction and sentiment are descriptive and do not generate or adjust Quant P(up).",
         "Daily-bar market reactions are temporal associations, not proof that a headline caused the price move.",
+        "Events whose member headlines disagree are listed as mixed and are never counted as one-sided bullish or bearish evidence.",
     ]
     if not events and not opinion_scores and provider_direction == "unknown":
         confidence = "unavailable" if not articles else "low"
     status = "not_assessed" if not events and not opinions and not provider_for_bias else "partial" if warnings else "complete"
-    return {
+    result = {
         "schema_version": "1.2",
         "status": status,
         "ticker": news_input.ticker,
@@ -435,6 +457,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
             "sentiment_analyst": "separate_opinion_lexicon_v1",
             "event_opinion_separation": True,
             "news_probability": "not_emitted",
+            "ai_lean_layer": AI_LEAN_LAYER,
             "market_data": "snapshot_frozen_OHLCV_only",
             "calibrated": False,
         },
@@ -474,12 +497,48 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
         "background_records": [{key: item.get(key) for key in ("event_id", "opinion_id", "headline", "url", "first_published_at", "published_at", "ticker_relevance", "exclusion_reasons")} for item in excluded_evidence[:10]],
         "catalysts": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in positive[:5]],
         "risks": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in negative[:5]],
+        "mixed_events": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in mixed_events[:5]],
         "opinion_records": opinions[:20],
         "unclassified_records": unclassified_records[:20],
         "confidence": confidence,
         "warnings": warnings,
         "limitations": limitations,
+        "ai_lean_candidates": lean_inputs,
     }
+    result["ai_lean"] = _attach_ai_lean(result, news_input, lean_inputs, ai_assessment, warnings)
+    return result
+
+
+def _attach_ai_lean(
+    result: dict[str, Any],
+    news_input: NewsInput,
+    candidates: list[dict[str, Any]],
+    ai_assessment: dict[str, Any] | None,
+    warnings: list[str],
+) -> dict[str, Any]:
+    """Validate the host lean artifact and attach it without touching aggregates."""
+    if ai_assessment is None:
+        return build_ai_lean_block(
+            None, candidates=candidates, status="not_assessed",
+            reason="no host AI lean artifact was supplied for this run",
+        )
+    try:
+        validated = validate_ai_assessment(
+            ai_assessment,
+            ticker=news_input.ticker,
+            asof_timestamp=news_input.asof_timestamp,
+            candidates=candidates,
+        )
+    except ValueError as exc:
+        warnings.append(f"host AI lean artifact rejected and excluded from evidence: {bounded_text(exc, 200)}")
+        return build_ai_lean_block(
+            None, candidates=candidates, status="invalid",
+            reason=bounded_text(exc, 200),
+            warnings=["the deterministic News result is unchanged; no lean evidence is reported"],
+        )
+    block = build_ai_lean_block(validated, candidates=candidates, status="assessed")
+    attach_lean_to_records(result, block)
+    return block
 
 
 def _canonical_bytes(value: Any) -> bytes:
@@ -511,6 +570,10 @@ def load_frozen_result(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
     return result, freeze
 
 
-def run_news(news_input: NewsInput, policy: dict[str, Any] | None = None) -> dict[str, Any]:
+def run_news(
+    news_input: NewsInput,
+    policy: dict[str, Any] | None = None,
+    ai_assessment: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     """Run News on the restricted in-memory contract; this entrypoint has no filesystem path."""
-    return analyze_news(news_input, policy)
+    return analyze_news(news_input, policy, ai_assessment)

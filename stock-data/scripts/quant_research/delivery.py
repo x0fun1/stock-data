@@ -40,7 +40,7 @@ def validate_response_text(result: dict[str, Any], text: str) -> None:
     lines = {line.strip() for line in visible.splitlines()}
     normalized_set = {_normalized_line(line) for line in visible.splitlines()}
     missing = [name for name, value in expected.items() if value not in lines and _normalized_line(value) not in normalized_set]
-    prefixes = ("- 上涨概率", "- 方向：", "- Quant Confidence：", "- 置信度支持度评分：", "- 置信度评分含义", "- OOS 预测证据等级", "- 报告状态：", "- 模型一致度", "- 原始路径估计均值：", "- 校准概率：", "- 联合概率校准：", "- 低置信度原因：", "- 证据多样性", "- 预测窗口：", "- 标的：", "- 执行状态：", "- 消息面与 Quant 的关系")
+    prefixes = ("- 上涨概率", "- 方向：", "- Quant Confidence：", "- 置信度支持度评分：", "- 置信度评分含义", "- OOS 预测证据等级", "- 报告状态：", "- 模型一致度", "- 原始路径估计均值：", "- 校准概率：", "- 联合概率校准：", "- 低置信度原因：", "- 证据多样性", "- 预测窗口：", "- 标的：", "- 执行状态：", "- 消息面与 Quant 的关系", "- 消息面逐条依据：")
     # The allow-list is every required literal line: a reformatted or changed
     # labeled value (any prefix) is a conflict, while identity/status lines are
     # covered because they are part of the required response contract.
