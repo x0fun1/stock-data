@@ -10,14 +10,18 @@ from zoneinfo import ZoneInfo
 from ..contracts import HORIZONS, parse_timestamp
 from ..data_checks import EXCHANGE_TIMEZONES
 
+NEWS_MAX_AGE_CALENDAR_DAYS = 90
+NEWS_DEFAULT_HALF_LIFE_SESSIONS = 30
+
 
 def half_life_for(event_type: str, horizon: str, policy: dict[str, Any]) -> float:
     overrides = policy.get("half_life_sessions_by_event_type", {})
-    value = overrides.get(event_type, overrides.get("default", HORIZONS[horizon])) if isinstance(overrides, dict) else HORIZONS[horizon]
+    fallback = max(float(HORIZONS[horizon]), float(NEWS_DEFAULT_HALF_LIFE_SESSIONS))
+    value = overrides.get(event_type, overrides.get("default", fallback)) if isinstance(overrides, dict) else fallback
     try:
         number = float(value)
     except (TypeError, ValueError):
-        number = float(HORIZONS[horizon])
+        number = fallback
     if not math.isfinite(number) or number <= 0:
         raise ValueError("news half-life values must be finite positive session counts")
     return number

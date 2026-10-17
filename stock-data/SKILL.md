@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.12.0"}
+metadata: {version: "2.13.0"}
 ---
 
 # Stock Data & Quant Research
@@ -48,7 +48,7 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 ## 来源路由
 
 - 美股优先使用实际已连接、覆盖该字段的 Finnhub MCP；参数按当前会话 schema。仅在需要时读取 [Finnhub schema](references/finnhub-mcp-1.21.3-schema.md)。本包不提供 Finnhub 连接或密钥。
-- 新闻唯一来源是宿主 Finnhub MCP `get-news-pulse`（基线 7 天，返回 headline/source/datetime_utc，无正文）。本包已移除全部 Yahoo 新闻路由；宿主未连接 Finnhub MCP 时 News 记 `not_assessed`，不做二次联网。
+- 新闻唯一来源是宿主 Finnhub MCP `get-news-pulse`（接口基线 7 天，返回 headline/source/datetime_utc，无正文）。证据窗口按近 3 个月（90 天）策略过滤：超过 90 天的视为已被市场定价，不进入打分；若来源只覆盖 7 天，报告必须披露实际覆盖天数，不能把 7 天覆盖说成 90 天。本包已移除全部 Yahoo 新闻路由；宿主未连接 Finnhub MCP 时 News 记 `not_assessed`，不做二次联网。
 - 港股及 Finnhub 缺项使用本包 global gateway；调用前按需读取 [global-stock-data.md](references/global-stock-data.md) 与 [source-policies.md](references/source-policies.md)。函数和参数以 `--list` 为准。
 - 每轮维护已成功查询及缺项清单；复用成功响应，仅补缺项。403/Premium 不重试同端点；429 停止新增 Finnhub 调用。失败响应不能改成成功空数组。
 - ETF 使用自身 OHLCV，标明 `asset_type=etf`。成分股/指数只作有明确敞口的背景，不代填基金价格、财务或 NAV。当前不实现 ETF 穿透估值、跟踪误差或杠杆路径模型。
@@ -60,7 +60,7 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 
 ## 通用分析、方向或概率研究
 
-1. 确认证券身份、资产类型、意图、horizon、as-of 与用户区间。请求契约见 [researcher-contract.md](references/researcher-contract.md)。默认行情窗口是最新已确认收盘日前推一年，用户区间优先；样本不足不能自动扩窗或降低门槛。
+1. 确认证券身份、资产类型、意图、horizon、as-of 与用户区间。请求契约见 [researcher-contract.md](references/researcher-contract.md)。默认行情窗口是最新已确认收盘日前推 52 周（364 个自然日，约 252 个交易日），这是预测数据的黄金基准；用户显式区间优先，但样本不足不能自动扩窗或降低门槛。
 2. 一次采集并保存市场数据及可用新闻。行情与新闻抓取可并行；来源映射、收盘/freshness 检查、Quant 和最终综合有串行依赖。详细字段见 [collection-adapter.md](references/collection-adapter.md) 和 [reliability-gates.md](references/reliability-gates.md)。每路径不重新下载行情，短新闻窗口不冒充行情档案。
 3. 将 provider 数据明确映射成 `data.bars/articles`；原始 envelope 独立保留且脱敏。不要从字段名猜复权、发布时间、交易日、来源 symbol 或单位。global 调用优先 `--params-file` 和 `--output`，避免全量 stdout 进入上下文。
 4. 常规预测使用 `pipeline --cleanup-json`，让 collection、快照和分析文件进入本次独占的 `runtime/runs/<run_id>/`；交付文本校验后再调用 `cleanup-run`。审计、调试或要求复现的研究使用 `--keep-json`（或逐阶段命令），完整保留 JSON。两种模式都消费同一快照；只在预测资格存在致命阻断时跳过 Quant，其他缺口进入 Reporting Gate 降级或策略限制。
@@ -88,7 +88,7 @@ Quant 成功生成且通过报告资格时，最终用户回复必须展示 `pro
 
 概率按来源原值转为百分比，JSON 保留原值，显示精度不改变模型概率。confidence/agreement/diversity 按其标签/评分原尺度展示，不能编造百分比。`confidence < 40` 不自动 VETO。没有有效可报告 `prob_up` 时写 **上涨概率：不可用** 并解释真实缺失/否决原因。所有数值绑定当前标的、horizon 和 as-of，不复用示例结果。
 
-只有一个月的日线收盘价不能替代默认一年 OHLCV 研究，也不能证明 A/B/C 已满足样本与验证要求。403 回退只替换取数来源，不降低数据完整性标准。日历/复权未知、OOS/校准不足及策略审计缺失降低 confidence 或限制策略声明，不取消合格的短周期预测。若采集或快照校验失败到无法生成产物，回复“上涨概率：不可用”、失败阶段及实际缺口，标明研究未完成；不能声称完成 Quant 或自行计算替代概率。不要编造日历/复权证据。
+只有一个月或不足 52 周的日线收盘价不能替代默认 52 周 OHLCV 研究，也不能证明 A/B/C 已满足样本与验证要求。403 回退只替换取数来源，不降低数据完整性标准。日历/复权未知、OOS/校准不足及策略审计缺失降低 confidence 或限制策略声明，不取消合格的短周期预测。若采集或快照校验失败到无法生成产物，回复“上涨概率：不可用”、失败阶段及实际缺口，标明研究未完成；不能声称完成 Quant 或自行计算替代概率。不要编造日历/复权证据。
 
 常规预测在校验交付文本后清理本次私有运行的 JSON，保留 `report.md`、`final_response.md` 和只含身份、哈希、清理状态与相对目标名的 `cleanup_receipt.txt`。需要复现、审计或调试时使用 `--keep-json`，不能把清理回执当成完整研究档案。外部输入、旧共享快照、其他分析、用户文件和 Yahoo 缓存不会被自动删除。原始 K 线、新闻正文、中间矩阵和 debug 不进入 LLM；关键驱动解释引用事件 ID/原文链接及 Quant 证据，区分事实、来源观点、推断和未知。
 

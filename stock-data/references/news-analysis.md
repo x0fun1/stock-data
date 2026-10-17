@@ -20,7 +20,7 @@ Before any event/opinion enters bias, sentiment, reaction or confidence:
 
 - Require target ticker evidence, exact ticker text without a contradictory ticker tag, or documented `exposure_tickers` plus `exposure_basis`. Industry/macro/ETF component records are background until exposure is supplied.
 - Require an identified source; an explicit zero relevance/source-quality value excludes the record. A publisher name alone does not authenticate the source or make it high quality.
-- Use occurrence/announcement date when supplied, otherwise first publication, for recency. Default maximum age is `max(7, horizon_sessions × 4)` calendar days, with minimum decay 0.0625. Republishing an old event does not reset its age.
+- Use occurrence/announcement date when supplied, otherwise first publication, for recency. Default maximum age is 90 calendar days (3 months); older records are treated as already priced in and excluded, with minimum decay 0.0625. Republishing an old event does not reset its age. If the provider only covers 7 days, report the actual coverage and never describe a 7-day sample as a 90-day window.
 - Missing/contradictory evidence remains background-only, with exclusion reasons. At most ten background cards are returned.
 
 `news.data.source_sentiment` is a separate provider aggregate. Directional use requires exact `ticker`, a recent as-of-valid `available_at`, and valid percent scale: `fraction` (default 0..1) or `percent` (0..100), with total at most the scale bound. Invalid values become null. Arbitrary provider scores without a declared scale do not become calibrated sentiment. Unknown target/time aggregates remain background-only.
@@ -37,7 +37,7 @@ Explicit opinion/social/analyst-opinion records remain a separate pass. Unknown-
 
 ## Decay and frozen price association
 
-`time_decay()` counts observed exchange-local sessions, using the event/announcement time where available. Default half-life is the requested horizon. Optional `analyze --news-policy policy.json` accepts `half_life_sessions_by_event_type` (numeric session counts in (0,366]), `max_age_calendar_days` (integer 1..366) and `minimum_time_decay` (0..1). These are disclosed heuristic settings, not calibrated recommendations.
+`time_decay()` counts observed exchange-local sessions, using the event/announcement time where available. Default half-life is `max(requested horizon, 30 sessions)` so the decay actually spans the 3-month evidence window; a 5-session half-life would silently discard everything older than a month. Optional `analyze --news-policy policy.json` accepts `half_life_sessions_by_event_type` (numeric session counts in (0,366]), `max_age_calendar_days` (integer 1..366) and `minimum_time_decay` (0..1). These are disclosed heuristic settings, not calibrated recommendations.
 
 An effective event score exists only when the source supplied finite [0,1] strength, relevance, novelty and source quality:
 

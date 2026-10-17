@@ -612,12 +612,15 @@ def check_f14_confidence_composite() -> None:
     assert "policy_oos_skill_below_expanding_base_rate_interval" in contradicted["reasons"], contradicted
 
 
-def check_f15_one_year_window_defaults() -> None:
+def check_f15_52_week_window_defaults() -> None:
     from quant_research.researchers import ml, quant
-    from yahoo_collect import _year_back
+    from quant_research.news.decay import NEWS_MAX_AGE_CALENDAR_DAYS
+    from yahoo_collect import DEFAULT_HISTORY_WEEKS, _default_history_start
 
-    assert _year_back(dt.date(2026, 1, 2)) == dt.date(2025, 1, 2)
-    assert _year_back(dt.date(2026, 1, 2), 3) == dt.date(2023, 1, 2)
+    assert DEFAULT_HISTORY_WEEKS == 52
+    assert _default_history_start(dt.date(2026, 1, 2)) == dt.date(2025, 1, 3)
+    assert _default_history_start(dt.date(2026, 1, 2), 3) == dt.date(2025, 12, 12)
+    assert NEWS_MAX_AGE_CALENDAR_DAYS == 90
 
     bars = synth_bars(252)
     manifest, market = ml_snapshot_stub(bars)
@@ -628,6 +631,52 @@ def check_f15_one_year_window_defaults() -> None:
         count = validation.get("non_overlapping_prediction_count")
         assert result.get("prob_up") is not None, (module.__name__, result.get("status"), result.get("warnings"))
         assert isinstance(count, int) and count >= 11, (module.__name__, count)  # weak-support floor at the 5D horizon
+
+
+def check_f16_factor_path_fits_52_weeks() -> None:
+    from quant_research.researchers import factor
+
+    budget = factor._sample_feasibility(252, 5)
+    assert budget["estimated_minimum_daily_bars"] == 240
+    assert budget["status"] == "budget_possible_not_guaranteed_by_factor_scores"
+    assert budget["selection_label_capacity"] >= factor.MINIMUM_SELECTION_LABELS
+    assert budget["max_matured_non_overlapping_label_capacity"] >= 18
+    assert factor._sample_feasibility(239, 5)["status"] == "capacity_below_52_week_minimum"
+    assert factor._sample_feasibility(252, 20)["status"] == "capacity_below_52_week_minimum"
+
+    bars = synth_bars(252, seed=11)
+    manifest, market = ml_snapshot_stub(bars)
+    original_loader = factor.load_snapshot
+    factor.load_snapshot = lambda _dir: (manifest, market)
+    try:
+        result = factor.run(Path("unused"))
+    finally:
+        factor.load_snapshot = original_loader
+    validation = result["validation"]
+    assert result["status"] == "success"
+    assert isinstance(result["prob_up"], float) and 0.0 < result["prob_up"] < 1.0
+    assert validation["selection_label_count"] >= factor.MINIMUM_SELECTION_LABELS
+    assert validation["calibration_label_capacity"] >= 18
+    assert all(
+        count >= factor.MINIMUM_FACTOR_BUCKET_OBSERVATIONS
+        for count in validation["calibration_bucket_counts"].values()
+    )
+    assert validation["holdout_predictions"] >= 10
+    assert len(validation["oos_forecasts"]) >= validation["holdout_predictions"]
+    assert validation["leakage_audit"]["calibration_labels_matured_before_each_decision"] is True
+    for forecast in validation["oos_forecasts"]:
+        end = forecast["training_label_end_session"]
+        assert end is None or end <= forecast["decision_session"]
+
+    short_bars = synth_bars(120, seed=11)
+    manifest, market = ml_snapshot_stub(short_bars)
+    factor.load_snapshot = lambda _dir: (manifest, market)
+    try:
+        short_result = factor.run(Path("unused"))
+    finally:
+        factor.load_snapshot = original_loader
+    assert short_result["status"] == "insufficient_data"
+    assert short_result["prob_up"] is None
 
 
 CHECKS = [
@@ -646,7 +695,8 @@ CHECKS = [
     ("F12 cache_dir PathLike normalized", check_f12_cache_dir_pathlike),
     ("F13 horizon-scaled OOS support", check_f13_horizon_scaled_support),
     ("F14 confidence composite bands", check_f14_confidence_composite),
-    ("F15 one-year window defaults", check_f15_one_year_window_defaults),
+    ("F15 52-week window defaults", check_f15_52_week_window_defaults),
+    ("F16 factor path fits 52 weeks", check_f16_factor_path_fits_52_weeks),
 ]
 
 if __name__ == "__main__":

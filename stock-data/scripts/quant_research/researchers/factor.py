@@ -20,42 +20,64 @@ from ..math_utils import (
 )
 from ..snapshot import load_snapshot
 
-MINIMUM_FACTOR_BUCKET_OBSERVATIONS = 20
+MINIMUM_FACTOR_BUCKET_OBSERVATIONS = 6
+MINIMUM_SELECTION_LABELS = 10
+SHRINKAGE_PRIOR_OBSERVATIONS = 12
+SELECTION_FRACTION = 0.5
+FEATURE_WARMUP_SESSIONS = 60
 
 
-def _calibration_label_capacity(bar_count: int, horizon: int) -> int:
-    """Count the largest leak-free, non-overlapping calibration cohort at this history size."""
-    train_end = int(bar_count * 0.5)
-    calibration_end = int(bar_count * 0.8)
-    first = max(train_end, 60)
-    last = calibration_end - horizon - 1
+def _spaced_label_count(first: int, last: int, horizon: int) -> int:
     return (last - first) // (horizon + 1) + 1 if last >= first else 0
+
+
+def _selection_label_capacity(bar_count: int, horizon: int) -> int:
+    """Labels available to rank factors inside the fixed chronological selection segment."""
+    selection_end = int(bar_count * SELECTION_FRACTION)
+    return _spaced_label_count(FEATURE_WARMUP_SESSIONS, selection_end - horizon - 1, horizon)
+
+
+def _matured_label_capacity(bar_count: int, horizon: int) -> int:
+    """Labels whose outcome is already known by the final bar (usable for today's probability)."""
+    return _spaced_label_count(FEATURE_WARMUP_SESSIONS, bar_count - 1 - horizon, horizon)
 
 
 def _sample_feasibility(bar_count: int, horizon: int) -> dict[str, Any]:
     required = 3 * MINIMUM_FACTOR_BUCKET_OBSERVATIONS
+
+    def ready(size: int) -> bool:
+        return (
+            _selection_label_capacity(size, horizon) >= MINIMUM_SELECTION_LABELS
+            and _matured_label_capacity(size, horizon) >= required
+        )
+
     low, high = 0, max(256, bar_count)
-    while _calibration_label_capacity(high, horizon) < required:
+    while not ready(high):
         high *= 2
     while low < high:
         middle = (low + high) // 2
-        if _calibration_label_capacity(middle, horizon) >= required:
+        if ready(middle):
             high = middle
         else:
             low = middle + 1
-    capacity = _calibration_label_capacity(bar_count, horizon)
+    capacity = _matured_label_capacity(bar_count, horizon)
+    selection_capacity = _selection_label_capacity(bar_count, horizon)
     return {
-        "status": "capacity_below_three_bucket_minimum" if capacity < required else "budget_possible_not_guaranteed_by_factor_scores",
+        "status": "capacity_below_52_week_minimum" if not ready(bar_count) else "budget_possible_not_guaranteed_by_factor_scores",
+        "window_standard": "52_weeks_of_daily_bars",
         "minimum_bucket_observations": MINIMUM_FACTOR_BUCKET_OBSERVATIONS,
         "required_calibration_observations_for_three_balanced_buckets": required,
-        "max_non_overlapping_calibration_label_capacity": capacity,
+        "minimum_selection_labels": MINIMUM_SELECTION_LABELS,
+        "selection_label_capacity": selection_capacity,
+        "max_matured_non_overlapping_label_capacity": capacity,
         "calibration_available": 0,
         "calibration_observations_with_complete_factor_scores": 0,
         "calibration_bucket_counts": {"low": 0, "mid": 0, "high": 0},
         "all_current_buckets_meet_minimum": False,
         "estimated_minimum_daily_bars": low,
+        "estimated_minimum_calendar_weeks": round(low / 5.0, 1),
         "additional_daily_bars_at_current_history_length": max(0, low - bar_count),
-        "estimate_assumptions": "fixed 50% selection / 30% calibration / 20% holdout split, 60-session feature warm-up, H+1-session label spacing, and three balanced buckets; score ties, missing factors, and regime drift can increase the requirement",
+        "estimate_assumptions": "52-week standard: fixed 50% chronological selection segment, 60-session feature warm-up, H+1-session label spacing, labels matured by the decision bar, and three balanced buckets of 6 observations; score ties and missing factors can increase the requirement",
         "requested_window_preserved": True,
     }
 
@@ -236,6 +258,52 @@ def _empty_oos_forecasts(
     } for index in indices if labels[index] is not None]
 
 
+def _bucket_for_score(score: float | None, low_cut: float | None, high_cut: float | None) -> str | None:
+    if score is None or low_cut is None or high_cut is None:
+        return None
+    if score <= low_cut:
+        return "low"
+    if score >= high_cut:
+        return "high"
+    return "mid"
+
+
+def _bucket_cuts(scores: list[float]) -> tuple[float | None, float | None]:
+    """Causal terciles from matured scores; fall back to a narrow band when terciles collapse."""
+    low_cut, high_cut = quantile(scores, 1 / 3), quantile(scores, 2 / 3)
+    if low_cut is not None and high_cut is not None and low_cut < high_cut:
+        return low_cut, high_cut
+    center, scale = mean(scores), sample_std(scores)
+    if center is None or not scale:
+        return None, None
+    return center - 0.25 * scale, center + 0.25 * scale
+
+
+def _shrunk_probability(
+    samples: list[float], base_rate: float | None, prior: int = SHRINKAGE_PRIOR_OBSERVATIONS,
+) -> float | None:
+    """Empirical bucket frequency shrunk toward the matured base rate for thin 52-week samples."""
+    if not samples:
+        return None
+    raw = sum(value > 0 for value in samples) / len(samples)
+    if base_rate is None or prior <= 0:
+        return raw
+    return (len(samples) * raw + prior * base_rate) / (len(samples) + prior)
+
+
+def _shrunk_mean(
+    samples: list[float], overall: float | None, prior: int = SHRINKAGE_PRIOR_OBSERVATIONS,
+) -> float | None:
+    if not samples:
+        return None
+    center = mean(samples)
+    if center is None:
+        return None
+    if overall is None or prior <= 0:
+        return center
+    return (len(samples) * center + prior * overall) / (len(samples) + prior)
+
+
 def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None) -> dict[str, Any]:
     manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     ticker, horizon_name = manifest["ticker"], manifest["horizon"]
@@ -245,10 +313,9 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     factors = _factors(bars)
     n = len(bars)
     sample_feasibility = _sample_feasibility(n, requested_horizon)
-    holdout_start = int(n * 0.8)
+    train_end = int(n * SELECTION_FRACTION)
+    holdout_start = train_end
     holdout_indices = non_overlapping(list(range(holdout_start, n - requested_horizon)), requested_horizon)
-    train_end = int(n * 0.5)
-    calibration_end = holdout_start
     labels_by_horizon = {h: forward_returns(close, h) for h in (1, 5, 20)}
     select_labels = labels_by_horizon[requested_horizon]
     oos_factor_inference = _oos_factor_inference(factors, select_labels, holdout_indices, bars, requested_horizon)
@@ -292,7 +359,28 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         if len(retained) >= 5:
             break
 
-    warnings: list[str] = ["Returns are gross close-to-close observations; this factor path does not model execution, spreads, slippage or fees."]
+    warnings: list[str] = [
+        "Returns are gross close-to-close observations; this factor path does not model execution, spreads, slippage or fees.",
+        "Factor calibration uses only the 52-week daily-bar standard and never widens the window automatically to buy samples.",
+    ]
+    if len(select_indices) < MINIMUM_SELECTION_LABELS:
+        warnings.append(
+            f"Only {len(select_indices)} non-overlapping selection labels are available; at least "
+            f"{MINIMUM_SELECTION_LABELS} are required under the 52-week standard, so factor ranks would be noise."
+        )
+        return researcher_result(
+            "factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data",
+            validation={
+                "factor_decay": decay,
+                "oos_factor_inference": oos_factor_inference,
+                "candidate_factor_count": len(factors),
+                "sample_feasibility": sample_feasibility,
+                "selection_label_count": len(select_indices),
+                "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon),
+                "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0",
+            },
+            data_used=["daily raw OHLCV"], warnings=warnings,
+        )
     if not retained:
         warnings.append("No candidate factor passed the minimum absolute Rank IC screen in the training segment.")
         return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"factor_decay": decay, "oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "sample_feasibility": sample_feasibility, "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon), "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"}, data_used=["daily raw OHLCV"], warnings=warnings)
@@ -314,14 +402,19 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         values = [standardized[name][index] * signs[name] for name in standardized if standardized[name][index] is not None]
         return sum(values) / len(values) if len(values) == len(standardized) and values else None
 
-    calibration_indices = non_overlapping([i for i in range(train_end, calibration_end) if i >= 60 and i + requested_horizon < calibration_end], requested_horizon)
+    # Every label matured by the final bar forms the causal calibration ledger (52-week standard).
+    calibration_indices = non_overlapping(list(range(60, n - requested_horizon)), requested_horizon)
     calibration_pairs = [(float(composite(i)), float(select_labels[i])) for i in calibration_indices if composite(i) is not None]
-    scores = [pair[0] for pair in calibration_pairs]
-    low_cut, high_cut = quantile(scores, 1 / 3), quantile(scores, 2 / 3)
+    # Bucket cut points are recomputed from matured scores only, so thin 52-week ledgers stay balanced
+    # and neither the cuts nor the frequencies can see a label that has not matured yet.
+    low_cut, high_cut = _bucket_cuts([score for score, _ in calibration_pairs])
     bucket_samples: dict[str, list[float]] = {"low": [], "mid": [], "high": []}
     for score, target in calibration_pairs:
-        bucket = "low" if low_cut is not None and score <= low_cut else "high" if high_cut is not None and score >= high_cut else "mid"
-        bucket_samples[bucket].append(target)
+        bucket = _bucket_for_score(score, low_cut, high_cut)
+        if bucket is not None:
+            bucket_samples[bucket].append(target)
+    calibration_prevalence = mean([float(target > 0) for _, target in calibration_pairs])
+    overall_forward_return = mean([target for _, target in calibration_pairs])
     sample_feasibility["calibration_observations_with_complete_factor_scores"] = len(calibration_pairs)
     sample_feasibility["calibration_available"] = len(calibration_pairs)
     sample_feasibility["calibration_bucket_counts"] = {key: len(value) for key, value in bucket_samples.items()}
@@ -329,48 +422,71 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         len(values) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS for values in bucket_samples.values()
     )
     current_score = composite(n - 1)
-    current_bucket = None if current_score is None else "low" if low_cut is not None and current_score <= low_cut else "high" if high_cut is not None and current_score >= high_cut else "mid"
+    current_bucket = _bucket_for_score(current_score, low_cut, high_cut)
     selected_returns = bucket_samples.get(current_bucket, [])
-    probability = sum(value > 0 for value in selected_returns) / len(selected_returns) if current_bucket is not None and len(selected_returns) >= 20 else None
-    expected = mean(selected_returns) if probability is not None else None
+    probability = (
+        _shrunk_probability(selected_returns, calibration_prevalence)
+        if current_bucket is not None and len(selected_returns) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS
+        else None
+    )
+    expected = _shrunk_mean(selected_returns, overall_forward_return) if probability is not None else None
     if probability is None:
         if current_bucket is None:
             warnings.append("The latest OHLCV row did not produce a complete selected-factor score.")
         else:
-            warnings.append(f"Calibration bucket {current_bucket!r} has {len(selected_returns)} observations; at least 20 are required for a probability.")
+            warnings.append(
+                f"Calibration bucket {current_bucket!r} has {len(selected_returns)} matured observations; at least "
+                f"{MINIMUM_FACTOR_BUCKET_OBSERVATIONS} are required for a probability."
+            )
+    elif min(len(values) for values in bucket_samples.values()) < 2 * MINIMUM_FACTOR_BUCKET_OBSERVATIONS:
+        warnings.append(
+            "At least one 52-week calibration bucket is thin; probabilities are shrunk toward the matured base rate "
+            f"with a prior weight of {SHRINKAGE_PRIOR_OBSERVATIONS} observations."
+        )
 
-    holdout_pairs: list[tuple[float, int]] = []
+    holdout_pairs: list[tuple[float, int, float | None]] = []
     oos_forecasts: list[dict[str, Any]] = []
-    calibration_label_end = max((i + requested_horizon for i in calibration_indices if select_labels[i] is not None), default=None)
     for i in holdout_indices:
         score = composite(i)
         target = select_labels[i]
         if target is None:
             continue
-        if score is None:
-            oos_forecasts.append({"decision_session": bars[i]["date"], "label_end_session": bars[i + requested_horizon]["date"],
-                                  "target": int(target > 0), "probability": None,
-                                  "training_label_end_session": bars[calibration_label_end]["date"] if calibration_label_end is not None else None,
-                                  "training_sample_count": 0,
-                                  "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"})
-            continue
-        bucket = "low" if low_cut is not None and score <= low_cut else "high" if high_cut is not None and score >= high_cut else "mid"
-        sample = bucket_samples[bucket]
-        forecast_probability = sum(value > 0 for value in sample) / len(sample) if len(sample) >= 20 else None
+        # Rolling origin: only labels whose outcome was known at decision session i may train this forecast.
+        matured = [j for j in calibration_indices if j + requested_horizon <= i]
+        matured_pairs = [
+            (float(composite(j)), float(select_labels[j]))
+            for j in matured
+            if composite(j) is not None and select_labels[j] is not None
+        ]
+        matured_base_rate = mean([float(value > 0) for _, value in matured_pairs])
+        matured_low_cut, matured_high_cut = _bucket_cuts([value for value, _ in matured_pairs])
+        matured_buckets: dict[str, list[float]] = {"low": [], "mid": [], "high": []}
+        for matured_score, matured_target in matured_pairs:
+            bucket = _bucket_for_score(matured_score, matured_low_cut, matured_high_cut)
+            if bucket is not None:
+                matured_buckets[bucket].append(matured_target)
+        training_end = max((j + requested_horizon for j in matured), default=None)
+        bucket = _bucket_for_score(score, matured_low_cut, matured_high_cut)
+        sample = matured_buckets.get(bucket, [])
+        forecast_probability = (
+            _shrunk_probability(sample, matured_base_rate)
+            if bucket is not None and len(sample) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS
+            else None
+        )
         oos_forecasts.append({
             "decision_session": bars[i]["date"],
             "label_end_session": bars[i + requested_horizon]["date"],
             "target": int(target > 0),
             "probability": forecast_probability,
-            "training_label_end_session": bars[calibration_label_end]["date"] if calibration_label_end is not None else None,
+            "training_label_end_session": bars[training_end]["date"] if training_end is not None else None,
             "training_sample_count": len(sample),
+            "training_observation_count": len(matured_pairs),
             "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0",
         })
         if forecast_probability is not None:
-            holdout_pairs.append((forecast_probability, int(target > 0)))
-    brier = mean([(p - y) ** 2 for p, y in holdout_pairs])
-    calibration_prevalence = mean([float(target > 0) for _, target in calibration_pairs])
-    baseline_brier = mean([(calibration_prevalence - y) ** 2 for _, y in holdout_pairs]) if calibration_prevalence is not None else None
+            holdout_pairs.append((forecast_probability, int(target > 0), matured_base_rate))
+    brier = mean([(p - y) ** 2 for p, y, _ in holdout_pairs])
+    baseline_brier = mean([(base - y) ** 2 for _, y, base in holdout_pairs if base is not None])
 
     lookbacks = {"momentum_5": 5, "momentum_20": 20, "momentum_60": 60, "reversal_1": 1, "trend_sma20": 20, "realized_volatility_20": 20, "volume_z20": 20, "range_position_20": 20, "close_location": 1, "overnight_gap": 1, "volume_return_corr20": 20}
     selected_factor_rows = [{"factor_name": name, "family": family, "formula": formula, "lookback": lookbacks.get(name), "training_direction": "positive" if signs.get(name, 1) > 0 else "negative", "current_contribution": standardized[name][-1] * signs[name] if standardized[name][-1] is not None else None, "training_rank_ic": metrics["rank_ic"], "coverage": metrics["coverage"]} for _, name, family, formula, _, metrics in retained if name in standardized]
@@ -382,9 +498,9 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         group.append({key: item[key] for key in ("family", "factor_name", "formula", "training_rank_ic", "training_direction", "current_contribution")})
     diversity = len({item["family"] for item in selected_factor_rows})
     status = "success" if probability is not None and len(holdout_pairs) >= 10 else "partial" if probability is not None else "insufficient_data"
-    if len(holdout_pairs) < 10:
-        warnings.append("The untouched chronological holdout has fewer than 10 factor-calibration predictions.")
-    validation = {"method": "training-segment factor selection + correlation pruning + later empirical bucket calibration", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "oos_factor_inference": oos_factor_inference, "oos_forecasts": oos_forecasts, "oos_evaluable_samples": len(oos_forecasts), "oos_predictions": len(holdout_pairs), "oos_coverage": len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else 0.0, "oos_abstain_rate": 1 - len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else None, "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0", "candidate_factor_count": len(factors), "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_base_rate": calibration_prevalence, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True, "oos_inference_did_not_select_or_modify_probability": True}}
+    if probability is not None and len(holdout_pairs) < 10:
+        warnings.append("The rolling-origin evaluation has fewer than 10 matured-label factor predictions.")
+    validation = {"method": "52-week standard: training-segment factor selection + correlation pruning + rolling-origin matured-label bucket calibration with causal terciles", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "oos_factor_inference": oos_factor_inference, "oos_forecasts": oos_forecasts, "oos_evaluable_samples": len(oos_forecasts), "oos_predictions": len(holdout_pairs), "oos_coverage": len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else 0.0, "oos_abstain_rate": 1 - len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else None, "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0", "candidate_factor_count": len(factors), "selection_label_count": len(select_indices), "evaluation_mode": "rolling_origin_matured_labels", "evaluation_predictions": len(holdout_indices), "calibration_label_capacity": len(calibration_indices), "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_bucket_raw_probabilities": {key: (sum(value > 0 for value in values) / len(values) if values else None) for key, values in bucket_samples.items()}, "calibration_bucket_cut_points": {"low": low_cut, "high": high_cut}, "bucket_cuts_recomputed_from_matured_scores": True, "calibration_base_rate": calibration_prevalence, "probability_shrinkage": {"prior_observations": SHRINKAGE_PRIOR_OBSERVATIONS, "bucket_weight": len(selected_returns) / (len(selected_returns) + SHRINKAGE_PRIOR_OBSERVATIONS) if probability is not None else None, "base_rate": calibration_prevalence}, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True, "calibration_labels_matured_before_each_decision": True, "oos_inference_did_not_select_or_modify_probability": True}}
     validation["diagnostics_label_end_exclusive"] = holdout_start
     sample_feasibility["minimum_holdout_predictions"] = 10
     validation["sample_feasibility"] = sample_feasibility

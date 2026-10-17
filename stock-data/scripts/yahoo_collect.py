@@ -38,11 +38,12 @@ def _json_safe(value: Any) -> Any:
     return value
 
 
-def _year_back(day: date, years: int = 1) -> date:
-    try:
-        return day.replace(year=day.year - years)
-    except ValueError:
-        return day.replace(year=day.year - years, day=28)
+DEFAULT_HISTORY_WEEKS = 52
+
+
+def _default_history_start(day: date, weeks: int = DEFAULT_HISTORY_WEEKS) -> date:
+    """52 weeks is the research baseline, not a one-calendar-year approximation."""
+    return day - timedelta(days=7 * weeks)
 
 
 def _calendar(market: str, start: str, end: str) -> dict[str, Any] | None:
@@ -217,13 +218,13 @@ def collect(request: dict[str, Any], *, domains: tuple[str, ...] | list[str] = (
     end = min(date.fromisoformat(window.get("end", local_day.isoformat())), local_day)
     schedule = None
     if "market" in domains:
-        start_probe = window.get("start", _year_back(end).isoformat())
+        start_probe = window.get("start", _default_history_start(end).isoformat())
         schedule = _valid_calendar(_calendar(normalized["market"], start_probe, local_day.isoformat()), normalized["market"])
         if "end" not in window and schedule:
             closed = [r["date"] for r in schedule["sessions"] if parse_timestamp(r["close_at"]) <= asof and r["date"] <= end.isoformat()]
             if closed:
                 end = date.fromisoformat(closed[-1])
-    start = date.fromisoformat(window.get("start", _year_back(end).isoformat()))
+    start = date.fromisoformat(window.get("start", _default_history_start(end).isoformat()))
     if start > end:
         raise ValueError("requested history starts after effective as-of end")
     # Library, cache and transport creation occur only on an actual collection call.

@@ -11,7 +11,7 @@ from pathlib import Path
 from statistics import mean
 from typing import Any
 
-from ..contracts import HORIZONS, parse_timestamp
+from ..contracts import parse_timestamp
 from ..security import provider_failed
 from ..snapshot import load_snapshot
 from .classify import (
@@ -22,7 +22,7 @@ from .classify import (
     opinion_score,
 )
 from .contracts import NewsInput
-from .decay import time_decay
+from .decay import NEWS_MAX_AGE_CALENDAR_DAYS, time_decay
 from .deduplicate import deduplicate_articles
 from .impact import assess as assess_impact
 from .normalize import normalize_articles, normalize_source_sentiment
@@ -112,7 +112,7 @@ def _eligibility(cluster: dict[str, Any], news_input: NewsInput, decay: dict[str
     representative = cluster["representative"]
     available = representative.get("occurred_at") or representative.get("announcement_at") or cluster["first_published_at"]
     age = (parse_timestamp(news_input.asof_timestamp) - parse_timestamp(available)).total_seconds() / 86400
-    if age > policy.get("max_age_calendar_days", max(7, HORIZONS[news_input.horizon] * 4)):
+    if age > policy.get("max_age_calendar_days", NEWS_MAX_AGE_CALENDAR_DAYS):
         reasons.append("event/opinion is outside the current evidence window")
     if float(decay["time_decay"]) < policy.get("minimum_time_decay", 0.0625):
         reasons.append("event/opinion decay is below the evidence threshold")
@@ -187,7 +187,7 @@ def analyze_news(news_input: NewsInput, policy: dict[str, Any] | None = None) ->
     half_lives = policy.get("half_life_sessions_by_event_type", {})
     if not isinstance(half_lives, dict) or any(not isinstance(key, str) or len(key) > 40 or isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 < value <= 366 for key, value in half_lives.items()):
         raise ValueError("news half-life policy requires bounded names and numeric session counts in (0,366]")
-    age_limit = policy.get("max_age_calendar_days", max(7, HORIZONS[news_input.horizon] * 4))
+    age_limit = policy.get("max_age_calendar_days", NEWS_MAX_AGE_CALENDAR_DAYS)
     if isinstance(age_limit, bool) or not isinstance(age_limit, int) or not 1 <= age_limit <= 366:
         raise ValueError("news age window must be an integer in 1..366 days")
     decay_limit = policy.get("minimum_time_decay", 0.0625)

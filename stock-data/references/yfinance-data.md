@@ -65,9 +65,9 @@ python stock-data/scripts/quant_research.py pipeline --request request.json --re
 
 adjusted OHLC 由同根 `Adj Close / Close` 等比例转换；保留 ratio、provider 值和变换记录。缺失/非有限/无效 ratio 记录缺口，不能冒称已复权。repair 默认 False；显式要求或已记录异常条件才修复一次，保留修复前后 OHLC、Adj Close、行动、币种及差异。`Repaired?` 不是完整修复证据。
 
-日线 `date` 为来源交易所时区的 session 日期，同时保留 UTC 时间和时区。本地午夜索引不是成交/收盘时间；chart regularMarketTime 不替代历史 bar 的源时间。研究 request 的 history_window.end 为闭合 session 日期，转换到 yfinance 时 end 使用下一本地自然日并留档。用户窗口优先，默认一年；不因样本不足扩窗。日内各 interval 的覆盖限制分别检查，不能把 1m/分钟/小时线同等承诺，不能送入现有日线预测器。
+日线 `date` 为来源交易所时区的 session 日期，同时保留 UTC 时间和时区。本地午夜索引不是成交/收盘时间；chart regularMarketTime 不替代历史 bar 的源时间。研究 request 的 history_window.end 为闭合 session 日期，转换到 yfinance 时 end 使用下一本地自然日并留档。用户窗口优先，默认 52 周（364 个自然日，约 252 个交易日）；不因样本不足扩窗。日内各 interval 的覆盖限制分别检查，不能把 1m/分钟/小时线同等承诺，不能送入现有日线预测器。
 
-最后一根闭合状态须有覆盖该日期的交易日历或具体时段证据；未知时交给中央检查，不用主机时钟/固定 16:00 假定收盘。currentTradingPeriod/tradingPeriods 不构成完整一年日历；metadata 惰性读取仅限所需字段。`adjustment_evidence` 保留 source、price_basis、checked_through、实际行动与覆盖；覆盖未知的空行动不是“无行动”。今天下载的历史复权数据保留下载/修订时间，不伪造历史 vintage。
+最后一根闭合状态须有覆盖该日期的交易日历或具体时段证据；未知时交给中央检查，不用主机时钟/固定 16:00 假定收盘。currentTradingPeriod/tradingPeriods 不构成完整 52 周日历；metadata 惰性读取仅限所需字段。`adjustment_evidence` 保留 source、price_basis、checked_through、实际行动与覆盖；覆盖未知的空行动不是“无行动”。今天下载的历史复权数据保留下载/修订时间，不伪造历史 vintage。
 
 旧直连与 yfinance 的 actual_source 均为 `Yahoo Finance`；库名/版本另列，不能当独立双源。仅对同 session、币种、价格口径的独立闭合价格交叉验证；不能把 adjusted close 与其他源原始 close 直接送进 0.3% 冲突检查。
 
