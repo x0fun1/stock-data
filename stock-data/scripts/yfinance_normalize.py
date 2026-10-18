@@ -265,10 +265,3 @@ def normalize_options(chain, *, expiration=None, underlying=None):
         output[side] = rows
     return {"expiration": expiration, "underlying": json_safe(underlying), **output,
             "warnings": ["no_greeks_or_trade_direction_inferred"]}
-
-
-def normalize_funds(fields):
-    """Accept already-selected funds_data fields; never access lazy properties."""
-    data = json_safe(fields)
-    return {"data": data, "holdings_as_of": fields.get("holdings_as_of"),
-            "warnings": [] if fields.get("holdings_as_of") else ["holdings_date_not_provided; current_holdings_not_historical"]}
