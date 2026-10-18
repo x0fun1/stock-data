@@ -199,7 +199,7 @@ _yahoo_session = None
 
 def get_yahoo_session() -> requests.Session:
     """获取带 crumb 的 Yahoo Finance session（自动缓存）"""
-    global _yahoo_session
+    global _yahoo_session  # noqa: PLW0603 - process-wide session cache; the crumb must be reused across calls
     if _yahoo_session and hasattr(_yahoo_session, '_crumb'):
         return _yahoo_session
 
@@ -633,7 +633,7 @@ def us_stock_kline_sina(ticker: str, num: int = 120) -> list[dict]:
         return []
 
     items = json.loads(m.group(1))
-    result = [{
+    return [{
         "date": item.get("d"),
         "open": _num(item.get("o")),
         "high": _num(item.get("h")),
@@ -641,7 +641,6 @@ def us_stock_kline_sina(ticker: str, num: int = 120) -> list[dict]:
         "close": _num(item.get("c")),
         "volume": _int_or_none(item.get("v")),
     } for item in items]
-    return result
 
 
 def stock_kline_yahoo(symbol: str, interval: str = "1d",
@@ -1396,7 +1395,7 @@ def options_chain(symbol: str, expiration: int | None = None) -> dict:
         def _val(option, key):
             v = option.get(key, {})
             return v.get("raw") if isinstance(v, dict) else v
-        result = [{
+        return [{
             "strike": _val(o, "strike"),
             "last_price": _val(o, "lastPrice"),
             "bid": _val(o, "bid"),
@@ -1408,7 +1407,6 @@ def options_chain(symbol: str, expiration: int | None = None) -> dict:
             "expiration": o.get("expiration", {}).get("fmt") if isinstance(o.get("expiration"), dict) else None,
             "contract_symbol": o.get("contractSymbol"),
         } for o in opts]
-        return result
 
     return {
         "expiration_dates": exp_dates,  # Unix timestamps, 可依次传入获取各期
@@ -1546,7 +1544,7 @@ def ticker_to_cik(ticker: str) -> dict:
     首次调用下载完整映射表(~10KB JSON, 10000+公司)并缓存。
     """
     ticker = assert_us_ticker(ticker)
-    global _cik_cache
+    global _cik_cache  # noqa: PLW0603 - one SEC mapping download per process; the cache is intentionally module-wide
     if not _cik_cache:
         _cik_cache = official_get("https://www.sec.gov/files/company_tickers.json", timeout=15, as_json=True)
 

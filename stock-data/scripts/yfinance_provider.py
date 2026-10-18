@@ -522,7 +522,7 @@ class YahooProvider:
 
     def _batch(self, symbols, start=None, end=None, period=None, interval='1d',
                price_basis='provider', prepost=False, repair=False, timeout=None,
-               concurrency=1, market=None):
+               concurrency=1, market=None):  # noqa: ARG002 - accepted for dispatch-table symmetry; batch scope is derived from the symbols
         from yfinance_normalize import normalize_history_batch, repair_diff
         self._window(start, end, period, interval)
         if not isinstance(symbols, list) or not 1 <= len(symbols) <= 10 or len(set(symbols)) != len(symbols):

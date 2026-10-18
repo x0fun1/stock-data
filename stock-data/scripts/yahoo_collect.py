@@ -56,23 +56,23 @@ def _calendar(market: str, start: str, end: str) -> dict[str, Any] | None:
 def _valid_calendar(value: Any, market: str) -> dict[str, Any] | None:
     try:
         calendar_sessions({"session_calendar": value}, market)
-        return value
     except (KeyError, TypeError, ValueError):
         return None
+    return value
 
 
 def _call(provider: Any, name: str, **params: Any) -> dict[str, Any]:
     try:
         result = provider.call(name, **params)
-        if isinstance(result, dict):
-            return result
-        return {"status": "error", "error": {"category": "InvalidResponse", "message": "provider returned a non-object"}}
     except Exception as exc:  # noqa: BLE001 - redact any provider failure; never expose strings that could contain a session credential
         category = getattr(exc, "code", None)
         if not isinstance(category, str) or not category:
             category = "NetworkError"
         return {"status": "error", "error": {"category": category, "exception_type": type(exc).__name__,
                                                "message": "provider call failed; details redacted"}}
+    if isinstance(result, dict):
+        return result
+    return {"status": "error", "error": {"category": "InvalidResponse", "message": "provider returned a non-object"}}
 
 
 def _block(envelope: dict[str, Any]) -> dict[str, Any]:

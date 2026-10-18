@@ -18,6 +18,7 @@ from zoneinfo import ZoneInfo
 from .contracts import normalize_request, parse_timestamp, utc_now
 from .data_checks import EXCHANGE_TIMEZONES, calendar_sessions, check_market
 from .gate_policy import classify_reasons
+from .jsonio import canonical_bytes, write_json
 from .paths import safe_output_destination, validate_path_component
 from .security import provider_failed, sanitize_data
 
@@ -33,14 +34,6 @@ DOMAINS = (
     "sec",
     "macro",
 )
-
-
-def _canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
-
-
-def _write_json(path: Path, value: Any) -> None:
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
 
 
 def _date_only(value: Any) -> date:
@@ -244,7 +237,7 @@ def freeze_snapshot(
     created_at = utc_now()
     if payload.get("captured_at_utc") and parse_timestamp(payload["captured_at_utc"]) > parse_timestamp(created_at):
         raise ValueError("collection capture occurs after snapshot creation")
-    source_digest = hashlib.sha256(_canonical_bytes(payload)).hexdigest()
+    source_digest = hashlib.sha256(canonical_bytes(payload)).hexdigest()
     stamp = created_at.replace("-", "").replace(":", "").replace(".", "")
     slug = re.sub(r"[^A-Z0-9._-]+", "_", request["ticker"])
 
@@ -259,11 +252,11 @@ def freeze_snapshot(
         # Persist the optional-library schedule in the signed manifest so snapshot reloads are deterministic.
         derived = _derived_metadata(normalized, request, captured_at=captured_at,
                                     resolved_calendar_evidence=resolved_calendar)
-    normalized_hashes = {name: hashlib.sha256(_canonical_bytes(block)).hexdigest() for name, block in normalized.items()}
+    normalized_hashes = {name: hashlib.sha256(canonical_bytes(block)).hexdigest() for name, block in normalized.items()}
     raw_blocks = {name: collection.get(name) for name in DOMAINS}
-    raw_hashes = {name: hashlib.sha256(_canonical_bytes(block)).hexdigest() for name, block in raw_blocks.items()}
+    raw_hashes = {name: hashlib.sha256(canonical_bytes(block)).hexdigest() for name, block in raw_blocks.items()}
     content_payload = {"request": request, "asof_timestamp": asof_timestamp, "domains": normalized}
-    content_digest = hashlib.sha256(_canonical_bytes(content_payload)).hexdigest()
+    content_digest = hashlib.sha256(canonical_bytes(content_payload)).hexdigest()
     snapshot_id = f"{slug}_{stamp}_{request['horizon']}_{content_digest[:10]}"
     destination = safe_output_destination(output_root, snapshot_id)
     output_root = destination.parent
@@ -286,16 +279,16 @@ def freeze_snapshot(
         "raw_domain_sha256s": raw_hashes,
     }
     manifest.update(derived)
-    manifest["manifest_sha256"] = hashlib.sha256(_canonical_bytes(manifest)).hexdigest()
+    manifest["manifest_sha256"] = hashlib.sha256(canonical_bytes(manifest)).hexdigest()
 
     temporary = Path(tempfile.mkdtemp(prefix=f".{snapshot_id}.", dir=output_root))
     try:
-        _write_json(temporary / "manifest.json", manifest)
+        write_json(temporary / "manifest.json", manifest)
         raw_dir = temporary / "raw"
         raw_dir.mkdir()
         for domain, block in normalized.items():
-            _write_json(temporary / f"{domain}.json", block)
-            _write_json(raw_dir / f"{domain}.json", raw_blocks[domain])
+            write_json(temporary / f"{domain}.json", block)
+            write_json(raw_dir / f"{domain}.json", raw_blocks[domain])
         os.replace(temporary, destination)
         if on_snapshot_created is not None:
             on_snapshot_created(destination)
@@ -328,19 +321,19 @@ def load_snapshot(
         raw_block = json.loads(raw_path.read_text(encoding="utf-8"))
         expected = manifest.get("domain_sha256s", {}).get(name)
         raw_expected = manifest.get("raw_domain_sha256s", {}).get(name)
-        if expected != hashlib.sha256(_canonical_bytes(block)).hexdigest():
+        if expected != hashlib.sha256(canonical_bytes(block)).hexdigest():
             raise ValueError(f"snapshot domain digest mismatch: {name}")
-        if raw_expected != hashlib.sha256(_canonical_bytes(raw_block)).hexdigest():
+        if raw_expected != hashlib.sha256(canonical_bytes(raw_block)).hexdigest():
             raise ValueError(f"snapshot raw domain digest mismatch: {name}")
         domains[name] = block
     content_payload = {"request": manifest.get("request"), "asof_timestamp": manifest.get("asof_timestamp"), "domains": domains}
-    content_digest = hashlib.sha256(_canonical_bytes(content_payload)).hexdigest()
+    content_digest = hashlib.sha256(canonical_bytes(content_payload)).hexdigest()
     if content_digest != manifest.get("snapshot_content_sha256") or not snapshot_id.endswith(content_digest[:10]):
         raise ValueError("snapshot content identity mismatch")
     if any(manifest.get(key) != manifest.get("request", {}).get(key) for key in ("ticker", "horizon", "market")) or manifest.get("asof_timestamp") != manifest.get("request", {}).get("asof"):
         raise ValueError("snapshot request identity mismatch")
     if manifest.get("schema_version") == SCHEMA_VERSION:
-        digest = hashlib.sha256(_canonical_bytes({key: value for key, value in manifest.items() if key != "manifest_sha256"})).hexdigest()
+        digest = hashlib.sha256(canonical_bytes({key: value for key, value in manifest.items() if key != "manifest_sha256"})).hexdigest()
         if digest != manifest.get("manifest_sha256"):
             raise ValueError("snapshot manifest digest mismatch")
         if manifest.get("collection_captured_at") and parse_timestamp(manifest["collection_captured_at"]) > parse_timestamp(manifest["snapshot_created_at"]):

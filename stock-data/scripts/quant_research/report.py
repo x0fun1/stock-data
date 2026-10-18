@@ -7,6 +7,7 @@ import math
 from decimal import Decimal
 from typing import Any
 
+from .contracts import MISSING_PROBABILITY_LABEL
 from .security import bounded_text, markdown_text, safe_url
 from .synthesis import reportable_quant_fields
 
@@ -80,7 +81,7 @@ def _predictive_evidence_text(value: Any) -> str:
 
 def _quant_lines(fields: dict[str, Any]) -> list[str]:
     """Presentation only: retain native Quant categories, never invent percent scores."""
-    lines = [f"- 上涨概率 P(up)：{_probability_text(fields['prob_up'])}" if fields["prob_up"] is not None else "- 上涨概率：不可用",
+    lines = [f"- 上涨概率 P(up)：{_probability_text(fields['prob_up'])}" if fields["prob_up"] is not None else f"- {MISSING_PROBABILITY_LABEL}",
              f"- 方向：{_label(fields['direction'])}",
              f"- Quant Confidence：{_label(fields['confidence'])}",
              f"- 置信度支持度评分：{_cell(fields.get('confidence_score'))}/100",
@@ -183,7 +184,7 @@ def _probability_validation_lines(consensus: dict[str, Any]) -> list[str]:
 
 def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -> str:
     if fields["prob_up"] is None:
-        return "上涨概率：不可用。Quant 未提供通过报告资格的有效概率；不得由 LLM 或新闻补算。"
+        return f"{MISSING_PROBABILITY_LABEL}。Quant 未提供通过报告资格的有效概率；不得由 LLM 或新闻补算。"
     probability = _probability_text(fields["prob_up"])
     if fields.get("calibrated_probability") is not None:
         return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的报告概率（等权均值经时间序后段检查的 ensemble calibration；回顾性检查，非独立确认）。"
@@ -584,7 +585,7 @@ def render_markdown(result: dict[str, Any]) -> str:
     lines.append(f"- Host AI headline lean: {_cell(lean.get('status'))}; basis {_cell(lean.get('basis'))}; judged {_cell((lean.get('coverage') or {}).get('assessed_count'))}/{_cell((lean.get('coverage') or {}).get('candidate_count'))}; effect on probability: {_cell(lean.get('probability_effect'))}")
     for label, key in (("Bullish", "bullish"), ("Bearish", "bearish"), ("Mixed", "mixed"), ("Neutral/unclear", "neutral_or_unclear")):
         for item in lean.get(key) or []:
-            lines.append(f"  - {label} lean [{_cell(item.get('evidence_grade'))}; relevance {_cell(item.get('ticker_relevance'))}]: {_link(item.get('headline'), item.get('url'))} — {_cell(item.get('reason'))}")
+            lines.append(f"  - {label} lean [{_cell(item.get('evidence_grade'))}; relevance {_cell(item.get('ticker_relevance'))}]: {_link(item.get('headline'), item.get('url'))} — {_cell(item.get('reason'))}")  # noqa: PERF401 - nested label/record loops keep the rendered order explicit
     if lean.get("status") == "not_assessed":
         lines.append("  - No host AI lean artifact was supplied; the message side has no per-item lean evidence (this is not the same as neutral).")
     for event in news.get("major_events", []):

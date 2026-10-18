@@ -10,6 +10,10 @@ from typing import Any
 HORIZONS = {"1D": 1, "5D": 5, "20D": 20}
 RESEARCHERS = ("quant", "factor", "ml", "factor_backtest")
 RESEARCHER_STATUSES = {"success", "partial", "failed", "insufficient_data", "invalid"}
+# The one literal the delivery contract reserves for "no reportable probability".
+# It is rendered into the reply, declared in `schema --kind final`, and quoted in
+# SKILL.md, so it lives here instead of being repeated at each site.
+MISSING_PROBABILITY_LABEL = "上涨概率：不可用"
 
 
 def normalize_request(value: dict[str, Any]) -> dict[str, Any]:

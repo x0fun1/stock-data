@@ -136,11 +136,11 @@ def _audit_oos_path(
             seen.add(decision)
 
     rows: dict[str, dict[str, Any]] = {}
-    for row_number, row in enumerate(source_rows):
-        reasons: list[str] = []
-        if not isinstance(row, dict):
-            reasons = ["record_not_object"]
-            row = {}
+    for row_number, record in enumerate(source_rows):
+        # Keep the loop variable intact: `row` is the object under test, and a
+        # non-object record is analysed as an empty one with an explicit reason.
+        reasons: list[str] = [] if isinstance(record, dict) else ["record_not_object"]
+        row = record if isinstance(record, dict) else {}
         decision = row.get("decision_session")
         label_end = row.get("label_end_session")
         target = row.get("target")

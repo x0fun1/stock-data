@@ -239,28 +239,49 @@ def prune_cache(cache_dir: Path, *, days: int, dry_run: bool = False,
             if _is_link(path) or not stat.S_ISREG(path.lstat().st_mode):
                 report["errors"].append(f"non-regular cache entry skipped: {name}")
                 continue
-            try:
-                if datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc) < cutoff:
-                    stale.append(path)
-            except OSError:
-                continue
+            if _is_stale(path, cutoff):
+                stale.append(path)
     for path in stale:
-        try:
-            size = path.stat().st_size
-            if not dry_run:
-                path.unlink()
-            report["files_removed"] += 1
-            report["bytes_removed"] += size
-        except OSError as exc:
-            report["errors"].append(f"{path.name}: {type(exc).__name__}")
+        size = _file_size(path)
+        if size is None or (not dry_run and not _unlink_file(path)):
+            report["errors"].append(f"{path.name}: unreadable or locked")
+            continue
+        report["files_removed"] += 1
+        report["bytes_removed"] += size
     if not dry_run:
         for path in sorted(directories, key=lambda item: len(item.parts), reverse=True):
-            try:
-                if path.is_dir() and not any(path.iterdir()):
-                    path.rmdir()
-            except OSError:
-                continue
+            _remove_empty_dir(path)
     return report
+
+
+def _is_stale(path: Path, cutoff: datetime) -> bool:
+    try:
+        return datetime.fromtimestamp(path.stat().st_mtime, tz=timezone.utc) < cutoff
+    except OSError:
+        return False
+
+
+def _file_size(path: Path) -> int | None:
+    try:
+        return path.stat().st_size
+    except OSError:
+        return None
+
+
+def _unlink_file(path: Path) -> bool:
+    try:
+        path.unlink()
+    except OSError:
+        return False
+    return True
+
+
+def _remove_empty_dir(path: Path) -> None:
+    try:
+        if path.is_dir() and not any(path.iterdir()):
+            path.rmdir()
+    except OSError:
+        return
 
 
 def _read_gc_state(output_root: Path) -> dict[str, Any]:

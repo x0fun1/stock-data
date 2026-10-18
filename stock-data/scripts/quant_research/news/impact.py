@@ -101,11 +101,10 @@ def _lookup_alias(name: str) -> str | None:
     never falls back to substrings.
     """
     candidates = []
-    for candidate in (name, re.sub(r"\.(com|org|net)$", "", name)):
-        candidate = candidate.strip()
-        candidate = re.sub(r"^the\s+", "", candidate)
-        if candidate:
-            candidates.append(candidate)
+    for raw in (name, re.sub(r"\.(com|org|net)$", "", name)):
+        folded = re.sub(r"^the\s+", "", raw.strip())
+        if folded:
+            candidates.append(folded)
     for candidate in candidates:
         for tier, aliases in _TIER_ALIASES:
             if candidate in aliases:
@@ -210,7 +209,7 @@ def _trailing_sigma(closes: list[float], index: int, window: int = 20) -> tuple[
 
 
 def pattern_comparison(
-    *, event_direction: str, reaction: dict[str, Any], closes: list[float], session_index: int | None,
+    *, reaction: dict[str, Any], closes: list[float], session_index: int | None,
 ) -> dict[str, Any]:
     """Compare the observed move to this symbol's own recent volatility.
 
@@ -304,7 +303,7 @@ ATTRIBUTION_CAVEATS: tuple[str, ...] = (
 
 
 def assess(
-    *, event_type: str | None, event_direction: str, reaction: dict[str, Any],
+    *, event_type: str | None, reaction: dict[str, Any],
     publishers: list[str] | tuple[str, ...], closes: list[float], session_index: int | None,
 ) -> dict[str, Any]:
     """Bundle every deterministic News-side impact judgement for one event card."""
@@ -312,7 +311,7 @@ def assess(
         "magnitude": magnitude_band(reaction.get("daily_close_return"),
                                     reaction_status=reaction.get("status")),
         "pattern_comparison": pattern_comparison(
-            event_direction=event_direction, reaction=reaction, closes=closes, session_index=session_index),
+            reaction=reaction, closes=closes, session_index=session_index),
         "breadth_scope": breadth_scope(event_type),
         "source_tier": source_tier(publishers),
         "attribution_caveats": list(ATTRIBUTION_CAVEATS),

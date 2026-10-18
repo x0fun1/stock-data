@@ -12,6 +12,7 @@ from statistics import mean
 from typing import Any
 
 from ..contracts import parse_timestamp
+from ..jsonio import canonical_bytes, json_payload
 from ..security import bounded_text, provider_failed
 from ..snapshot import load_snapshot
 from .ai_assessment import (
@@ -147,7 +148,6 @@ def prepare_news_input(
     data = news.get("data") if isinstance(news, dict) and not provider_failed(news) and news.get("status") not in {"unavailable", "failed", "invalid", "empty"} else None
     normalized, excluded, news_warnings = normalize_articles(
         data,
-        ticker=manifest["ticker"],
         asof_timestamp=manifest["asof_timestamp"],
     )
     warnings = list(news_warnings)
@@ -212,7 +212,7 @@ def analyze_news(
         raise ValueError("news minimum_time_decay must be in [0,1]")
     cutoff = parse_timestamp(news_input.asof_timestamp)
     # Recheck the boundary at the analyst contract as defense in depth.
-    articles, _, input_warnings = normalize_articles({"articles": list(news_input.articles)}, ticker=news_input.ticker, asof_timestamp=news_input.asof_timestamp)
+    articles, _, input_warnings = normalize_articles({"articles": list(news_input.articles)}, asof_timestamp=news_input.asof_timestamp)
     failed_domain = news_input.news_status in {"failed", "invalid", "unavailable", "empty"}
     if failed_domain:
         articles = []
@@ -264,7 +264,6 @@ def analyze_news(
         )
         impact = assess_impact(
             event_type=event_type,
-            event_direction=event_direction,
             reaction=reaction,
             publishers=cluster.get("sources", []),
             closes=frozen_closes,
@@ -541,13 +540,9 @@ def _attach_ai_lean(
     return block
 
 
-def _canonical_bytes(value: Any) -> bytes:
-    return json.dumps(value, sort_keys=True, ensure_ascii=False, separators=(",", ":"), allow_nan=False).encode("utf-8")
-
-
 def freeze_result(path: Path, result: dict[str, Any], *, result_name: str) -> dict[str, Any]:
-    path.write_text(json.dumps(result, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
-    digest = hashlib.sha256(_canonical_bytes(result)).hexdigest()
+    path.write_text(json_payload(result), encoding="utf-8")
+    digest = hashlib.sha256(canonical_bytes(result)).hexdigest()
     freeze = {
         "result_file": result_name,
         "sha256": digest,
@@ -564,7 +559,7 @@ def load_frozen_result(path: Path) -> tuple[dict[str, Any], dict[str, Any]]:
         raise ValueError(f"frozen result and receipt are required: {path.name}")
     result = json.loads(path.read_text(encoding="utf-8"))
     freeze = json.loads(freeze_path.read_text(encoding="utf-8"))
-    actual = hashlib.sha256(_canonical_bytes(result)).hexdigest()
+    actual = hashlib.sha256(canonical_bytes(result)).hexdigest()
     if freeze.get("result_file") != path.name or freeze.get("sha256") != actual:
         raise ValueError(f"frozen result digest mismatch: {path.name}")
     return result, freeze

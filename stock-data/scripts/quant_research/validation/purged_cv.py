@@ -21,12 +21,6 @@ class Fold:
     embargoed: int
 
 
-def intervals_for(decisions: list[int], lookback: int, horizon: int) -> list[SampleInterval]:
-    if lookback < 0 or horizon < 1:
-        raise ValueError("lookback must be nonnegative and horizon positive")
-    return [SampleInterval(i, max(0, i - lookback), i + horizon) for i in decisions]
-
-
 def _overlap(a_start: int, a_end: int, b_start: int, b_end: int) -> bool:
     # Closed intervals: touching an endpoint is an overlap and must be purged.
     return a_start <= b_end and b_start <= a_end

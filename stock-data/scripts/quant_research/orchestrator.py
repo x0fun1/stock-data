@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import json
 import time
 from collections.abc import Callable
 from datetime import datetime, timezone
@@ -15,6 +14,7 @@ from .consensus import build_consensus, forecast_assessment
 from .contracts import RESEARCHERS, researcher_result
 from .delivery import validate_response_text
 from .gate_policy import aggregate_gate_telemetry, analysis_status
+from .jsonio import write_json
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
 from .paths import safe_output_destination
@@ -36,10 +36,6 @@ RUNNERS: dict[str, Callable[[Path, tuple[dict[str, Any], dict[str, Any]] | None]
     "ml": ml.run,
     "factor_backtest": factor_backtest.run,
 }
-
-
-def _write_json(path: Path, value: Any) -> None:
-    path.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n", encoding="utf-8")
 
 
 def run_analysis(
@@ -99,7 +95,7 @@ def run_analysis(
         result.update(assessment)
         result["warnings"] = merged_warnings
         path_assessments[researcher_id] = assessment
-        _write_json(researcher_dir / f"{researcher_id}.json", result)
+        write_json(researcher_dir / f"{researcher_id}.json", result)
         results[researcher_id] = result
 
     consensus = build_consensus(list(results.values()), manifest, assessments=path_assessments, bars=bars)
@@ -225,8 +221,8 @@ def run_analysis(
     summary = build_agent_summary(final)
     summary["sections"]["quant"]["performance"] = performance
     summary = enforce_agent_summary_budget(summary)
-    _write_json(destination / "report.json", final)
-    _write_json(destination / "agent_summary.json", summary)
+    write_json(destination / "report.json", final)
+    write_json(destination / "agent_summary.json", summary)
     (destination / "report.md").write_text(render_markdown(final), encoding="utf-8")
     response = render_final_response(final, summary=summary)
     validate_response_text(final, response)

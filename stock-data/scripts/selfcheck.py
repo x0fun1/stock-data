@@ -251,7 +251,7 @@ def check_f04_response_text_validation() -> None:
     fake_required = {"identity": "- 标的：SYN；市场：US；预测窗口：5D（交易 session）；分析截至：2026-01-02T00:00:00Z",
                      "prob": "- 上涨概率 P(up)：61.4%", "status": "- 报告状态：pass"}
     original = delivery.required_response_lines
-    delivery.required_response_lines = lambda result: dict(fake_required)
+    delivery.required_response_lines = lambda _result: dict(fake_required)
     try:
         ok = "\n".join(fake_required.values())
         delivery.validate_response_text({}, ok)
@@ -265,7 +265,7 @@ def check_f04_response_text_validation() -> None:
         for bad_text, label in ((hidden, "comment-hidden"), (ok + "\n5. 上涨概率 P(up)：99.9%\n", "numbered-conflict")):
             try:
                 delivery.validate_response_text({}, bad_text)
-            except ValueError:
+            except ValueError:  # noqa: PERF203 - each bad case is checked independently; a failure must not stop the battery
                 pass
             else:
                 raise AssertionError(f"{label} was not rejected")
@@ -278,8 +278,8 @@ def check_f05_retained_binding() -> None:
 
     original_md, original_fr, original_vr = cleanup.render_markdown, cleanup.render_final_response, cleanup.validate_response_text
     cleanup.render_markdown = lambda report: "MD:" + json.dumps(report, sort_keys=True)
-    cleanup.render_final_response = lambda report, summary=None: "FR:" + json.dumps(summary, sort_keys=True)
-    cleanup.validate_response_text = lambda result, text: None
+    cleanup.render_final_response = lambda _report, summary=None: "FR:" + json.dumps(summary, sort_keys=True)
+    cleanup.validate_response_text = lambda _result, _text: None
     work = Path(tempfile.mkdtemp(prefix="selfcheck_f05_"))
     try:
         directory = work / "analysis"
@@ -313,6 +313,7 @@ def check_f05_retained_binding() -> None:
 # ---------------------------------------------------------------- F07
 def check_f07_malformed_fields() -> None:
     import copy
+
     from quant_research.data_checks import check_market
 
     bars = synth_bars(300)
@@ -327,7 +328,7 @@ def check_f07_malformed_fields() -> None:
         mutate(block)
         return check_market(block, request, captured_at=captured, allow_library_calendar=False)
 
-    run_with(lambda b: None)
+    run_with(lambda _b: None)
     for mutate, expected in (
         (lambda b: b.update(adjustment=[]), "ADJUSTMENT_UNKNOWN"),
         (lambda b: b.update(adjustment={"a": 1}), "ADJUSTMENT_UNKNOWN"),
@@ -347,12 +348,12 @@ def check_f07_malformed_fields() -> None:
 # ---------------------------------------------------------------- F08
 def check_f08_preflight_and_counting() -> None:
     os.environ.pop("STOCK_DATA_YAHOO_CACHE_DIR", None)
-    from yfinance_provider import GatewayError, YahooProvider
     import yahoo_compat_fallback as fb
+    from yfinance_provider import GatewayError, YahooProvider
 
     provider = YahooProvider(cache_dir=tempfile.mkdtemp())
     sentinel = {"sentinel": True}
-    provider._call_yfinance = lambda name, **params: sentinel
+    provider._call_yfinance = lambda _name, **_params: sentinel
 
     def expect_invalid(fn):
         try:
@@ -376,15 +377,15 @@ def check_f08_preflight_and_counting() -> None:
             self.hits = 0
             self.FUNCTIONS = {"stock_kline_yahoo": self.kline, "institutional_holders": self.holders}
 
-        def kline(self, symbol, **kwargs):
+        def kline(self, symbol, **_kwargs):
             self.hits += 1
             return {"symbol": symbol}
 
-        def holders(self, **kwargs):
+        def holders(self, **_kwargs):
             self.hits += 1
             return {"ok": True}
 
-        def options_chain(self, symbol, **kwargs):
+        def options_chain(self, _symbol, **_kwargs):
             self.hits += 1
             return {"expiration_dates": [int(dt.datetime(2026, 1, 2, tzinfo=dt.timezone.utc).timestamp())]}
 
@@ -435,7 +436,9 @@ def check_f08_preflight_and_counting() -> None:
 # ---------------------------------------------------------------- F09 / F10
 def check_f09_bootstrap_estimability() -> None:
     from quant_research.validation.probability_quality import (
-        MIN_BOOTSTRAP_INDEPENDENT_BLOCKS, _block_bootstrap_skill_interval)
+        MIN_BOOTSTRAP_INDEPENDENT_BLOCKS,
+        _block_bootstrap_skill_interval,
+    )
 
     def rows(count: int, same: bool = False):
         rng = random.Random(5)
@@ -501,7 +504,7 @@ def check_f11_options_expiry_unix_seconds() -> None:
     def stub_session():
         return StubSession()
 
-    def stub_get(session, url, params=None, timeout=None):
+    def stub_get(session, url, params=None, timeout=None):  # noqa: ARG001 - signature mirrors the real transport call; only params is inspected
         captured["params"] = dict(params or {})
         return StubResponse()
 
@@ -536,7 +539,7 @@ def check_f12_cache_dir_pathlike() -> None:
     sentinel = {"sentinel": True}
     provider = YahooProvider(cache_dir=Path(tempfile.mkdtemp()))
     assert isinstance(provider.cache_dir, str), type(provider.cache_dir)
-    provider._call_yfinance = lambda name, **params: sentinel
+    provider._call_yfinance = lambda _name, **_params: sentinel
     assert provider.call("yahoo_quote", symbol="AAPL") is sentinel
 
     non_path = YahooProvider(cache_dir=123)
@@ -617,8 +620,8 @@ def check_f14_confidence_composite() -> None:
 
 
 def check_f15_52_week_window_defaults() -> None:
-    from quant_research.researchers import ml, quant
     from quant_research.news.decay import NEWS_MAX_AGE_CALENDAR_DAYS
+    from quant_research.researchers import ml, quant
     from yahoo_collect import DEFAULT_HISTORY_WEEKS, _default_history_start
 
     assert DEFAULT_HISTORY_WEEKS == 52

@@ -17,6 +17,7 @@ from typing import Any
 
 from .contracts import RESEARCHERS, utc_now
 from .delivery import validate_final_response, validate_response_text
+from .jsonio import json_payload
 from .paths import safe_output_destination, validate_path_component
 from .report import render_final_response, render_markdown
 from .snapshot import DOMAINS
@@ -62,7 +63,7 @@ def _real_directory(path: Path, label: str) -> Path:
 
 def _write_json(path: Path, value: dict[str, Any], *, exclusive: bool = False) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    payload = json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n"
+    payload = json_payload(value)
     if exclusive:
         with path.open("x", encoding="utf-8", newline="\n") as handle:
             handle.write(payload)
@@ -497,17 +498,9 @@ def _validate_relative_target(value: str) -> PurePosixPath:
 
 
 def _target_path(root: Path, relative: str) -> Path:
-    parts = _validate_relative_target(relative).parts
-    candidate = root
-    for part in parts:
-        candidate = candidate / part
-        if (candidate.exists() or candidate.is_symlink()) and _is_link(candidate):
-            raise CleanupError(f"refusing to follow linked cleanup target: {relative}")
-    try:
-        candidate.resolve(strict=False).relative_to(root.resolve(strict=True))
-    except (OSError, ValueError) as exc:
-        raise CleanupError(f"cleanup target escapes its owned root: {relative}") from exc
-    return candidate
+    """Resolve one registered JSON target; the shared resolver enforces containment."""
+    _validate_relative_target(relative)
+    return _member_path(root, relative)
 
 
 def _validate_tree(

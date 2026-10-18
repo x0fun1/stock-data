@@ -166,7 +166,7 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any], policy: An
         for symbol in symbols:
             try:
                 symbols_result[symbol] = _legacy_history(gateway, symbol, params, policy)
-            except Exception as exc:  # noqa: BLE001, PERF203 - bounded per-symbol isolation; one bad symbol must not fail the batch
+            except Exception as exc:  # noqa: PERF203 - bounded per-symbol isolation; one bad symbol must not fail the batch
                 if getattr(exc, "code", None) in _POLICY_ERROR_CODES:
                     raise
                 symbols_result[symbol] = {"status": "failed", "error": {"category": type(exc).__name__}}
@@ -252,7 +252,7 @@ def fallback(function: str, params: dict[str, Any], reason: dict[str, Any], poli
                 "warnings": ["yfinance request failed; legacy compatibility route was used.", *warnings],
                 "provenance": {"library": "legacy_compat", "route": route,
                                "raw_http_payload_captured": False}}
-    except Exception as exc:  # noqa: BLE001 - fallback guard; any failure is reported as a structured error envelope
+    except Exception as exc:
         if getattr(exc, "code", None) in _POLICY_ERROR_CODES:
             raise
         category = "NoLegacyRoute" if isinstance(exc, LookupError) else "LegacyFallbackFailed"

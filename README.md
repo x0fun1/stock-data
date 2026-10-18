@@ -84,6 +84,17 @@ python -B stock-data/scripts/selfcheck.py
 
 前五步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验（覆盖校准因果性与前缀不变性、脱敏、交付/清理校验、崩溃残留清扫与保留过期、数据门槛边界、Yahoo 预检与区间可估计性），不访问网络。本仓库仅保留运行 Skill、必需参考和安装说明，不附带独立测试套件、历史审计或上游源码档案；离线回归校验以 `selfcheck.py` 为唯一入口。
 
+## 代码质量
+
+```sh
+python -m pip install ruff
+ruff check stock-data/scripts
+```
+
+`pyproject.toml` 固定 lint 契约，不是可选的风格偏好：`target-version = "py310"` 与运行环境下限一致（因此不自动套用 3.11 才有的 `datetime.UTC`、原生 `Z` 解析等写法）；`line-length = 120`；忽略项都带理由——单行数据契约字面量（E501）、CLI 统一用 `ValueError` 传递机器可读文案（TRY003/TRY301）、中文全角标点（RUF001-003）。刻意保留的写法用带理由的 `# noqa` 就地标注，`ruff check` 应保持零告警。
+
+JSON 序列化集中在 `quant_research/jsonio.py`：快照 manifest、冻结阶段结果和清理回执都对 JSON 字节取哈希，键序、分隔符、NaN 策略与结尾换行属于磁盘契约，只允许在一个地方定义。
+
 ## 边界与参考
 
 - [专项分析路径](stock-data/references/analysis-paths.md)：事实、财务、技术、新闻、ETF 和多标的路由。
@@ -92,4 +103,4 @@ python -B stock-data/scripts/selfcheck.py
 - [快照契约](stock-data/references/snapshot-schema.md)：冻结输入、完整性和输出路径边界。
 - [来源限制](stock-data/references/source-policies.md)、[来源与许可记录](stock-data/references/upstream-provenance.md)：网络授权、来源声明及集成边界。
 
-当前 Skill `2.15.0`，research runtime `0.12.0`，snapshot schema `1.2`。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。
+当前 Skill `2.15.1`，research runtime `0.12.0`，snapshot schema `1.2`。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。

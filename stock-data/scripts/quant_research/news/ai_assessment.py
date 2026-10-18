@@ -281,7 +281,7 @@ def lean_candidates(
     """
     rows: list[dict[str, Any]] = []
     for event in events:
-        rows.append({
+        rows.append({  # noqa: PERF401 - two record kinds share one list; a comprehension would duplicate this 12-key literal
             "news_id": event.get("event_id"),
             "record_kind": "event",
             "headline": event.get("headline"),
@@ -295,7 +295,7 @@ def lean_candidates(
             "exclusion_reasons": event.get("exclusion_reasons"),
         })
     for opinion in opinions:
-        rows.append({
+        rows.append({  # noqa: PERF401 - same shared list as the event rows above
             "news_id": opinion.get("opinion_id"),
             "record_kind": "opinion",
             "headline": opinion.get("headline"),

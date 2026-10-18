@@ -1,0 +1,57 @@
+# Tooling configuration for the stock-data Skill scripts.
+#
+# The Skill ships plain Python entry points (no package build), so this file only
+# configures lint and formatting. Keep it in sync with the runtime floor stated in
+# README.md: the scripts must import on Python 3.10, which is why `target-version`
+# is py310 and why 3.11-only idioms (datetime.UTC, native "Z" parsing) are not
+# auto-applied.
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+extend-exclude = [".workbuddy-ai"]
+
+[tool.ruff.lint]
+select = [
+    "E4",   # pycodestyle: import and indentation errors
+    "E7",   # pycodestyle: statement-level errors
+    "E9",   # pycodestyle: runtime syntax errors
+    "F",    # pyflakes
+    "W",    # pycodestyle warnings
+    "I",    # import sorting
+    "UP",   # pyupgrade
+    "B",    # bugbear
+    "C4",   # comprehensions
+    "SIM",  # simplifications
+    "PIE",  # flake8-pie
+    "RET",  # return statements
+    "ARG",  # unused arguments
+    "PLW",  # pylint warnings
+    "BLE",  # blind except
+    "TRY",  # exception handling
+    "S",    # bandit
+    "PERF", # perflint
+    "RUF",  # ruff-specific
+]
+ignore = [
+    # Data contracts, schema dictionaries and prompt strings are intentionally
+    # single-line literals; wrapping them would obscure the contract.
+    "E501",
+    # Every CLI guard raises ValueError with a literal, machine-readable message
+    # and the caller prints error_type/error as JSON; custom exception classes
+    # would not survive that boundary.
+    "TRY003",
+    "TRY301",
+    # Full-width punctuation is part of the Chinese prose in messages and docs.
+    "RUF001",
+    "RUF002",
+    "RUF003",
+]
+
+[tool.ruff.lint.per-file-ignores]
+# The self-check battery uses assert as its harness and synthetic random data.
+"**/selfcheck.py" = ["S101", "S311"]
+# The provider keeps its module tables uniform: every entry is a zero-argument
+# callable so `_selected` can call it lazily, and the deferred form is required for
+# property reads (e.g. `lambda: t.calendar`) that must not be evaluated eagerly.
+"**/yfinance_provider.py" = ["PLW0108"]

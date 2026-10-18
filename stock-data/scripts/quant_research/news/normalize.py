@@ -81,7 +81,6 @@ def normalize_source_sentiment(
 def normalize_articles(
     data: Any,
     *,
-    ticker: str,
     asof_timestamp: str,
 ) -> tuple[list[dict[str, Any]], dict[str, int], list[str]]:
     records, dropped, warnings = extract_article_records(data)

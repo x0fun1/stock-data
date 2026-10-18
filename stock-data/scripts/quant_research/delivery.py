@@ -7,8 +7,8 @@ import re
 from pathlib import Path
 from typing import Any
 
-from .news import load_frozen_result
 from .gate_policy import analysis_status
+from .news import load_frozen_result
 from .report import required_response_lines
 from .synthesis import build_synthesis
 
