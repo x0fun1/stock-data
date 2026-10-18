@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import html
 import re
 from typing import Any
 from urllib.parse import parse_qsl, quote, quote_plus, urlencode, urlsplit, urlunsplit
@@ -84,5 +83,10 @@ def bounded_text(value: Any, limit: int = 600) -> str:
 
 
 def markdown_text(value: Any, limit: int = 600) -> str:
-    text = html.escape(bounded_text(value, limit)).replace("\n", " ").replace("\r", " ")
-    return re.sub(r"([\\`*_{}\[\]()#+!|])", r"\\\1", text)
+    # Markdown output must stay Markdown: HTML entity encoding here turns an apostrophe into a
+    # literal `&#x27;` (and then into `\#x27;` once the hash is escaped), so user-visible
+    # headlines came out as `Intel&\#x27;s`. Escaping the Markdown metacharacters - including
+    # `<` and `>` so a headline can never open a raw HTML tag - keeps the text literal without
+    # corrupting it.
+    text = bounded_text(value, limit).replace("\n", " ").replace("\r", " ")
+    return re.sub(r"([\\`*_{}\[\]()#+!|<>])", r"\\\1", text)

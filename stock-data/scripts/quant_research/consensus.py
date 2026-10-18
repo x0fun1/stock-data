@@ -196,6 +196,7 @@ def _horizon_sessions(manifest: dict[str, Any]) -> int:
 
 DEFAULT_SUPPORT_SESSIONS = 252
 MIN_STRONG_SUPPORT = 20
+SUPPORT_SCALING_FLOOR = DEFAULT_SUPPORT_SESSIONS * 3 // 4
 
 
 def oos_support_thresholds(horizon_sessions: int,
@@ -211,10 +212,17 @@ def oos_support_thresholds(horizon_sessions: int,
     targets are scaled to it and capped at its budget so every tier stays attainable. Longer
     windows are capped at the nominal window, so extra history never lowers the bar. Thresholds
     use non-overlapping counts.
+
+    Scaling only applies once the ledger covers at least three quarters of the nominal window,
+    which is the holiday and label-tail shortfall of a one-year study (a 52-week window yields
+    about 220 label dates). A materially shorter study (for example a recent listing that cannot
+    supply a year of history) keeps the nominal tiers and therefore reports insufficient support:
+    borrowing the relative standard there would award `strong` on a handful of samples, which is
+    the opposite of what the label is supposed to certify.
     """
     sessions = DEFAULT_SUPPORT_SESSIONS
     if (isinstance(support_sessions, int) and not isinstance(support_sessions, bool)
-            and support_sessions > 0):
+            and support_sessions >= SUPPORT_SCALING_FLOOR):
         sessions = min(DEFAULT_SUPPORT_SESSIONS, support_sessions)
     budget = max(1, sessions // (horizon_sessions + 1))
     strong = min(budget, max(MIN_STRONG_SUPPORT, budget - budget // 10))
@@ -250,9 +258,11 @@ def _quality_support_sessions(quality: dict[str, Any]) -> int | None:
     return widest or None
 
 
-def _predictive_evidence_grade(quality: dict[str, Any], manifest: dict[str, Any]) -> str:
+def _predictive_evidence_grade(quality: dict[str, Any], manifest: dict[str, Any],
+                               support_sessions: int | None = None) -> str:
     replay = quality.get("algorithm_policy_replay") or {}
-    thresholds = oos_support_thresholds(_horizon_sessions(manifest), _quality_support_sessions(quality))
+    support = support_sessions if support_sessions is not None else _quality_support_sessions(quality)
+    thresholds = oos_support_thresholds(_horizon_sessions(manifest), support)
     count = replay.get("non_overlapping_predicted_dates", replay.get("predicted_dates", 0))
     skill = replay.get("brier_skill_vs_expanding_base_rate")
     if (not isinstance(count, int) or isinstance(count, bool) or count < thresholds["weak"]
@@ -279,7 +289,7 @@ def _predictive_evidence_grade(quality: dict[str, Any], manifest: dict[str, Any]
 
 def _confidence_composite(*, base_score: float, path_assessments: list[dict[str, Any]], valid_count: int,
                           oos_probability_quality: dict[str, Any], agreement: str, diversity: str,
-                          manifest: dict[str, Any]) -> dict[str, Any]:
+                          manifest: dict[str, Any], support_sessions: int | None = None) -> dict[str, Any]:
     """Blend evidence dimensions into the reported confidence score.
 
     Dimensions and weights (see references/reliability-gates.md): data integrity 0.20,
@@ -287,8 +297,8 @@ def _confidence_composite(*, base_score: float, path_assessments: list[dict[str,
     0.15. Each dimension scores 0-100, so closed gaps earn full credit and a fully
     validated study can reach the high band while thin or contradicted evidence cannot.
     """
-    thresholds = oos_support_thresholds(_horizon_sessions(manifest),
-                                        _quality_support_sessions(oos_probability_quality))
+    support = support_sessions if support_sessions is not None else _quality_support_sessions(oos_probability_quality)
+    thresholds = oos_support_thresholds(_horizon_sessions(manifest), support)
     confidence_reasons: list[str] = []
 
     oos_status_points = {"strong": 100.0, "acceptable": 80.0, "weak": 45.0, "insufficient": 20.0, "invalid": 0.0}
@@ -401,12 +411,16 @@ def build_consensus(
     if assessments is None:
         audits = {r["researcher_id"]: (audit_oos_result(r, manifest, bars) if bars is not None else None)
                   for r in researchers}
-        support = oos_support_sessions(
+        support_sessions = oos_support_sessions(
             [{**r, "oos_evidence_audit": audits[r["researcher_id"]]} for r in researchers])
         assessments = {r["researcher_id"]: forecast_assessment(
-            r, manifest, oos_evidence_audit=audits[r["researcher_id"]], support_sessions=support,
+            r, manifest, oos_evidence_audit=audits[r["researcher_id"]], support_sessions=support_sessions,
         ) for r in researchers}
     else:
+        # Callers that supply assessments have already audited every forecast path, so the same
+        # ledger ceiling is reused here. Per-path grading and the composite must never disagree
+        # about how much evidence a run has.
+        support_sessions = oos_support_sessions(researchers)
         supplied_assessments = assessments
         assessments = {}
         for result in researchers:
@@ -436,7 +450,8 @@ def build_consensus(
             "status": "unavailable", "weighting": "equal", "available_paths": 0,
             "economic_viability": _economic_viability([]),
             "oos_probability_quality": oos_probability_quality,
-            "predictive_evidence_grade": _predictive_evidence_grade(oos_probability_quality, manifest),
+            "predictive_evidence_grade": _predictive_evidence_grade(
+                oos_probability_quality, manifest, support_sessions),
             "confidence_score_kind": "heuristic_evidence_support",
             "skill_weight_validation": skill_weight_validation,
             "prob_up": None, "direction": "unavailable", "agreement": "unavailable",
@@ -485,7 +500,8 @@ def build_consensus(
     path_assessments = [assessments.get(r["researcher_id"], {}) for r in valid]
     composite = _confidence_composite(base_score=float(base_score), path_assessments=path_assessments,
                                       valid_count=len(valid), oos_probability_quality=oos_probability_quality,
-                                      agreement=agreement, diversity=diversity, manifest=manifest)
+                                      agreement=agreement, diversity=diversity, manifest=manifest,
+                                      support_sessions=support_sessions)
     confidence_score = composite["score"]
     confidence = composite["label"]
     confidence_reasons = list(composite["reasons"])
@@ -566,7 +582,8 @@ def build_consensus(
         "confidence": confidence,
         "confidence_score": confidence_score,
         "confidence_score_kind": "heuristic_evidence_support",
-        "predictive_evidence_grade": _predictive_evidence_grade(oos_probability_quality, manifest),
+        "predictive_evidence_grade": _predictive_evidence_grade(
+            oos_probability_quality, manifest, support_sessions),
         "confidence_reasons": list(dict.fromkeys(confidence_reasons)),
         "confidence_penalties": confidence_penalties,
         "reason_codes": list(dict.fromkeys(all_codes)),

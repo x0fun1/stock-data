@@ -920,15 +920,15 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "de7463a432bb1e1b2fd48b430fa290585c89e4bc22935b47abb1736e1b6a4a12",
-        "quant_result.json": "ed3ceb453b20f0af091dcb72f7f154357ec0bcba67aa751d8d5657a3ea304539",
+        "report.json": "33fd2d3d2de4a8d609dd64241fb77e0d4aeb9b587d9ca426751ce1365adce29c",
+        "quant_result.json": "bc368d58fc53668a3957d20d25f198f799cfd68359d0f1cb13bd49a149c9e7f4",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
         "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
         "final_response.md": "190dba292e90bca7704e512492eaf4ddc136c65940f8fb3110272f2d55a95d3b",
     },
     "news": {
-        "report.json": "fb1b9362ba9ceabf482a3e3f5d24b34553e7ed748fbfb50349ee3809ec103fb5",
-        "quant_result.json": "89128f8760760133236dd55d0b2115a6a2a8659bca89cb14365335f3b4cfcdb6",
+        "report.json": "1e216d9e7fd242a23587febd37baed262a8e7fed0a377861deceb03f5df6b6de",
+        "quant_result.json": "414193ebba75e79dc310bc1204c2d043e2a17ea37c1a7afc6e457d5ab0ef8137",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
         "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
         "final_response.md": "5e5141885de1cf5fe0f6ac46a0c1c10258dcfeafcc1ca4b7413db585fd293f22",
@@ -1374,10 +1374,36 @@ def check_f23_window_scaled_support() -> None:
         assert 0 < table["weak"] <= table["acceptable"] <= table["strong"] <= budget, (horizon, table, budget)
     # A longer ledger must never lower the bar below the nominal window.
     assert oos_support_thresholds(5, 500) == nominal, oos_support_thresholds(5, 500)
+    # Only a near-full window may borrow the relative tiers. A materially shorter study must keep
+    # the nominal bar, otherwise a recent listing would earn `strong` on a handful of samples.
+    assert oos_support_thresholds(5, 188) == nominal, oos_support_thresholds(5, 188)
+    assert oos_support_thresholds(5, 189) == {"strong": 28, "acceptable": 15, "weak": 8}, oos_support_thresholds(5, 189)
     assert oos_support_sessions([{"oos_evidence_audit": {"supplied_samples": 20}},
                                  {"oos_evidence_audit": {"supplied_samples": 220}},
                                  {"oos_evidence_audit": None}]) == 220
     assert oos_support_sessions([{"oos_evidence_audit": None}]) is None
+
+
+def check_f24_shared_support_ceiling() -> None:
+    """Per-path grading and the composite must read one ledger ceiling, never two."""
+    from quant_research.consensus import _confidence_composite, _predictive_evidence_grade
+
+    path = {"oos_validation": {"status": "acceptable"}, "probability_calibration": "calibrated", "reason_codes": []}
+    quality = {"paths": {"quant": {"all_evaluable_oos_samples": 220}},
+               "algorithm_policy_replay": {"non_overlapping_predicted_dates": 10,
+                                           "brier_skill_vs_expanding_base_rate": 0.01}}
+    kwargs = {"base_score": 70, "path_assessments": [path], "valid_count": 1,
+              "oos_probability_quality": quality, "agreement": "high", "diversity": "high",
+              "manifest": {"horizon": "5D"}}
+    fallback = _confidence_composite(**kwargs)
+    explicit = _confidence_composite(support_sessions=220, **kwargs)
+    assert fallback["thresholds"] == explicit["thresholds"], (fallback["thresholds"], explicit["thresholds"])
+    # 10 replay samples clear the scaled weak bar (9) but miss the nominal one (11).
+    assert explicit["component_scores"]["policy_replay"] == 65.0, explicit["component_scores"]
+    short = _confidence_composite(support_sessions=120, **kwargs)
+    assert short["component_scores"]["policy_replay"] == 20.0, short["component_scores"]
+    assert _predictive_evidence_grade(quality, {"horizon": "5D"}, 220) == _predictive_evidence_grade(
+        quality, {"horizon": "5D"}), "grade must use the same ceiling as the composite"
 
 
 CHECKS = [
@@ -1405,6 +1431,7 @@ CHECKS = [
     ("F21 OOS record audit reasons", check_f21_oos_record_audit),
     ("F22 daily bar timestamp precision", check_f22_daily_bar_timestamp_precision),
     ("F23 window-scaled OOS support", check_f23_window_scaled_support),
+    ("F24 shared support ceiling", check_f24_shared_support_ceiling),
 ]
 
 if __name__ == "__main__":

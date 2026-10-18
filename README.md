@@ -103,4 +103,4 @@ JSON 序列化集中在 `quant_research/jsonio.py`：快照 manifest、冻结阶
 - [快照契约](stock-data/references/snapshot-schema.md)：冻结输入、完整性和输出路径边界。
 - [来源限制](stock-data/references/source-policies.md)、[来源与许可记录](stock-data/references/upstream-provenance.md)：网络授权、来源声明及集成边界。
 
-当前 Skill `2.15.4`，research runtime `0.12.1`，snapshot schema `1.2`。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。
+当前 Skill `2.15.5`，research runtime `0.12.2`，snapshot schema `1.2`。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。
