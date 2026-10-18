@@ -196,6 +196,56 @@ def _market(envelope: dict[str, Any], request: dict[str, Any], start: str, end: 
     return block
 
 
+def _benchmark(provider: Any, symbol: str, start: str, end: str) -> dict[str, Any]:
+    """Collect the explicitly declared comparison series.
+
+    This never fails the target collection: a missing benchmark leaves the relative
+    strength factor unavailable, which the momentum block reports as such. No fallback
+    symbol is substituted, because a silently swapped benchmark would change the meaning
+    of the relative-strength factor without disclosure.
+    """
+    block: dict[str, Any] = {
+        "symbol": symbol,
+        "selection": "declared",
+        "status": "unavailable",
+        "bars": [],
+        "adjustment": None,
+        "source": None,
+    }
+    envelope = _call(
+        provider, "yahoo_history", symbol=symbol, start=start,
+        end=(date.fromisoformat(end) + timedelta(days=1)).isoformat(), interval="1d", price_basis="adjusted",
+    )
+    if provider_failed(envelope):
+        block.update(reason="provider_call_failed", error=envelope.get("error"))
+        return block
+    data = envelope.get("data") or {}
+    raw = data.get("bars")
+    if not isinstance(raw, list):
+        block["reason"] = "missing_bars"
+        return block
+    bars = []
+    for row in raw:
+        if not isinstance(row, dict):
+            continue
+        try:
+            day = date.fromisoformat(str(row["date"])[:10]).isoformat()
+        except (KeyError, TypeError, ValueError):
+            continue
+        if start <= day <= end:
+            bars.append(dict(row))
+    if not bars:
+        block["reason"] = "no_bars_in_window"
+        return block
+    block.update(
+        bars=bars,
+        adjustment=data.get("adjustment") or envelope.get("adjustment"),
+        source=envelope.get("source") or data.get("source"),
+        status="partial" if envelope.get("status") == "partial" else "complete",
+    )
+    return block
+
+
 def collect(request: dict[str, Any], *, domains: tuple[str, ...] | list[str] = ("market",),
             provider: Any = None, cache_dir: str | Path | None = None, timeout: float = 15,
             deadline: float = 120, request_budget: int = 30,
@@ -239,6 +289,11 @@ def collect(request: dict[str, Any], *, domains: tuple[str, ...] | list[str] = (
         env = _call(provider, "yahoo_history", symbol=symbol, start=start.isoformat(),
                     end=(end + timedelta(days=1)).isoformat(), interval="1d", price_basis="adjusted")
         result["market"] = _market(env, normalized, start.isoformat(), end.isoformat(), schedule)
+        benchmark_symbol = (normalized.get("instrument") or {}).get("benchmark")
+        if benchmark_symbol:
+            result["market"]["data"]["benchmark"] = _benchmark(
+                provider, benchmark_symbol, start.isoformat(), end.isoformat()
+            )
     finally:
         if owned_provider:
             provider.close()

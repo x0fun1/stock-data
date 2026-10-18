@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.15.5"}
+metadata: {version: "2.16.0"}
 ---
 
 # Stock Data & Quant Research
@@ -41,6 +41,7 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 | 通用分析/概率 | `references/researcher-contract.md`、`references/reliability-gates.md`、`references/quant-paths.md`、`references/probability-policy.md` | `references/point-in-time-policy.md`、`references/consensus-protocol.md`、`references/snapshot-schema.md`（遇到对应问题时） |
 | 新闻/事件/情绪 | `references/news-analysis.md`、`references/news-impact-rubric.md`、`references/source-policies.md` | `references/collection-adapter.md`（字段映射时）、`references/point-in-time-policy.md`（历史可用性问题时） |
 | 因子/回测 | `references/quant-paths.md` | `references/consensus-protocol.md`、`references/point-in-time-policy.md` |
+| 20 日动量特征 | `references/momentum-model.md` | `references/collection-adapter.md`（基准声明） |
 | Finnhub 工具调用 | `references/finnhub-mcp-1.21.3-schema.md` 中所需函数 | 仅在能力未知时浏览完整 schema |
 
 `SKILL.md` 负责路由和顺序；`news-analysis.md`、`news-impact-rubric.md`、`quant-paths.md`、`reliability-gates.md`、`probability-policy.md` 分别是 News、News 影响分级、量化路径、数据门槛、概率交付的权威规则。不要为报价查询加载完整研究文档，也不要默认把全部 references 发送给模型。
@@ -50,6 +51,7 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 - 美股优先使用实际已连接、覆盖该字段的 Finnhub MCP；参数按当前会话 schema。仅在需要时读取 [Finnhub schema](references/finnhub-mcp-1.21.3-schema.md)。本包不提供 Finnhub 连接或密钥。
 - 新闻唯一来源是宿主 Finnhub MCP `get-news-pulse`（接口基线 7 天，返回 headline/source/datetime_utc，无正文）。证据窗口按近 3 个月（90 天）策略过滤：超过 90 天的视为已被市场定价，不进入打分；若来源只覆盖 7 天，报告必须披露实际覆盖天数，不能把 7 天覆盖说成 90 天。本包已移除全部 Yahoo 新闻路由；宿主未连接 Finnhub MCP 时 News 记 `not_assessed`，不做二次联网。
 - 新闻方向要给用户可追溯的指向：宿主在对新闻完成 Quant 后的 News 阶段，按 [news-analysis.md](references/news-analysis.md) 产出逐条 `news_ai_assessment` 工件（每条：新闻 ID、利多/利空/混合/中性/不明确、判断依据、证据性质），并用 `analyze|pipeline --news-ai-assessment` 交给本包校验与展示。工件只能引用本次分析实际存在的新闻 ID，且不得包含任何 Quant 词汇或概率；`lean` 是**展示证据**：不进入方向聚合、置信度、事件打分与交叉验证标签，也绝不改变 Quant 概率。未提供工件记 `not_assessed`（不是中性）。宿主未连接 Finnhub MCP 或未产出工件时不做二次联网、不自行编造利多/利空。
+- 20 日动量分两层，职责不同：**基线**仍按 20 日 ROC 符号筛选同号历史样本并给出 `prob_up`（原逻辑不变）；**综合动量特征**（`momentum_20d_v1`）按 50/30/20 固定权重合成风险调整动量、回归趋势动量与相对强度动量，输出 `-100 ~ +100` 的 `Score20`，只作为特征与展示证据。`Score20` 不是上涨概率、不进入概率/权重/共识/置信度，也不得作为新的历史样本筛选条件。相对强度因子需要请求显式声明 `instrument.benchmark`（如 SPY/QQQ）；未声明或基准不完整时该因子 `unavailable`、总分置空，**不静默改用其他基准、不重新归一化剩余权重**、不把缺失分数写成 0。详见 [momentum-model.md](references/momentum-model.md)。
 - 港股及 Finnhub 缺项使用本包 global gateway；调用前按需读取 [global-stock-data.md](references/global-stock-data.md) 与 [source-policies.md](references/source-policies.md)。函数和参数以 `--list` 为准。
 - 每轮维护已成功查询及缺项清单；复用成功响应，仅补缺项。403/Premium 不重试同端点；429 停止新增 Finnhub 调用。失败响应不能改成成功空数组。
 - ETF 使用自身 OHLCV，标明 `asset_type=etf`。成分股/指数只作有明确敞口的背景，不代填基金价格、财务或 NAV。当前不实现 ETF 穿透估值、跟踪误差或杠杆路径模型。

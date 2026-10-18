@@ -6,8 +6,11 @@ from pathlib import Path
 from typing import Any
 
 from ..contracts import HORIZONS, researcher_result
-from ..market_data import forward_returns, market_bars, non_overlapping
+from ..market_data import adjusted_close_series, forward_returns, market_bars, non_overlapping
 from ..math_utils import mean, wilson_interval
+from ..momentum import compute as compute_momentum
+from ..momentum import rank_ic_diagnostic
+from ..momentum import roc as momentum_roc
 from ..snapshot import load_snapshot
 
 # Minimum non-overlapping same-sign matured matches required to report a conditional
@@ -16,17 +19,29 @@ from ..snapshot import load_snapshot
 MINIMUM_MATCHING_SAMPLES = 12
 
 
-def _momentum(values: list[float], index: int, window: int) -> float | None:
-    if index < window or values[index - window] <= 0:
-        return None
-    return values[index] / values[index - window] - 1.0
+def _benchmark_series(market: dict[str, Any]) -> tuple[dict[str, float] | None, dict[str, Any]]:
+    """Extract the declared benchmark series, refusing to guess one."""
+    block = (market.get("data") or {}).get("benchmark")
+    if not isinstance(block, dict):
+        return None, {"symbol": None, "selection": "absent", "status": "absent"}
+    meta = {"symbol": block.get("symbol"), "selection": block.get("selection", "declared")}
+    bars = block.get("bars")
+    if not isinstance(bars, list) or not bars:
+        return None, {**meta, "status": "empty"}
+    try:
+        dates, values, provenance = adjusted_close_series(
+            {"data": {"bars": bars}, "adjustment": block.get("adjustment")}
+        )
+    except ValueError:
+        return None, {**meta, "status": "invalid"}
+    return dict(zip(dates, values, strict=True)), {**meta, "status": "ok", "price_basis": provenance["basis_status"]}
 
 
 def _matured_matching_indices(
     closes: list[float], forward: list[float | None], decision: int, horizon: int, *, window: int = 20,
 ) -> list[int]:
     """Return only prior same-signal samples whose complete labels are observable at decision close."""
-    current_signal = _momentum(closes, decision, window)
+    current_signal = momentum_roc(closes, decision, window)
     if current_signal is None:
         return []
     matching: list[int] = []
@@ -34,7 +49,7 @@ def _matured_matching_indices(
         label_end = prior + horizon
         if label_end > decision or forward[prior] is None:
             continue
-        prior_signal = _momentum(closes, prior, window)
+        prior_signal = momentum_roc(closes, prior, window)
         if prior_signal is not None and (prior_signal >= 0) == (current_signal >= 0):
             matching.append(prior)
     return non_overlapping(matching, horizon)
@@ -48,9 +63,14 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     horizon = HORIZONS[horizon_name]
     bars = market_bars(market)
     closes = [row["close"] for row in bars]
+    # Composite momentum feature: computed on the adjusted basis and reported next to the
+    # baseline. It never touches ``prob_up`` -- the plan forbids using the score as a new
+    # sample filter, so the probability still comes from the plain ROC20 sign.
+    momentum_dates, momentum_closes, price_provenance = adjusted_close_series(market)
+    benchmark_closes, benchmark_meta = _benchmark_series(market)
     forward = forward_returns(closes, horizon)
     current = len(bars) - 1
-    current_signal = _momentum(closes, current, 20)
+    current_signal = momentum_roc(closes, current, 20)
     if current_signal is None:
         return researcher_result("quant", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", warnings=["At least 21 daily closes are required for the predeclared 20-session momentum hypothesis."])
 
@@ -117,6 +137,25 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         evidence[target].append({"family": "momentum", "hypothesis": "20-session momentum sign conditions the H-session return hit rate", "signal_value": current_signal, "empirical_hit_rate": probability, "non_overlapping_samples": len(outcomes), "n_raw": len(outcomes), "n_effective": len(outcomes), "wilson_95_interval": list(interval) if interval else None, "wilson_interval_method": "Wilson score; nominal IID approximation, time-series coverage not validated", "wilson_coverage_validated": False, "mean_forward_return": expected, "rationale": rationale})
     if manifest.get("data_quality", {}).get("overall") == "low":
         warnings.append("Snapshot data quality is low; treat this result as exploratory.")
+    momentum_block = compute_momentum(
+        momentum_closes,
+        momentum_dates,
+        benchmark_closes,
+        symbol=ticker,
+        benchmark_symbol=benchmark_meta.get("symbol"),
+        benchmark_selection=benchmark_meta.get("selection", "absent"),
+        price_field=price_provenance["price_field"],
+    )
+    momentum_block["price_basis"] = price_provenance
+    momentum_block["benchmark"]["status"] = benchmark_meta.get("status")
+    if price_provenance["basis_status"] == "unverified":
+        momentum_block["warnings"].append("price_basis_unverified")
+    momentum_block["diagnostic_rank_ic"] = rank_ic_diagnostic(
+        momentum_closes, momentum_dates, benchmark_closes, horizon=horizon
+    )
+    data_used = ["daily raw OHLCV close"]
+    if benchmark_closes is not None:
+        data_used.append(f"benchmark adjusted close ({benchmark_meta.get('symbol')})")
     return researcher_result(
         "quant", ticker, horizon_name, manifest["snapshot_id"], status=status,
         prob_up=probability, expected_return=expected, evidence=evidence,
@@ -145,7 +184,8 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             "prior_policy": {"method": "none; empirical conditional frequency is retained", "bayesian_shrinkage": "not_implemented", "time_decay": "none"},
             "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
             "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "training_labels_non_overlapping": True, "training_labels_matured_by_decision": True, "oos_labels_non_overlapping": False, "oos_labels_overlap_disclosure": f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; effective independent size is smaller than the prediction-day count"},
+            "momentum_20d": momentum_block,
         },
-        data_used=["daily raw OHLCV close"], warnings=warnings,
+        data_used=data_used, warnings=warnings,
         probability_source="non_overlapping_historical_conditional_frequency" if probability is not None else None,
     )

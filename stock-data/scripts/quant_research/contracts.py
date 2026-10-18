@@ -64,10 +64,20 @@ def normalize_request(value: dict[str, Any]) -> dict[str, Any]:
         result["history_window"] = window
     if "instrument" in value:
         instrument = value["instrument"]
-        if not isinstance(instrument, dict) or set(instrument) - {"resolved_ticker", "provider_symbols", "currency", "unit", "source"}:
+        if not isinstance(instrument, dict) or set(instrument) - {"resolved_ticker", "provider_symbols", "currency", "unit", "source", "benchmark"}:
             raise ValueError("request.instrument has unsupported fields")
         if instrument.get("resolved_ticker", ticker) != ticker:
             raise ValueError("resolved instrument differs from request ticker")
+        # The relative-strength factor needs a declared comparison series. It is never
+        # inferred or substituted: an undeclared benchmark simply leaves that factor
+        # unavailable, and the score is reported as such instead of being renormalised.
+        benchmark = instrument.get("benchmark")
+        if benchmark is not None:
+            if not isinstance(benchmark, str) or not re.fullmatch(r"[A-Za-z0-9.^][A-Za-z0-9._^-]{0,31}", benchmark.strip()):
+                raise ValueError("instrument.benchmark must use supported symbol characters")
+            if benchmark.strip().upper() == ticker:
+                raise ValueError("instrument.benchmark must differ from the request ticker")
+            instrument = {**instrument, "benchmark": benchmark.strip().upper()}
         aliases = instrument.get("provider_symbols", {})
         if not isinstance(aliases, dict) or any(not isinstance(v, str) or not re.fullmatch(r"[A-Za-z0-9.^][A-Za-z0-9._^-]{0,31}", v) for v in aliases.values()):
             raise ValueError("instrument provider_symbols must be validated symbol strings")

@@ -13,6 +13,17 @@ python stock-data/scripts/yahoo_collect.py --request request.json --output gatew
 python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
 ```
 
+### Declared benchmark (relative-strength factor)
+
+`momentum_20d_v1` needs an explicitly declared comparison series for its 20% relative-strength factor. Declare it in the request; the collector fetches it with the same provider and stores it under `domains.market.data.benchmark` (`symbol`, `selection="declared"`, `status`, `adjustment`, `source`, `bars`) without touching `domains.market.data.bars` or any existing provenance field:
+
+```json
+{"ticker": "INTC", "market": "US", "horizon": "5D", "asset_type": "stock",
+ "instrument": {"benchmark": "SPY"}}
+```
+
+The system never infers a benchmark (index membership, sector, ETF strategy) and never substitutes another symbol when the declared one fails. No declaration, a provider failure, or an incomplete aligned window leaves the factor `unavailable` and the composite score `null`; the remaining two factors are **not** renormalised to 50/30. Choose per the plan's table: `QQQ` for NASDAQ-100 constituents, `SPY` for broad US equities, the matching sector ETF for sector plays, and the market/strategy benchmark for ETFs. The declaration travels into the frozen snapshot, so the disclosure is reproducible. See [momentum-model.md](momentum-model.md).
+
 Each top-level market/news domain uses complete/partial/unavailable/failed, actual_source identifying the interface actually used, distinct source identity/time and fetched_at_utc, confirmed currency/unit/frequency, and data.bars/data.articles. Fallback metadata (`fallback_attempted`, `fallback_used`, `fallback_route`, `fallback_reason`) is retained through the collector and adapter. Market retains actual history_window, adjustment/evidence and evidenced last_bar_closed/session_calendar. gateway_envelope retains sanitized provider-native results, library/version, parameters and transformations; raw HTTP provenance is claimed only when captured. Missing evidence stays unknown. In particular, history `source_timestamp_kind=bar_label_not_trade_time` is an index label, not a close/quote update; it may fail the existing 24h freshness/source_before_close gates even for a calendar-confirmed closed bar. Unconfirmed source `unit` remains null. Never replace these with fetched_at, an invented close time or currency-derived unit. Response-file generation is not proof of valid predictive input; actual audit must pass unchanged gates. Provenance additions are optional; schema 1.2 gains no required fields.
 
 Bars use exchange session dates with UTC timestamp/timezone preserved. Inclusive research end becomes next local day's exclusive provider end. Keep provider OHLC/Adj Close/actions and explicit adjusted ratios; do not fill absent bars or volume. Current metadata/empty actions do not prove complete calendar/action coverage. Compare matching session/currency/price basis only; old Yahoo direct access and yfinance are one source.

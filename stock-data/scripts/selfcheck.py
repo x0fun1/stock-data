@@ -920,18 +920,18 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "33fd2d3d2de4a8d609dd64241fb77e0d4aeb9b587d9ca426751ce1365adce29c",
-        "quant_result.json": "bc368d58fc53668a3957d20d25f198f799cfd68359d0f1cb13bd49a149c9e7f4",
+        "report.json": "1e41860369102da4c28f9f3804f9379d582a1538796718c17cb1fc1e1dcb6f1a",
+        "quant_result.json": "dab87788e7037cef03079b48fbb77198aa4e32ac39dcebeb9b099280d5f75af0",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
         "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
-        "final_response.md": "190dba292e90bca7704e512492eaf4ddc136c65940f8fb3110272f2d55a95d3b",
+        "final_response.md": "e213b92c3e70fc74844420dafdb758fb4cc2e261e873909c0c26fc6c33c3216a",
     },
     "news": {
-        "report.json": "1e216d9e7fd242a23587febd37baed262a8e7fed0a377861deceb03f5df6b6de",
-        "quant_result.json": "414193ebba75e79dc310bc1204c2d043e2a17ea37c1a7afc6e457d5ab0ef8137",
+        "report.json": "cbdb5872a5fe9977bc755a80d411cc2d4d901f26637aee821e05f7e2e1b75117",
+        "quant_result.json": "0b599d1eaf7b45cda1979e974f2dee6b3916a368b807d782203144dfcefadff8",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
         "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
-        "final_response.md": "5e5141885de1cf5fe0f6ac46a0c1c10258dcfeafcc1ca4b7413db585fd293f22",
+        "final_response.md": "e9d57555676c27386a63ef45f44e92ee84950af3b5c44fddf0764138d4be90b3",
     },
 }
 GOLDEN_ANCHORS: dict[str, dict[str, object]] = {
@@ -1406,6 +1406,108 @@ def check_f24_shared_support_ceiling() -> None:
         quality, {"horizon": "5D"}), "grade must use the same ceiling as the composite"
 
 
+def _momentum_pipeline_run(with_benchmark: bool) -> tuple[float, dict]:
+    """Run the offline fixture with or without a declared benchmark series."""
+    from quant_research import data_checks
+    from quant_research.orchestrator import run_analysis
+    from quant_research.snapshot import freeze_snapshot
+    from quant_research.stock_data_adapter import StockDataAdapter
+
+    work = Path(tempfile.mkdtemp(prefix=f"selfcheck_f25_{'bench' if with_benchmark else 'plain'}_"))
+    library_calendar = data_checks._library_calendar
+    data_checks._library_calendar = _offline_library_calendar
+    try:
+        request = {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast",
+                   "asset_type": "stock", "asof": "2026-01-02T21:00:00Z"}
+        domains = _golden_responses(False)["domains"]
+        if with_benchmark:
+            request["instrument"] = {"benchmark": "BMK"}
+            domains["market"]["data"]["benchmark"] = {
+                "symbol": "BMK", "selection": "declared", "status": "complete",
+                "adjustment": "unadjusted", "bars": _golden_bars(260, seed=97),
+            }
+        receipt = StockDataAdapter().write_receipt(
+            request, domains, work / "collection.json", captured_at_utc="2026-01-03T00:35:00Z")
+        snapshot = freeze_snapshot(receipt, work / "snapshots")
+        analysis = run_analysis(snapshot, work / "research")
+        quant = json.loads((analysis / "quant_result.json").read_text(encoding="utf-8"))
+        block = quant["researchers"]["quant"]["validation"]["momentum_20d"]
+        return float(quant["consensus"]["prob_up"]), block
+    finally:
+        data_checks._library_calendar = library_calendar
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def check_f25_composite_momentum() -> None:
+    """F25: composite momentum stays bounded, causal, and outside the probability path."""
+    from quant_research.momentum import DEFAULT_CONFIG, _benchmark_series, _evaluate, compute
+
+    dates = [bar["date"] for bar in _golden_bars(90, seed=23)]
+    rng = random.Random(41)
+    prices = [100.0]
+    for _ in range(1, 90):
+        prices.append(prices[-1] * math.exp(rng.gauss(0.002, 0.012)))
+    benchmark: dict[str, float] = {}
+    level = 100.0
+    for session in dates:
+        level *= math.exp(rng.gauss(0.001, 0.008))
+        benchmark[session] = level
+
+    block = compute(prices, dates, benchmark, symbol="SYN", benchmark_symbol="BMK")
+    if block["score_status"] != "valid":
+        raise AssertionError(f"composite momentum should be valid: {block['status_reasons']}")
+    keys = ("risk_adjusted", "regression_trend", "relative_strength")
+    if abs(math.fsum(block["components"][key]["weight"] for key in keys) - 1.0) > 1e-12:
+        raise AssertionError("momentum weights must sum to one")
+    contributions = math.fsum(block["components"][key]["contribution"] for key in keys)
+    if abs(contributions - block["momentum_score_20d"]) > 1e-9:
+        raise AssertionError("component contributions must sum to the composite score")
+    if not -100 < block["momentum_score_20d"] < 100:
+        raise AssertionError("composite score must stay strictly inside (-100, 100)")
+    if not all(-1 < block["components"][key]["normalized_value"] < 1 for key in keys):
+        raise AssertionError("tanh transformed factors must stay strictly inside (-1, 1)")
+    expected_direction = "flat" if abs(block["return_20d"]) <= 1e-12 else ("positive" if block["return_20d"] > 0 else "negative")
+    if block["momentum_direction"] != expected_direction:
+        raise AssertionError("absolute direction must follow the sign of the 20-session return")
+
+    # Leakage: appending future sessions must not change the evaluation at a past index.
+    series = _benchmark_series(benchmark)
+    past = _evaluate(prices, dates, series, 70, DEFAULT_CONFIG)
+    truncated = _evaluate(
+        prices[:71], dates[:71], _benchmark_series({k: v for k, v in benchmark.items() if k <= dates[70]}), 70, DEFAULT_CONFIG)
+    for key in keys:
+        if past["components"][key]["raw_value"] != truncated["components"][key]["raw_value"]:
+            raise AssertionError(f"factor {key} changed when future sessions were removed")
+
+    # A missing factor is reported, never renormalised; degenerate data is invalid, not zero.
+    missing = compute(prices, dates, None, symbol="SYN")
+    if missing["momentum_score_20d"] is not None or missing["score_status"] != "unavailable":
+        raise AssertionError("a missing benchmark must leave the score unavailable")
+    if "relative_strength:benchmark_unavailable" not in missing["status_reasons"]:
+        raise AssertionError("the missing benchmark reason must be explicit")
+    gap = dict(benchmark)
+    del gap[dates[70]]
+    gapped = compute(prices, dates, gap, symbol="SYN")
+    if gapped["score_status"] != "unavailable":
+        raise AssertionError("an incomplete benchmark window must not be forward filled")
+    flat = compute([100.0] * 90, dates, benchmark, symbol="SYN")
+    if flat["momentum_score_20d"] is not None or flat["score_status"] != "invalid":
+        raise AssertionError("degenerate volatility must be invalid, not a zero score")
+    identical = compute([benchmark[session] for session in dates], dates, benchmark, symbol="SYN")
+    if identical["momentum_score_20d"] is not None:
+        raise AssertionError("a benchmark identical to the target must not yield a score")
+
+    # Isolation: declaring a benchmark must not move the probability by even one bit.
+    plain_prob, plain_block = _momentum_pipeline_run(False)
+    bench_prob, bench_block = _momentum_pipeline_run(True)
+    if plain_prob != bench_prob:
+        raise AssertionError(f"probability moved when a benchmark was declared: {plain_prob} != {bench_prob}")
+    if plain_block["score_status"] != "unavailable" or plain_block["momentum_score_20d"] is not None:
+        raise AssertionError("without a benchmark the momentum score must be unavailable")
+    if bench_block["score_status"] != "valid" or bench_block["benchmark"]["symbol"] != "BMK":
+        raise AssertionError(f"declared benchmark should produce a valid score: {bench_block['status_reasons']}")
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -1432,6 +1534,7 @@ CHECKS = [
     ("F22 daily bar timestamp precision", check_f22_daily_bar_timestamp_precision),
     ("F23 window-scaled OOS support", check_f23_window_scaled_support),
     ("F24 shared support ceiling", check_f24_shared_support_ceiling),
+    ("F25 composite momentum feature", check_f25_composite_momentum),
 ]
 
 if __name__ == "__main__":
