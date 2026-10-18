@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import math
 import random
+from dataclasses import dataclass
 from datetime import date
 from typing import Any
 
@@ -82,6 +83,219 @@ def _valid_probability(value: Any) -> bool:
             and math.isfinite(float(value)) and 0 <= float(value) <= 1)
 
 
+@dataclass(frozen=True)
+class _OosContext:
+    """Frozen snapshot facts every OOS record is judged against."""
+
+    session_index: dict[str, int]
+    forward: list[float | None]
+    bars_available: bool
+    bars_error: str | None
+    latest: str | None
+    latest_index: int | None
+    horizon: int | None
+    target_definition: str | None
+    recorded_target_definition: str | None
+    duplicates: frozenset[str]
+
+
+def _valid_coefficients(slope: Any, intercept: Any) -> bool:
+    return (isinstance(slope, (int, float)) and not isinstance(slope, bool)
+            and isinstance(intercept, (int, float)) and not isinstance(intercept, bool))
+
+
+def _mapped_away_from_raw(row: dict[str, Any]) -> bool:
+    """A probability that differs from its raw output by more than float noise."""
+    raw, probability = row.get("raw_probability"), row.get("probability")
+    return (_valid_probability(raw) and _valid_probability(probability)
+            and abs(float(raw) - float(probability)) > 1e-9)
+
+
+def _frozen_axis_reason(
+    target: Any, decision_index: int | None, label_index: int | None, context: _OosContext,
+) -> str | None:
+    """The single session-axis defect of a record judged against frozen market bars.
+
+    These checks are mutually exclusive by construction: the first failing one explains
+    the record, and the later ones would only restate it. Returning the first reason
+    keeps the nesting flat while preserving the audit's original precedence.
+    """
+    if context.bars_error:
+        return context.bars_error
+    if decision_index is None or label_index is None:
+        return "session_missing_from_frozen_market_bars"
+    if context.latest_index is None:
+        return "snapshot_asof_session_missing_from_frozen_market_bars"
+    if context.horizon is None or label_index != decision_index + context.horizon:
+        return "label_horizon_does_not_match_frozen_sessions"
+    if label_index > context.latest_index:
+        return "label_not_matured_by_snapshot_asof"
+    forward = context.forward[decision_index]
+    if forward is None:
+        return "forward_return_unavailable_for_oos_label"
+    if target != int(float(forward) > 0):
+        return "target_does_not_match_frozen_close_prices"
+    return None
+
+
+def _decision_axis_reason(row: dict[str, Any], context: _OosContext) -> str | None:
+    """The single time-boundary defect of a record, with or without frozen bars."""
+    decision = row.get("decision_session")
+    label_end = row.get("label_end_session")
+    if not isinstance(decision, str) or not isinstance(label_end, str):
+        return "decision_or_label_end_missing"
+    if context.bars_available:
+        session_index = context.session_index
+        return _frozen_axis_reason(row.get("target"), session_index.get(decision),
+                                   session_index.get(label_end), context)
+    if not isinstance(context.latest, str):
+        return "snapshot_asof_session_missing_or_invalid"
+    return None if decision <= label_end <= context.latest else "label_outside_snapshot_time_boundary"
+
+
+def _field_reasons(row: dict[str, Any], context: _OosContext) -> list[str]:
+    """Target, horizon declaration and probability shape, independently checked."""
+    reasons: list[str] = []
+    target = row.get("target")
+    if not isinstance(target, int) or isinstance(target, bool) or target not in (0, 1):
+        reasons.append("invalid_binary_target")
+    if (row.get("target_definition") or context.recorded_target_definition) != context.target_definition:
+        reasons.append("target_definition_does_not_match_requested_horizon")
+    probability = row.get("probability")
+    if probability is not None and not _valid_probability(probability):
+        reasons.append("invalid_probability_value")
+    return reasons
+
+
+def _training_boundary_reasons(row: dict[str, Any], context: _OosContext) -> list[str]:
+    """Whether the training label provably matured before the decision session."""
+    training_end = row.get("training_label_end_session")
+    if training_end is None:
+        return (["training_label_boundary_missing_for_prediction"]
+                if _valid_probability(row.get("probability")) and context.bars_available else [])
+    if not isinstance(training_end, str):
+        return ["invalid_training_label_boundary"]
+    decision = row.get("decision_session")
+    if context.bars_available:
+        if training_end not in context.session_index:
+            return ["training_label_end_missing_from_frozen_market_bars"]
+        decision_index = context.session_index.get(decision) if isinstance(decision, str) else None
+        if decision_index is not None and context.session_index[training_end] > decision_index:
+            return ["training_label_not_matured_by_decision"]
+        return []
+    return ["training_label_not_matured_by_decision"] if isinstance(decision, str) and training_end > decision else []
+
+
+def _calibration_origin_reasons(row: dict[str, Any], context: _OosContext) -> list[str]:
+    """Whether the record's calibration boundary provably predates its decision."""
+    calibration_end = row.get("calibration_label_end_session")
+    if not isinstance(calibration_end, str):
+        return ["calibration_label_boundary_missing"]
+    decision = row.get("decision_session")
+    if context.bars_available and not context.bars_error:
+        if calibration_end not in context.session_index:
+            return ["calibration_label_end_missing_from_frozen_market_bars"]
+        decision_index = context.session_index.get(decision) if isinstance(decision, str) else None
+        if decision_index is not None and context.session_index[calibration_end] >= decision_index:
+            return ["calibration_label_not_matured_before_decision"]
+        return []
+    if not context.bars_available and isinstance(decision, str) and calibration_end >= decision:
+        return ["calibration_label_not_matured_before_decision"]
+    return []
+
+
+def _applied_calibration_reasons(row: dict[str, Any], context: _OosContext) -> list[str]:
+    """A record that claims a calibrated probability must reproduce its mapping."""
+    reasons: list[str] = []
+    raw_probability, probability = row.get("raw_probability"), row.get("probability")
+    if not _valid_probability(raw_probability):
+        reasons.append("raw_probability_missing_for_calibrated_record")
+    count = row.get("calibration_fit_observations")
+    if isinstance(count, bool) or not isinstance(count, int) or count < 40:
+        reasons.append("calibration_fit_set_insufficient_or_invalid")
+    slope, intercept = row.get("calibration_slope"), row.get("calibration_intercept")
+    if not _valid_coefficients(slope, intercept):
+        reasons.append("calibration_coefficients_missing")
+    elif (_valid_probability(probability) and _valid_probability(raw_probability)
+          and 1e-9 < float(raw_probability) < 1 - 1e-9):
+        raw_score = math.log(float(raw_probability) / (1 - float(raw_probability)))
+        mapped = 1 / (1 + math.exp(-max(-60.0, min(60.0, intercept + slope * raw_score))))
+        if abs(float(probability) - mapped) > 1e-6:
+            reasons.append("calibrated_probability_mismatch")
+    reasons.extend(_calibration_origin_reasons(row, context))
+    return reasons
+
+
+def _calibration_reasons(row: dict[str, Any], context: _OosContext) -> list[str]:
+    """Cross-field calibration consistency, including the retrofitted-calibration veto."""
+    applied = row.get("calibration_applied")
+    if applied is True:
+        return _applied_calibration_reasons(row, context)
+    if applied is False:
+        return ["uncalibrated_probability_differs_from_raw"] if _mapped_away_from_raw(row) else []
+    reasons = ["invalid_calibration_marker"] if applied is not None else []
+    # A mapped probability that differs from its raw output without a recorded origin
+    # boundary is exactly the retrofitted-calibration pattern the audit must reject.
+    if _mapped_away_from_raw(row):
+        reasons.append("calibrated_probability_without_recorded_origin_boundary")
+    return reasons
+
+
+def _oos_record_reasons(record: Any, context: _OosContext) -> list[str]:
+    """Every reason one OOS record is rejected, in the audit's reading order.
+
+    Each group is an independent verdict; only the time-boundary group is exclusive
+    (one record can violate the session axis in one way). Callers count distinct
+    reasons, never their order.
+    """
+    reasons: list[str] = [] if isinstance(record, dict) else ["record_not_object"]
+    row: dict[str, Any] = record if isinstance(record, dict) else {}
+    axis_reason = _decision_axis_reason(row, context)
+    if axis_reason is not None:
+        reasons.append(axis_reason)
+    reasons.extend(_field_reasons(row, context))
+    reasons.extend(_training_boundary_reasons(row, context))
+    reasons.extend(_calibration_reasons(row, context))
+    decision = row.get("decision_session")
+    if isinstance(decision, str) and decision in context.duplicates:
+        reasons.append("duplicate_decision_session")
+    return reasons
+
+
+def _frozen_axis(
+    bars: list[dict[str, Any]] | None, horizon: int | None,
+) -> tuple[dict[str, int], list[float | None], str | None]:
+    """Session index and forward returns, or an explicit error the audit must report."""
+    if bars is None:
+        return {}, [], None
+    try:
+        sessions = [str(bar["date"])[:10] for bar in bars]
+        closes = [float(bar["close"]) for bar in bars]
+        if (any(len(session) != 10 for session in sessions)
+                or len(set(sessions)) != len(sessions)
+                or any(close <= 0 or not math.isfinite(close) for close in closes)):
+            raise ValueError("invalid frozen sessions or close values")
+        session_index = {session: i for i, session in enumerate(sessions)}
+        return session_index, forward_returns(closes, horizon) if horizon else [], None
+    except (KeyError, TypeError, ValueError, OverflowError):
+        return {}, [], "frozen_market_bars_invalid"
+
+
+def _duplicate_decisions(source_rows: list[Any]) -> frozenset[str]:
+    """Decision sessions that appear more than once; a record cannot claim a shared session."""
+    seen: set[str] = set()
+    duplicates: set[str] = set()
+    for row in source_rows:
+        if not isinstance(row, dict):
+            continue
+        decision = row.get("decision_session")
+        if isinstance(decision, str):
+            if decision in seen:
+                duplicates.add(decision)
+            seen.add(decision)
+    return frozenset(duplicates)
+
+
 def _audit_oos_path(
     path: dict[str, Any], manifest: dict[str, Any], bars: list[dict[str, Any]] | None,
 ) -> tuple[dict[str, dict[str, Any]], dict[str, Any]]:
@@ -97,137 +311,27 @@ def _audit_oos_path(
         summary["reason"] = "dated_oos_forecasts_not_supplied"
         return {}, summary
     summary["supplied_samples"] = len(source_rows)
-    horizon_name = manifest.get("horizon")
-    horizon = HORIZONS.get(horizon_name)
+    horizon = HORIZONS.get(manifest.get("horizon"))
     target_definition = f"close[t+{horizon}] / close[t] - 1 > 0" if horizon else None
-    session_index: dict[str, int] = {}
-    closes: list[float] = []
-    forward: list[float | None] = []
-    bars_error = None
-    if bars is not None:
-        try:
-            sessions = [str(bar["date"])[:10] for bar in bars]
-            closes = [float(bar["close"]) for bar in bars]
-            if (any(len(session) != 10 for session in sessions)
-                    or len(set(sessions)) != len(sessions)
-                    or any(close <= 0 or not math.isfinite(close) for close in closes)):
-                raise ValueError("invalid frozen sessions or close values")
-            session_index = {session: i for i, session in enumerate(sessions)}
-            forward = forward_returns(closes, horizon) if horizon else []
-        except (KeyError, TypeError, ValueError, OverflowError):
-            session_index, closes, forward = {}, [], []
-            bars_error = "frozen_market_bars_invalid"
+    session_index, forward, bars_error = _frozen_axis(bars, horizon)
     latest_close = manifest.get("latest_confirmed_close")
     latest = _session_date(latest_close.get("session_date")) if isinstance(latest_close, dict) else None
     if latest is None and bars and not bars_error:
         latest = _session_date(bars[-1].get("date"))
     if latest is None:
         latest = _session_date(manifest.get("asof_timestamp"))
-    latest_index = session_index.get(latest) if session_index else None
-    duplicates: set[str] = set()
-    seen: set[str] = set()
-    for row in source_rows:
-        if not isinstance(row, dict):
-            continue
-        decision = row.get("decision_session")
-        if isinstance(decision, str):
-            if decision in seen:
-                duplicates.add(decision)
-            seen.add(decision)
-
+    context = _OosContext(
+        session_index=session_index, forward=forward, bars_available=bars is not None,
+        bars_error=bars_error, latest=latest, latest_index=session_index.get(latest) if session_index else None,
+        horizon=horizon, target_definition=target_definition,
+        recorded_target_definition=validation.get("target_definition"),
+        duplicates=_duplicate_decisions(source_rows),
+    )
     rows: dict[str, dict[str, Any]] = {}
     for row_number, record in enumerate(source_rows):
-        # Keep the loop variable intact: `row` is the object under test, and a
-        # non-object record is analysed as an empty one with an explicit reason.
-        reasons: list[str] = [] if isinstance(record, dict) else ["record_not_object"]
+        reasons = _oos_record_reasons(record, context)
         row = record if isinstance(record, dict) else {}
         decision = row.get("decision_session")
-        label_end = row.get("label_end_session")
-        target = row.get("target")
-        probability = row.get("probability")
-        training_end = row.get("training_label_end_session")
-        recorded_target = row.get("target_definition") or validation.get("target_definition")
-        decision_index = session_index.get(decision) if isinstance(decision, str) else None
-        label_index = session_index.get(label_end) if isinstance(label_end, str) else None
-        if not isinstance(decision, str) or not isinstance(label_end, str):
-            reasons.append("decision_or_label_end_missing")
-        elif bars is not None:
-            if bars_error:
-                reasons.append(bars_error)
-            elif decision_index is None or label_index is None:
-                reasons.append("session_missing_from_frozen_market_bars")
-            elif latest_index is None:
-                reasons.append("snapshot_asof_session_missing_from_frozen_market_bars")
-            elif horizon is None or label_index != decision_index + horizon:
-                reasons.append("label_horizon_does_not_match_frozen_sessions")
-            elif latest_index is not None and label_index > latest_index:
-                reasons.append("label_not_matured_by_snapshot_asof")
-            elif forward[decision_index] is None:
-                reasons.append("forward_return_unavailable_for_oos_label")
-            else:
-                expected_target = int(float(forward[decision_index]) > 0)
-                if target != expected_target:
-                    reasons.append("target_does_not_match_frozen_close_prices")
-        elif not isinstance(latest, str):
-            reasons.append("snapshot_asof_session_missing_or_invalid")
-        elif not (decision <= label_end <= latest):
-            reasons.append("label_outside_snapshot_time_boundary")
-        if not isinstance(target, int) or isinstance(target, bool) or target not in (0, 1):
-            reasons.append("invalid_binary_target")
-        if recorded_target != target_definition:
-            reasons.append("target_definition_does_not_match_requested_horizon")
-        if probability is not None and not _valid_probability(probability):
-            reasons.append("invalid_probability_value")
-        if training_end is not None:
-            if not isinstance(training_end, str):
-                reasons.append("invalid_training_label_boundary")
-            elif bars is not None and training_end not in session_index:
-                reasons.append("training_label_end_missing_from_frozen_market_bars")
-            elif (bars is not None and decision_index is not None and session_index[training_end] > decision_index) or (bars is None and isinstance(decision, str) and training_end > decision):
-                reasons.append("training_label_not_matured_by_decision")
-        elif _valid_probability(probability) and bars is not None:
-            reasons.append("training_label_boundary_missing_for_prediction")
-        calibration_applied = row.get("calibration_applied")
-        calibration_end = row.get("calibration_label_end_session")
-        calibration_count = row.get("calibration_fit_observations")
-        raw_probability = row.get("raw_probability")
-        if calibration_applied is True:
-            if not _valid_probability(raw_probability):
-                reasons.append("raw_probability_missing_for_calibrated_record")
-            if isinstance(calibration_count, bool) or not isinstance(calibration_count, int) or calibration_count < 40:
-                reasons.append("calibration_fit_set_insufficient_or_invalid")
-            slope, intercept = row.get("calibration_slope"), row.get("calibration_intercept")
-            if not (isinstance(slope, (int, float)) and not isinstance(slope, bool)
-                    and isinstance(intercept, (int, float)) and not isinstance(intercept, bool)):
-                reasons.append("calibration_coefficients_missing")
-            elif _valid_probability(probability) and _valid_probability(raw_probability) and 1e-9 < float(raw_probability) < 1 - 1e-9:
-                raw_score = math.log(float(raw_probability) / (1 - float(raw_probability)))
-                mapped = 1 / (1 + math.exp(-max(-60.0, min(60.0, intercept + slope * raw_score))))
-                if abs(float(probability) - mapped) > 1e-6:
-                    reasons.append("calibrated_probability_mismatch")
-            if not isinstance(calibration_end, str):
-                reasons.append("calibration_label_boundary_missing")
-            elif bars is not None and not bars_error:
-                if calibration_end not in session_index:
-                    reasons.append("calibration_label_end_missing_from_frozen_market_bars")
-                elif decision_index is not None and session_index[calibration_end] >= decision_index:
-                    reasons.append("calibration_label_not_matured_before_decision")
-            elif bars is None and isinstance(decision, str) and calibration_end >= decision:
-                reasons.append("calibration_label_not_matured_before_decision")
-        elif calibration_applied is False:
-            if (_valid_probability(raw_probability) and _valid_probability(probability)
-                    and abs(float(raw_probability) - float(probability)) > 1e-9):
-                reasons.append("uncalibrated_probability_differs_from_raw")
-        else:
-            if calibration_applied is not None:
-                reasons.append("invalid_calibration_marker")
-            # A mapped probability that differs from its raw output without a recorded origin
-            # boundary is exactly the retrofitted-calibration pattern the audit must reject.
-            if (_valid_probability(raw_probability) and _valid_probability(probability)
-                    and abs(float(raw_probability) - float(probability)) > 1e-9):
-                reasons.append("calibrated_probability_without_recorded_origin_boundary")
-        if isinstance(decision, str) and decision in duplicates:
-            reasons.append("duplicate_decision_session")
         if reasons:
             summary["rejected_samples"] += 1
             for reason in set(reasons):
@@ -237,8 +341,10 @@ def _audit_oos_path(
                                                      "decision_session": decision if isinstance(decision, str) else None,
                                                      "reason_codes": sorted(set(reasons))})
             continue
-        rows[decision] = {**row, "decision_session": decision, "label_end_session": label_end,
-                          "target": target, "target_definition": recorded_target}
+        rows[decision] = {**row, "decision_session": decision,
+                          "label_end_session": row.get("label_end_session"),
+                          "target": row.get("target"),
+                          "target_definition": row.get("target_definition") or context.recorded_target_definition}
     summary["valid_samples"] = len(rows)
     summary["rejected_sample_rate"] = summary["rejected_samples"] / len(source_rows) if source_rows else None
     summary["valid_predictions"] = sum(_valid_probability(row.get("probability")) for row in rows.values())

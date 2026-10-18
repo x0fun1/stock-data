@@ -34,6 +34,9 @@ offline with synthetic data (no network, no yfinance dependency):
 - F20      pipeline golden: two fixed fixtures (with and without a news domain) must
            reproduce the same normalised digests and anchors, so a refactor can
            prove it moved no frozen value.
+- F21      OOS record audit: one crafted ledger for the summary accounting plus one
+           single-mutation case per rejection code, so the record checks can be moved
+           without moving behaviour.
 
 Usage: python stock-data/scripts/selfcheck.py
 """
@@ -1155,6 +1158,165 @@ def check_f20_pipeline_golden() -> None:
                 f"anchors changed: {detail or 'none'}")
 
 
+def check_f21_oos_record_audit() -> None:
+    """One direct case per OOS rejection code, plus the ledger-level accounting."""
+    from quant_research.validation.probability_quality import _audit_oos_path
+
+    sessions: list[str] = []
+    day = dt.date(2026, 1, 5)
+    while len(sessions) < 16:
+        if day.weekday() < 5:
+            sessions.append(day.isoformat())
+        day += dt.timedelta(days=1)
+    bars = [{"date": session, "close": 100.0 + index} for index, session in enumerate(sessions)]
+    manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": "snap_1",
+                "latest_confirmed_close": {"session_date": sessions[12]},
+                "asof_timestamp": sessions[12] + "T21:00:00Z"}
+
+    def row(decision: int, label: int, *, target: int = 1, **extra) -> dict:
+        base = {"decision_session": sessions[decision], "label_end_session": sessions[label],
+                "target": target, "probability": 0.6,
+                "training_label_end_session": sessions[max(0, decision - 2)],
+                "target_definition": "close[t+5] / close[t] - 1 > 0"}
+        base.update(extra)
+        return base
+
+    rows = [
+        row(2, 7),                                  # accepted
+        row(3, 8), row(3, 8),                       # duplicate decision session
+        {"decision_session": sessions[4], "target": 1, "probability": 0.6},
+        row(5, 10, target=0),                       # target contradicts frozen closes
+        row(8, 13),                                 # label not matured by the as-of
+        "not-a-dict",
+        row(1, 6, calibration_applied=True, raw_probability=0.55,
+            calibration_fit_observations=10, calibration_slope=1.0, calibration_intercept=0.0),
+    ]
+    accepted, summary = _audit_oos_path({"validation": {"oos_forecasts": rows}}, manifest, bars)
+    assert summary["supplied_samples"] == 8, summary
+    assert summary["valid_samples"] == 1 and summary["rejected_samples"] == 7, summary
+    assert list(accepted) == [sessions[2]], accepted
+    assert summary["valid_predictions"] == 1
+    assert summary["status"] == "rejected_records"
+    assert summary["rejection_reasons"] == {
+        "calibrated_probability_mismatch": 1,
+        "calibration_fit_set_insufficient_or_invalid": 1,
+        "calibration_label_boundary_missing": 1,
+        "decision_or_label_end_missing": 2,
+        "duplicate_decision_session": 2,
+        "invalid_binary_target": 1,
+        "label_not_matured_by_snapshot_asof": 1,
+        "record_not_object": 1,
+        "target_definition_does_not_match_requested_horizon": 2,
+        "target_does_not_match_frozen_close_prices": 1,
+        "training_label_boundary_missing_for_prediction": 1,
+    }, summary["rejection_reasons"]
+    assert accepted[sessions[2]]["target_definition"] == "close[t+5] / close[t] - 1 > 0"
+    assert [item["record_index"] for item in summary["rejected_examples"]] == [1, 2, 3, 4, 5], summary
+
+    # Without frozen bars the audit must say so rather than imply a session-axis check.
+    _, limited = _audit_oos_path({"validation": {"oos_forecasts": [row(2, 7)]}}, manifest, None)
+    assert limited["status"] == "validated" and limited["valid_samples"] == 1, limited
+    assert limited["structural_validation"] == "limited_no_frozen_session_index"
+    assert limited["non_overlapping_prediction_count"] is None
+
+    # Single-mutation cases: one valid matured record, one field broken at a time. Each
+    # assertion names the exact reason set, so a rewritten branch that emits a different
+    # code (or an extra one) fails here instead of silently widening the audit.
+    _omit = object()
+    valid = {"decision_session": sessions[2], "label_end_session": sessions[7],
+             "target": 1, "probability": 0.6,
+             "training_label_end_session": sessions[0],
+             "target_definition": "close[t+5] / close[t] - 1 > 0"}
+
+    def case(**overrides) -> dict:
+        merged = {**valid, **overrides}
+        return {key: value for key, value in merged.items() if value is not _omit}
+
+    def reasons(record, *, frozen=bars, scope=manifest) -> set[str]:
+        _, audit = _audit_oos_path({"validation": {"oos_forecasts": [record]}}, scope, frozen)
+        return set(audit["rejection_reasons"])
+
+    assert reasons(case()) == set(), "a fully specified matured record must be accepted"
+    assert reasons("not-a-dict") == {"record_not_object", "decision_or_label_end_missing",
+                                     "invalid_binary_target",
+                                     "target_definition_does_not_match_requested_horizon"}, "non-object record"
+    assert reasons(case(decision_session=None)) == {"decision_or_label_end_missing"}, "missing decision"
+    assert reasons(case(decision_session="2026-01-01")) == {"session_missing_from_frozen_market_bars"}, "off-calendar decision"
+    assert reasons(case(), scope={**manifest, "latest_confirmed_close": {"session_date": "2026-01-03"}}) == {
+        "snapshot_asof_session_missing_from_frozen_market_bars"}, "as-of outside the frozen axis"
+    assert reasons(case(label_end_session=sessions[8])) == {
+        "label_horizon_does_not_match_frozen_sessions"}, "label not one horizon out"
+    assert reasons(case(decision_session=sessions[8], label_end_session=sessions[13])) == {
+        "label_not_matured_by_snapshot_asof"}, "label beyond the as-of"
+    assert reasons(case(target=0)) == {"target_does_not_match_frozen_close_prices"}, "target contradicts closes"
+    assert reasons(case(decision_session=sessions[9], label_end_session=sessions[14]), frozen=None) == {
+        "label_outside_snapshot_time_boundary"}, "no bars, label beyond the as-of"
+    assert reasons(case(), frozen=None, scope={"ticker": "SYN", "horizon": "5D",
+                                               "snapshot_id": "snap_1", "asof_timestamp": "unknown"}) == {
+        "snapshot_asof_session_missing_or_invalid"}, "no bars, no usable as-of"
+    assert reasons(case(target=2), frozen=None) == {"invalid_binary_target"}, "target outside {0,1}"
+    assert reasons(case(target_definition="close[t+3] / close[t] - 1 > 0")) == {
+        "target_definition_does_not_match_requested_horizon"}, "record horizon differs from the request"
+    assert reasons(case(probability=1.5)) == {"invalid_probability_value"}, "probability outside [0,1]"
+    assert reasons(case(training_label_end_session=12)) == {"invalid_training_label_boundary"}, "non-string training end"
+    assert reasons(case(training_label_end_session="2026-01-01")) == {
+        "training_label_end_missing_from_frozen_market_bars"}, "training end off the frozen axis"
+    assert reasons(case(training_label_end_session=sessions[5])) == {
+        "training_label_not_matured_by_decision"}, "training label matures after the decision"
+    assert reasons(case(training_label_end_session=_omit)) == {
+        "training_label_boundary_missing_for_prediction"}, "prediction without a training boundary"
+
+    assert reasons(case(calibration_applied=True, calibration_fit_observations=45,
+                        calibration_slope=1.0, calibration_intercept=0.0,
+                        calibration_label_end_session=sessions[0])) == {
+        "raw_probability_missing_for_calibrated_record"}, "calibrated record without a raw output"
+    assert reasons(case(calibration_applied=True, raw_probability=0.6,
+                        calibration_fit_observations=39, calibration_slope=1.0,
+                        calibration_intercept=0.0,
+                        calibration_label_end_session=sessions[0])) == {
+        "calibration_fit_set_insufficient_or_invalid"}, "calibration fit set below the floor"
+    assert reasons(case(calibration_applied=True, raw_probability=0.6,
+                        calibration_fit_observations=45,
+                        calibration_label_end_session=sessions[0])) == {
+        "calibration_coefficients_missing"}, "calibrated record without coefficients"
+    assert reasons(case(calibration_applied=True, raw_probability=0.55,
+                        calibration_fit_observations=45, calibration_slope=1.0,
+                        calibration_intercept=0.0,
+                        calibration_label_end_session=sessions[0])) == {
+        "calibrated_probability_mismatch"}, "probability is not the recorded mapping's output"
+    assert reasons(case(calibration_applied=True, raw_probability=0.6,
+                        calibration_fit_observations=45, calibration_slope=1.0,
+                        calibration_intercept=0.0)) == {
+        "calibration_label_boundary_missing"}, "calibrated record without an origin boundary"
+    assert reasons(case(calibration_applied=True, raw_probability=0.6,
+                        calibration_fit_observations=45, calibration_slope=1.0,
+                        calibration_intercept=0.0,
+                        calibration_label_end_session="2026-01-01")) == {
+        "calibration_label_end_missing_from_frozen_market_bars"}, "calibration origin off the frozen axis"
+    assert reasons(case(calibration_applied=True, raw_probability=0.6,
+                        calibration_fit_observations=45, calibration_slope=1.0,
+                        calibration_intercept=0.0,
+                        calibration_label_end_session=sessions[3])) == {
+        "calibration_label_not_matured_before_decision"}, "calibration fitted on the decision session"
+    assert reasons(case(calibration_applied=False, raw_probability=0.5)) == {
+        "uncalibrated_probability_differs_from_raw"}, "uncalibrated marker with a mapped value"
+    assert reasons(case(calibration_applied="yes", raw_probability=0.6)) == {
+        "invalid_calibration_marker"}, "marker that is neither true nor false"
+    assert reasons(case(raw_probability=0.5)) == {
+        "calibrated_probability_without_recorded_origin_boundary"}, "retrofitted calibration"
+
+    _, duplicated = _audit_oos_path({"validation": {"oos_forecasts": [case(), case()]}}, manifest, bars)
+    assert duplicated["rejection_reasons"] == {"duplicate_decision_session": 2}, duplicated
+
+    # A ledger that declares the horizon once at the validation level is accepted, and the
+    # accepted row is backfilled with that definition.
+    backfilled, audit = _audit_oos_path(
+        {"validation": {"target_definition": "close[t+5] / close[t] - 1 > 0",
+                        "oos_forecasts": [case(target_definition=_omit)]}}, manifest, bars)
+    assert audit["valid_samples"] == 1, audit
+    assert backfilled[sessions[2]]["target_definition"] == "close[t+5] / close[t] - 1 > 0"
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -1177,6 +1339,7 @@ CHECKS = [
     ("F18 orphan scratch sweep", check_f18_orphan_sweep),
     ("F19 retention and cache pruning", check_f19_retention_gc),
     ("F20 pipeline golden regression", check_f20_pipeline_golden),
+    ("F21 OOS record audit reasons", check_f21_oos_record_audit),
 ]
 
 if __name__ == "__main__":
