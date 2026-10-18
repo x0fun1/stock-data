@@ -4,3 +4,4 @@ runtime/
 .pytest_cache/
 .ruff_cache/
 .workbuddy-ai/
+.workbuddy/
