@@ -920,15 +920,15 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "4d16b2e9934f680a3eeda296804769d422929d1984815ee2e7c70a95fd81c6a3",
-        "quant_result.json": "fad07a83f738832b8a794516fa6ffee6656773bd8474d1fb9426a510e528aa5c",
+        "report.json": "3fe63e0cb7233de68faca6fc8f4228b5a43cf7c19be5b23c5309d662582ebe3d",
+        "quant_result.json": "57c7a6096fd0c2182532ef883e2bc325ac61800d2f64d9f40663bce24f146e23",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
         "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
         "final_response.md": "e373c4a67ba816c4659a8d50f10f7d60e2cd4fe5a9e4e3e63602c6e97e4c7d39",
     },
     "news": {
-        "report.json": "0d2f8136ec11bf9750d8efb089558cd2c320cada83ab914b3c50df428c4c1171",
-        "quant_result.json": "e8b4b1b6c9fa1cd0a63b5c8fb4da15bc92c9539fb36fc6c31a2d02da72306e50",
+        "report.json": "fe05773fbfa2b39427c686879fca01ddbff06e128e291299ddafee95d0854316",
+        "quant_result.json": "7535a3a419dc6be663b430dfef7fb6e784f30f56a03c368d1350300cd4d1fa9c",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
         "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
         "final_response.md": "e104336fb6a4407775c43905835e2209b97d0b500e03915427f9225f651308d2",
@@ -1578,6 +1578,112 @@ def check_f26_momentum_probability_separation() -> None:
         raise AssertionError("rendering must not modify the reported probability")
 
 
+# ---------------------------------------------------------------- F28
+def check_f28_selection_statistics() -> None:
+    """F28: selection evidence is causal, reproducible, and gated by declared rules."""
+    from quant_research.selection import (
+        MINIMUM_OBSERVATIONS,
+        multiple_testing_disclosure,
+        overlapping_ic,
+        stability_verdict,
+    )
+
+    # A factor that is monotone in the label must read as a strong positive IC, and the
+    # estimate must not move when data after the selection boundary is appended.
+    labels = [0.01 * index for index in range(80)]
+    values = [0.5 * label + 0.001 * ((index % 3) - 1) for index, label in enumerate(labels)]
+    indices = list(range(10, 70))
+    first = overlapping_ic(values, labels, indices, horizon=5, replicates=200, seed=7)
+    if first["status"] != "assessed" or first["rank_ic"] < 0.9:
+        raise AssertionError(f"a monotone factor must read as a strong IC: {first}")
+    extended = overlapping_ic(values + [9.0] * 40, labels + [9.0] * 40, indices, horizon=5, replicates=200, seed=7)
+    if abs(extended["rank_ic"] - first["rank_ic"]) > 1e-12:
+        raise AssertionError("appending future data must not move a fixed-index estimate")
+    repeat = overlapping_ic(values, labels, indices, horizon=5, replicates=200, seed=7)
+    if repeat != first:
+        raise AssertionError("the block bootstrap must be deterministic for a fixed seed")
+
+    # Too few labels must be reported, never silently scored.
+    thin = overlapping_ic(values, labels, list(range(10, 10 + MINIMUM_OBSERVATIONS - 1)), horizon=5)
+    if thin["status"] != "insufficient_samples" or thin["rank_ic"] is not None or thin["interval"] is not None:
+        raise AssertionError(f"thin evidence must stay unscored: {thin}")
+
+    # The declared rule: point-estimate floor, then directional stability.
+    passing = {"status": "assessed", "rank_ic": 0.15, "sign_consistency": 1.0}
+    if not stability_verdict(passing, min_abs_rank_ic=0.02, min_sign_consistency=2 / 3)["passed"]:
+        raise AssertionError("a stable factor above the IC floor must pass")
+    weak = {"status": "assessed", "rank_ic": 0.01, "sign_consistency": 1.0}
+    if stability_verdict(weak, min_abs_rank_ic=0.02, min_sign_consistency=2 / 3)["reason"] != "below_minimum_rank_ic":
+        raise AssertionError("a factor under the IC floor must be rejected for that reason")
+    unstable = {"status": "assessed", "rank_ic": 0.15, "sign_consistency": 0.34}
+    if stability_verdict(unstable, min_abs_rank_ic=0.02, min_sign_consistency=2 / 3)["reason"] != "direction_unstable":
+        raise AssertionError("a factor flipping sign across sub-windows must be rejected")
+    unscorable = {"status": "insufficient_samples", "rank_ic": None, "sign_consistency": None}
+    if stability_verdict(unscorable, min_abs_rank_ic=0.02, min_sign_consistency=2 / 3)["passed"]:
+        raise AssertionError("unscored evidence must never pass")
+
+    disclosure = multiple_testing_disclosure({"a": 0.01, "b": 0.4, "c": None})
+    if disclosure["used_as_selection_gate"] is not False or disclosure["tested_candidates"] != 2:
+        raise AssertionError(f"FDR must stay disclosure-only: {disclosure}")
+
+
+# ---------------------------------------------------------------- F29
+def check_f29_reliability_accounting() -> None:
+    """F29: the reliability layer reports samples honestly and cannot lower its own bar."""
+    from quant_research import reliability
+    from quant_research.reliability import (
+        QUALIFICATION_THRESHOLDS,
+        logistic_shortfall,
+        probabilistic_scores,
+        qualification,
+        sample_diagnostics,
+    )
+
+    # 250 bars, 60 warmup, 5-session horizon: the arithmetic behind the 52-week verdict.
+    sample = sample_diagnostics(bar_count=250, warmup=60, horizon=5)
+    if (sample["raw_sample_count"], sample["nonoverlap_sample_count"]) != (185, 31):
+        raise AssertionError(f"52-week sample accounting changed: {sample}")
+    if abs(sample["sample_coverage"] - 185 / 190) > 1e-12:
+        raise AssertionError("coverage must be matured labels over decision dates")
+    if sample["overlapping_observations_are_independent"] is not False:
+        raise AssertionError("overlapping labels must never be advertised as independent")
+    twenty = sample_diagnostics(bar_count=250, warmup=60, horizon=20)
+    if twenty["nonoverlap_sample_count"] != 9:
+        raise AssertionError(f"20D non-overlapping count changed: {twenty}")
+
+    # A fitted model needs three disjoint stages, so the requirement is their sum.
+    withheld = logistic_shortfall(sample["nonoverlap_sample_count"])
+    if withheld["status"] != "not_applicable_insufficient_samples":
+        raise AssertionError(f"31 labels cannot host a fitted model: {withheld}")
+    if withheld["required_non_overlapping_labels"] != sum(QUALIFICATION_THRESHOLDS["logistic"].values()):
+        raise AssertionError("the requirement must be the sum of the stages")
+    if withheld["shortfall"] != 120 - 31:
+        raise AssertionError("the shortfall must be reported, not hidden")
+
+    # Routing is decided by the declared floors only.
+    abstained = qualification(nonoverlap_matured=5, bucket_observations=2, buckets_available=1, validation_predictions=3)
+    if abstained["route"] != reliability.ROUTE_ABSTAINED:
+        raise AssertionError(f"thin evidence must abstain: {abstained}")
+    qualified = qualification(nonoverlap_matured=40, bucket_observations=9, buckets_available=3, validation_predictions=15)
+    if qualified["route"] != reliability.ROUTE_LEGACY:
+        raise AssertionError(f"sufficient evidence must route to the legacy bucket: {qualified}")
+    if qualified["thresholds_adjustable_per_symbol"] is not False:
+        raise AssertionError("thresholds must not be adjustable per symbol")
+
+    # Scoring: a perfect forecast scores zero Brier and unit skill; a copy of the base rate
+    # scores exactly zero skill, which is the definition a reader expects.
+    perfect = [(0, 1.0, 0.5, 1), (1, 0.0, 0.5, 0), (2, 1.0, 0.5, 1)]
+    scores = probabilistic_scores(perfect, horizon=5)
+    if scores["brier"] != 0.0 or abs(scores["brier_skill_vs_base_rate"] - 1.0) > 1e-12:
+        raise AssertionError(f"a perfect forecast must score zero Brier: {scores}")
+    copied = [(index, 0.4, 0.4, outcome) for index, outcome in enumerate([1, 0, 1, 0, 1, 0])]
+    if abs(probabilistic_scores(copied, horizon=5)["brier_skill_vs_base_rate"]) > 1e-12:
+        raise AssertionError("copying the baseline cannot earn skill")
+    small = probabilistic_scores(copied, horizon=5)
+    if small["brier_difference_interval_status"] != "insufficient_samples":
+        raise AssertionError("a short pair series must not claim a bootstrap interval")
+
+
 # ---------------------------------------------------------------- F27
 def check_f27_ab_protocol_statistics() -> None:
     """F27: the A/B protocol decides from the registered rule, not from the data."""
@@ -1699,6 +1805,8 @@ CHECKS = [
     ("F25 composite momentum feature", check_f25_composite_momentum),
     ("F26 momentum probability separation", check_f26_momentum_probability_separation),
     ("F27 A/B protocol statistics", check_f27_ab_protocol_statistics),
+    ("F28 selection statistics", check_f28_selection_statistics),
+    ("F29 reliability accounting", check_f29_reliability_accounting),
 ]
 
 if __name__ == "__main__":

@@ -1,3 +1,3 @@
 """Deterministic research utilities for the stock-data Skill."""
 
-__version__ = "0.14.0"
+__version__ = "0.15.0"

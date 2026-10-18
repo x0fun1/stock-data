@@ -39,6 +39,20 @@ B 在前段训练样本按绝对 Rank IC 排序，`abs(IC) >= 0.02` 是预设的
 
 OOS 的 BY 调整以全部尝试候选作为检验家族，并计入无法计算 p 值的候选数量。调整值是最终评价窗口的诊断输出；当前没有用 `p_adjusted < 0.05` 等阈值再选因子，也不能把它追溯为训练选择阈值 `0.02` 的 FDR 保证。
 
+B 另有三块可靠性诊断，全部只做披露、不参与概率计算。
+
+`sample_diagnostics` 把样本拆成四个数：`raw_sample_count`（决策日减去 H 得到的成熟标签数）、`nonoverlap_sample_count`（按 H+1 间距的保守独立样本数）、`effective_sample_size_estimate`（`raw / H`，明确标注 `approximation_only_raw_over_horizon`）和 `sample_coverage`。`overlapping_observations_are_independent` 固定为 `false`。52 周、250 根日线、60 session 预热下的实际值是：5D 为 185 原始 / 31 非重叠 / 覆盖 0.974，20D 为 170 原始 / 9 非重叠。这些数字说明为什么 B 的概率在 52 周下必然带厚区间，也说明为什么 `raw / H` 不能被当作精确有效样本量。
+
+`probabilistic_scores` 在**同一批日期**上与同期历史基准率配对比较，输出 `brier`、`base_rate_brier`、`brier_skill_vs_base_rate`、`log_loss`、`base_rate_log_loss`、`calibration_slope`、`calibration_intercept`、`paired_common_samples`，以及"模型减基准"的 Brier 差与其循环移动块区间。区间在样本不足时返回 `insufficient_samples` 而不是给一个窄区间；`calibration_slope` 由 `logit(p)` 对标签的最小二乘拟合得到，只作诊断。基准是同日历史频率，因此差异不可能来自样本不同。
+
+`selection` 记录选择规则本身：`metric`、`pool_observations`（选择段全部成熟标签）与 `spaced_observations`（按 H+1 间距）、预设阈值（`minimum_abs_rank_ic` 0.02、`minimum_sign_consistency` 2/3、`max_factors` 5、`max_factors_per_family` 2、`max_abs_correlation` 0.85）、逐因子的依赖感知 IC（含 moving-block 区间、子窗口 IC、`sign_consistency`、`stability_would_pass`）、`rejected` 拒绝日志，以及 BY 多重检验披露（`used_as_selection_gate: false`）。`overlap_treated_as_dependence` 标明重叠标签被当作依赖而非独立证据。
+
+`qualification` 把"能否投票"写成显式路由：`route` 只可能是 `legacy_bucket` 或 `abstained`，`route_reason` 列出未达标的项目；`checks` 给出每项观测值与预设下限。阈值固定在 `reliability.QUALIFICATION_THRESHOLDS` 模块常量里，明确 `thresholds_adjustable_per_symbol: false`。`withheld_models.logistic` 说明为什么一个拟合概率模型在 52 周下不可用：训练 60 + 校准 30 + 验证 30 三个**不可共用**的非重叠阶段合计需要 120 个标签，而 5D 只有 31 个、20D 只有 9 个，缺口 89 / 111。该字段不是"暂未实现"，而是"按方案自身的样本约束不具备资格"。
+
+依赖感知选择规则（`selection.overlapping_ic`，`selection_override="overlapping_block"`）用选择段全部成熟标签估计 Rank IC、以 H+1 为块长做移动块自助法、并要求 3 个子窗口的符号一致性 ≥ 2/3。它已实现并在 `scripts/selection_ab.py` 的 36 标的注册池上做过预先登记的新旧对照：两臂 Brier 为 0.2718 / 0.2681，差值为 −0.0040（新规则略优），但 holdout 只提供 15 个可评分 session，低于 session 块自助法所需的 24 个，因此按登记规则判为 `indeterminate`，**线上仍使用旧的间距点估计规则**。符号聚类区间（披露项，非判定项）为 [−0.0118, +0.0023]，同样跨零。结论：该替代规则没有获得证据支持，也没有被证据否定；换用需要更长的窗口，而不是调阈值。
+
+需要明确区分：以上都是可靠性披露。本轮没有引入拟合概率模型，没有改动概率聚合顺序，也没有声称预测准确率提升。`scripts/selection_ab.py` 的两臂共用同一份 52 周数据，比较的是选择估计量而不是新增历史。
+
 ## C — 逻辑回归与防泄漏验证
 
 使用路径内独立 OHLCV 特征和确定性 L2 Logistic Regression。验证包含闭区间 Purged K-Fold、Embargo、仅用过去数据的全历史逐日 causal walk-forward 账本、fold 内标准化和最后的 chronological holdout。当前预测可在验证固定后用已成熟标签重拟合，但不使用 holdout 指标调整特征或参数。

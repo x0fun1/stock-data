@@ -18,6 +18,8 @@ from ..math_utils import (
     sample_std,
     spearman,
 )
+from ..reliability import ROUTE_ABSTAINED, probabilistic_scores, qualification, sample_diagnostics
+from ..selection import multiple_testing_disclosure, overlapping_ic, shift_p_values, stability_verdict
 from ..snapshot import load_snapshot
 
 MINIMUM_FACTOR_BUCKET_OBSERVATIONS = 6
@@ -25,6 +27,16 @@ MINIMUM_SELECTION_LABELS = 10
 SHRINKAGE_PRIOR_OBSERVATIONS = 12
 SELECTION_FRACTION = 0.5
 FEATURE_WARMUP_SESSIONS = 60
+MINIMUM_ABS_SELECTION_IC = 0.02
+MAX_FACTORS = 5
+MAX_FACTORS_PER_FAMILY = 2
+MAX_ABS_FACTOR_CORRELATION = 0.85
+MINIMUM_SIGN_CONSISTENCY = 2 / 3
+# "overlapping_block" estimates the Rank IC on every matured label of the segment and
+# requires directional stability; it is implemented and evaluated, but the registered
+# comparison could not separate it from the incumbent rule on a 52-week window, so the
+# pre-existing rule stays in production (see references/quant-paths.md).
+SELECTION_METRIC = "non_overlapping_point"
 
 
 def _spaced_label_count(first: int, last: int, horizon: int) -> int:
@@ -304,7 +316,17 @@ def _shrunk_mean(
     return (len(samples) * center + prior * overall) / (len(samples) + prior)
 
 
-def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None) -> dict[str, Any]:
+def run(
+    snapshot_dir: Path,
+    loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None,
+    *,
+    selection_override: str | None = None,
+) -> dict[str, Any]:
+    """Produce the Research B probability.
+
+    ``selection_override`` exists for reproducible rule comparisons and tests; the live
+    path always uses ``SELECTION_METRIC``. It never changes the evaluation boundary.
+    """
     manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     ticker, horizon_name = manifest["ticker"], manifest["horizon"]
     requested_horizon = HORIZONS[horizon_name]
@@ -330,42 +352,88 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             horizons[f"{horizon}D"] = _factor_metrics(values, labels, indices)
         decay[name] = {"family": family, "formula": formula, "horizons": horizons}
 
-    # Feature selection and sign are fixed using the first chronological segment.
-    select_indices = non_overlapping([i for i in range(60, train_end) if i + requested_horizon < train_end], requested_horizon)
+    # Feature selection and sign are fixed using the first chronological segment, and only
+    # labels that matured inside it. The legacy rule spaces labels by the horizon; the
+    # dependency-aware rule keeps every matured label of the segment and measures overlap
+    # with a moving-block bootstrap, because ten spaced labels cannot rank eleven candidates.
+    selection_metric = str(selection_override or SELECTION_METRIC)
+    selection_pool = [i for i in range(FEATURE_WARMUP_SESSIONS, train_end) if i + requested_horizon < train_end]
+    select_indices = (
+        non_overlapping(selection_pool, requested_horizon)
+        if selection_metric == "non_overlapping_point"
+        else selection_pool
+    )
+    selection_evidence: dict[str, dict[str, Any]] = {}
+    selection_p: dict[str, float | None] = {}
+    rejected: list[dict[str, Any]] = []
     ranked: list[tuple[float, str, str, str, list[float | None], dict[str, Any]]] = []
     for name, (family, formula, values) in factors.items():
         metrics = _factor_metrics(values, select_labels, select_indices)
-        score = abs(metrics["rank_ic"] or 0.0)
-        ranked.append((score, name, family, formula, values, metrics))
+        # The dependency-aware estimate is always computed: it is the diagnostic that makes
+        # the incumbent rule's ten-observation basis visible, even when it is not the rule
+        # that decides the factor set.
+        evidence = overlapping_ic(values, select_labels, selection_pool, horizon=requested_horizon)
+        stability = stability_verdict(
+            evidence,
+            min_abs_rank_ic=MINIMUM_ABS_SELECTION_IC,
+            min_sign_consistency=MINIMUM_SIGN_CONSISTENCY,
+        )
+        selection_p[name] = shift_p_values(
+            values, select_labels, selection_pool, horizon=requested_horizon,
+        ).get("p_value")
+        if selection_metric == "overlapping_block":
+            selection_rank_ic = evidence.get("rank_ic")
+            verdict = stability
+        else:
+            selection_rank_ic = metrics["rank_ic"]
+            verdict = {
+                "passed": selection_rank_ic is not None and abs(selection_rank_ic) >= MINIMUM_ABS_SELECTION_IC,
+                "reason": "legacy_point_estimate_rule",
+            }
+        selection_evidence[name] = {
+            **evidence,
+            "applied_rule": selection_metric,
+            "stability_would_pass": stability["passed"],
+            "stability_reason": stability["reason"],
+        }
+        ranked.append((
+            abs(float(selection_rank_ic)) if selection_rank_ic is not None else 0.0,
+            name, family, formula, values,
+            {**metrics, "selection": evidence, "verdict": verdict, "selection_rank_ic": selection_rank_ic},
+        ))
     ranked.sort(key=lambda row: (-row[0], row[1]))
 
     retained: list[tuple[float, str, str, str, list[float | None], dict[str, Any]]] = []
     for candidate in ranked:
         _, name, family, _, values, metrics = candidate
-        if metrics["rank_ic"] is None or abs(metrics["rank_ic"]) < 0.02:
+        if not metrics["verdict"]["passed"]:
+            rejected.append({"factor": name, "reason": metrics["verdict"]["reason"]})
             continue
         correlation = None
         for previous in retained:
             px, py, _ = _valid_pairs(values, previous[4], select_indices)
             corr = pearson(px, py)
-            if corr is not None and abs(corr) >= 0.85:
+            if corr is not None and abs(corr) >= MAX_ABS_FACTOR_CORRELATION:
                 correlation = {"with": previous[1], "correlation": corr}
                 break
         if correlation:
+            rejected.append({"factor": name, "reason": "redundant", **correlation})
             continue
-        if sum(item[2] == family for item in retained) >= 2:
+        if sum(item[2] == family for item in retained) >= MAX_FACTORS_PER_FAMILY:
+            rejected.append({"factor": name, "reason": "family_limit", "family": family})
             continue
         retained.append(candidate)
-        if len(retained) >= 5:
+        if len(retained) >= MAX_FACTORS:
             break
 
     warnings: list[str] = [
         "Returns are gross close-to-close observations; this factor path does not model execution, spreads, slippage or fees.",
         "Factor calibration uses only the 52-week daily-bar standard and never widens the window automatically to buy samples.",
     ]
-    if len(select_indices) < MINIMUM_SELECTION_LABELS:
+    spaced_selection_labels = len(non_overlapping(selection_pool, requested_horizon))
+    if spaced_selection_labels < MINIMUM_SELECTION_LABELS:
         warnings.append(
-            f"Only {len(select_indices)} non-overlapping selection labels are available; at least "
+            f"Only {spaced_selection_labels} non-overlapping selection labels are available; at least "
             f"{MINIMUM_SELECTION_LABELS} are required under the 52-week standard, so factor ranks would be noise."
         )
         return researcher_result(
@@ -393,7 +461,8 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         center, scale = mean(train_values), sample_std(train_values)
         if center is None or not scale:
             continue
-        signs[name] = 1 if (metrics["rank_ic"] or 0) >= 0 else -1
+        direction_ic = metrics["selection_rank_ic"] if metrics["selection_rank_ic"] is not None else metrics["rank_ic"]
+        signs[name] = 1 if (direction_ic or 0) >= 0 else -1
         standardized[name] = [max(-3.0, min(3.0, (float(value) - center) / scale)) if value is not None else None for value in values]
     if not standardized:
         return researcher_result("factor", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", validation={"oos_factor_inference": oos_factor_inference, "candidate_factor_count": len(factors), "sample_feasibility": sample_feasibility, "oos_forecasts": _empty_oos_forecasts(holdout_indices, bars, select_labels, requested_horizon), "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0"}, warnings=["Selected factors had no stable scale in the training segment."])
@@ -403,7 +472,9 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         return sum(values) / len(values) if len(values) == len(standardized) and values else None
 
     # Every label matured by the final bar forms the causal calibration ledger (52-week standard).
-    calibration_indices = non_overlapping(list(range(60, n - requested_horizon)), requested_horizon)
+    calibration_indices = non_overlapping(
+        list(range(FEATURE_WARMUP_SESSIONS, n - requested_horizon)), requested_horizon,
+    )
     calibration_pairs = [(float(composite(i)), float(select_labels[i])) for i in calibration_indices if composite(i) is not None]
     # Bucket cut points are recomputed from matured scores only, so thin 52-week ledgers stay balanced
     # and neither the cuts nor the frequencies can see a label that has not matured yet.
@@ -504,6 +575,41 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     validation["diagnostics_label_end_exclusive"] = holdout_start
     sample_feasibility["minimum_holdout_predictions"] = 10
     validation["sample_feasibility"] = sample_feasibility
+    predictions = [
+        (position, forecast, base, outcome)
+        for position, (forecast, outcome, base) in enumerate(holdout_pairs)
+    ]
+    validation["probabilistic_scores"] = probabilistic_scores(predictions, horizon=requested_horizon)
+    validation["sample_diagnostics"] = sample_diagnostics(
+        bar_count=n, warmup=FEATURE_WARMUP_SESSIONS, horizon=requested_horizon,
+    )
+    validation["selection"] = {
+        "metric": selection_metric,
+        "pool_observations": len(selection_pool),
+        "spaced_observations": spaced_selection_labels,
+        "minimum_abs_rank_ic": MINIMUM_ABS_SELECTION_IC,
+        "minimum_sign_consistency": MINIMUM_SIGN_CONSISTENCY,
+        "max_factors": MAX_FACTORS,
+        "max_factors_per_family": MAX_FACTORS_PER_FAMILY,
+        "max_abs_correlation": MAX_ABS_FACTOR_CORRELATION,
+        "multiple_testing": multiple_testing_disclosure(selection_p),
+        "candidates": selection_evidence,
+        "rejected": rejected,
+        "overlap_treated_as_dependence": selection_metric == "overlapping_block",
+    }
+    route = qualification(
+        nonoverlap_matured=len(calibration_indices),
+        bucket_observations=len(selected_returns),
+        buckets_available=sum(1 for values in bucket_samples.values() if values),
+        validation_predictions=len(holdout_pairs),
+    )
+    if probability is None:
+        route["route"] = ROUTE_ABSTAINED
+        route["route_reason"] = "probability_unavailable_for_current_session"
+        route["legacy_probability_available"] = False
+    else:
+        route["legacy_probability_available"] = True
+    validation["qualification"] = route
     return researcher_result(
         "factor", ticker, horizon_name, manifest["snapshot_id"], status=status,
         prob_up=probability, expected_return=expected,

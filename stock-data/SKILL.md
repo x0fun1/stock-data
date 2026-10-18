@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.17.0"}
+metadata: {version: "2.18.0"}
 ---
 
 # Stock Data & Quant Research
