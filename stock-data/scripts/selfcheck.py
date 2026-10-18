@@ -920,15 +920,15 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "d1556147888f84244c40cabce5f6f21dcf7821142223ce7b587c3d66438bd8da",
-        "quant_result.json": "2b48f8fd289d02cd33fbfe6a3ccdf87a7f6a42b57cc434c7e06777ab2b51f1d1",
+        "report.json": "4d16b2e9934f680a3eeda296804769d422929d1984815ee2e7c70a95fd81c6a3",
+        "quant_result.json": "fad07a83f738832b8a794516fa6ffee6656773bd8474d1fb9426a510e528aa5c",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
         "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
         "final_response.md": "e373c4a67ba816c4659a8d50f10f7d60e2cd4fe5a9e4e3e63602c6e97e4c7d39",
     },
     "news": {
-        "report.json": "0625788795ba5a219bc0ab2cdaa89d332aeec40846daf98649b7ab7799b4d20d",
-        "quant_result.json": "15331da1402fe6dfcf1d29f2811541f1c4c080f2c318b0e5236cec0a2a5b213f",
+        "report.json": "0d2f8136ec11bf9750d8efb089558cd2c320cada83ab914b3c50df428c4c1171",
+        "quant_result.json": "e8b4b1b6c9fa1cd0a63b5c8fb4da15bc92c9539fb36fc6c31a2d02da72306e50",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
         "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
         "final_response.md": "e104336fb6a4407775c43905835e2209b97d0b500e03915427f9225f651308d2",
@@ -1578,6 +1578,98 @@ def check_f26_momentum_probability_separation() -> None:
         raise AssertionError("rendering must not modify the reported probability")
 
 
+# ---------------------------------------------------------------- F27
+def check_f27_ab_protocol_statistics() -> None:
+    """F27: the A/B protocol decides from the registered rule, not from the data."""
+    import momentum_ab as ab
+    from quant_research.momentum import compute, score_at
+
+    # Ablation must reproduce the frozen formula with one weight set to zero.
+    flat = {"risk_adjusted": 50.0, "regression_trend": 30.0, "relative_strength": 20.0}
+    for name, value in ab.ablation_scores(flat).items():
+        if abs(value - 100.0) > 1e-9:
+            raise AssertionError(f"dropping {name} must preserve a flat composite: {value}")
+    partial = {"risk_adjusted": 50.0, "regression_trend": 30.0, "relative_strength": 0.0}
+    if abs(ab.ablation_scores(partial)["relative_strength"] - 100.0) > 1e-9:
+        raise AssertionError("a zero-weight component must vanish under renormalisation")
+
+    # Bootstrap must be reproducible and bracket the sample mean.
+    series = [0.02 * math.sin(index / 7.0) + 0.01 for index in range(120)]
+    settings = {"block_length": 6, "iterations": 400, "confidence": 0.95, "seed": 12345}
+    first = ab.block_bootstrap_mean_ci(series, **settings)
+    second = ab.block_bootstrap_mean_ci(series, **settings)
+    if first != second:
+        raise AssertionError("the bootstrap must be deterministic for a fixed seed")
+    mean = math.fsum(series) / len(series)
+    if not first[0] < mean < first[1]:
+        raise AssertionError(f"interval {first} must contain the mean {mean}")
+    wide = ab.block_bootstrap_mean_ci(series, **{**settings, "block_length": 24})
+    if (wide[1] - wide[0]) < (first[1] - first[0]) - 1e-12:
+        raise AssertionError("longer blocks must not narrow the interval")
+
+    # Verdict rule: every primary horizon must clear zero; report-only horizons never decide.
+    def record(delta, interval):
+        return {"status": "evaluated", "delta_ic": delta, "ci_delta": interval}
+
+    better = {5: record(0.017, (0.005, 0.030)), 10: record(0.020, (0.002, 0.039)),
+              20: record(0.005, (-0.020, 0.030))}
+    if ab.decide_verdict(better) != "composite_better":
+        raise AssertionError("both primary horizons clearing zero must read as better")
+    marginal = {**better, 10: record(0.020, (-0.0002, 0.039))}
+    if ab.decide_verdict(marginal) != "indistinguishable":
+        raise AssertionError("an interval containing zero must not count as better")
+    worse = {5: record(-0.017, (-0.030, -0.005)), 10: record(-0.020, (-0.039, -0.002))}
+    if ab.decide_verdict(worse) != "composite_worse":
+        raise AssertionError("both primary horizons below zero must read as worse")
+    skipped = {5: {"status": "no_usable_sessions"}, 10: record(0.02, (0.01, 0.03))}
+    if ab.decide_verdict(skipped) != "indistinguishable":
+        raise AssertionError("an unevaluable primary horizon must fail closed")
+
+    # Durability compares the disclosure slice with the registered verdict.
+    same = ab.assess_durability("composite_better", {"status": "evaluated", "verdict": "composite_better"})
+    if same != "consistent_across_pool_slices":
+        raise AssertionError(f"matching slice verdicts must read as consistent: {same}")
+    flipped = ab.assess_durability(
+        "composite_better", {"status": "evaluated", "verdict": "indistinguishable"}
+    )
+    if flipped != "pool_dependent":
+        raise AssertionError(f"a flipping disclosure slice must read as pool dependent: {flipped}")
+    if ab.assess_durability("composite_better", {"status": "not_applicable"}) != "not_assessed":
+        raise AssertionError("a missing disclosure slice must be reported as unassessed")
+
+    # The offline point entry must agree with the report path it was extracted from.
+    dates = [bar["date"] for bar in _golden_bars(90, seed=29)]
+    rng = random.Random(47)
+    prices = [100.0]
+    for _ in range(1, 90):
+        prices.append(prices[-1] * math.exp(rng.gauss(0.001, 0.011)))
+    benchmark: dict[str, float] = {}
+    level = 100.0
+    for session in dates:
+        level *= math.exp(rng.gauss(0.0, 0.009))
+        benchmark[session] = level
+    block = compute(prices, dates, benchmark, symbol="SYN", benchmark_symbol="BMK")
+    point = score_at(prices, dates, benchmark, 89)
+    if point["status"] != block["score_status"]:
+        raise AssertionError("point entry and report path disagree on status")
+    if block["momentum_score_20d"] is None or abs(point["score"] - block["momentum_score_20d"]) > 1e-12:
+        raise AssertionError("point entry and report path disagree on the score")
+
+    # Panel subsetting must keep the declared benchmark untouched.
+    panel = {
+        "dates": dates,
+        "closes": {"AAA": prices, "BBB": prices, "XLK": prices},
+        "benchmark": benchmark,
+        "dropped": {},
+        "asset_types": {"AAA": "stock", "BBB": "stock", "XLK": "etf"},
+    }
+    sliced = ab.subset_panel(panel, {"AAA", "BBB"})
+    if set(sliced["closes"]) != {"AAA", "BBB"}:
+        raise AssertionError("subsetting must drop only the excluded symbols")
+    if sliced["benchmark"] is not benchmark:
+        raise AssertionError("subsetting must not rewrite the benchmark series")
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -1606,6 +1698,7 @@ CHECKS = [
     ("F24 shared support ceiling", check_f24_shared_support_ceiling),
     ("F25 composite momentum feature", check_f25_composite_momentum),
     ("F26 momentum probability separation", check_f26_momentum_probability_separation),
+    ("F27 A/B protocol statistics", check_f27_ab_protocol_statistics),
 ]
 
 if __name__ == "__main__":

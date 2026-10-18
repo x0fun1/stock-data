@@ -277,23 +277,15 @@ def _evaluate(
     return result
 
 
-def compute(
-    closes: list[float],
-    dates: list[str],
-    benchmark: dict[str, float] | None = None,
-    *,
-    symbol: str,
-    benchmark_symbol: str | None = None,
-    benchmark_selection: str = "declared",
-    price_field: str | None = None,
-    config: dict[str, Any] | None = None,
-) -> dict[str, Any]:
-    """Compute the frozen composite momentum block for the final session."""
-    active = config or DEFAULT_CONFIG
-    index = len(closes) - 1
-    evaluation = _evaluate(closes, dates, _benchmark_series(benchmark), index, active)
-    components = evaluation["components"]
+def _assemble(
+    evaluation: dict[str, Any], config: dict[str, Any]
+) -> tuple[float | None, str, list[str]]:
+    """Resolve component statuses into a score, its status, and the reason trail.
 
+    Shared by the report path and the offline point entry so both apply the same
+    all-or-nothing rule: a partial score is never produced.
+    """
+    components = evaluation["components"]
     reasons: list[str] = []
     for name, component in components.items():
         if component["status"] != "valid":
@@ -316,10 +308,59 @@ def compute(
             reasons.append("incomplete_contributions")
         else:
             score = math.fsum(float(value) for value in contributions)
-            low, high = float(active["output"]["score_min"]), float(active["output"]["score_max"])
+            low, high = float(config["output"]["score_min"]), float(config["output"]["score_max"])
             if not (low < score < high):  # tanh keeps this strictly inside the band
                 score = max(min(score, math.nextafter(high, 0.0)), math.nextafter(low, 0.0))
                 reasons.append("score_clamped_to_bounds")
+    return score, score_status, reasons
+
+
+def score_at(
+    closes: list[float],
+    dates: list[str],
+    benchmark: dict[str, float] | None,
+    index: int,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Single-point factor evaluation for offline studies.
+
+    ``compute`` is the report path (it appends a diagnostic block); this is the
+    named entry research code should reuse instead of re-deriving the factor
+    math or reaching into ``_evaluate``. No aggregation and no fitting happens
+    here: the returned score is the frozen formula applied at ``index``.
+    """
+    active = DEFAULT_CONFIG if config is None else config
+    evaluation = _evaluate(closes, dates, _benchmark_series(benchmark), index, active)
+    score, status, reasons = _assemble(evaluation, active)
+    return {
+        "as_of": dates[index] if dates else None,
+        "score": score,
+        "status": status,
+        "status_reasons": reasons,
+        "momentum_direction": evaluation["momentum_direction"],
+        "return_20d": evaluation["return_20d"],
+        "components": evaluation["components"],
+        "warnings": evaluation["warnings"],
+    }
+
+
+def compute(
+    closes: list[float],
+    dates: list[str],
+    benchmark: dict[str, float] | None = None,
+    *,
+    symbol: str,
+    benchmark_symbol: str | None = None,
+    benchmark_selection: str = "declared",
+    price_field: str | None = None,
+    config: dict[str, Any] | None = None,
+) -> dict[str, Any]:
+    """Compute the frozen composite momentum block for the final session."""
+    active = config or DEFAULT_CONFIG
+    index = len(closes) - 1
+    evaluation = _evaluate(closes, dates, _benchmark_series(benchmark), index, active)
+    components = evaluation["components"]
+    score, score_status, reasons = _assemble(evaluation, active)
 
     weights = [float(active["weights"][key]) for key in ("risk_adjusted", "regression_trend", "relative_strength")]
     if abs(math.fsum(weights) - 1.0) > 1e-12:
