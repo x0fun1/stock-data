@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 from itertools import pairwise
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -16,6 +16,9 @@ EXCHANGE_TIMEZONES = {"US": "America/New_York", "HK": "Asia/Hong_Kong"}
 ADJUSTMENTS = {"adjusted", "unadjusted", "split_adjusted", "total_return"}
 MIN_OBSERVATION_BARS = 21  # Minimum input for the predeclared 20-observation baseline.
 PRICE_MATCH_TOLERANCE = 0.003
+# A daily bar's source timestamp may label the period start rather than the session close, so the
+# label is accepted anywhere inside the bar's own one-day coverage window.
+_DAILY_BAR_COVERAGE = timedelta(days=1)
 
 
 def calendar_sessions(block: dict[str, Any], market: str) -> list[dict[str, Any]]:
@@ -378,16 +381,20 @@ def _check_latest_close(block: dict[str, Any], bars: list[dict[str, Any]], sessi
         return latest_close
     close_at = close_row.get("close_at")
     latest_close["close_at"] = close_at
-    if (
-        fetch_time
-        and source_time
-        and parse_timestamp(close_at) <= asof
-        and (fetch_time < parse_timestamp(close_at) or source_time < parse_timestamp(close_at))
-    ):
-        findings.fatal("LATEST_OBSERVATION_UNRESOLVED", "market source/fetch timestamp predates the latest session close")
-        latest_close["kind"] = "unverified"
-        findings.reason_codes[:] = [code for code in findings.reason_codes if code != "LATEST_CLOSE_CROSS_VERIFIED"]
-    if latest_close["kind"] == "provider_verified" and calendar_status in {"source_supplied_schedule", "library_verified"} and latest_close["kind"] != "unverified":
+    if fetch_time and source_time and parse_timestamp(close_at) <= asof:
+        close_instant = parse_timestamp(close_at)
+        # A daily bar's source timestamp labels the period it covers: providers stamp either the
+        # session close or the session open (for example 13:30Z for a 20:00Z close). Comparing a
+        # period-start label against the close instant would reject legitimate completed bars, so
+        # the label only has to fall inside the bar's own coverage window, which is one day for a
+        # daily series. Fetch time keeps the strict instant check, because a fetch that precedes
+        # the close cannot contain the close.
+        label_resolves = source_time >= close_instant - _DAILY_BAR_COVERAGE
+        if fetch_time < close_instant or not label_resolves:
+            findings.fatal("LATEST_OBSERVATION_UNRESOLVED", "market source/fetch timestamp predates the latest session close")
+            latest_close["kind"] = "unverified"
+            findings.reason_codes[:] = [code for code in findings.reason_codes if code != "LATEST_CLOSE_CROSS_VERIFIED"]
+    if latest_close["kind"] == "provider_verified" and calendar_status in {"source_supplied_schedule", "library_verified"}:
         latest_close["kind"] = "calendar_verified"
     return latest_close
 

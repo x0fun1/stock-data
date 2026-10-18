@@ -1,3 +1,7 @@
 # Required gateway and Yahoo Finance collection dependencies.
 requests>=2.31,<3
 -r requirements-yahoo.txt
+
+# Optional: enables calendar-verified session closure when the market source supplies no schedule.
+# Not installed by default; the runtime degrades to CALENDAR_FALLBACK_USED without it.
+# exchange_calendars>=4,<5

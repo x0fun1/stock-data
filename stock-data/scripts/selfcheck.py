@@ -920,15 +920,15 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "a2498ff26ae10cc5c67aff7cf6efbf8700b5780eaac9b8d5b144c63630ad725c",
-        "quant_result.json": "17f831e60c1b34b6ea5a8519c2ec351197f8a6d37883ca7dc8b905fed92f9540",
+        "report.json": "4e110a2b7ce42ad0f72e4b61b68dbe361c1aa88e2670597013019a0e7ab97da0",
+        "quant_result.json": "bcb2fff7a4e21a4797a2193d55addda57b90d5d0d11ba40fd7ea730b9b153d1b",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
         "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
         "final_response.md": "190dba292e90bca7704e512492eaf4ddc136c65940f8fb3110272f2d55a95d3b",
     },
     "news": {
-        "report.json": "f9b7f79ca747fbe874e4b42b278e2f5897c82be17ca33cb42f151d484ac2c079",
-        "quant_result.json": "789b20843bef2d0e7b1bd6eafe4eabf6059a8d723eaad1cb0b28251b3f6a0680",
+        "report.json": "03dc057d0f77c3eab0705c048eee047b1a6e5c84c3b64e4a4d2e9b40bc93b327",
+        "quant_result.json": "6a7646e7402301ecc9b6fc9dfee79a18ea7082228737d054d653d2d2bd21287c",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
         "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
         "final_response.md": "5e5141885de1cf5fe0f6ac46a0c1c10258dcfeafcc1ca4b7413db585fd293f22",
@@ -1107,13 +1107,23 @@ def _golden_lookup(container, path: str):
     return current
 
 
+def _offline_library_calendar(*_args: object, **_kwargs: object) -> None:
+    """Offline stand-in for the optional exchange-calendar probe."""
+    return
+
+
 def _golden_run(with_news: bool) -> tuple[dict[str, str], dict[str, object]]:
     """Run the pipeline once in a temp tree and return normalised digests and anchors."""
+    from quant_research import data_checks
     from quant_research.orchestrator import run_analysis
     from quant_research.snapshot import freeze_snapshot
     from quant_research.stock_data_adapter import StockDataAdapter
 
     work = Path(tempfile.mkdtemp(prefix=f"selfcheck_f20_{'news' if with_news else 'plain'}_"))
+    library_calendar = data_checks._library_calendar
+    # The golden fixture pins the offline profile: the optional exchange-calendar probe is disabled
+    # so recorded digests never depend on which optional libraries happen to be installed.
+    data_checks._library_calendar = _offline_library_calendar
     try:
         request = {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast",
                    "asset_type": "stock", "asof": "2026-01-02T21:00:00Z"}
@@ -1138,6 +1148,7 @@ def _golden_run(with_news: bool) -> tuple[dict[str, str], dict[str, object]]:
             anchors[path] = _golden_lookup(containers[root], remainder)
         return artifacts, anchors
     finally:
+        data_checks._library_calendar = library_calendar
         shutil.rmtree(work, ignore_errors=True)
 
 
@@ -1317,6 +1328,38 @@ def check_f21_oos_record_audit() -> None:
     assert backfilled[sessions[2]]["target_definition"] == "close[t+5] / close[t] - 1 > 0"
 
 
+def check_f22_daily_bar_timestamp_precision() -> None:
+    """A daily bar's period-start label must not be judged as an incomplete latest observation."""
+    from quant_research.data_checks import _check_latest_close, _Findings
+
+    last = "2026-01-02"
+    close_at = "2026-01-02T21:00:00+00:00"
+    bars = [{"date": last, "close": 101.5}]
+    sessions = [{"date": last, "close_at": close_at}]
+    block = {"currency": "USD", "actual_source": "synthetic-offline",
+             "latest_price_observations": [
+                 {"price": 101.5, "session_date": last, "price_basis": "raw",
+                  "source": "synthetic-offline"}]}
+    asof = dt.datetime(2026, 1, 3, 0, 30, tzinfo=dt.timezone.utc)
+
+    def run(source_iso: str, fetch_iso: str) -> tuple[list[str], dict]:
+        findings = _Findings()
+        latest = _check_latest_close(
+            block, bars, sessions, last, asof, "source_supplied_schedule",
+            dt.datetime.fromisoformat(source_iso), dt.datetime.fromisoformat(fetch_iso), findings)
+        return findings.reason_codes, latest
+
+    codes, latest = run("2026-01-02T14:30:00+00:00", "2026-01-03T00:30:00+00:00")
+    assert "LATEST_OBSERVATION_UNRESOLVED" not in codes, "session-open label was treated as missing data"
+    assert latest["kind"] == "calendar_verified", f"expected calendar_verified, got {latest['kind']!r}"
+
+    codes, _ = run("2026-01-02T14:30:00+00:00", "2026-01-02T18:00:00+00:00")
+    assert "LATEST_OBSERVATION_UNRESOLVED" in codes, "a fetch before the close must stay blocked"
+
+    codes, _ = run("2025-12-30T00:00:00+00:00", "2026-01-03T00:30:00+00:00")
+    assert "LATEST_OBSERVATION_UNRESOLVED" in codes, "a bar older than the session must stay blocked"
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -1340,6 +1383,7 @@ CHECKS = [
     ("F19 retention and cache pruning", check_f19_retention_gc),
     ("F20 pipeline golden regression", check_f20_pipeline_golden),
     ("F21 OOS record audit reasons", check_f21_oos_record_audit),
+    ("F22 daily bar timestamp precision", check_f22_daily_bar_timestamp_precision),
 ]
 
 if __name__ == "__main__":

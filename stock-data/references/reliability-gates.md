@@ -66,6 +66,8 @@ Do not install packages or access the network to resolve a calendar. The library
 
 Cross-source evidence uses only normalized same-session daily-close observations with matching currency. It reports `cross_source_verified` when at least two distinct providers agree within 0.3%; one valid provider is `provider_verified`; calendar-backed close evidence can be `calendar_verified`. A same-session conflict is fatal. Calendar availability is not a prerequisite for price-source matching. Provider names are source claims, not cryptographic authentication.
 
+A daily bar's source timestamp labels the period it covers, so providers stamp either the session close or the period start (for example a 13:30Z open for a 20:00Z close). The latest observation stays resolved when the label falls inside the bar's own one-day coverage window; a fetch time before the session close, or a bar older than that window, still triggers `LATEST_OBSERVATION_UNRESOLVED`. Only a timestamp that reconciles with the session may be promoted to `calendar_verified`; the check never upgrades a bar whose label is missing or conflicts.
+
 Missing `currency`/`unit` provenance (for example a Yahoo bar whose trade unit the source never confirms) is a degraded confidence marker (`MARKET_UNITS_UNVERIFIED`), not a veto; do not infer the unit from the currency. A malformed or contradicting `currency`/`unit` value remains a source-integrity failure (`MARKET_UNITS_CONFLICT`, fatal veto).
 
 Keep distinct:
