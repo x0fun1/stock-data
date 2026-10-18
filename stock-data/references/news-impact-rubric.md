@@ -86,7 +86,7 @@ The impact block is computed inside the frozen News stage. Because a normal pred
 - `report.md` — one `Impact grading:` line per event with magnitude, observed return, pattern, sigma ratio, source tier, declared vs observed breadth and composite status, followed by the full caveat block above.
 - `agent_summary.json` — a compact per-event projection plus a single `impact_rubric` marker. This file is itself deleted by cleanup and its size is budget-bounded, so it carries only short fields.
 
-If both Markdown files are lost, the grading is not recoverable; use `--keep-json` when the full `news_result.json` impact block must be retained.
+If both Markdown files are lost, the grading is not recoverable; use `--keep-json` when the full `news_result.json` impact block must be retained. Note that the retained Markdown is itself bounded by `gc --retain-days` (default 30 days), so a grading that must survive longer has to be archived outside `runtime/` or kept with `--keep-json`.
 
 ## Attribution caveats
 

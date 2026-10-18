@@ -27,6 +27,10 @@ offline with synthetic data (no network, no yfinance dependency):
            high band; contradicted skill is capped below medium.
 - F15      one-year window defaults: the collector window helper and the recalibrated
            quant/ML sample floors keep both paths feasible at ~252 sessions.
+- F18      orphan scratch sweep: crash-leftover temp files/directories are removed,
+           lock markers and user files are not, and a dry run reports without deleting.
+- F19      retention: only completed run directories past the window expire, a run with
+           unknown files or an unfinished receipt is skipped, stale cache files are pruned.
 
 Usage: python stock-data/scripts/selfcheck.py
 """
@@ -788,6 +792,115 @@ def check_f17_ai_lean_layer() -> None:
     assert empty_result["ai_lean"]["status"] == "invalid"
 
 
+# ---------------------------------------------------------------- F18 / F19
+def check_f18_orphan_sweep() -> None:
+    from quant_research import cleanup
+
+    work = Path(tempfile.mkdtemp(prefix="selfcheck_f18_"))
+    try:
+        root = work / "run"
+        (root / "snapshots").mkdir(parents=True)
+        (root / "research" / "a_1").mkdir(parents=True)
+        (root / "run_manifest.json").write_text("{}", encoding="utf-8")
+        (root / ".pipeline.lock").write_text("pid=1\n", encoding="ascii")
+        (root / "research" / "a_1" / "report.md").write_text("md", encoding="utf-8")
+        (root / "snapshots" / ".market.json.0123456789ab.tmp").write_text("x", encoding="utf-8")
+        scratch = root / "snapshots" / ".snap_20260101T000000000000Z_deadbeef.abc123xy"
+        (scratch / "raw").mkdir(parents=True)
+        (scratch / "manifest.json").write_text("{}", encoding="utf-8")
+        (scratch / "raw" / "market.json").write_text("{}", encoding="utf-8")
+        (root / "notes.txt").write_text("keep", encoding="utf-8")
+
+        preview = cleanup.sweep_orphans(root, dry_run=True)
+        assert preview["removed"] is False
+        assert preview["orphan_files"] == ["snapshots/.market.json.0123456789ab.tmp"], preview
+        assert preview["orphan_directories"] == ["snapshots/.snap_20260101T000000000000Z_deadbeef.abc123xy"], preview
+        assert scratch.exists(), "a dry run must not delete"
+
+        report = cleanup.sweep_orphans(root)
+        assert report["removed"] is True
+        assert not (root / "snapshots" / ".market.json.0123456789ab.tmp").exists()
+        assert not scratch.exists(), "orphan scratch directory survived"
+        for kept in ("run_manifest.json", ".pipeline.lock", "notes.txt"):
+            assert (root / kept).exists(), f"{kept} was removed by the orphan sweep"
+        assert (root / "research" / "a_1" / "report.md").exists()
+        assert (root / "snapshots").is_dir()
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def check_f19_retention_gc() -> None:
+    from quant_research import cleanup, retention
+
+    work = Path(tempfile.mkdtemp(prefix="selfcheck_f19_"))
+    moment = dt.datetime(2026, 6, 1, tzinfo=dt.timezone.utc)
+
+    def make_run(run_id: str, age_days: int, *, receipt: bool = True, extra: str | None = None,
+                 state: str = "cleanup_in_progress") -> Path:
+        root = work / "runs" / run_id
+        (root / "research" / "a_1").mkdir(parents=True)
+        (root / "research" / "a_1" / "report.md").write_text("md", encoding="utf-8")
+        (root / "research" / "a_1" / "final_response.md").write_text("fr", encoding="utf-8")
+        created = (moment - dt.timedelta(days=age_days)).strftime("%Y-%m-%dT%H:%M:%SZ")
+        (root / "run_manifest.json").write_text(json.dumps({
+            "manifest_version": 1, "mode": "owned_pipeline", "run_id": run_id,
+            "state": state, "created_at_utc": created, "collection_name": None,
+            "snapshot_id": None, "analysis_id": "a_1",
+        }), encoding="utf-8")
+        if receipt:
+            (root / cleanup.CLEANUP_RECEIPT).write_text(cleanup._receipt_data(
+                mode="run", run_id=run_id, analysis_id="a_1", snapshot_id=None,
+                collection_name=None, state="complete", response_hash=None, report_hash=None,
+                final_response_hash=None, analysis_status=None, reporting_status=None,
+                targets=[],
+            ), encoding="utf-8")
+        if extra:
+            (root / extra).write_text("x", encoding="utf-8")
+        return root
+
+    try:
+        (work / "runs").mkdir()
+        expired = make_run("run_20260101T000000000000Z_aaaaaaaa", 40)
+        fresh = make_run("run_20260530T000000000000Z_bbbbbbbb", 2)
+        dirty = make_run("run_20260101T000000000000Z_cccccccc", 40, extra="notes.txt")
+        unfinished = make_run("run_20260101T000000000000Z_dddddddd", 40, receipt=False)
+        pending = make_run("run_20260101T000000000000Z_eeeeeeee", 40, receipt=False, state="awaiting_cleanup")
+        cache = work / "yfinance-cache" / "tkr"
+        cache.mkdir(parents=True)
+        (cache / "stale.json").write_text("x", encoding="utf-8")
+        old = (moment - dt.timedelta(days=30)).timestamp()
+        os.utime(cache / "stale.json", (old, old))
+        (cache / "fresh.json").write_text("x", encoding="utf-8")
+
+        preview = retention.gc_runtime(work, retain_days=30, pending_days=1, dry_run=True, now=moment)
+        assert expired.exists() and dirty.exists(), "a dry run must not delete"
+        assert expired.name in preview["runs_would_delete"], preview
+
+        report = retention.gc_runtime(work, retain_days=30, pending_days=1, now=moment)
+        assert report["status"] == "success", report
+        assert report["runs_deleted"] == [expired.name], report
+        assert not expired.exists(), "expired run directory survived"
+        assert fresh.exists(), "a young run directory was expired"
+        assert dirty.exists(), "a run directory with unknown files was expired"
+        assert unfinished.exists(), "a run directory without a complete receipt was expired"
+        assert pending.exists(), "a pending run without verifiable artifacts was expired"
+        skipped = {row["run_id"]: row["reason"] for row in report["runs_skipped"]}
+        assert dirty.name in skipped and "non-retained file" in skipped[dirty.name], skipped
+        assert unfinished.name in skipped, skipped
+        assert pending.name in skipped, skipped
+        assert not (work / "runs" / f".{expired.name}.cleanup.lock").exists()
+        assert not (cache / "stale.json").exists(), "stale cache file survived"
+        assert (cache / "fresh.json").exists(), "fresh cache file was pruned"
+
+        throttled = retention.gc_runtime(work, retain_days=30, throttle_hours=24, now=moment)
+        assert throttled["status"] == "throttled", throttled
+        unthrottled = retention.gc_runtime(work, retain_days=30, throttle_hours=24,
+                                           now=moment + dt.timedelta(hours=25))
+        assert unthrottled["status"] == "success", unthrottled
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -807,6 +920,8 @@ CHECKS = [
     ("F15 52-week window defaults", check_f15_52_week_window_defaults),
     ("F16 factor path fits 52 weeks", check_f16_factor_path_fits_52_weeks),
     ("F17 host AI lean layer", check_f17_ai_lean_layer),
+    ("F18 orphan scratch sweep", check_f18_orphan_sweep),
+    ("F19 retention and cache pruning", check_f19_retention_gc),
 ]
 
 if __name__ == "__main__":

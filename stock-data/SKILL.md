@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.14.0"}
+metadata: {version: "2.15.0"}
 ---
 
 # Stock Data & Quant Research
@@ -64,7 +64,7 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 1. 确认证券身份、资产类型、意图、horizon、as-of 与用户区间。请求契约见 [researcher-contract.md](references/researcher-contract.md)。默认行情窗口是最新已确认收盘日前推 52 周（364 个自然日，约 252 个交易日），这是预测数据的黄金基准；用户显式区间优先，但样本不足不能自动扩窗或降低门槛。
 2. 一次采集并保存市场数据及可用新闻。行情与新闻抓取可并行；来源映射、收盘/freshness 检查、Quant 和最终综合有串行依赖。详细字段见 [collection-adapter.md](references/collection-adapter.md) 和 [reliability-gates.md](references/reliability-gates.md)。每路径不重新下载行情，短新闻窗口不冒充行情档案。
 3. 将 provider 数据明确映射成 `data.bars/articles`；原始 envelope 独立保留且脱敏。不要从字段名猜复权、发布时间、交易日、来源 symbol 或单位。global 调用优先 `--params-file` 和 `--output`，避免全量 stdout 进入上下文。
-4. 常规预测使用 `pipeline --cleanup-json`，让 collection、快照和分析文件进入本次独占的 `runtime/runs/<run_id>/`；交付文本校验后再调用 `cleanup-run`。审计、调试或要求复现的研究使用 `--keep-json`（或逐阶段命令），完整保留 JSON。两种模式都消费同一快照；只在预测资格存在致命阻断时跳过 Quant，其他缺口进入 Reporting Gate 降级或策略限制。
+4. 常规预测使用 `pipeline --cleanup-json`，让 collection、快照和分析文件进入本次独占的 `runtime/runs/<run_id>/`；交付文本校验后再调用 `cleanup-run`。审计、调试或要求复现的研究使用 `--keep-json`（或逐阶段命令），完整保留 JSON。两种模式都消费同一快照；只在预测资格存在致命阻断时跳过 Quant，其他缺口进入 Reporting Gate 降级或策略限制。`pipeline` 启动前会执行一次节流的 `gc`（两种布局模式都触发，每 24 小时最多一次，`--no-gc` 关闭），清扫上次硬崩溃遗留的临时文件、补清理超过 `--pending-days` 仍未交付的运行，并按 `--retain-days`（默认 30 天）删除已完成的 run 目录。
 5. 最低数据计算条件满足时必须尝试 A 条件频率、B 因子验证、C L2 Logistic Regression、D 时间序列 IC/forward-return 诊断；所有所选路径返回后才形成共识和 E 审计。A 当前与历史 OOS 共用同一个成熟匹配样本门槛；每条 OOS 记录要由冻结行情复核决策日、H-session 标签、目标真值、训练标签边界，以及校准标签边界与校准系数（如适用，边界必须早于对应决策日）。共识 OOS 同时报告当前合格路径集合、全候选诊断和按日期可用路径组成的历史等权策略回放，并与因果扩展基率在相同有预测日期上比较。B 必须报告当前校准样本预算；不得自动扩窗、降门槛或把理论预算说成实际预测证据。D/E 不投概率票。策略级 PBO/DSR、交易成本和组合回测仅限制盈利策略声明，不否定单次方向概率。具体实现见 [quant-paths.md](references/quant-paths.md)。
 6. Quant 与 E 完成并冻结后才解释新闻。NewsInput 只有独立新闻、同快照行情和源日历元数据，不接收 Quant；按 [news-analysis.md](references/news-analysis.md) 做 PIT、相关性、时效、去重、事件/观点分离与行情关联。不可用 News 明确 `not_assessed`，不二次联网。
 7. 两份结果冻结并校验后综合。mixed/事件与观点冲突必须保留；neutral + 催化剂单列；News 不能改 Quant P(up) 或恢复被 veto 的概率。归因只能作为待验证解释。
@@ -81,6 +81,8 @@ python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回�
 
 `cleanup-run --dry-run` 可在删除前预览本次允许名单中的 JSON 数量和字节数；清理失败会留下部分状态并支持重试。失败/中断运行默认保留供诊断，只能显式使用 `--force-incomplete` 清理；运行中或其 PID 仍存活时会拒绝清理。对私有运行同时提供 `--run-dir` 和 `--analysis-dir`，后者必须与运行清单一致。单独使用 `--analysis-dir <analysis_dir>` 仅支持旧共享 analysis，清理该目录但不接触所用快照。常规 CLI 不带 `--cleanup-json` 时保持旧共享输出行为；研究归档可显式使用 `--keep-json`。逐阶段入口 `request → adapt → freeze → analyze` 也继续保留；schema 可由 `schema --kind request|collection|news|final` 查看。所有入口只处理已采集文件，不会联网更新快照。
 
+清理前的目录校验会先删除两类可证明属于本进程的崩溃残留：`.<文件名>.<12位hex>.tmp`（原子写残留）和 `.<snapshot_id>.<8位随机>` 目录（快照构建中断）；除此之外的任何未知文件仍然阻断删除。宿主无法交回实际发送文本时，可用 `cleanup-run --assume-delivered` 完成清理，此时仍要求 `final_response.md` 能从冻结报告复现并通过字段契约，回执记为 `delivery=unverified`。`gc` 是独立的保留策略入口：`gc --output-root runtime --dry-run` 预览，正式执行会补清理超过 `--pending-days`（默认 1 天）的 `awaiting_cleanup` 运行、删除超过 `--retain-days`（默认 30 天）且回执为 `complete`、已无 JSON 的 run 目录，并按 `--cache-days`（默认 7 天）清理 provider 缓存；链接、未知文件、未完成回执和存活进程一律跳过并在输出中列出原因。
+
 ## 最终交付契约
 
 通用分析、简析及方向研究要求完整研究链路及八类证据；默认聊天回复为 **summary**，应包括价格/数据时间、Quant 概率/方向/confidence/报告状态、核心技术/因子证据、关键验证限制、News/事件、Quant-News 关系、主要风险和综合结论。完整 Backtest/IC/bias 范围在 `report.md`（standard），源、manifest、原因码与逐路径细节留在 JSON/debug。缺失项明确写未评估；摘要不重复内部 gate/debug 噪音。所有层级保留预测不确定性和历史证据非未来保证说明。
@@ -93,7 +95,7 @@ Quant 成功生成且通过报告资格时，最终用户回复必须展示 `pro
 
 只有一个月或不足 52 周的日线收盘价不能替代默认 52 周 OHLCV 研究，也不能证明 A/B/C 已满足样本与验证要求。403 回退只替换取数来源，不降低数据完整性标准。日历/复权未知、OOS/校准不足及策略审计缺失降低 confidence 或限制策略声明，不取消合格的短周期预测。若采集或快照校验失败到无法生成产物，回复“上涨概率：不可用”、失败阶段及实际缺口，标明研究未完成；不能声称完成 Quant 或自行计算替代概率。不要编造日历/复权证据。
 
-常规预测在校验交付文本后清理本次私有运行的 JSON，保留 `report.md`、`final_response.md` 和只含身份、哈希、清理状态与相对目标名的 `cleanup_receipt.txt`。需要复现、审计或调试时使用 `--keep-json`，不能把清理回执当成完整研究档案。外部输入、旧共享快照、其他分析、用户文件和 Yahoo 缓存不会被自动删除。原始 K 线、新闻正文、中间矩阵和 debug 不进入 LLM；关键驱动解释引用事件 ID/原文链接及 Quant 证据，区分事实、来源观点、推断和未知。
+常规预测在校验交付文本后清理本次私有运行的 JSON，保留 `report.md`、`final_response.md` 和只含身份、哈希、清理状态与相对目标名的 `cleanup_receipt.txt`。需要复现、审计或调试时使用 `--keep-json`，不能把清理回执当成完整研究档案。清理后的 run 目录本身按保留窗口过期：默认 30 天后由 `gc`（或下次 `pipeline` 的节流清扫）删除，因此 `report.md` 与回执不是永久档案；需要长期留存的结论应另行归档。外部输入、旧共享快照、其他分析、用户文件和 provider 缓存中的新文件不会被 run 清理删除。原始 K 线、新闻正文、中间矩阵和 debug 不进入 LLM；关键驱动解释引用事件 ID/原文链接及 Quant 证据，区分事实、来源观点、推断和未知。
 
 ## 外部 DATA 与运行边界
 

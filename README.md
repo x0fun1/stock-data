@@ -60,11 +60,14 @@ python stock-data/scripts/yahoo_collect.py --request request.json --output gatew
 python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime --cleanup-json
 python stock-data/scripts/quant_research.py validate-response --analysis-dir <实际返回的_report_dir> --response-file <待发送的完整回复.md>
 python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回的_run_dir> --analysis-dir <实际返回的_report_dir> --response-file <同一待发送的完整回复.md>
+python stock-data/scripts/quant_research.py gc --output-root runtime --dry-run
 ```
 
 `pipeline` 完成 request → adapt → freeze → analyze。A/B/C 生成合格预测并形成共识，D 做单证券时间序列诊断，E 审计；Quant 冻结后才运行独立 News，再冻结并综合。News 不修改 Quant 概率。优先读取生成的 `final_response.md`，实际待发送文本必须通过校验；CLI `status: success` 仅表示产物写出，还需检查 `analysis_status`、`may_report_direction` 和报告状态。
 
-`--cleanup-json` 将本次运行隔离到 `runtime/runs/<run_id>/`。宿主读取/复制已校验回复后，`cleanup-run` 再次校验并仅删除本次登记的 JSON，保留 `report.md`、`final_response.md`、`cleanup_receipt.txt`。可先加 `--dry-run` 预览。外部输入、其他运行和 Yahoo 缓存不在清理范围；失败/中断运行默认保留。需要复现或审计时使用 `--keep-json`；清理后不能再进行依赖原 JSON 的交付校验。逐阶段命令与更多参数见 `--help`。
+`--cleanup-json` 将本次运行隔离到 `runtime/runs/<run_id>/`。宿主读取/复制已校验回复后，`cleanup-run` 再次校验并仅删除本次登记的 JSON，保留 `report.md`、`final_response.md`、`cleanup_receipt.txt`。可先加 `--dry-run` 预览。外部输入、其他运行和 provider 缓存都不在 run 清理范围内；失败/中断运行默认保留。需要复现或审计时使用 `--keep-json`；清理后不能再进行依赖原 JSON 的交付校验。
+
+清理前会先删除两类崩溃残留：原子写临时文件 `.<文件名>.<12位hex>.tmp` 与快照构建临时目录 `.<snapshot_id>.<8位随机>`；其他未知文件仍会阻断删除。宿主拿不到实际发送文本时可用 `cleanup-run --assume-delivered`，回执记 `delivery=unverified`。`gc` 负责长期保留：默认把超过 1 天仍未交付的 `awaiting_cleanup` 运行补清理，把超过 30 天、回执 `complete` 且已无 JSON 的 run 目录整体删除，并按 7 天清理 provider 缓存；`pipeline` 启动前会节流执行同一套清扫（两种布局模式都触发，每 24 小时一次，`--no-gc` 关闭）。链接、未知文件、未完成回执和存活进程一律跳过并给出原因。逐阶段命令与更多参数见 `--help`。
 
 ## 离线自检
 
@@ -74,11 +77,12 @@ python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回�
 python -B stock-data/scripts/global_stock_data.py --list
 python -B stock-data/scripts/yahoo_collect.py --help
 python -B stock-data/scripts/quant_research.py --help
+python -B stock-data/scripts/quant_research.py gc --help
 python -B stock-data/scripts/quant_research.py schema --kind request
 python -B stock-data/scripts/selfcheck.py
 ```
 
-前四步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验（覆盖校准因果性与前缀不变性、脱敏、交付/清理校验、数据门槛边界、Yahoo 预检与区间可估计性），不访问网络。本仓库仅保留运行 Skill、必需参考和安装说明，不附带独立测试套件、历史审计或上游源码档案；离线回归校验以 `selfcheck.py` 为唯一入口。
+前五步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验（覆盖校准因果性与前缀不变性、脱敏、交付/清理校验、崩溃残留清扫与保留过期、数据门槛边界、Yahoo 预检与区间可估计性），不访问网络。本仓库仅保留运行 Skill、必需参考和安装说明，不附带独立测试套件、历史审计或上游源码档案；离线回归校验以 `selfcheck.py` 为唯一入口。
 
 ## 边界与参考
 
@@ -88,4 +92,4 @@ python -B stock-data/scripts/selfcheck.py
 - [快照契约](stock-data/references/snapshot-schema.md)：冻结输入、完整性和输出路径边界。
 - [来源限制](stock-data/references/source-policies.md)、[来源与许可记录](stock-data/references/upstream-provenance.md)：网络授权、来源声明及集成边界。
 
-当前 Skill `2.14.0`，research runtime `0.11.0`，snapshot schema `1.2`。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。
+当前 Skill `2.15.0`，research runtime `0.12.0`，snapshot schema `1.2`。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。

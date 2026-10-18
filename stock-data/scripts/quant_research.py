@@ -21,6 +21,13 @@ from quant_research.contracts import normalize_request, utc_now
 from quant_research.delivery import validate_final_response
 from quant_research.orchestrator import run_analysis
 from quant_research.paths import safe_output_destination
+from quant_research.retention import (
+    DEFAULT_CACHE_DAYS,
+    DEFAULT_PENDING_DAYS,
+    DEFAULT_RETAIN_DAYS,
+    GC_THROTTLE_HOURS,
+    gc_runtime,
+)
 from quant_research.security import bounded_text
 from quant_research.snapshot import DOMAINS, freeze_snapshot
 from quant_research.stock_data_adapter import StockDataAdapter
@@ -42,7 +49,7 @@ def _schema(kind: str) -> dict[str, Any]:
     if kind == "researcher":
         return {"required": ["researcher_id", "result_role", "ticker", "horizon", "snapshot_id", "direction", "prob_up", "prob_down", "raw_probability", "calibrated_probability", "reportable_probability", "expected_return", "confidence", "probability_source", "evidence", "validation", "data_used", "warnings", "status"], "researcher_ids": ["quant", "factor", "ml", "factor_backtest"], "result_roles": ["forecast", "diagnostic"], "statuses": ["success", "partial", "failed", "insufficient_data", "invalid"], "probability_source_required_when_prob_up_is_numeric": True, "diagnostic_paths_enter_consensus": False}
     if kind == "final":
-        return {"schema_version": "1.2", "required": ["analysis_id", "analysis_status", "reporting_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "confidence_score", "confidence_score_kind", "predictive_evidence_grade", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": "上涨概率：不可用", "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json", "final_response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; preserve literal Quant/identity/relationship/reporting-status fields from final_response.md", "artifact_lifecycle": {"owned_pipeline": "pipeline --cleanup-json writes into runtime/runs/<run_id>; cleanup-run validates the actual prepared reply before deleting only registered JSON", "retained": ["report.md", "final_response.md", "cleanup_receipt.txt"], "research_archive": "omit --cleanup-json or use --keep-json; existing shared snapshots/analyses are never included in run cleanup", "schema_change": False}, "probability_blending": "prohibited"}
+        return {"schema_version": "1.2", "required": ["analysis_id", "analysis_status", "reporting_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "confidence_score", "confidence_score_kind", "predictive_evidence_grade", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": "上涨概率：不可用", "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json", "final_response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; preserve literal Quant/identity/relationship/reporting-status fields from final_response.md", "artifact_lifecycle": {"owned_pipeline": "pipeline --cleanup-json writes into runtime/runs/<run_id>; cleanup-run validates the actual prepared reply before deleting only registered JSON", "retained": ["report.md", "final_response.md", "cleanup_receipt.txt"], "research_archive": "omit --cleanup-json or use --keep-json; existing shared snapshots/analyses are never included in run cleanup", "orphan_sweep": "cleanup-run and gc delete only crash-leftover scratch names (.<file>.<12hex>.tmp, .<snapshot_id>.<8chars> dirs) before validating the tree; any other unknown file still blocks deletion", "retention": "gc expires a run directory only when its receipt is complete, it holds no JSON, it is older than --retain-days and no pipeline lock is live; runs left in awaiting_cleanup past --pending-days are cleaned first with delivery=unverified because the exact outgoing text is unavailable", "cache": "gc prunes provider cache files older than --cache-days; the pipeline runs the same sweep at most once per 24h unless --no-gc", "schema_change": False}, "probability_blending": "prohibited"}
     if kind == "news":
         return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["overall_direction", "event_strength", "sentiment", "source_agreement", "market_confirmation", "major_events", "background_records", "catalysts", "risks", "mixed_events", "confidence", "warnings", "ai_lean_candidates", "ai_lean"], "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only",
                 "ai_lean_artifact": {"path": "--news-ai-assessment <json>", "schema_version": "1.0", "required": ["schema_version", "ticker", "asof_timestamp", "items"], "optional": ["basis", "model"], "item_fields": ["news_id", "lean", "reason", "evidence_grade", "headline", "source", "published_at", "url", "relevance_basis"], "lean_values": ["bullish", "bearish", "mixed", "neutral", "unclear"], "score_generation": "aggregator_only_from_quant_gate", "probability_effect": "none; display-only evidence, never enters direction/confidence/cross-validation or Quant P(up)", "rejected_when": ["unknown or repeated news_id", "ticker/as-of mismatch", "unsupported field", "Quant vocabulary in any text field", "non-allow-listed lean label"]}}
@@ -77,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
     pipeline_mode = pipeline.add_mutually_exclusive_group()
     pipeline_mode.add_argument("--cleanup-json", action="store_true", help="isolate this pipeline run for explicit post-validation JSON cleanup")
     pipeline_mode.add_argument("--keep-json", action="store_true", help="retain JSON in the legacy shared output layout (default)")
+    pipeline.add_argument("--no-gc", action="store_true", help="skip the throttled orphan/retention sweep that every pipeline start runs first")
+    pipeline.add_argument("--retain-days", type=int, default=DEFAULT_RETAIN_DAYS, help="delete completed run directories older than this many days during the sweep")
     delivery = commands.add_parser("validate-response", help="check a prepared reply against frozen Quant/News results before delivery")
     delivery.add_argument("--analysis-dir", type=Path, required=True)
     delivery.add_argument("--response-file", type=Path, required=True)
@@ -86,6 +95,15 @@ def main(argv: list[str] | None = None) -> int:
     cleanup.add_argument("--response-file", type=Path, help="the exact prepared reply text validated before cleanup")
     cleanup.add_argument("--dry-run", action="store_true", help="show registered JSON targets and byte count without deleting")
     cleanup.add_argument("--force-incomplete", action="store_true", help="explicitly allow cleanup of a failed/incomplete run")
+    cleanup.add_argument("--assume-delivered", action="store_true", help="clean a run whose exact reply the host cannot hand back; the retained final_response.md is still validated in place")
+    gc = commands.add_parser("gc", help="sweep orphan scratch paths, finish abandoned runs, expire old run directories and prune the provider cache")
+    gc.add_argument("--output-root", type=Path, default=Path("runtime"), help="runtime root that holds runs/ and the shared layout")
+    gc.add_argument("--retain-days", type=int, default=DEFAULT_RETAIN_DAYS, help="delete completed run directories older than this many days (0 disables)")
+    gc.add_argument("--pending-days", type=int, default=DEFAULT_PENDING_DAYS, help="finish JSON cleanup for runs left awaiting cleanup longer than this (0 disables)")
+    gc.add_argument("--cache-dir", type=Path, help="provider cache directory (default: <output-root>/yfinance-cache)")
+    gc.add_argument("--cache-days", type=int, default=DEFAULT_CACHE_DAYS, help="delete cache files older than this many days (0 disables)")
+    gc.add_argument("--dry-run", action="store_true", help="report what would be removed without deleting")
+    gc.add_argument("--no-throttle", action="store_true", help="ignore the recorded last-run timestamp")
     schema = commands.add_parser("schema", help="print a machine-readable contract")
     schema.add_argument("--kind", choices=("request", "gateway-responses", "collection", "researcher", "news", "final"), required=True)
     args = parser.parse_args(argv)
@@ -110,8 +128,19 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "success", "snapshot_dir": str(location)}, ensure_ascii=False))
         elif args.command in {"analyze", "pipeline"}:
             owned_run = None
+            gc_report: dict[str, Any] | None = None
             try:
                 if args.command == "pipeline":
+                    # Runs before anything is read or written, in both layout modes:
+                    # a host without a scheduler still collects crash leftovers and
+                    # expired runs, and GC must never fail the research pipeline.
+                    if not args.no_gc:
+                        try:
+                            gc_report = gc_runtime(args.output_root, retain_days=args.retain_days,
+                                                   throttle_hours=GC_THROTTLE_HOURS)
+                        except Exception as exc:  # noqa: BLE001 - GC is advisory
+                            gc_report = {"status": "error", "error_type": type(exc).__name__,
+                                         "error": bounded_text(exc)}
                     request_value = normalize_request(json.loads(args.request.read_text(encoding="utf-8-sig")))
                     response_value = json.loads(args.responses.read_text(encoding="utf-8-sig"))
                     if not isinstance(response_value, dict) or not isinstance(response_value.get("domains", response_value), dict):
@@ -156,6 +185,8 @@ def main(argv: list[str] | None = None) -> int:
                     result["run_dir"] = str(owned_run)
                     result["cleanup_required"] = True
                     release_pipeline_lock(owned_run)
+                if gc_report is not None:
+                    result["gc"] = gc_report
                 print(json.dumps(result, ensure_ascii=False))
             except Exception as exc:
                 if owned_run is not None:
@@ -167,14 +198,23 @@ def main(argv: list[str] | None = None) -> int:
             if args.run_dir is not None:
                 result = cleanup_owned_run(args.run_dir, analysis_dir=args.analysis_dir,
                                            response_file=args.response_file,
-                                           dry_run=args.dry_run, force_incomplete=args.force_incomplete)
+                                           dry_run=args.dry_run, force_incomplete=args.force_incomplete,
+                                           delivery_unverified=args.assume_delivered)
             else:
                 if args.analysis_dir is None:
                     raise ValueError("provide --run-dir or --analysis-dir")
                 result = cleanup_analysis(args.analysis_dir, response_file=args.response_file,
-                                          dry_run=args.dry_run, force_incomplete=args.force_incomplete)
+                                          dry_run=args.dry_run, force_incomplete=args.force_incomplete,
+                                          delivery_unverified=args.assume_delivered)
             print(json.dumps(result, ensure_ascii=False))
             return 0 if result.get("cleanup_status") in {"complete", "already_cleaned", "dry_run"} else 2
+        elif args.command == "gc":
+            result = gc_runtime(args.output_root, retain_days=args.retain_days,
+                                cache_days=args.cache_days, pending_days=args.pending_days,
+                                cache_dir=args.cache_dir, dry_run=args.dry_run,
+                                throttle_hours=None if args.no_throttle else GC_THROTTLE_HOURS)
+            print(json.dumps(result, ensure_ascii=False))
+            return 0 if result.get("status") in {"success", "throttled"} else 2
         else:
             # Machine-readable schema must survive Windows console code pages.
             print(json.dumps(_schema(args.kind), ensure_ascii=True, indent=2))

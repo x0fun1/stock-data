@@ -6,9 +6,10 @@ import errno
 import hashlib
 import json
 import os
+import re
 import secrets
 import stat
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
@@ -28,6 +29,14 @@ ANALYSIS_JSON = (
     "news_result.freeze.json", "report.json", "agent_summary.json",
 )
 ANALYSIS_MARKDOWN = ("report.md", "final_response.md")
+# A hard kill leaves these behind: _atomic_write_text names its scratch file
+# ".<target>.<12 hex>.tmp", and freeze_snapshot builds its directory with
+# tempfile.mkdtemp(prefix=".<snapshot_id>.", ...), whose suffix is 8 chars from
+# [a-z0-9_]. Neither name can collide with a registered artifact, a domain file
+# or a lock marker (".pipeline.lock" has a 4-char suffix), so both are provably
+# owned scratch paths rather than user data.
+ORPHAN_TEMP_FILE = re.compile(r"\.[A-Za-z0-9][A-Za-z0-9._-]*\.[0-9a-f]{12}\.tmp")
+ORPHAN_TEMP_DIR = re.compile(r"\.[A-Za-z0-9][A-Za-z0-9._-]*\.[a-z0-9_]{8}")
 
 
 class CleanupError(ValueError):
@@ -233,7 +242,31 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _tree_entries(root: Path) -> tuple[set[str], set[str]]:
+def _excluded(relative: str, ignored: Iterable[str]) -> bool:
+    return any(relative == item or relative.startswith(item + "/") for item in ignored)
+
+
+def _member_path(root: Path, relative: str) -> Path:
+    """Resolve a registered relative member without following a linked segment."""
+    parts = PurePosixPath(relative).parts
+    if not parts or PurePosixPath(relative).is_absolute() or "\\" in relative or ":" in relative:
+        raise CleanupError(f"cleanup member must be a safe relative path: {relative!r}")
+    candidate = root
+    for part in parts:
+        if part in {"", ".", ".."}:
+            raise CleanupError(f"cleanup member must be a safe relative path: {relative!r}")
+        candidate = candidate / part
+        if (candidate.exists() or candidate.is_symlink()) and _is_link(candidate):
+            raise CleanupError(f"refusing to follow linked cleanup member: {relative}")
+    try:
+        candidate.resolve(strict=False).relative_to(root.resolve(strict=True))
+    except (OSError, ValueError) as exc:
+        raise CleanupError(f"cleanup member escapes its owned root: {relative}") from exc
+    return candidate
+
+
+def _tree_entries(root: Path, *, ignore: Iterable[str] = ()) -> tuple[set[str], set[str]]:
+    ignored = tuple(ignore)
     files: set[str] = set()
     directories: set[str] = set()
     for current, dirnames, filenames in os.walk(root, topdown=True, followlinks=False):
@@ -242,13 +275,84 @@ def _tree_entries(root: Path) -> tuple[set[str], set[str]]:
             path = current_path / name
             if _is_link(path) or not path.is_dir():
                 raise CleanupError(f"linked or non-directory path in cleanup tree: {path.name}")
-            directories.add(path.relative_to(root).as_posix())
+            relative = path.relative_to(root).as_posix()
+            if _excluded(relative, ignored):
+                dirnames.remove(name)
+                continue
+            directories.add(relative)
         for name in filenames:
             path = current_path / name
             if _is_link(path) or not stat.S_ISREG(path.lstat().st_mode):
                 raise CleanupError(f"linked or non-regular file in cleanup tree: {path.name}")
-            files.add(path.relative_to(root).as_posix())
+            relative = path.relative_to(root).as_posix()
+            if _excluded(relative, ignored):
+                continue
+            files.add(relative)
     return files, directories
+
+
+def sweep_orphans(root: Path, *, dry_run: bool = False) -> dict[str, Any]:
+    """Remove scratch paths a hard-killed writer left inside an owned tree.
+
+    Cleanup refuses a tree containing unknown entries, so a crashed atomic write
+    or an interrupted snapshot build would otherwise block every later cleanup
+    until a human deleted the leftovers. Only names that the writers themselves
+    produce are matched, links abort the sweep, and nothing outside the two
+    documented scratch patterns is touched. Callers run it only after the cleanup
+    lock is held and the pipeline PID is proven dead, so an in-flight scratch
+    file is never a target.
+    """
+    base = _real_directory(root, "run directory")
+    files, directories = _tree_entries(base)
+    temp_dirs = sorted(name for name in directories
+                       if ORPHAN_TEMP_DIR.fullmatch(PurePosixPath(name).name))
+    temp_dirs = [name for name in temp_dirs
+                 if not any(name != other and name.startswith(other + "/") for other in temp_dirs)]
+    temp_files = sorted(name for name in files
+                        if ORPHAN_TEMP_FILE.fullmatch(PurePosixPath(name).name)
+                        and not any(name.startswith(directory + "/") for directory in temp_dirs))
+    report: dict[str, Any] = {"orphan_files": temp_files, "orphan_directories": temp_dirs,
+                              "orphan_bytes": 0, "removed": not dry_run}
+    if dry_run:
+        nested = [name for name in files if any(name.startswith(directory + "/") for directory in temp_dirs)]
+        report["orphan_bytes"] = sum((base / name).stat().st_size for name in temp_files + nested)
+        return report
+    removed_bytes = 0
+    for relative in temp_files:
+        path = _member_path(base, relative)
+        if not path.is_file() or _is_link(path):
+            raise CleanupError(f"orphan scratch file changed before removal: {relative}")
+        removed_bytes += path.stat().st_size
+        path.unlink()
+    for relative in temp_dirs:
+        path = _member_path(base, relative)
+        if not path.is_dir() or _is_link(path):
+            raise CleanupError(f"orphan scratch directory changed before removal: {relative}")
+        nested = sorted((name for name in files if name.startswith(relative + "/")),
+                        key=lambda name: (name.count("/"), name), reverse=True)
+        for name in nested:
+            child = _member_path(base, name)
+            if not child.is_file() or _is_link(child):
+                raise CleanupError(f"orphan scratch file changed before removal: {name}")
+            removed_bytes += child.stat().st_size
+            child.unlink()
+        for name in sorted((item for item in directories if item.startswith(relative + "/")),
+                           key=lambda item: (item.count("/"), item), reverse=True):
+            _member_path(base, name).rmdir()
+        path.rmdir()
+    report["orphan_bytes"] = removed_bytes
+    return report
+
+
+def _orphan_ignore(report: dict[str, Any]) -> set[str]:
+    """Paths a dry run would have swept; validation must ignore them as if gone."""
+    return set(report.get("orphan_files") or ()) | set(report.get("orphan_directories") or ())
+
+
+def _orphan_counts(report: dict[str, Any], *, dry_run: bool) -> dict[str, int]:
+    """Separate what was found from what was actually deleted (a dry run deletes nothing)."""
+    total = len(report.get("orphan_files") or ()) + len(report.get("orphan_directories") or ())
+    return {"orphans_detected": total, "orphans_removed": 0 if dry_run else total}
 
 
 def _analysis_targets(analysis_id: str) -> set[str]:
@@ -307,12 +411,13 @@ def _receipt_data(
     report_hash: str | None, final_response_hash: str | None,
     analysis_status: str | None, reporting_status: str | None,
     targets: list[tuple[str, str, int]], removed_file_count: int = 0,
-    removed_bytes: int = 0, errors: list[str] | None = None,
+    removed_bytes: int = 0, errors: list[str] | None = None, delivery: str = "",
 ) -> str:
     lines = [
         "format=stock-data-cleanup-v1", f"mode={mode}", f"run_id={run_id}",
         f"analysis_id={analysis_id or ''}", f"snapshot_id={snapshot_id or ''}",
         f"collection_name={collection_name or ''}", f"state={state}",
+        f"delivery={delivery}",
         f"response_sha256={response_hash or ''}", f"report_sha256={report_hash or ''}",
         f"final_response_sha256={final_response_hash or ''}",
         f"analysis_status={analysis_status or ''}", f"reporting_status={reporting_status or ''}",
@@ -353,6 +458,8 @@ def _read_receipt(path: Path) -> dict[str, Any]:
         raise CleanupError("cleanup receipt format or target list is invalid")
     if values.get("state") not in {"in_progress", "partial", "complete"}:
         raise CleanupError("cleanup receipt state is invalid")
+    if values.get("delivery", "") not in {"", "verified", "unverified"}:
+        raise CleanupError("cleanup receipt delivery mode is invalid")
     if len({name for name, _, _ in targets}) != len(targets):
         raise CleanupError("cleanup receipt contains duplicate targets")
     for name, digest, _ in targets:
@@ -405,9 +512,9 @@ def _target_path(root: Path, relative: str) -> Path:
 
 def _validate_tree(
     root: Path, *, expected_files: set[str], expected_dirs: set[str],
-    allowed_markdown: set[str], allow_missing: bool,
+    allowed_markdown: set[str], allow_missing: bool, ignore: Iterable[str] = (),
 ) -> set[str]:
-    files, directories = _tree_entries(root)
+    files, directories = _tree_entries(root, ignore=ignore)
     allowed_files = expected_files | allowed_markdown
     unknown_files = files - allowed_files
     unknown_dirs = directories - expected_dirs
@@ -459,7 +566,9 @@ def _execute_cleanup(
     if dry_run:
         return {"cleanup_status": "dry_run", "mode": metadata["mode"],
                 "json_file_count": len(existing), "json_bytes": size,
-                "files": existing, "receipt_file": str(receipt_path)}
+                "files": existing, "receipt_file": str(receipt_path),
+                "orphans_removed": int(metadata.get("orphans_removed", 0)),
+                "orphans_detected": int(metadata.get("orphans_detected", 0))}
 
     receipt_path.parent.mkdir(parents=True, exist_ok=True)
     if not receipt_path.exists():
@@ -516,6 +625,8 @@ def _execute_cleanup(
             "planned_json_bytes": target_bytes,
             "remaining_json_files": remaining, "errors": errors,
             "retained_files": retained_files,
+            "orphans_removed": int(metadata.get("orphans_removed", 0)),
+            "orphans_detected": int(metadata.get("orphans_detected", 0)),
             "receipt_file": str(receipt_path)}
 
 
@@ -533,6 +644,7 @@ def _format_receipt(
         reporting_status=metadata.get("reporting_status"), targets=targets,
         removed_file_count=int(metadata.get("removed_file_count", 0)),
         removed_bytes=int(metadata.get("removed_bytes", 0)), errors=errors,
+        delivery=str(metadata.get("delivery", "")),
     )
 
 
@@ -593,6 +705,7 @@ def _verify_retained_artifacts(analysis_dir: Path) -> None:
 def cleanup_analysis(
     analysis_dir: Path, *, response_file: Path | None = None,
     dry_run: bool = False, force_incomplete: bool = False,
+    delivery_unverified: bool = False,
 ) -> dict[str, Any]:
     """Clean only explicitly named analysis JSON; never inspect or delete its snapshot."""
     analysis, analysis_id = _read_analysis_identity(analysis_dir)
@@ -623,6 +736,8 @@ def cleanup_analysis(
                 raise CleanupError("analysis belongs to an owned pipeline; use --run-dir to preserve run inventory")
     lock = analysis.parent / f".{analysis_id}.cleanup.lock"
     with _exclusive_lock(lock):
+        orphans = sweep_orphans(analysis, dry_run=dry_run)
+        ignored = _orphan_ignore(orphans)
         receipt_path = analysis / CLEANUP_RECEIPT
         existing_receipt = _read_receipt(receipt_path) if receipt_path.exists() else None
         expected = set(ANALYSIS_JSON) | {f"researchers/{name}.json" for name in RESEARCHERS}
@@ -630,7 +745,7 @@ def cleanup_analysis(
             if existing_receipt.get("mode") != "analysis" or existing_receipt.get("analysis_id") != analysis_id:
                 raise CleanupError("existing cleanup receipt belongs to a different analysis")
             if existing_receipt.get("state") == "complete":
-                files, directories = _tree_entries(analysis)
+                files, directories = _tree_entries(analysis, ignore=ignored)
                 allowed = set(ANALYSIS_MARKDOWN) | {CLEANUP_RECEIPT}
                 if files - allowed or directories:
                     raise CleanupError("JSON or unexpected files appeared after cleanup")
@@ -643,6 +758,7 @@ def cleanup_analysis(
                         "reporting_status": existing_receipt.get("reporting_status") or None,
                         "json_file_count": int(existing_receipt.get("removed_file_count", "0")),
                         "json_bytes": int(existing_receipt.get("removed_json_bytes", "0")),
+                        **_orphan_counts(orphans, dry_run=dry_run),
                         "retained_files": [str(analysis / name) for name in ANALYSIS_MARKDOWN
                                            if (analysis / name).is_file()],
                         "errors": [],
@@ -651,7 +767,7 @@ def cleanup_analysis(
             targets = existing_receipt["targets"]
             if not {name for name, _, _ in targets} <= expected:
                 raise CleanupError("analysis cleanup receipt contains an unowned target")
-            files, directories = _tree_entries(analysis)
+            files, directories = _tree_entries(analysis, ignore=ignored)
             allowed = expected | set(ANALYSIS_MARKDOWN) | {CLEANUP_RECEIPT}
             if files - allowed or directories - {"researchers"}:
                 raise CleanupError("unknown files or directories prevent cleanup")
@@ -673,16 +789,18 @@ def cleanup_analysis(
                 "removed_bytes": int(existing_receipt.get("removed_json_bytes", "0")),
                 "empty_directories": ["researchers"],
                 "retained_paths": list(ANALYSIS_MARKDOWN),
+                "delivery": existing_receipt.get("delivery") or "",
             })
             return _execute_cleanup(analysis, receipt_path, metadata, targets, dry_run=dry_run)
 
         actual = _validate_tree(analysis, expected_files=expected, expected_dirs={"researchers"},
-                                allowed_markdown=set(ANALYSIS_MARKDOWN), allow_missing=force_incomplete)
+                                allowed_markdown=set(ANALYSIS_MARKDOWN), allow_missing=force_incomplete,
+                                ignore=ignored)
         validation = None
         response_hash = None
         if not force_incomplete:
-            if response_file is None and not dry_run:
-                raise CleanupError("response_file is required unless --force-incomplete is explicit")
+            if response_file is None and not dry_run and not delivery_unverified:
+                raise CleanupError("response_file is required unless --force-incomplete or --assume-delivered is explicit")
             if response_file is not None:
                 validation = validate_final_response(analysis, response_file)
                 if validation.get("analysis_id") != analysis_id:
@@ -698,7 +816,9 @@ def cleanup_analysis(
                     "final_response_hash": retained.get("final_response_hash"),
                     "analysis_status": validation.get("analysis_status") if validation else None,
                     "reporting_status": validation.get("reporting_status") if validation else None,
-                    "empty_directories": ["researchers"], "retained_paths": list(ANALYSIS_MARKDOWN)}
+                    "empty_directories": ["researchers"], "retained_paths": list(ANALYSIS_MARKDOWN),
+                    "delivery": "verified" if validation else ("unverified" if delivery_unverified else ""),
+                    **_orphan_counts(orphans, dry_run=dry_run)}
         result = _execute_cleanup(analysis, receipt_path, metadata, targets, dry_run=dry_run)
         if validation and result.get("cleanup_status") == "complete":
             result.update({key: validation.get(key) for key in
@@ -709,6 +829,7 @@ def cleanup_analysis(
 def cleanup_owned_run(
     run_dir: Path, *, analysis_dir: Path | None = None, response_file: Path | None = None,
     dry_run: bool = False, force_incomplete: bool = False,
+    delivery_unverified: bool = False,
 ) -> dict[str, Any]:
     """Validate and clean only JSON created by an isolated pipeline run."""
     root = _real_directory(run_dir, "run directory")
@@ -732,6 +853,10 @@ def cleanup_owned_run(
             if not force_incomplete:
                 raise CleanupError("interrupted pipeline requires --force-incomplete to clear its stale lock")
             stale_pipeline_marker = True
+        # A crashed writer's scratch paths would otherwise be reported as unknown
+        # entries and block every later cleanup of this run.
+        orphans = sweep_orphans(root, dry_run=dry_run)
+        ignored = _orphan_ignore(orphans)
         manifest_path = root / RUN_MANIFEST
         receipt_path = root / CLEANUP_RECEIPT
         receipt: dict[str, Any] | None = None
@@ -776,7 +901,7 @@ def cleanup_owned_run(
                 if (receipt.get(key) or "") != (value or ""):
                     raise CleanupError("cleanup receipt does not match the registered run ownership")
             if receipt.get("state") == "complete":
-                files, directories = _tree_entries(root)
+                files, directories = _tree_entries(root, ignore=ignored)
                 allowed_files = _allowed_markdown(analysis_id, full_run=True) | {CLEANUP_RECEIPT}
                 if stale_pipeline_marker:
                     allowed_files.add(PIPELINE_LOCK)
@@ -795,6 +920,7 @@ def cleanup_owned_run(
                         "reporting_status": receipt.get("reporting_status") or None,
                         "json_file_count": int(receipt.get("removed_file_count", "0")),
                         "json_bytes": int(receipt.get("removed_json_bytes", "0")),
+                        **_orphan_counts(orphans, dry_run=dry_run),
                         "retained_files": [str(root / name) for name in _allowed_markdown(analysis_id, full_run=True)
                                            if (root / name).is_file()],
                         "errors": [],
@@ -806,8 +932,8 @@ def cleanup_owned_run(
         force_mode = bool(force_incomplete and state in {"failed", "running"})
         if not resuming and state != "awaiting_cleanup" and not force_mode:
             raise CleanupError("run is not complete; failed/incomplete runs require --force-incomplete")
-        if not resuming and not force_mode and response_file is None and not dry_run:
-            raise CleanupError("response_file is required before cleanup")
+        if not resuming and not force_mode and response_file is None and not dry_run and not delivery_unverified:
+            raise CleanupError("response_file is required before cleanup unless delivery is explicitly unverified")
         if not resuming and not force_mode and response_file is not None:
             if not analysis_id or not snapshot_id:
                 raise CleanupError("completed run has no registered analysis/snapshot identity")
@@ -835,7 +961,7 @@ def cleanup_owned_run(
             targets = receipt["targets"]
             if not {name for name, _, _ in targets} <= expected:
                 raise CleanupError("cleanup receipt contains an unowned target")
-            files, directories = _tree_entries(root)
+            files, directories = _tree_entries(root, ignore=ignored)
             allowed_run_files = allowed_markdown | {CLEANUP_RECEIPT}
             if stale_pipeline_marker:
                 allowed_run_files.add(PIPELINE_LOCK)
@@ -853,7 +979,7 @@ def cleanup_owned_run(
             actual = _validate_tree(root, expected_files=expected,
                                     expected_dirs=allowed_dirs,
                                     allowed_markdown=initial_allowed_files,
-                                    allow_missing=force_mode)
+                                    allow_missing=force_mode, ignore=ignored)
             if not force_mode:
                 if not analysis_id:
                     raise CleanupError("completed run has no registered analysis directory")
@@ -880,7 +1006,11 @@ def cleanup_owned_run(
                     "analysis_status": validation.get("analysis_status") if validation else (receipt.get("analysis_status") if receipt else None),
                     "reporting_status": validation.get("reporting_status") if validation else (receipt.get("reporting_status") if receipt else None),
                     "empty_directories": empty_directories,
-                    "retained_paths": retained_paths}
+                    "retained_paths": retained_paths,
+                    "delivery": ("verified" if validation else
+                                 "unverified" if delivery_unverified else
+                                 (receipt.get("delivery") if receipt else "")),
+                    **_orphan_counts(orphans, dry_run=dry_run)}
         if receipt:
             metadata["removed_file_count"] = int(receipt.get("removed_file_count", "0"))
             metadata["removed_bytes"] = int(receipt.get("removed_json_bytes", "0"))
