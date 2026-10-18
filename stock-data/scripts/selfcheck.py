@@ -920,18 +920,18 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "1e41860369102da4c28f9f3804f9379d582a1538796718c17cb1fc1e1dcb6f1a",
-        "quant_result.json": "dab87788e7037cef03079b48fbb77198aa4e32ac39dcebeb9b099280d5f75af0",
+        "report.json": "d1556147888f84244c40cabce5f6f21dcf7821142223ce7b587c3d66438bd8da",
+        "quant_result.json": "2b48f8fd289d02cd33fbfe6a3ccdf87a7f6a42b57cc434c7e06777ab2b51f1d1",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
         "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
-        "final_response.md": "e213b92c3e70fc74844420dafdb758fb4cc2e261e873909c0c26fc6c33c3216a",
+        "final_response.md": "e373c4a67ba816c4659a8d50f10f7d60e2cd4fe5a9e4e3e63602c6e97e4c7d39",
     },
     "news": {
-        "report.json": "cbdb5872a5fe9977bc755a80d411cc2d4d901f26637aee821e05f7e2e1b75117",
-        "quant_result.json": "0b599d1eaf7b45cda1979e974f2dee6b3916a368b807d782203144dfcefadff8",
+        "report.json": "0625788795ba5a219bc0ab2cdaa89d332aeec40846daf98649b7ab7799b4d20d",
+        "quant_result.json": "15331da1402fe6dfcf1d29f2811541f1c4c080f2c318b0e5236cec0a2a5b213f",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
         "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
-        "final_response.md": "e9d57555676c27386a63ef45f44e92ee84950af3b5c44fddf0764138d4be90b3",
+        "final_response.md": "e104336fb6a4407775c43905835e2209b97d0b500e03915427f9225f651308d2",
     },
 }
 GOLDEN_ANCHORS: dict[str, dict[str, object]] = {
@@ -1406,7 +1406,7 @@ def check_f24_shared_support_ceiling() -> None:
         quality, {"horizon": "5D"}), "grade must use the same ceiling as the composite"
 
 
-def _momentum_pipeline_run(with_benchmark: bool) -> tuple[float, dict]:
+def _momentum_pipeline_run(with_benchmark: bool) -> tuple[float, dict, dict]:
     """Run the offline fixture with or without a declared benchmark series."""
     from quant_research import data_checks
     from quant_research.orchestrator import run_analysis
@@ -1432,7 +1432,8 @@ def _momentum_pipeline_run(with_benchmark: bool) -> tuple[float, dict]:
         analysis = run_analysis(snapshot, work / "research")
         quant = json.loads((analysis / "quant_result.json").read_text(encoding="utf-8"))
         block = quant["researchers"]["quant"]["validation"]["momentum_20d"]
-        return float(quant["consensus"]["prob_up"]), block
+        report = json.loads((analysis / "report.json").read_text(encoding="utf-8"))
+        return float(quant["consensus"]["prob_up"]), block, report
     finally:
         data_checks._library_calendar = library_calendar
         shutil.rmtree(work, ignore_errors=True)
@@ -1498,14 +1499,83 @@ def check_f25_composite_momentum() -> None:
         raise AssertionError("a benchmark identical to the target must not yield a score")
 
     # Isolation: declaring a benchmark must not move the probability by even one bit.
-    plain_prob, plain_block = _momentum_pipeline_run(False)
-    bench_prob, bench_block = _momentum_pipeline_run(True)
+    plain_prob, plain_block, _ = _momentum_pipeline_run(False)
+    bench_prob, bench_block, _ = _momentum_pipeline_run(True)
     if plain_prob != bench_prob:
         raise AssertionError(f"probability moved when a benchmark was declared: {plain_prob} != {bench_prob}")
     if plain_block["score_status"] != "unavailable" or plain_block["momentum_score_20d"] is not None:
         raise AssertionError("without a benchmark the momentum score must be unavailable")
     if bench_block["score_status"] != "valid" or bench_block["benchmark"]["symbol"] != "BMK":
         raise AssertionError(f"declared benchmark should produce a valid score: {bench_block['status_reasons']}")
+
+
+def check_f26_momentum_probability_separation() -> None:
+    """F26: momentum keeps its own section and one contract-bound verdict line."""
+    from quant_research.delivery import validate_response_text
+    from quant_research.report import _momentum_relationship_line as verdict
+    from quant_research.report import render_final_response
+
+    prob, block, report = _momentum_pipeline_run(True)
+    if block["score_status"] != "valid":
+        raise AssertionError(f"fixture momentum should be valid: {block['status_reasons']}")
+    text = render_final_response(report)
+    validate_response_text(report, text)
+
+    header = "### 动量特征（独立诊断，不是上涨概率）"
+    if header not in text:
+        raise AssertionError("momentum needs its own labelled section")
+    quant_block = text.split("### Quant", 1)[1].split(header, 1)[0]
+    if "动量" in quant_block:
+        raise AssertionError("momentum must not be mixed into the Quant block")
+    line = verdict(report)
+    if line not in text:
+        raise AssertionError("the momentum-vs-probability verdict must be rendered verbatim")
+    if not line.startswith("- 动量与上涨概率的关系："):
+        raise AssertionError("the verdict line must keep its fixed prefix")
+
+    def probe(momentum_direction: str, prob_up: float, direction: str) -> str:
+        copy = json.loads(json.dumps(report))
+        copy["researchers"]["quant"]["validation"]["momentum_20d"]["momentum_direction"] = momentum_direction
+        copy["consensus"]["prob_up"] = prob_up
+        copy["consensus"]["direction"] = direction
+        return verdict(copy)
+
+    divergent = probe("positive", 0.31, "bearish")
+    if "背离" not in divergent or "下跌更常见" not in divergent:
+        raise AssertionError(f"a positive momentum beside a bearish probability is divergent: {divergent}")
+    aligned = probe("positive", 0.72, "bullish")
+    if "一致（同向）" not in aligned:
+        raise AssertionError(f"same-signed momentum and probability must read as aligned: {aligned}")
+    flat = probe("flat", 0.55, "bullish")
+    if "动量持平" not in flat:
+        raise AssertionError(f"a flat momentum must be named as such: {flat}")
+    unavailable = json.loads(json.dumps(report))
+    unavailable["researchers"]["quant"]["validation"]["momentum_20d"]["score_status"] = "unavailable"
+    if "不可比" not in verdict(unavailable) or "也不做默认替代" not in verdict(unavailable):
+        raise AssertionError("an unavailable feature must not be silently treated as neutral")
+    missing = json.loads(json.dumps(report))
+    missing["researchers"]["quant"]["validation"].pop("momentum_20d", None)
+    if "不可比" not in verdict(missing):
+        raise AssertionError("an absent feature must not be silently treated as neutral")
+
+    # The verdict is contract-bound: a reworded or dropped line must be rejected.
+    def rejected(candidate: str) -> bool:
+        try:
+            validate_response_text(report, candidate)
+        except ValueError:
+            return True
+        return False
+
+    tampered = (text.replace(line, line.replace("背离", "一致")) if "背离" in line
+                else text.replace(line, "- 动量与上涨概率的关系：一致（同向）。"))
+    for bad_text, label in ((tampered, "reworded-verdict"),
+                            (text.replace(line + "\n", ""), "dropped-verdict")):
+        if not rejected(bad_text):
+            raise AssertionError(f"{label} was not rejected")
+
+    # Rendering the verdict must not touch the probability.
+    if float(report["consensus"]["prob_up"]) != prob:
+        raise AssertionError("rendering must not modify the reported probability")
 
 
 CHECKS = [
@@ -1535,6 +1605,7 @@ CHECKS = [
     ("F23 window-scaled OOS support", check_f23_window_scaled_support),
     ("F24 shared support ceiling", check_f24_shared_support_ceiling),
     ("F25 composite momentum feature", check_f25_composite_momentum),
+    ("F26 momentum probability separation", check_f26_momentum_probability_separation),
 ]
 
 if __name__ == "__main__":

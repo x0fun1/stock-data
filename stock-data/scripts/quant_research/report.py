@@ -107,6 +107,87 @@ def _quant_lines(fields: dict[str, Any]) -> list[str]:
     return lines
 
 
+_MOMENTUM_SIGN_CN = {"positive": "正", "negative": "负"}
+_MOMENTUM_UNAVAILABLE = "- 20日综合动量特征：Unavailable（本次运行未计算）；不是上涨概率"
+
+
+def _momentum_bucket(result: dict[str, Any], prob_up: float) -> tuple[float, int, list[float]] | None:
+    """Return the momentum row that produced the reported probability, when present."""
+    evidence = ((result.get("researchers") or {}).get("quant") or {}).get("evidence")
+    side = "positive" if prob_up >= 0.5 else "negative"
+    rows = (evidence or {}).get(side) if isinstance(evidence, dict) else None
+    for row in rows or []:
+        if not isinstance(row, dict) or row.get("family") != "momentum":
+            continue
+        hit = row.get("empirical_hit_rate")
+        samples = row.get("non_overlapping_samples")
+        interval = row.get("wilson_95_interval")
+        if isinstance(hit, (int, float)) and not isinstance(hit, bool) and isinstance(samples, int):
+            bounds = [float(value) for value in interval or []
+                      if isinstance(value, (int, float)) and not isinstance(value, bool)]
+            return float(hit), samples, bounds
+    return None
+
+
+def _momentum_relationship_line(result: dict[str, Any]) -> str:
+    """Bind the momentum-vs-probability verdict to one literal, contract-bound line.
+
+    The momentum score describes the current price path; P(up) is the historical hit
+    rate of same-sign samples. A negative score beside a bullish probability is not a
+    contradiction, so the reply has to name the case instead of leaving the reader to
+    infer one. The line is part of ``required_response_lines`` so a host cannot reword
+    or omit it, and nothing here feeds back into the probability.
+    """
+    quant = (result.get("researchers") or {}).get("quant") or {}
+    block = (quant.get("validation") or {}).get("momentum_20d")
+    prob = reportable_quant_fields(result).get("prob_up")
+    if not isinstance(block, dict):
+        return ("- 动量与上涨概率的关系：不可比。本次运行未计算 20 日动量特征，因此不对二者作判断，"
+                "也不把它当作中性证据。")
+    status = str(block.get("score_status"))
+    direction = str(block.get("momentum_direction"))
+    score = block.get("momentum_score_20d")
+    score_text = f"{float(score):+.2f}" if isinstance(score, (int, float)) and not isinstance(score, bool) else "Unavailable"
+    return_text = _pct(block.get("return_20d"))
+    if status != "valid" or prob is None or direction not in {"positive", "negative", "flat"}:
+        reasons = block.get("status_reasons") or []
+        reason = _cell(reasons[0]) if reasons else f"状态 {_cell(status)}"
+        return (f"- 动量与上涨概率的关系：不可比。动量特征不可用（{reason}），因此不对二者作判断，"
+                "也不做默认替代。")
+    if direction == "flat":
+        return (f"- 动量与上涨概率的关系：动量持平。20 日累计收益 {return_text}、综合动量 {score_text} 接近零，"
+                f"不构成方向信号；上涨概率 {_pct(prob)} 仍只由自身条件历史给出，不因动量持平而调整，二者不构成矛盾。")
+    bucket = _momentum_bucket(result, float(prob))
+    sign_cn = _MOMENTUM_SIGN_CN.get(direction, direction)
+    stats = ""
+    if bucket:
+        hit, samples, bounds = bucket
+        stats = f" = {_pct(hit)}（非重叠 {samples} 个样本"
+        if len(bounds) == 2:
+            stats += f"；Wilson 95% 区间 {_pct(bounds[0])}–{_pct(bounds[1])}"
+            if bounds[0] < 0.5 < bounds[1]:
+                stats += "，跨越 50%，该条件证据本身不稳健"
+        stats += "）"
+    aligned = (direction == "positive") == (float(prob) >= 0.5)
+    if aligned:
+        return (f"- 动量与上涨概率的关系：一致（同向）。动量方向（{sign_cn}）与概率方向相同，但两者仍不是同一件事："
+                f"{_pct(prob)} 是历史中与当前同号（{sign_cn}）动量样本的上涨占比{stats}，"
+                f"综合动量 {score_text} 只是当期价格路径的描述。动量特征不参与该概率的计算，也不改变它。")
+    return (f"- 动量与上涨概率的关系：背离（方向相反），但不是矛盾。{_pct(prob)} 不是动量数值的映射，"
+            f"而是历史中与当前同号（{sign_cn}）动量的样本里上涨的占比{stats}。"
+            f"因此这里同时成立的两件事是：当期 20 日累计收益 {return_text}（综合动量 {score_text}，方向{sign_cn}），"
+            f"而该条件在样本内{'上涨' if float(prob) >= 0.5 else '下跌'}更常见。"
+            "动量特征不参与该概率的计算，也不改变它。")
+
+
+def _momentum_section(required: dict[str, str]) -> list[str]:
+    """Render momentum as its own section, never as a line inside the Quant block."""
+    lines = [required["momentum_feature"]]
+    if "momentum_components" in required:
+        lines.append(required["momentum_components"])
+    return ["", "### 动量特征（独立诊断，不是上涨概率）", "", *lines, required["momentum_relationship"]]
+
+
 def _momentum_lines(result: dict[str, Any]) -> list[str]:
     """Render the composite momentum feature without turning it into a probability."""
     researchers = result.get("researchers") or {}
@@ -120,8 +201,11 @@ def _momentum_lines(result: dict[str, Any]) -> list[str]:
         str(block.get("momentum_direction")), _cell(block.get("momentum_direction"))
     )
     return_20d = block.get("return_20d")
+    # Underscores in the internal id would be backslash-escaped for Markdown and shown
+    # literally as "momentum\_20d\_v1" in plain-text channels; the display form uses hyphens.
+    model = str(block.get("model_version") or "momentum_20d_v1").replace("_", "-")
     lines = [
-        f"- 20日综合动量特征（{_cell(block.get('model_version'))}）：{score_text}"
+        f"- 20日综合动量特征（{_cell(model)}）：{score_text}"
         f"（状态 {status}；绝对方向 {direction}，20日累计收益 {_pct(return_20d)}）；特征分 −100~+100，不是上涨概率",
     ]
     components = block.get("components") or {}
@@ -304,6 +388,11 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
         required["unavailable_reason"] = "- 概率不可用原因：" + _cell(_unavailable_reasons(result)[0])
     else:
         required["calibration"] = next(line for line in _quant_lines(fields) if line.startswith("- 联合概率校准："))
+    momentum_lines = _momentum_lines(result) or [_MOMENTUM_UNAVAILABLE]
+    required["momentum_feature"] = momentum_lines[0]
+    if len(momentum_lines) > 1:
+        required["momentum_components"] = momentum_lines[1]
+    required["momentum_relationship"] = _momentum_relationship_line(result)
     return required
 
 
@@ -315,7 +404,7 @@ def render_final_response(result: dict[str, Any], *, summary: dict[str, Any] | N
     price, news = sections["price_time"] or {}, sections["news"]
     lines = [f"# {_cell(snapshot['ticker'])} 简析", "", required["identity"],
              f"- 最新确认收盘：{_cell(price.get('price'))} {_cell(price.get('currency'))}，日期 {_cell(price.get('session_date'))}；来源 {_cell(price.get('source'))}（非实时价）",
-             "", "### Quant", "", *_quant_lines(reportable_quant_fields(result)), *_momentum_lines(result),
+             "", "### Quant", "", *_quant_lines(reportable_quant_fields(result)),
              *_economic_lines(sections.get("quant", {}).get("economic_viability"))]
     if "calibration" not in required:
         lines.append(required["unavailable_reason"])
@@ -348,6 +437,7 @@ def render_final_response(result: dict[str, Any], *, summary: dict[str, Any] | N
         lines.extend(["", "**限制**"])
         lines.extend("- " + _cell(item) for item in list(dict.fromkeys(limitations))[:4])
 
+    lines.extend(_momentum_section(required))
     lines.extend(["", "### News / Sentiment", "",
                   f"- 消息评估：{_cell(news.get('status'))}；事件方向：{_cell(news.get('event_bias'))}"])
     lines.extend(f"- {_cell(event.get('first_published_at'))}：{_link(event.get('headline'), event.get('url'))}；方向 {_cell(event.get('direction'))}" for event in news.get("events", [])[:2])
@@ -552,7 +642,8 @@ def render_markdown(result: dict[str, Any]) -> str:
              "- Bar close is not a live quote. Source authenticity is not independently verified.", "",
              "## 2. Quant 数据面", "",
              *_quant_lines(quant_fields),
-             *_momentum_lines(result),
+             "", "**动量特征（独立诊断，不是上涨概率）**", "",
+             *_momentum_lines(result), _momentum_relationship_line(result),
              *_economic_lines(quant.get("economic_viability")),
              f"- Status: {_cell(quant.get('status'))}",
              "- Confidence、agreement 与 diversity 保留 Quant 原值/原尺度；分类标签不换算为百分比。",
@@ -653,9 +744,10 @@ def render_markdown(result: dict[str, Any]) -> str:
     lines.extend(f"- {_cell(risk.get('source'))}: {_cell(risk.get('detail'))}" for risk in synthesis.get("key_risks", []))
     for name, item in result["researchers"].items():
         lines.extend(f"- {_cell(name)}: {_cell(warning)}" for warning in item.get("warnings", []))
-    lines.extend(["", "## 8. Final Synthesis", "", *_quant_lines(quant_fields), *_momentum_lines(result), "",
+    lines.extend(["", "## 8. Final Synthesis", "", *_quant_lines(quant_fields), "",
                   *_economic_lines(quant.get("economic_viability")), "",
                   _final_probability_note(quant_fields, manifest["ticker"], manifest["horizon"]),
+                  _momentum_relationship_line(result),
                   f"- 消息面与 Quant 的关系：{_relationship_text(synthesis)}（{_cell(synthesis.get('alignment'))}）；依据：{_cell(synthesis.get('alignment_basis'))}",
                   f"- Outcome: {_cell(result.get('analysis_status'))}; overall confidence: {_cell(synthesis.get('overall_confidence'))}"])
     lines.extend(f"- {_cell(warning)}" for warning in synthesis.get("warnings", []))

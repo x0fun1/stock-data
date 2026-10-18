@@ -141,8 +141,31 @@ weights, windows, normalization, daily_volatility_60d, annual_volatility_60d,
 components{risk_adjusted,regression_trend,relative_strength}, diagnostic_rank_ic, warnings
 ```
 
-`final_response.md` 与 `report.md` 的 Quant 段各增加两行：综合动量得分与分项贡献。
-这两行不是 `validate-response` 的强制字段，但属于报告内容，不得改写数值。
+`final_response.md` 用**独立小节**呈现动量，不与上涨概率混排：
+
+```text
+### 动量特征（独立诊断，不是上涨概率）
+- 20日综合动量特征（momentum-20d-v1）：<得分>（状态 …；绝对方向 …；20日累计收益 …）；特征分 −100~+100，不是上涨概率
+- 动量分项：风险调整 … / 回归趋势 … / 相对强度 …；权重 50/30/20，校准状态 …
+- 动量与上涨概率的关系：一致（同向）｜背离（方向相反），但不是矛盾｜动量持平｜不可比。…
+```
+
+第三行由冻结结果确定性生成，并按 `validate-response` 的强制字段校验：不得改写、不得省略、
+不得置换判定（`背离` 改成 `一致` 会被拒绝）。判定规则：
+
+回复里的模型标识用连字符（`momentum-20d-v1`），因为下划线在 Markdown 中会被转义、在纯文本
+渠道会显示成 `momentum\_20d\_v1`；JSON 字段名仍是 `momentum_20d_v1`。
+
+| 情形 | 判定 |
+| --- | --- |
+| 动量为正且概率 ≥ 50%，或动量为负且概率 < 50% | 一致（同向） |
+| 动量为正且概率 < 50%，或动量为负且概率 ≥ 50% | 背离（方向相反），但不是矛盾 |
+| 动量方向为 flat | 动量持平 |
+| 特征 `unavailable`/`invalid`，或缺少该块 | 不可比（不默认替代为中性的） |
+
+背离分支必须引用产生该概率的条件桶（同号动量的上涨占比、非重叠样本数、Wilson 区间），
+并在区间跨越 50% 时明说该条件证据不稳健；同时必须写明动量分只是当期价格路径描述、
+不参与概率计算、也不改变它。`report.md` 第 2 节与第 8 节同样分开陈述。
 
 ## 11. 已知限制与待回测事项
 
@@ -158,4 +181,5 @@ components{risk_adjusted,regression_trend,relative_strength}, diagnostic_rank_ic
 `selfcheck.py` F25 覆盖：权重和为 1、贡献加总等于得分、得分严格在 `(-100,100)`、
 `tanh` 输出严格在 `(-1,1)`、绝对方向与 ROC 一致、追加未来数据不改变历史时点评分、
 缺基准/基准缺口 → `unavailable`、零波动与零跟踪误差 → `invalid`、以及"声明基准不改变
-`prob_up`"的隔离断言。
+`prob_up`"的隔离断言。F26 覆盖呈现隔离：动量不得出现在 Quant 段内、四种判定分支、
+强制行的改写/删除必须被 `validate-response` 拒绝、以及渲染不改变 `prob_up`。
