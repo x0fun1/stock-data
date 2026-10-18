@@ -84,6 +84,7 @@ def _oos_count(result: dict[str, Any], oos_evidence_audit: dict[str, Any] | None
 def forecast_assessment(
     result: dict[str, Any], manifest: dict[str, Any],
     *, oos_evidence_audit: dict[str, Any] | None = None,
+    support_sessions: int | None = None,
 ) -> dict[str, Any]:
     codes: list[str] = []
     messages: list[str] = []
@@ -129,7 +130,7 @@ def forecast_assessment(
         messages.append("Purged validation reports overlapping train/test information intervals.")
 
     count = _oos_count(result, oos_evidence_audit)
-    thresholds = oos_support_thresholds(_horizon_sessions(manifest))
+    thresholds = oos_support_thresholds(_horizon_sessions(manifest), support_sessions)
     if count >= thresholds["strong"]:
         oos_status = "strong"
     elif count >= thresholds["acceptable"]:
@@ -193,24 +194,65 @@ def _horizon_sessions(manifest: dict[str, Any]) -> int:
     return horizon if horizon >= 1 else 5
 
 
-def oos_support_thresholds(horizon_sessions: int) -> dict[str, int]:
-    """Non-overlapping OOS sample targets scaled to the one-year default research window.
+DEFAULT_SUPPORT_SESSIONS = 252
+MIN_STRONG_SUPPORT = 20
 
-    One default window (~252 sessions) defines full support: `strong` is ~90% of its
-    non-overlapping budget (floor 20 so short horizons still need a working sample),
-    with `acceptable` at ~55% and `weak` at ~30% of that target. Longer windows earn
-    the same top tier once these counts are met. Thresholds use non-overlapping counts.
+
+def oos_support_thresholds(horizon_sessions: int,
+                           support_sessions: int | None = None) -> dict[str, int]:
+    """Non-overlapping OOS sample targets scaled to the research window actually available.
+
+    The nominal one-year window (252 sessions) defines full support: `strong` is ~90% of its
+    non-overlapping budget (floor 20 so short horizons still need a working sample), with
+    `acceptable` at ~55% and `weak` at ~30% of that target. A 52-week window holds fewer
+    sessions than the nominal count once holidays and the label tail are removed, so deriving
+    the budget from 252 alone can push `strong` above the number of samples the window can ever
+    produce. `support_sessions` is the widest non-overlapping ledger the run actually has; the
+    targets are scaled to it and capped at its budget so every tier stays attainable. Longer
+    windows are capped at the nominal window, so extra history never lowers the bar. Thresholds
+    use non-overlapping counts.
     """
-    budget = max(1, 252 // (horizon_sessions + 1))
-    strong = max(20, budget - budget // 10)
-    acceptable = max(10, (strong * 55) // 100)
-    weak = max(5, (strong * 30) // 100)
+    sessions = DEFAULT_SUPPORT_SESSIONS
+    if (isinstance(support_sessions, int) and not isinstance(support_sessions, bool)
+            and support_sessions > 0):
+        sessions = min(DEFAULT_SUPPORT_SESSIONS, support_sessions)
+    budget = max(1, sessions // (horizon_sessions + 1))
+    strong = min(budget, max(MIN_STRONG_SUPPORT, budget - budget // 10))
+    acceptable = min(strong, max(10, (strong * 55) // 100))
+    weak = min(acceptable, max(5, (strong * 30) // 100))
     return {"strong": strong, "acceptable": acceptable, "weak": weak}
+
+
+def oos_support_sessions(results: list[dict[str, Any]]) -> int | None:
+    """Widest OOS label ledger across paths: the shared ceiling for non-overlapping support."""
+    widest = 0
+    for result in results:
+        audit = result.get("oos_evidence_audit") or {}
+        if not isinstance(audit, dict):
+            continue
+        for key in ("supplied_samples", "valid_samples"):
+            value = audit.get(key)
+            if isinstance(value, int) and not isinstance(value, bool) and value > widest:
+                widest = value
+    return widest or None
+
+
+def _quality_support_sessions(quality: dict[str, Any]) -> int | None:
+    """Same ceiling read back from the aggregated OOS quality block."""
+    paths = (quality or {}).get("paths") or {}
+    widest = 0
+    for row in paths.values():
+        if not isinstance(row, dict):
+            continue
+        value = row.get("all_evaluable_oos_samples")
+        if isinstance(value, int) and not isinstance(value, bool) and value > widest:
+            widest = value
+    return widest or None
 
 
 def _predictive_evidence_grade(quality: dict[str, Any], manifest: dict[str, Any]) -> str:
     replay = quality.get("algorithm_policy_replay") or {}
-    thresholds = oos_support_thresholds(_horizon_sessions(manifest))
+    thresholds = oos_support_thresholds(_horizon_sessions(manifest), _quality_support_sessions(quality))
     count = replay.get("non_overlapping_predicted_dates", replay.get("predicted_dates", 0))
     skill = replay.get("brier_skill_vs_expanding_base_rate")
     if (not isinstance(count, int) or isinstance(count, bool) or count < thresholds["weak"]
@@ -245,7 +287,8 @@ def _confidence_composite(*, base_score: float, path_assessments: list[dict[str,
     0.15. Each dimension scores 0-100, so closed gaps earn full credit and a fully
     validated study can reach the high band while thin or contradicted evidence cannot.
     """
-    thresholds = oos_support_thresholds(_horizon_sessions(manifest))
+    thresholds = oos_support_thresholds(_horizon_sessions(manifest),
+                                        _quality_support_sessions(oos_probability_quality))
     confidence_reasons: list[str] = []
 
     oos_status_points = {"strong": 100.0, "acceptable": 80.0, "weak": 45.0, "insufficient": 20.0, "invalid": 0.0}
@@ -356,8 +399,12 @@ def build_consensus(
 ) -> dict[str, Any]:
     researchers, input_rejections = unique_research_paths(researchers)
     if assessments is None:
+        audits = {r["researcher_id"]: (audit_oos_result(r, manifest, bars) if bars is not None else None)
+                  for r in researchers}
+        support = oos_support_sessions(
+            [{**r, "oos_evidence_audit": audits[r["researcher_id"]]} for r in researchers])
         assessments = {r["researcher_id"]: forecast_assessment(
-            r, manifest, oos_evidence_audit=audit_oos_result(r, manifest, bars) if bars is not None else None,
+            r, manifest, oos_evidence_audit=audits[r["researcher_id"]], support_sessions=support,
         ) for r in researchers}
     else:
         supplied_assessments = assessments

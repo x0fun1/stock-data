@@ -10,7 +10,7 @@ from typing import Any
 
 from . import __version__
 from .audit import audit
-from .consensus import build_consensus, forecast_assessment
+from .consensus import build_consensus, forecast_assessment, oos_support_sessions
 from .contracts import RESEARCHERS, researcher_result
 from .delivery import validate_response_text
 from .gate_policy import aggregate_gate_telemetry, analysis_status
@@ -84,11 +84,20 @@ def run_analysis(
             )
         finally:
             researcher_wall_seconds[researcher_id] = time.perf_counter() - path_started
-        oos_evidence_audit = None
+        results[researcher_id] = result
+
+    # OOS support thresholds scale to the widest ledger in the run, so every path has to be
+    # audited before any assessment is graded; grading them inline would let the first path
+    # define a ceiling the others never see.
+    for result in results.values():
         if result.get("result_role", "forecast") == "forecast":
             oos_evidence_audit = audit_oos_result(result, manifest, bars)
             result["oos_evidence_audit"] = oos_evidence_audit
-        assessment = forecast_assessment(result, manifest, oos_evidence_audit=oos_evidence_audit)
+    support_sessions = oos_support_sessions(list(results.values()))
+    for researcher_id, result in results.items():
+        assessment = forecast_assessment(result, manifest,
+                                         oos_evidence_audit=result.get("oos_evidence_audit"),
+                                         support_sessions=support_sessions)
         # Merge rather than replace: the path's own disclosures (cost basis,
         # calibration state, sample shortfalls) must survive gating messages.
         merged_warnings = list(dict.fromkeys([*result.get("warnings", []), *assessment.get("warnings", [])]))
@@ -96,7 +105,6 @@ def run_analysis(
         result["warnings"] = merged_warnings
         path_assessments[researcher_id] = assessment
         write_json(researcher_dir / f"{researcher_id}.json", result)
-        results[researcher_id] = result
 
     consensus = build_consensus(list(results.values()), manifest, assessments=path_assessments, bars=bars)
     consensus["horizon_type"] = manifest.get("data_validation", {}).get("horizon_type", "unavailable")

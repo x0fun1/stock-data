@@ -920,15 +920,15 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "4e110a2b7ce42ad0f72e4b61b68dbe361c1aa88e2670597013019a0e7ab97da0",
-        "quant_result.json": "bcb2fff7a4e21a4797a2193d55addda57b90d5d0d11ba40fd7ea730b9b153d1b",
+        "report.json": "de7463a432bb1e1b2fd48b430fa290585c89e4bc22935b47abb1736e1b6a4a12",
+        "quant_result.json": "ed3ceb453b20f0af091dcb72f7f154357ec0bcba67aa751d8d5657a3ea304539",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
         "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
         "final_response.md": "190dba292e90bca7704e512492eaf4ddc136c65940f8fb3110272f2d55a95d3b",
     },
     "news": {
-        "report.json": "03dc057d0f77c3eab0705c048eee047b1a6e5c84c3b64e4a4d2e9b40bc93b327",
-        "quant_result.json": "6a7646e7402301ecc9b6fc9dfee79a18ea7082228737d054d653d2d2bd21287c",
+        "report.json": "fb1b9362ba9ceabf482a3e3f5d24b34553e7ed748fbfb50349ee3809ec103fb5",
+        "quant_result.json": "89128f8760760133236dd55d0b2115a6a2a8659bca89cb14365335f3b4cfcdb6",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
         "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
         "final_response.md": "5e5141885de1cf5fe0f6ac46a0c1c10258dcfeafcc1ca4b7413db585fd293f22",
@@ -1360,6 +1360,26 @@ def check_f22_daily_bar_timestamp_precision() -> None:
     assert "LATEST_OBSERVATION_UNRESOLVED" in codes, "a bar older than the session must stay blocked"
 
 
+def check_f23_window_scaled_support() -> None:
+    """Support tiers must stay attainable inside the window actually available."""
+    from quant_research.consensus import oos_support_sessions, oos_support_thresholds
+
+    nominal = oos_support_thresholds(5)
+    assert nominal == {"strong": 38, "acceptable": 20, "weak": 11}, nominal
+    scaled = oos_support_thresholds(5, 220)
+    assert scaled == {"strong": 33, "acceptable": 18, "weak": 9}, scaled
+    for horizon in (1, 2, 3, 5, 10, 20, 60):
+        table = oos_support_thresholds(horizon, 220)
+        budget = max(1, 220 // (horizon + 1))
+        assert 0 < table["weak"] <= table["acceptable"] <= table["strong"] <= budget, (horizon, table, budget)
+    # A longer ledger must never lower the bar below the nominal window.
+    assert oos_support_thresholds(5, 500) == nominal, oos_support_thresholds(5, 500)
+    assert oos_support_sessions([{"oos_evidence_audit": {"supplied_samples": 20}},
+                                 {"oos_evidence_audit": {"supplied_samples": 220}},
+                                 {"oos_evidence_audit": None}]) == 220
+    assert oos_support_sessions([{"oos_evidence_audit": None}]) is None
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -1384,6 +1404,7 @@ CHECKS = [
     ("F20 pipeline golden regression", check_f20_pipeline_golden),
     ("F21 OOS record audit reasons", check_f21_oos_record_audit),
     ("F22 daily bar timestamp precision", check_f22_daily_bar_timestamp_precision),
+    ("F23 window-scaled OOS support", check_f23_window_scaled_support),
 ]
 
 if __name__ == "__main__":
