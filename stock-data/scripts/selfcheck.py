@@ -31,6 +31,9 @@ offline with synthetic data (no network, no yfinance dependency):
            lock markers and user files are not, and a dry run reports without deleting.
 - F19      retention: only completed run directories past the window expire, a run with
            unknown files or an unfinished receipt is skipped, stale cache files are pruned.
+- F20      pipeline golden: two fixed fixtures (with and without a news domain) must
+           reproduce the same normalised digests and anchors, so a refactor can
+           prove it moved no frozen value.
 
 Usage: python stock-data/scripts/selfcheck.py
 """
@@ -38,10 +41,12 @@ Usage: python stock-data/scripts/selfcheck.py
 from __future__ import annotations
 
 import datetime as dt
+import hashlib
 import json
 import math
 import os
 import random
+import re
 import shutil
 import sys
 import tempfile
@@ -904,6 +909,252 @@ def check_f19_retention_gc() -> None:
         shutil.rmtree(work, ignore_errors=True)
 
 
+# ---------------------------------------------------------------- F20
+# Golden regression: the frozen artifacts are a hash-committed contract, so any
+# refactor must prove it moved no value. Two fixtures (without and with a news
+# domain) run in-process; identity and timing fields are normalised before
+# hashing, and a short anchor list is compared verbatim so a mismatch names the
+# field that moved instead of only reporting a digest.
+GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
+    "plain": {
+        "report.json": "a2498ff26ae10cc5c67aff7cf6efbf8700b5780eaac9b8d5b144c63630ad725c",
+        "quant_result.json": "17f831e60c1b34b6ea5a8519c2ec351197f8a6d37883ca7dc8b905fed92f9540",
+        "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
+        "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
+        "final_response.md": "190dba292e90bca7704e512492eaf4ddc136c65940f8fb3110272f2d55a95d3b",
+    },
+    "news": {
+        "report.json": "f9b7f79ca747fbe874e4b42b278e2f5897c82be17ca33cb42f151d484ac2c079",
+        "quant_result.json": "789b20843bef2d0e7b1bd6eafe4eabf6059a8d723eaad1cb0b28251b3f6a0680",
+        "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
+        "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
+        "final_response.md": "5e5141885de1cf5fe0f6ac46a0c1c10258dcfeafcc1ca4b7413db585fd293f22",
+    },
+}
+GOLDEN_ANCHORS: dict[str, dict[str, object]] = {
+    "plain": {
+        "summary.analysis_status": "degraded",
+        "summary.reporting_status": "degraded",
+        "summary.sections.final_synthesis.may_report_direction": True,
+        "summary.sections.final_synthesis.news_relationship": "消息面交叉验证未评估",
+        "summary.sections.news.event_bias": "unknown",
+        "summary.sections.news.status": "not_assessed",
+        "quant.consensus.prob_up": 0.5583357792180278,
+        "quant.consensus.direction": "bullish",
+        "quant.consensus.confidence": "low",
+        "quant.consensus.agreement": "medium",
+        "quant.consensus.confidence_score": 58,
+        "quant.consensus.reporting_status": "degraded",
+        "quant.consensus.predictive_evidence_grade": "observed_skill_below_expanding_base_rate",
+        "quant.consensus.probability_basis": "ensemble_calibrated_equal_weight_mean_of_valid_path_estimates",
+        "quant.researchers.quant.status": "success",
+        "quant.researchers.factor.status": "success",
+        "quant.researchers.ml.status": "partial",
+        "quant.researchers.factor_backtest.status": "partial",
+        "news.status": "not_assessed",
+        "news.overall_direction": "unknown",
+        "news.event_strength": None,
+        "news.confidence": "unavailable",
+    },
+    "news": {
+        "summary.analysis_status": "degraded",
+        "summary.reporting_status": "degraded",
+        "summary.sections.final_synthesis.may_report_direction": True,
+        "summary.sections.final_synthesis.news_relationship": "消息面交叉验证未评估",
+        "summary.sections.news.event_bias": "unknown",
+        "summary.sections.news.status": "partial",
+        "quant.consensus.prob_up": 0.5583357792180278,
+        "quant.consensus.direction": "bullish",
+        "quant.consensus.confidence": "low",
+        "quant.consensus.agreement": "medium",
+        "quant.consensus.confidence_score": 58,
+        "quant.consensus.reporting_status": "degraded",
+        "quant.consensus.predictive_evidence_grade": "observed_skill_below_expanding_base_rate",
+        "quant.consensus.probability_basis": "ensemble_calibrated_equal_weight_mean_of_valid_path_estimates",
+        "quant.researchers.quant.status": "success",
+        "quant.researchers.factor.status": "success",
+        "quant.researchers.ml.status": "partial",
+        "quant.researchers.factor_backtest.status": "partial",
+        "news.status": "partial",
+        "news.overall_direction": "unknown",
+        "news.event_strength": None,
+        "news.confidence": "low",
+    },
+}
+
+_GOLDEN_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z")
+_GOLDEN_STAMP_ID = re.compile(r"\d{8}T\d{12}Z")
+_GOLDEN_VOLATILE_KEYS = frozenset({
+    "analysis_id", "snapshot_id", "run_id", "created_at", "created_at_utc", "frozen_at",
+    "generated_at_utc", "captured_at_utc", "updated_at_utc", "collection_captured_at",
+    "snapshot_created_at", "asof_resolved_from",
+})
+_GOLDEN_ANCHOR_PATHS = (
+    "summary.analysis_status",
+    "summary.reporting_status",
+    "summary.sections.final_synthesis.may_report_direction",
+    "summary.sections.final_synthesis.news_relationship",
+    "summary.sections.news.event_bias",
+    "summary.sections.news.status",
+    "quant.consensus.prob_up",
+    "quant.consensus.direction",
+    "quant.consensus.confidence",
+    "quant.consensus.agreement",
+    "quant.consensus.confidence_score",
+    "quant.consensus.reporting_status",
+    "quant.consensus.predictive_evidence_grade",
+    "quant.consensus.probability_basis",
+    "quant.researchers.quant.status",
+    "quant.researchers.factor.status",
+    "quant.researchers.ml.status",
+    "quant.researchers.factor_backtest.status",
+    "news.status",
+    "news.overall_direction",
+    "news.event_strength",
+    "news.confidence",
+)
+_GOLDEN_ARTICLES = (
+    {"title": "SYN beats quarterly revenue expectations", "published_at": "2025-12-30T13:00:00Z",
+     "tickers": ["SYN"], "source": "Example Wire", "url": "https://example.test/a1",
+     "summary": "SYN reported revenue above consensus."},
+    {"title": "SYN announces $2 billion buyback", "published_at": "2025-12-31T14:30:00Z",
+     "tickers": ["SYN"], "source": "Example Wire", "url": "https://example.test/a2"},
+    {"title": "Analyst downgrades SYN to hold on valuation", "published_at": "2026-01-02T14:00:00Z",
+     "tickers": ["SYN"], "source": "Example Research", "url": "https://example.test/a3"},
+    {"title": "SYN CEO says demand remains strong into next quarter", "published_at": "2026-01-02T15:00:00Z",
+     "tickers": ["SYN"], "source": "Example Times", "url": "https://example.test/a4"},
+)
+
+
+def _golden_bars(count: int = 260, seed: int = 11) -> list[dict]:
+    """Deterministic OHLCV ending on the fixture as-of date, not the wall clock."""
+    rng = random.Random(seed)
+    days: list[dt.date] = []
+    day = dt.date(2026, 1, 2)
+    while len(days) < count:
+        if day.weekday() < 5:
+            days.append(day)
+        day -= dt.timedelta(days=1)
+    days.reverse()
+    price = 100.0
+    bars = []
+    for session in days:
+        price *= math.exp(rng.gauss(0.0006, 0.014))
+        bars.append({"date": session.isoformat(), "open": round(price * 0.997, 4),
+                     "high": round(price * 1.011, 4), "low": round(price * 0.989, 4),
+                     "close": round(price, 4), "volume": 1_200_000})
+    return bars
+
+
+def _golden_responses(with_news: bool) -> dict:
+    bars = _golden_bars()
+    market = {
+        "status": "success", "actual_source": "synthetic-offline",
+        "source_timestamp": "2026-01-02T21:00:00Z", "fetched_at_utc": "2026-01-03T00:30:00Z",
+        "currency": "USD", "unit": "USD", "adjustment": "unadjusted", "frequency": "1d",
+        "source_symbol": "SYN",
+        "data": {"currency": "USD", "exchange": "US", "adjustment": "unadjusted", "unit": "USD",
+                 "frequency": "1d", "source_symbol": "SYN", "bars": bars,
+                 "source_timestamp": "2026-01-02T21:00:00Z", "fetched_at_utc": "2026-01-03T00:30:00Z",
+                 "history_window": {"start": bars[0]["date"], "end": bars[-1]["date"],
+                                    "selection": "trailing 52 weeks"}},
+    }
+    domains: dict[str, object] = {"market": market}
+    if with_news:
+        domains["news"] = {"status": "success", "actual_source": "synthetic-offline",
+                           "fetched_at_utc": "2026-01-03T00:30:00Z",
+                           "data": {"articles": [dict(article) for article in _GOLDEN_ARTICLES]}}
+    return {"domains": domains}
+
+
+def _golden_normalize(value, key: str | None = None):
+    """Fold identity, digests and timings so only contract values are compared."""
+    if isinstance(value, dict):
+        normalized = {}
+        for name, item in value.items():
+            if name in _GOLDEN_VOLATILE_KEYS:
+                normalized[name] = "<volatile>"
+            elif "sha256" in name or name.endswith("_digest"):
+                normalized[name] = "<digest>"
+            elif name.endswith("_wall_seconds") or name in {"wall_seconds", "peak_memory"}:
+                normalized[name] = "<timing>"
+            else:
+                normalized[name] = _golden_normalize(item, name)
+        return normalized
+    if isinstance(value, list):
+        return [_golden_normalize(item, key) for item in value]
+    if isinstance(value, str):
+        return _GOLDEN_STAMP_ID.sub("<id>", _GOLDEN_TIMESTAMP.sub("<ts>", value))
+    if isinstance(value, float):
+        return round(value, 9)
+    return value
+
+
+def _golden_digest(value) -> str:
+    canonical = json.dumps(_golden_normalize(value), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
+
+
+def _golden_lookup(container, path: str):
+    current = container
+    for part in path.split("."):
+        if not isinstance(current, dict):
+            return "<missing>"
+        current = current.get(part)
+    return current
+
+
+def _golden_run(with_news: bool) -> tuple[dict[str, str], dict[str, object]]:
+    """Run the pipeline once in a temp tree and return normalised digests and anchors."""
+    from quant_research.orchestrator import run_analysis
+    from quant_research.snapshot import freeze_snapshot
+    from quant_research.stock_data_adapter import StockDataAdapter
+
+    work = Path(tempfile.mkdtemp(prefix=f"selfcheck_f20_{'news' if with_news else 'plain'}_"))
+    try:
+        request = {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast",
+                   "asset_type": "stock", "asof": "2026-01-02T21:00:00Z"}
+        receipt = StockDataAdapter().write_receipt(
+            request, _golden_responses(with_news)["domains"], work / "collection.json",
+            captured_at_utc="2026-01-03T00:35:00Z")
+        snapshot = freeze_snapshot(receipt, work / "snapshots")
+        analysis = run_analysis(snapshot, work / "research")
+        artifacts = {}
+        for name in ("report.json", "quant_result.json", "news_result.json", "agent_summary.json"):
+            artifacts[name] = _golden_digest(json.loads((analysis / name).read_text(encoding="utf-8")))
+        artifacts["final_response.md"] = _golden_digest(
+            (analysis / "final_response.md").read_text(encoding="utf-8").splitlines())
+        containers = {
+            "summary": json.loads((analysis / "agent_summary.json").read_text(encoding="utf-8")),
+            "quant": json.loads((analysis / "quant_result.json").read_text(encoding="utf-8")),
+            "news": json.loads((analysis / "news_result.json").read_text(encoding="utf-8")),
+        }
+        anchors = {}
+        for path in _GOLDEN_ANCHOR_PATHS:
+            root, _, remainder = path.partition(".")
+            anchors[path] = _golden_lookup(containers[root], remainder)
+        return artifacts, anchors
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def check_f20_pipeline_golden() -> None:
+    for fixture, with_news in (("plain", False), ("news", True)):
+        artifacts, anchors = _golden_run(with_news)
+        expected_artifacts = GOLDEN_PIPELINE[fixture]
+        expected_anchors = GOLDEN_ANCHORS[fixture]
+        if not expected_artifacts or not expected_anchors:
+            raise AssertionError(f"fixture {fixture!r} has no recorded golden values")
+        changed = sorted(name for name, value in artifacts.items() if expected_artifacts.get(name) != value)
+        moved = {path: (expected_anchors.get(path), anchors.get(path))
+                 for path in anchors if expected_anchors.get(path) != anchors.get(path)}
+        if changed or moved:
+            detail = "; ".join(f"{path}: {old!r} -> {new!r}" for path, (old, new) in list(moved.items())[:6])
+            raise AssertionError(
+                f"pipeline golden drift in fixture {fixture!r}; artifacts changed: {changed or 'none'}; "
+                f"anchors changed: {detail or 'none'}")
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -925,6 +1176,7 @@ CHECKS = [
     ("F17 host AI lean layer", check_f17_ai_lean_layer),
     ("F18 orphan scratch sweep", check_f18_orphan_sweep),
     ("F19 retention and cache pruning", check_f19_retention_gc),
+    ("F20 pipeline golden regression", check_f20_pipeline_golden),
 ]
 
 if __name__ == "__main__":

@@ -184,6 +184,126 @@ def prepare_news_input(
     )
 
 
+def _build_event_card(
+    cluster: dict[str, Any], *, news_input: NewsInput, policy: dict[str, Any],
+    bars: list[dict[str, Any]], frozen_closes: list[float], frozen_dates: list[str],
+) -> dict[str, Any]:
+    """One factual-event card: classification, decay, reaction, impact and scores."""
+    representative = cluster["representative"]
+    text = event_text(cluster)
+    event_type = event_type_for(text, representative.get("event_type_hint"))
+    event_direction = direction_for(text)
+    decay_time = representative.get("occurred_at") or representative.get("announcement_at") or cluster["first_published_at"]
+    decay = time_decay(decay_time, bars, event_type, news_input.horizon, policy, market=news_input.market)
+    eligible, exclusion_reasons = _eligibility(cluster, news_input, decay, policy)
+    reaction = validate_reaction(
+        published_at=cluster["first_published_at"],
+        event_direction=event_direction,
+        market=news_input.market,
+        bars=bars,
+        session_closes=news_input.coverage.get("session_closes"),
+    )
+    impact = assess_impact(
+        event_type=event_type,
+        reaction=reaction,
+        publishers=cluster.get("sources", []),
+        closes=frozen_closes,
+        session_index=(frozen_dates.index(str(reaction["market_session_date"])[:10])
+                       if reaction.get("market_session_date") else None),
+    )
+    scores = {
+        field: _mean_field(cluster["articles"], field)
+        for field in ("event_strength", "relevance", "magnitude", "novelty", "source_quality")
+    }
+    score_inputs = [scores[name] for name in ("event_strength", "relevance", "novelty", "source_quality")]
+    effective_score = math.prod(score_inputs) * float(decay["time_decay"]) if all(value is not None for value in score_inputs) else None
+    topics = sorted({term for row in cluster["articles"] for term in matched_topics(" ".join((row.get("title") or "", row.get("summary") or "")))})
+    source_directions = [direction_for(" ".join((row.get("title") or "", row.get("summary") or ""))) for row in cluster["articles"]]
+    positive_count = sum(value == "positive" for value in source_directions)
+    negative_count = sum(value == "negative" for value in source_directions)
+    if positive_count and negative_count:
+        event_source_agreement = "low"
+    elif len(cluster["sources"]) > 1 and positive_count + negative_count:
+        event_source_agreement = "high"
+    elif positive_count + negative_count:
+        event_source_agreement = "single_source"
+    else:
+        event_source_agreement = "unknown"
+    tickers = sorted({ticker for row in cluster["articles"] for ticker in row.get("tickers", [])})
+    ticker_relevance = _relevance(cluster["articles"], news_input.ticker)
+    return {
+        "event_id": cluster["cluster_id"].replace("cluster_", "event_"),
+        "ticker": news_input.ticker,
+        "event_type": event_type,
+        "event_group": representative.get("event_group") or ("macro" if event_type == "MACRO" else "company"),
+        "eligible_evidence": eligible,
+        "exclusion_reasons": exclusion_reasons,
+        "fact_status": "reported_event_not_independently_verified",
+        "url": representative.get("url"),
+        "occurred_at": representative.get("occurred_at"),
+        "announcement_at": representative.get("announcement_at"),
+        "scheduled_at": representative.get("scheduled_at"),
+        "source_independence": "reported_lineage" if cluster["independent_reporting_ids"] else "unverified",
+        "independent_reporting_ids": cluster["independent_reporting_ids"],
+        "first_published_at": cluster["first_published_at"],
+        "article_count": cluster["article_count"],
+        "sources": cluster["sources"],
+        "source_agreement": event_source_agreement,
+        "direction": event_direction,
+        "relevance": scores["relevance"],
+        "magnitude": scores["magnitude"],
+        "novelty": scores["novelty"],
+        "source_quality": scores["source_quality"],
+        "event_strength": scores["event_strength"],
+        "effective_event_score": _rounded(effective_score),
+        "effective_event_score_status": "computed_from_gateway_scores" if effective_score is not None else "not_computed_missing_gateway_score_inputs",
+        "expected_horizon": None,
+        "age_sessions": decay["age_sessions"],
+        "half_life_sessions": decay["half_life_sessions"],
+        "time_decay": _rounded(float(decay["time_decay"])),
+        "ticker_tags": tickers,
+        "ticker_relevance": ticker_relevance,
+        "member_directions": source_directions,
+        "member_direction_conflict": bool(positive_count and negative_count),
+        "member_urls": sorted({str(row.get("url")) for row in cluster["articles"] if row.get("url")})[:10],
+        "topic_terms": topics,
+        "headline": representative.get("title"),
+        "summary": representative.get("summary"),
+        "market_reaction": reaction,
+        "impact": impact,
+    }
+
+
+def _build_opinion_card(
+    cluster: dict[str, Any], *, news_input: NewsInput, policy: dict[str, Any],
+    bars: list[dict[str, Any]],
+) -> dict[str, Any]:
+    """One opinion card: lexicon score kept separate from provider sentiment."""
+    texts = [" ".join((row.get("title") or "", row.get("summary") or "")) for row in cluster["articles"]]
+    scores = [opinion_score(text) for text in texts]
+    scores = [score for score in scores if score is not None]
+    score = _rounded(mean(scores)) if scores else None
+    source_scores = [float(row["sentiment_score"]) for row in cluster["articles"] if row.get("sentiment_score") is not None]
+    representative = cluster["representative"]
+    decay = time_decay(cluster["first_published_at"], bars, "OPINION", news_input.horizon, policy, market=news_input.market)
+    eligible, exclusion_reasons = _eligibility(cluster, news_input, decay, policy)
+    return {
+        "opinion_id": cluster["cluster_id"].replace("cluster_", "opinion_"),
+        "published_at": cluster["first_published_at"],
+        "article_count": cluster["article_count"],
+        "sources": cluster["sources"],
+        "eligible_evidence": eligible, "exclusion_reasons": exclusion_reasons,
+        "url": representative.get("url"), "time_decay": decay["time_decay"],
+        "record_type": representative.get("record_type"),
+        "sentiment": _label(score),
+        "sentiment_score": score,
+        "source_sentiment_score": _rounded(mean(source_scores)) if source_scores else None,
+        "source_sentiment_score_scale": "source supplied [-1,+1]; not combined with opinion lexicon",
+        "headline": representative.get("title"),
+        "summary": representative.get("summary"),
+    }
+
+
 def analyze_news(
     news_input: NewsInput,
     policy: dict[str, Any] | None = None,
@@ -246,117 +366,16 @@ def analyze_news(
     # Snapshot validation accepts numeric strings; preserve one close per date.
     frozen_closes = [float(row["close"]) for row in bars]
     frozen_dates = [str(row["date"])[:10] for row in bars]
-    events: list[dict[str, Any]] = []
-    for cluster in event_clusters:
-        representative = cluster["representative"]
-        text = event_text(cluster)
-        event_type = event_type_for(text, representative.get("event_type_hint"))
-        event_direction = direction_for(text)
-        decay_time = representative.get("occurred_at") or representative.get("announcement_at") or cluster["first_published_at"]
-        decay = time_decay(decay_time, bars, event_type, news_input.horizon, policy, market=news_input.market)
-        eligible, exclusion_reasons = _eligibility(cluster, news_input, decay, policy)
-        reaction = validate_reaction(
-            published_at=cluster["first_published_at"],
-            event_direction=event_direction,
-            market=news_input.market,
-            bars=bars,
-            session_closes=news_input.coverage.get("session_closes"),
-        )
-        impact = assess_impact(
-            event_type=event_type,
-            reaction=reaction,
-            publishers=cluster.get("sources", []),
-            closes=frozen_closes,
-            session_index=(frozen_dates.index(str(reaction["market_session_date"])[:10])
-                           if reaction.get("market_session_date") else None),
-        )
-        scores = {
-            field: _mean_field(cluster["articles"], field)
-            for field in ("event_strength", "relevance", "magnitude", "novelty", "source_quality")
-        }
-        score_inputs = [scores[name] for name in ("event_strength", "relevance", "novelty", "source_quality")]
-        effective_score = math.prod(score_inputs) * float(decay["time_decay"]) if all(value is not None for value in score_inputs) else None
-        topics = sorted({term for row in cluster["articles"] for term in matched_topics(" ".join((row.get("title") or "", row.get("summary") or "")))})
-        source_directions = [direction_for(" ".join((row.get("title") or "", row.get("summary") or ""))) for row in cluster["articles"]]
-        positive_count = sum(value == "positive" for value in source_directions)
-        negative_count = sum(value == "negative" for value in source_directions)
-        if positive_count and negative_count:
-            event_source_agreement = "low"
-        elif len(cluster["sources"]) > 1 and positive_count + negative_count:
-            event_source_agreement = "high"
-        elif positive_count + negative_count:
-            event_source_agreement = "single_source"
-        else:
-            event_source_agreement = "unknown"
-        tickers = sorted({ticker for row in cluster["articles"] for ticker in row.get("tickers", [])})
-        ticker_relevance = _relevance(cluster["articles"], news_input.ticker)
-        events.append({
-            "event_id": cluster["cluster_id"].replace("cluster_", "event_"),
-            "ticker": news_input.ticker,
-            "event_type": event_type,
-            "event_group": representative.get("event_group") or ("macro" if event_type == "MACRO" else "company"),
-            "eligible_evidence": eligible,
-            "exclusion_reasons": exclusion_reasons,
-            "fact_status": "reported_event_not_independently_verified",
-            "url": representative.get("url"),
-            "occurred_at": representative.get("occurred_at"),
-            "announcement_at": representative.get("announcement_at"),
-            "scheduled_at": representative.get("scheduled_at"),
-            "source_independence": "reported_lineage" if cluster["independent_reporting_ids"] else "unverified",
-            "independent_reporting_ids": cluster["independent_reporting_ids"],
-            "first_published_at": cluster["first_published_at"],
-            "article_count": cluster["article_count"],
-            "sources": cluster["sources"],
-            "source_agreement": event_source_agreement,
-            "direction": event_direction,
-            "relevance": scores["relevance"],
-            "magnitude": scores["magnitude"],
-            "novelty": scores["novelty"],
-            "source_quality": scores["source_quality"],
-            "event_strength": scores["event_strength"],
-            "effective_event_score": _rounded(effective_score),
-            "effective_event_score_status": "computed_from_gateway_scores" if effective_score is not None else "not_computed_missing_gateway_score_inputs",
-            "expected_horizon": None,
-            "age_sessions": decay["age_sessions"],
-            "half_life_sessions": decay["half_life_sessions"],
-            "time_decay": _rounded(float(decay["time_decay"])),
-            "ticker_tags": tickers,
-            "ticker_relevance": ticker_relevance,
-            "member_directions": source_directions,
-            "member_direction_conflict": bool(positive_count and negative_count),
-            "member_urls": sorted({str(row.get("url")) for row in cluster["articles"] if row.get("url")})[:10],
-            "topic_terms": topics,
-            "headline": representative.get("title"),
-            "summary": representative.get("summary"),
-            "market_reaction": reaction,
-            "impact": impact,
-        })
+    events = [
+        _build_event_card(cluster, news_input=news_input, policy=policy,
+                          bars=bars, frozen_closes=frozen_closes, frozen_dates=frozen_dates)
+        for cluster in event_clusters
+    ]
 
-    opinions: list[dict[str, Any]] = []
-    for cluster in opinion_clusters:
-        texts = [" ".join((row.get("title") or "", row.get("summary") or "")) for row in cluster["articles"]]
-        scores = [opinion_score(text) for text in texts]
-        scores = [score for score in scores if score is not None]
-        score = _rounded(mean(scores)) if scores else None
-        source_scores = [float(row["sentiment_score"]) for row in cluster["articles"] if row.get("sentiment_score") is not None]
-        representative = cluster["representative"]
-        decay = time_decay(cluster["first_published_at"], bars, "OPINION", news_input.horizon, policy, market=news_input.market)
-        eligible, exclusion_reasons = _eligibility(cluster, news_input, decay, policy)
-        opinions.append({
-            "opinion_id": cluster["cluster_id"].replace("cluster_", "opinion_"),
-            "published_at": cluster["first_published_at"],
-            "article_count": cluster["article_count"],
-            "sources": cluster["sources"],
-            "eligible_evidence": eligible, "exclusion_reasons": exclusion_reasons,
-            "url": representative.get("url"), "time_decay": decay["time_decay"],
-            "record_type": representative.get("record_type"),
-            "sentiment": _label(score),
-            "sentiment_score": score,
-            "source_sentiment_score": _rounded(mean(source_scores)) if source_scores else None,
-            "source_sentiment_score_scale": "source supplied [-1,+1]; not combined with opinion lexicon",
-            "headline": representative.get("title"),
-            "summary": representative.get("summary"),
-        })
+    opinions = [
+        _build_opinion_card(cluster, news_input=news_input, policy=policy, bars=bars)
+        for cluster in opinion_clusters
+    ]
 
     unclassified_records = [{
         "published_at": cluster["first_published_at"],
