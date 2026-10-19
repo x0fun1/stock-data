@@ -657,8 +657,12 @@ def render_markdown(result: dict[str, Any]) -> str:
     factor_budget = (result["researchers"].get("factor", {}).get("validation") or {}).get("sample_feasibility") or {}
     if factor_budget:
         buckets = factor_budget.get("calibration_bucket_counts") or {}
-        bucket_counts = "/".join(str(buckets.get(key, 0)) for key in ("low", "mid", "high"))
-        lines.append(f"- Factor bucket sample budget (52-week standard): status {_cell(factor_budget.get('status'))}; the selection segment supports {_cell(factor_budget.get('selection_label_capacity'))} labels (minimum {_cell(factor_budget.get('minimum_selection_labels'))}); matured non-overlapping labels reach at most {_cell(factor_budget.get('max_matured_non_overlapping_label_capacity'))}, with {_cell(factor_budget.get('calibration_observations_with_complete_factor_scores'))} complete factor-score observations and low/mid/high counts {bucket_counts}; balanced three-bucket minimum {_cell(factor_budget.get('required_calibration_observations_for_three_balanced_buckets'))}; estimated minimum history {_cell(factor_budget.get('estimated_minimum_daily_bars'))} daily bars (~{_cell(factor_budget.get('estimated_minimum_calendar_weeks'))} weeks).")
+        # Render the buckets that actually exist: a two-bucket candidate would otherwise be
+        # reported as low/mid/high with a fabricated middle count of zero.
+        order = ("low", "mid", "high")
+        present = [key for key in order if key in buckets] or list(buckets)
+        bucket_counts = "/".join(f"{key} {buckets[key]}" for key in present)
+        lines.append(f"- Factor bucket sample budget (52-week standard): status {_cell(factor_budget.get('status'))}; the selection segment supports {_cell(factor_budget.get('selection_label_capacity'))} labels (minimum {_cell(factor_budget.get('minimum_selection_labels'))}); matured non-overlapping labels reach at most {_cell(factor_budget.get('max_matured_non_overlapping_label_capacity'))}, with {_cell(factor_budget.get('calibration_observations_with_complete_factor_scores'))} complete factor-score observations and bucket counts {bucket_counts}; balanced three-bucket minimum {_cell(factor_budget.get('required_calibration_observations_for_three_balanced_buckets'))}; estimated minimum history {_cell(factor_budget.get('estimated_minimum_daily_bars'))} daily bars (~{_cell(factor_budget.get('estimated_minimum_calendar_weeks'))} weeks).")
     for name, item in result["researchers"].items():
         lines.extend(f"\n{name} exclusion: {_cell(reason)}" for reason in item.get("forecast_exclusion_reasons", []))
     lines.extend(["", "## 3. Technical & Factor Evidence", ""])

@@ -920,15 +920,15 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "408d8ae70bdbb7d986e9843b382f0e132d7e2f5a4d5e61c39a5b27535513ed0f",
-        "quant_result.json": "fa7f198c46cf409a91e033df81b5f33d7904fd5eb6d69f1878f6fa4d0ffc6d82",
+        "report.json": "0a07d96a10f0159934f3920a3cc564528179dcb9fefab36c7e901d872a83ae3d",
+        "quant_result.json": "b71cfe8fa867a38351140a8e3d50f55bd0e1c11b8f272d744825d3f878e8c529",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
         "agent_summary.json": "7d6192fb268d10e1a2f4c8de84c29995c7cd768b22982cb8a0b815eb1d734056",
         "final_response.md": "f23c4762739a13e5da17405b8e1f79c0d95ddd482bc251b48605eaa033492ed3",
     },
     "news": {
-        "report.json": "02b7e40ed737ed462052eded8002ac722880e0cec266759b68e4176779719f48",
-        "quant_result.json": "48af73e1da5691e338f4e9797ed1892898b28833dad59e0e70e8fd6b0d6a738e",
+        "report.json": "473723c4d551551ca474f2e80746544d00549fbcc684f04c824b0f67608e5554",
+        "quant_result.json": "21d6eefa9f352da879630406dfe24af74bd45cf825c03d8d3d1e7d97a01a6662",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
         "agent_summary.json": "54ba77c2eb34204dd63e13bd1451154f8997f95619a58b6e4c163df52896ced6",
         "final_response.md": "5ebb6727030c07eb303ea6c665c24e63624e693e380c39a7be8897d8321cc813",
@@ -1807,11 +1807,12 @@ def check_f30_anchored_sampling() -> None:
         gaps = [kept[index + 1] - kept[index] for index in range(len(kept) - 1)]
         if gaps and min(gaps) <= horizon:
             raise AssertionError(f"labels overlap at H={horizon}: min gap {min(gaps)}")
-        if provenance["window_independent_phase"] is not True:
+        if provenance["candidate_phase_window_independent"] is not True:
             raise AssertionError(f"phase must be window independent: {provenance}")
 
-    # Sliding the window by a few sessions must not replace the sampled dates. Both sides
-    # must use the same window length, otherwise the test compares different bounds.
+    # In this holiday-free fixture, sliding the window must not replace interior dates.
+    # This is not a general final-membership guarantee; F33 covers holiday collisions.
+    # Both sides use the same window length to keep bounds comparable.
     def sampled(window: list[str]) -> set[str]:
         return {window[i] for i in anchored_non_overlapping(window, list(range(60, len(window) - 5)), 5)[0]}
 
@@ -1840,7 +1841,7 @@ def check_f30_anchored_sampling() -> None:
     if first != second:
         raise AssertionError("anchored sampling must be deterministic")
     _, provenance = anchored_non_overlapping(["2026-01-05"], [0], 5)
-    if provenance.get("window_independent_phase") is not False:
+    if provenance.get("candidate_phase_window_independent") is not False:
         raise AssertionError(f"an empty candidate set must fall back and say so: {provenance}")
 
 
@@ -1880,6 +1881,22 @@ def check_f31_qualification_is_authoritative() -> None:
     clean = consensus.forecast_assessment(healthy, {"horizon": "5D", "ticker": "SYN", "snapshot_id": "snap"})
     if "QUALIFICATION_CONTRACT_VIOLATION" in str(clean):
         raise AssertionError("a qualified path must not be flagged")
+
+    # A caller-supplied assessment is not trusted either: a stale flag must not keep an
+    # abstained path eligible for probability-quality diagnostics.
+    abstained = researcher_result(
+        "factor", "SYN", "5D", "snap", status="insufficient_data", prob_up=None,
+        validation={"qualification": {"route": ROUTE_ABSTAINED}},
+    )
+    manifest_stub = {"horizon": "5D", "ticker": "SYN", "snapshot_id": "snap"}
+    stale = {"factor": {"forecast_eligible": True, "reporting_status": "pass", "reason_codes": []}}
+    merged = consensus.build_consensus([abstained], manifest_stub, assessments=stale)
+    if merged["path_assessments"]["factor"]["forecast_eligible"] is not False:
+        raise AssertionError(
+            f"a supplied assessment overrode the abstained route: {merged['path_assessments']['factor']}"
+        )
+    if merged["status"] != "unavailable" or merged["prob_up"] is not None:
+        raise AssertionError(f"an abstained path must not produce a consensus probability: {merged['status']}")
 
 
 # ---------------------------------------------------------------- F32
@@ -1946,6 +1963,92 @@ def check_f32_candidate_profiles() -> None:
         raise AssertionError("the calibration slope must not be described as a logistic calibration slope")
 
 
+# ---------------------------------------------------------------- F33
+def check_f33_holiday_collisions() -> None:
+    """F33: holidays cannot break the session gap, and membership invariance is not claimed.
+
+    The weekday ordinal counts Monday-Friday and does not know exchange holidays, so a
+    weekday step of ``horizon + 1`` would collapse to ``horizon`` sessions across a holiday
+    and force a drop. ``horizon + 2`` absorbs one holiday. Several holidays can still
+    collide, which is why the provenance reports the candidate phase as window independent
+    but the final membership as not guaranteed: the greedy gap filter restarts at the left
+    boundary, so admitting or dropping an early candidate can change a later one. This
+    check proves the non-invariance instead of assuming it, and it compares only dates
+    inside both windows - a sliding window also introduces genuinely new dates, and
+    counting those as churn would make the assertion pass for the wrong reason.
+    """
+    from quant_research.market_data import anchored_non_overlapping, business_day_ordinal
+
+    dates = [bar["date"] for bar in _golden_bars(500, seed=7)]
+    ordinals = [business_day_ordinal(day) for day in dates]
+    horizon, step = 5, 7
+
+    # Remove sessions between two adjacent lattice dates so they become 5 sessions apart.
+    # The greedy filter must drop the later candidate instead of emitting a short gap.
+    pairs = []
+    for left in range(60, len(dates) - horizon):
+        if ordinals[left] % step:
+            continue
+        for right in range(left + 1, min(left + 30, len(dates) - horizon)):
+            if ordinals[right] % step == 0:
+                pairs.append((left, right, right - left))
+                break
+    if not pairs:
+        raise AssertionError("fixture produced no adjacent lattice pair")
+    left, _, span = pairs[0]
+    removed = {dates[index] for index in range(left + 1, left + 1 + (span - horizon))}
+    sparse = [day for day in dates if day not in removed]
+    kept, provenance = anchored_non_overlapping(sparse, list(range(60, len(sparse) - horizon)), horizon)
+    gaps = [kept[i + 1] - kept[i] for i in range(len(kept) - 1)]
+    if provenance["dropped_for_overlap"] < 1:
+        raise AssertionError(f"a collapsed span must drop a candidate: {provenance}")
+    if gaps and min(gaps) < horizon + 1:
+        raise AssertionError(f"the drop did not restore the session gap: {min(gaps)}")
+    if provenance["required_session_gap"] != horizon + 1:
+        raise AssertionError(f"the declared gap must match the horizon: {provenance}")
+
+    # The gap must hold at every horizon even when closures are dense.
+    dense = [day for index, day in enumerate(dates) if index % 9]
+    for probe in (1, 2, 3, 5, 10, 20):
+        sampled, info = anchored_non_overlapping(dense, list(range(60, len(dense) - probe)), probe)
+        spacing = [sampled[i + 1] - sampled[i] for i in range(len(sampled) - 1)]
+        if spacing and min(spacing) < probe + 1:
+            raise AssertionError(f"H={probe} violated the gap under dense closures: {min(spacing)}")
+        if info["required_session_gap"] != probe + 1:
+            raise AssertionError(f"declared gap mismatch at H={probe}: {info}")
+
+    # Non-invariance is disclosed as a conservative claim, not a measured rate. At a
+    # realistic exchange density (~4% of sessions closed) membership was invariant on this
+    # fixture; the cascade becomes observable only in a sparse-data regime. The probe below
+    # uses ~11% missing sessions on purpose, to show the mechanism can propagate, and it
+    # compares only dates inside both windows so that genuinely new dates cannot be
+    # miscounted as churn.
+    sparse_calendar = [day for index, day in enumerate(dates) if index % 9]
+    probe_horizon = 20
+    base_window = sparse_calendar[0:250]
+    base = {base_window[i] for i in anchored_non_overlapping(
+        base_window, list(range(60, len(base_window) - probe_horizon)), probe_horizon)[0]}
+    entered = left_set = 0
+    for shift in (2, 3, 5, 7, 11, 13, 17):
+        window = sparse_calendar[shift:shift + 250]
+        shifted = {window[i] for i in anchored_non_overlapping(
+            window, list(range(60, len(window) - probe_horizon)), probe_horizon)[0]}
+        shared = set(base_window[60:len(base_window) - probe_horizon]) & set(
+            window[60:len(window) - probe_horizon])
+        entered += len((shifted - base) & shared)
+        left_set += len((base - shifted) & shared)
+    if entered == 0 or left_set == 0:
+        raise AssertionError(
+            "the cascade probe no longer shows both entry and exit; re-derive the disclosure "
+            f"before claiming membership is not invariant (entered={entered}, left={left_set})"
+        )
+    provenance = anchored_non_overlapping(dates, list(range(60, len(dates) - 5)), 5)[1]
+    if provenance["candidate_phase_window_independent"] is not True:
+        raise AssertionError("the candidate phase is calendar-anchored and must say so")
+    if provenance["final_membership_window_independent"] is not False:
+        raise AssertionError("final membership must not claim window independence")
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -1980,6 +2083,7 @@ CHECKS = [
     ("F30 anchored sampling phase", check_f30_anchored_sampling),
     ("F31 qualification is authoritative", check_f31_qualification_is_authoritative),
     ("F32 candidate profiles opt-in", check_f32_candidate_profiles),
+    ("F33 holiday collisions", check_f33_holiday_collisions),
 ]
 
 if __name__ == "__main__":

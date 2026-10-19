@@ -359,7 +359,8 @@ def run(
     ``selection_override`` exists for reproducible rule comparisons and tests; the live
     path always uses ``SELECTION_METRIC``. It never changes the evaluation boundary.
     ``sampling_mode`` selects the ledger phase rule: ``anchored`` (production) keeps the
-    sampling phase fixed to the calendar, ``legacy`` reproduces the pre-fix behaviour
+    candidate phase fixed to the calendar (not necessarily final kept membership),
+    ``legacy`` reproduces the pre-fix behaviour
     where the phase moved with the window. It exists so the stability claim can be tested
     rather than asserted.
 
@@ -396,7 +397,8 @@ def run(
         if sampling_mode == "legacy":
             chosen = non_overlapping(list(range(lo, hi)), requested_horizon)
             return chosen, {
-                "method": "legacy_spacing", "window_independent_phase": False,
+                "method": "legacy_spacing", "candidate_phase_window_independent": False,
+                "final_membership_window_independent": False,
                 "kept": len(chosen), "bounds": [lo, hi],
             }
         return anchored_non_overlapping(bar_dates, list(range(lo, hi)), requested_horizon)
@@ -435,7 +437,8 @@ def run(
     anchored_selection, _ = anchored_non_overlapping(anchor_selection, selection_pool, requested_horizon)
     selection_sampling = {
         "method": "legacy_spacing_selection_segment",
-        "window_independent_phase": False,
+        "candidate_phase_window_independent": False,
+        "final_membership_window_independent": False,
         "reason": "selection_segment_density_ceiling_equals_label_floor",
         "segment_sessions": len(selection_pool),
         "labels_legacy": len(non_overlapping(selection_pool, requested_horizon)),
@@ -698,10 +701,14 @@ def run(
         # Only the two ledgers that define bucket composition and the OOS ledger use the
         # anchored phase; the selection segment keeps legacy spacing because its density
         # ceiling equals the declared label floor. Both facts are reported, not merged.
-        "bucket_defining_segments_window_independent": all(
-            item.get("window_independent_phase") for item in (holdout_sampling, calibration_sampling)
+        "bucket_defining_segments_candidate_phase_window_independent": all(
+            item.get("candidate_phase_window_independent") for item in (holdout_sampling, calibration_sampling)
         ),
-        "selection_segment_window_independent": bool(selection_sampling.get("window_independent_phase")),
+        "bucket_defining_segments_final_membership_window_independent": False,
+        "selection_segment_candidate_phase_window_independent": bool(
+            selection_sampling.get("candidate_phase_window_independent")
+        ),
+        "selection_segment_final_membership_window_independent": False,
     }
     validation["bucket_mode"] = bucket_mode
     validation["selection_profile"] = profile_name

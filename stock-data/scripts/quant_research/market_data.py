@@ -134,19 +134,22 @@ def anchored_non_overlapping(
     *,
     phase: int = 0,
 ) -> tuple[list[int], dict[str, Any]]:
-    """Non-overlapping sample with a window-independent phase.
+    """Non-overlapping sample with a window-independent calendar candidate phase.
 
     ``non_overlapping`` starts from whatever index the caller passes, so a window that
     slides by one session replaces every sampled date. This selects candidates by an
     absolute weekday ordinal instead, then walks them in session order and drops any
-    candidate that would overlap the previous kept label. Membership of a historical
-    date therefore no longer depends on where the window happens to begin.
+    candidate that would overlap the previous kept label. Only the candidate phase is
+    window-independent, not the final kept membership: the greedy gap filter restarts
+    at the left boundary. Around holiday collisions, removing an earlier candidate can
+    admit a later historical candidate that was previously rejected.
 
     The weekday step is ``horizon + 2`` rather than ``horizon + 1``: a step of
     ``horizon + 1`` weekdays collapses to only ``horizon`` sessions whenever a single
     exchange holiday falls inside the span, which forces those candidates to be dropped
     and roughly halves the surviving sample. One weekday of slack absorbs a holiday and
-    keeps the session gap at ``horizon + 1`` or more, verified on real 250-bar data.
+    usually avoids that collision. Multiple holidays can still cause collisions; the
+    greedy gap filter always enforces a session gap of at least ``horizon + 1``.
     """
     required_gap = max(1, int(horizon) + 1)
     weekday_step = max(2, int(horizon) + 2)
@@ -170,13 +173,16 @@ def anchored_non_overlapping(
         "kept": len(kept),
         "dropped_for_overlap": dropped_for_overlap,
         "weekday_ordinal_ignores_exchange_holidays": True,
-        "window_independent_phase": True,
+        "candidate_phase_window_independent": True,
+        # False means no general invariance guarantee, not that this call necessarily
+        # encountered a collision or that every boundary shift changes membership.
+        "final_membership_window_independent": False,
     }
     if not kept:
         # Documented deterministic fallback: no candidate cleared the phase filter, so
         # the legacy spacing is used and the caller must lower its evidence grade.
         fallback = non_overlapping(usable, int(horizon))
         provenance.update(method="legacy_spacing_fallback", kept=len(fallback),
-                          window_independent_phase=False, fallback_reason="no_phase_candidates")
+                          candidate_phase_window_independent=False, fallback_reason="no_phase_candidates")
         return fallback, provenance
     return kept, provenance

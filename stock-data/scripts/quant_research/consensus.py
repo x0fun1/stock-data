@@ -439,7 +439,16 @@ def build_consensus(
         for result in researchers:
             name = result["researcher_id"]
             assessment = supplied_assessments.get(name)
-            if isinstance(assessment, dict):
+            # Qualification is authoritative at this boundary too: a supplied/stale
+            # assessment cannot make an explicitly abstained path vote or contribute
+            # to eligible-path probability-quality diagnostics. Reassess it before
+            # either consumer sees the supplied eligibility flag.
+            if ((result.get("validation") or {}).get("qualification") or {}).get("route") == "abstained":
+                assessments[name] = forecast_assessment(
+                    result, manifest, oos_evidence_audit=result.get("oos_evidence_audit"),
+                    support_sessions=support_sessions,
+                )
+            elif isinstance(assessment, dict):
                 assessments[name] = assessment
             else:
                 input_rejections.append({"researcher_id": name, "reason": "path_assessment_missing_or_invalid"})

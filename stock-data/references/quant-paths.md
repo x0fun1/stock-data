@@ -57,11 +57,11 @@ B 另有三块可靠性诊断，全部只做披露、不参与概率计算。
 
 **资格是权威，不是标签。** `qualification.route = abstained` 时，Research B 一律不产出可报告概率：数值估计移入 `validation.unqualified_estimate`（含 `withheld_reason`），`status` 置 `insufficient_data`，`prob_up = None`。`consensus.forecast_assessment` 另做独立契约检查：若某路径声明 `route: abstained` 却仍带数值概率，记 `QUALIFICATION_CONTRACT_VIOLATION` 并按致命项排除该路径——只靠路径自述不足为凭。该排除只作用于该路径，不影响 A/C/D；数据 VETO 与路径弃权是两件事（前者否决整个预测，后者只是该路径无票）。
 
-**取样相位锚定在日历上。** 旧实现以窗口内第 60 根 K 线为锚，窗口向前滑动一天，31 个非重叠样本会**全部换掉**（实测重叠 0/31），桶成分因此每日无故抖动。新实现 `anchored_non_overlapping` 用绝对工作日序数（`business_day_ordinal`，以周一为纪元）取相位，再按 session 顺序强制 `>= horizon + 1` 间距：滑动 1–3 天时日内零漂移，只有滑出预热边界的最老样本会离开。工作日步长取 `horizon + 2` 而非 `horizon + 1`，因为单个交易日假期会让 `horizon + 1` 个工作日只剩 `horizon` 个 session，迫使候选被丢弃并把样本砍掉约四成。
+**取样相位锚定在日历上。** 旧实现以窗口内第 60 根 K 线为锚，窗口向前滑动一天，31 个非重叠样本会**全部换掉**（实测重叠 0/31），桶成分因此每日无故抖动。新实现 `anchored_non_overlapping` 用绝对工作日序数（`business_day_ordinal`，以周一为纪元）取相位，再按 session 顺序强制 `>= horizon + 1` 间距。**必须分清两层**：`candidate_phase_window_independent: true` 指候选集（哪些日期落在格点上）只由日历决定，与窗口起点无关；`final_membership_window_independent: false` 指最终保留成员**不保证**窗口无关——贪心间距过滤从左边界重启，前段某个候选被接纳或丢弃会沿链改变后续候选。这个 `false` 是**保守披露**，不是实测频率：在接近真实交易所密度（约 4% session 休市）的夹具上，重叠区成员完全不变；只有当缺失密集到约 11%（稀疏/缺口数据）时，才观测到成员既进入又退出（即级联确实可传播）。另一侧的对照是旧实现：滑动 1 天即替换全部 31 个样本（重叠 0/31）。因此正确表述是“候选相位严格稳定、最终成员不保证稳定”，既不写“零漂移”，也不声称成员一定变动。工作日步长取 `horizon + 2` 而非 `horizon + 1`，因为单个交易日假期会让 `horizon + 1` 个工作日只剩 `horizon` 个 session，迫使候选被丢弃并把样本砍掉约四成。
 
 实测代价与收益（INTC 5D，250 根）：成熟非重叠样本 31 → 27；桶样本 9–11 波动 → 恒 9；窗口滑动 0–11 天的概率标准差 0.0633 → 0.0495（−22%）。
 
-**选择段不使用锚定相位，并披露原因。** 5D 的选择段恰为 60 个 session，需要 10 个标签、间距 6，密度上限正好等于下限，没有余量；改用锚定相位只得 8 个标签，会低于 `MINIMUM_SELECTION_LABELS` 并让整条路径弃权。因此选择段保留旧间距，`validation.sampling.selection` 记录 `window_independent_phase: false` 与 `reason: selection_segment_density_ceiling_equals_label_floor`；定义桶成分的两个账本（校准、留出）用锚定相位，`bucket_defining_segments_window_independent` 单独披露。**这意味因子选择仍在随窗口漂移**，是当前已知的不稳定来源，不是一个已解决的问题。
+**选择段不使用锚定相位，并披露原因。** 5D 的选择段恰为 60 个 session，需要 10 个标签、间距 6，密度上限正好等于下限，没有余量；改用锚定相位只得 8 个标签，会低于 `MINIMUM_SELECTION_LABELS` 并让整条路径弃权。因此选择段保留旧间距，`validation.sampling.selection` 记录 `candidate_phase_window_independent: false` 与 `reason: selection_segment_density_ceiling_equals_label_floor`；定义桶成分的两个账本（校准、留出）用锚定相位，`bucket_defining_segments_candidate_phase_window_independent` 单独披露。**这意味因子选择仍在随窗口漂移**，是当前已知的不稳定来源，不是一个已解决的问题。
 
 **候选设计是显式选项，不是默认。** `SELECTION_PROFILES` 只有两个：`legacy`（5 因子、每族 2、间距点估计 IC，生产默认）与 `restricted`（3 因子、每族 1、依赖感知 IC + 方向稳定性）。`bucket_mode` 为 `three`（三分位，生产默认）或 `two`（中位数二分）。传 `None` 必为生产；候选从不隐式启用。双桶把每桶观察数翻倍（9 → 13），但那只是方差取舍，是否更好是登记在案的经验问题，不是结论。
 
