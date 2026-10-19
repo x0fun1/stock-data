@@ -920,18 +920,18 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "3fe63e0cb7233de68faca6fc8f4228b5a43cf7c19be5b23c5309d662582ebe3d",
-        "quant_result.json": "57c7a6096fd0c2182532ef883e2bc325ac61800d2f64d9f40663bce24f146e23",
+        "report.json": "408d8ae70bdbb7d986e9843b382f0e132d7e2f5a4d5e61c39a5b27535513ed0f",
+        "quant_result.json": "fa7f198c46cf409a91e033df81b5f33d7904fd5eb6d69f1878f6fa4d0ffc6d82",
         "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
-        "agent_summary.json": "d7aac30a17e2f5150e647c1e8cc3a97b82772d7a61b1009a04727d953a1b28f6",
-        "final_response.md": "e373c4a67ba816c4659a8d50f10f7d60e2cd4fe5a9e4e3e63602c6e97e4c7d39",
+        "agent_summary.json": "7d6192fb268d10e1a2f4c8de84c29995c7cd768b22982cb8a0b815eb1d734056",
+        "final_response.md": "f23c4762739a13e5da17405b8e1f79c0d95ddd482bc251b48605eaa033492ed3",
     },
     "news": {
-        "report.json": "fe05773fbfa2b39427c686879fca01ddbff06e128e291299ddafee95d0854316",
-        "quant_result.json": "7535a3a419dc6be663b430dfef7fb6e784f30f56a03c368d1350300cd4d1fa9c",
+        "report.json": "02b7e40ed737ed462052eded8002ac722880e0cec266759b68e4176779719f48",
+        "quant_result.json": "48af73e1da5691e338f4e9797ed1892898b28833dad59e0e70e8fd6b0d6a738e",
         "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
-        "agent_summary.json": "6eb3281fd5425f788250f079444692009ace3414afdfab2583551bf7a48b1e35",
-        "final_response.md": "e104336fb6a4407775c43905835e2209b97d0b500e03915427f9225f651308d2",
+        "agent_summary.json": "54ba77c2eb34204dd63e13bd1451154f8997f95619a58b6e4c163df52896ced6",
+        "final_response.md": "5ebb6727030c07eb303ea6c665c24e63624e693e380c39a7be8897d8321cc813",
     },
 }
 GOLDEN_ANCHORS: dict[str, dict[str, object]] = {
@@ -942,7 +942,7 @@ GOLDEN_ANCHORS: dict[str, dict[str, object]] = {
         "summary.sections.final_synthesis.news_relationship": "消息面交叉验证未评估",
         "summary.sections.news.event_bias": "unknown",
         "summary.sections.news.status": "not_assessed",
-        "quant.consensus.prob_up": 0.5583357792180278,
+        "quant.consensus.prob_up": 0.5853976420216035,
         "quant.consensus.direction": "bullish",
         "quant.consensus.confidence": "low",
         "quant.consensus.agreement": "medium",
@@ -966,7 +966,7 @@ GOLDEN_ANCHORS: dict[str, dict[str, object]] = {
         "summary.sections.final_synthesis.news_relationship": "消息面交叉验证未评估",
         "summary.sections.news.event_bias": "unknown",
         "summary.sections.news.status": "partial",
-        "quant.consensus.prob_up": 0.5583357792180278,
+        "quant.consensus.prob_up": 0.5853976420216035,
         "quant.consensus.direction": "bullish",
         "quant.consensus.confidence": "low",
         "quant.consensus.agreement": "medium",
@@ -1643,6 +1643,16 @@ def check_f29_reliability_accounting() -> None:
     sample = sample_diagnostics(bar_count=250, warmup=60, horizon=5)
     if (sample["raw_sample_count"], sample["nonoverlap_sample_count"]) != (185, 31):
         raise AssertionError(f"52-week sample accounting changed: {sample}")
+    # Without dates the counter falls back to legacy spacing; production passes real dates
+    # and gets the anchored count, so both bases are asserted rather than assumed.
+    if sample["nonoverlap_count_basis"] != "legacy_spacing":
+        raise AssertionError(f"the fallback basis must be named: {sample['nonoverlap_count_basis']}")
+    anchored = sample_diagnostics(
+        bar_count=250, warmup=60, horizon=5,
+        dates=[bar["date"] for bar in _golden_bars(250, seed=11)],
+    )
+    if anchored["nonoverlap_count_basis"] != "anchored_phase" or anchored["nonoverlap_sample_count"] >= 31:
+        raise AssertionError(f"the anchored basis must count fewer labels than legacy: {anchored}")
     if abs(sample["sample_coverage"] - 185 / 190) > 1e-12:
         raise AssertionError("coverage must be matured labels over decision dates")
     if sample["overlapping_observations_are_independent"] is not False:
@@ -1776,6 +1786,166 @@ def check_f27_ab_protocol_statistics() -> None:
         raise AssertionError("subsetting must not rewrite the benchmark series")
 
 
+# ---------------------------------------------------------------- F30
+def check_f30_anchored_sampling() -> None:
+    """F30: the sampling phase follows the calendar, not the window start."""
+    from quant_research.market_data import (
+        anchored_non_overlapping,
+        business_day_ordinal,
+        non_overlapping,
+    )
+
+    # The ordinal must advance by exactly one per weekday and be stable per date.
+    if business_day_ordinal("2026-01-05") + 1 != business_day_ordinal("2026-01-06"):
+        raise AssertionError("consecutive weekdays must differ by one ordinal")
+    if business_day_ordinal("2026-01-09") + 1 != business_day_ordinal("2026-01-12"):
+        raise AssertionError("the ordinal must skip the weekend without colliding")
+
+    dates = [bar["date"] for bar in _golden_bars(320, seed=11)]
+    for horizon in (1, 5, 20):
+        kept, provenance = anchored_non_overlapping(dates, list(range(60, len(dates) - horizon)), horizon)
+        gaps = [kept[index + 1] - kept[index] for index in range(len(kept) - 1)]
+        if gaps and min(gaps) <= horizon:
+            raise AssertionError(f"labels overlap at H={horizon}: min gap {min(gaps)}")
+        if provenance["window_independent_phase"] is not True:
+            raise AssertionError(f"phase must be window independent: {provenance}")
+
+    # Sliding the window by a few sessions must not replace the sampled dates. Both sides
+    # must use the same window length, otherwise the test compares different bounds.
+    def sampled(window: list[str]) -> set[str]:
+        return {window[i] for i in anchored_non_overlapping(window, list(range(60, len(window) - 5)), 5)[0]}
+
+    base = sampled(dates[0:250])
+    for shift in (1, 2, 3):
+        window = dates[shift:shift + 250]
+        shifted = sampled(window)
+        warmup_boundary = window[60]
+        # A date may leave only by falling out of the warm-up boundary at the old end;
+        # an interior date leaving would be the phase drift this fix removes.
+        interior_lost = sorted(date for date in (base - shifted) if date >= warmup_boundary)
+        if interior_lost:
+            raise AssertionError(
+                f"shift {shift} dropped {len(interior_lost)} interior sampled dates, e.g. {interior_lost[:2]}"
+            )
+
+    # The legacy rule is the control: it does churn, which is why the fix exists.
+    legacy_base = {dates[i] for i in non_overlapping(list(range(60, 250 - 5)), 5)}
+    legacy_shift = {dates[1:251][i] for i in non_overlapping(list(range(60, 250 - 5)), 5)}
+    if not (legacy_base - legacy_shift):
+        raise AssertionError("the legacy spacing is expected to churn; if it does not, this test is stale")
+
+    # Deterministic, and a documented fallback when no candidate clears the phase.
+    first = anchored_non_overlapping(dates, list(range(60, 245)), 5)[0]
+    second = anchored_non_overlapping(dates, list(range(60, 245)), 5)[0]
+    if first != second:
+        raise AssertionError("anchored sampling must be deterministic")
+    _, provenance = anchored_non_overlapping(["2026-01-05"], [0], 5)
+    if provenance.get("window_independent_phase") is not False:
+        raise AssertionError(f"an empty candidate set must fall back and say so: {provenance}")
+
+
+# ---------------------------------------------------------------- F31
+def check_f31_qualification_is_authoritative() -> None:
+    """F31: an abstained route cannot carry a reportable probability into consensus."""
+    from quant_research import consensus
+    from quant_research.contracts import researcher_result
+    from quant_research.reliability import ROUTE_ABSTAINED
+
+    # A path that contradicts itself must be rejected by consensus even though its own
+    # payload says nothing is wrong with the number itself.
+    contradictory = researcher_result(
+        "factor", "SYN", "5D", "snap", status="success", prob_up=0.61,
+        probability_source="out_of_sample_factor_score_bucket_frequency",
+        validation={"qualification": {"route": ROUTE_ABSTAINED}},
+    )
+    assessment = consensus.forecast_assessment(contradictory, {"horizon": "5D", "ticker": "SYN",
+                                                              "snapshot_id": "snap"})
+    codes = (assessment.get("reason_codes") or []) + list(assessment.get("forecast_exclusion_reasons") or [])
+    joined = " ".join(str(item) for item in codes) + " " + " ".join(
+        str(item) for item in (assessment.get("warnings") or [])
+    )
+    if "QUALIFICATION_CONTRACT_VIOLATION" not in joined:
+        raise AssertionError(f"consensus must flag the contradiction: {assessment}")
+    if assessment.get("forecast_eligible") is not False:
+        raise AssertionError(f"a contradicting path must not stay eligible: {assessment}")
+
+    # A healthy path is untouched by the new contract.
+    healthy = researcher_result(
+        "factor", "SYN", "5D", "snap", status="success", prob_up=0.61,
+        probability_source="out_of_sample_factor_score_bucket_frequency",
+        validation={"qualification": {"route": "legacy_bucket"},
+                    "leakage_audit": {"features_use_data_through_decision_close_only": True,
+                                      "future_returns_used_only_as_labels": True}},
+    )
+    clean = consensus.forecast_assessment(healthy, {"horizon": "5D", "ticker": "SYN", "snapshot_id": "snap"})
+    if "QUALIFICATION_CONTRACT_VIOLATION" in str(clean):
+        raise AssertionError("a qualified path must not be flagged")
+
+
+# ---------------------------------------------------------------- F32
+def check_f32_candidate_profiles() -> None:
+    """F32: candidates are opt-in, and production defaults are unchanged."""
+    from pathlib import Path as _Path
+
+    from quant_research.researchers import factor
+
+    if factor.PRODUCTION_SELECTION_PROFILE != "legacy" or factor.PRODUCTION_BUCKET_MODE != "three":
+        raise AssertionError("production defaults must stay legacy selection and three buckets")
+    legacy = factor.SELECTION_PROFILES["legacy"]
+    restricted = factor.SELECTION_PROFILES["restricted"]
+    if (legacy["max_factors"], legacy["max_factors_per_family"]) != (5, 2):
+        raise AssertionError(f"the incumbent profile changed: {legacy}")
+    if (restricted["max_factors"], restricted["max_factors_per_family"]) != (3, 1):
+        raise AssertionError(f"the restricted candidate must cap 3 factors, one per family: {restricted}")
+    if restricted["metric"] != "overlapping_block":
+        raise AssertionError("the restricted candidate must use the dependency-aware estimator")
+
+    bars = synth_bars(250, seed=11)
+    manifest, market = ml_snapshot_stub(bars)
+    original = factor.load_snapshot
+    factor.load_snapshot = lambda _dir, a=manifest, b=market: (a, b)
+    try:
+        default = factor.run(_Path("x"))
+        explicit = factor.run(_Path("x"), selection_profile="legacy", bucket_mode="three")
+        two = factor.run(_Path("x"), selection_profile="legacy", bucket_mode="two")
+        restricted_run = factor.run(_Path("x"), selection_profile="restricted", bucket_mode="three")
+    finally:
+        factor.load_snapshot = original
+
+    if default["prob_up"] != explicit["prob_up"]:
+        raise AssertionError("passing the production profile explicitly must not change the result")
+    if default["validation"]["bucket_mode"] != "three":
+        raise AssertionError("the default bucket mode must be declared as three")
+    for result, mode in ((two, "two"), (restricted_run, "three")):
+        validation = result["validation"]
+        if validation["bucket_mode"] != mode:
+            raise AssertionError(f"bucket mode not disclosed: {validation['bucket_mode']}")
+        if (validation["qualification"] or {}).get("route") not in {"legacy_bucket", "abstained"}:
+            raise AssertionError("a candidate run must still report a qualification route")
+    if len(two["validation"]["calibration_bucket_counts"]) != 2:
+        raise AssertionError(f"the two-bucket candidate must have two buckets: {two['validation']['calibration_bucket_counts']}")
+    if len(restricted_run["validation"]["selected_factors"]) > 3:
+        raise AssertionError("the restricted candidate selected more than three factors")
+    families = [row["family"] for row in restricted_run["validation"]["selected_factors"]]
+    if len(families) != len(set(families)):
+        raise AssertionError(f"the restricted candidate allowed two factors from one family: {families}")
+
+    # Interval unit: non-overlapping ledgers must not be blocked at horizon + 1 records.
+    from quant_research.reliability import probabilistic_scores
+
+    spaced = [(index, 0.6, 0.5, 1) for index in range(0, 60, 6)]
+    scores = probabilistic_scores(spaced, horizon=5)
+    if scores["block_length"] != 1:
+        raise AssertionError(f"non-overlapping predictions must use a one-record block: {scores['block_length']}")
+    if scores["block_length_basis"] != "one_record_because_labels_do_not_overlap":
+        raise AssertionError("the interval unit must be explained")
+    dense = [(index, 0.6, 0.5, 1) for index in range(30)]
+    if probabilistic_scores(dense, horizon=5)["block_length"] != 6:
+        raise AssertionError("overlapping daily predictions must keep the horizon block")
+    if scores["calibration_slope_is_logistic_calibration_slope"] is not False:
+        raise AssertionError("the calibration slope must not be described as a logistic calibration slope")
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -1807,6 +1977,9 @@ CHECKS = [
     ("F27 A/B protocol statistics", check_f27_ab_protocol_statistics),
     ("F28 selection statistics", check_f28_selection_statistics),
     ("F29 reliability accounting", check_f29_reliability_accounting),
+    ("F30 anchored sampling phase", check_f30_anchored_sampling),
+    ("F31 qualification is authoritative", check_f31_qualification_is_authoritative),
+    ("F32 candidate profiles opt-in", check_f32_candidate_profiles),
 ]
 
 if __name__ == "__main__":

@@ -15,12 +15,13 @@ Thresholds live in module constants on purpose: a caller cannot lower them per s
 
 from __future__ import annotations
 
+import itertools
 import math
 import random
 from collections.abc import Sequence
 from typing import Any
 
-from .market_data import non_overlapping
+from .market_data import anchored_non_overlapping, non_overlapping
 
 ROUTE_LEGACY = "legacy_bucket"
 ROUTE_ABSTAINED = "abstained"
@@ -54,20 +55,37 @@ def logistic_shortfall(nonoverlap_matured: int) -> dict[str, Any]:
         "available_non_overlapping_labels": available,
         "shortfall": max(0, required - available),
         "stages_may_share_observations": False,
+        # The gap is not a queue we are slowly filling: a 52-week window cannot host three
+        # disjoint 60/30/30 stages at any horizon, so this route is out of scope by design
+        # rather than pending. Research C already carries the fitted model.
+        "implementation_policy": "deferred_by_fixed_52_week_design",
+        "activation_target": "none_in_current_research_b_architecture",
+        "alternative": "existing_research_c_logistic_path",
         "activation_note": (
-            "A fitted L2 logistic path stays withheld until one study can supply the training, "
-            "calibration and validation labels separately and at once. This is the plan's own "
-            "constraint that the single-name data limit may not be solved by lowering the bar."
+            "A fitted L2 logistic path would need the training, calibration and validation labels "
+            "separately and at once. A 52-week window cannot supply that at any horizon, so this is "
+            "not a threshold awaiting more data but a design boundary; the fitted model lives in "
+            "Research C. This field is retained so historical results stay traceable."
         ),
     }
 
 
-def sample_diagnostics(*, bar_count: int, warmup: int, horizon: int) -> dict[str, Any]:
+def sample_diagnostics(
+    *, bar_count: int, warmup: int, horizon: int, dates: Sequence[str] | None = None,
+) -> dict[str, Any]:
     """Separate raw, matured, independent and estimated-effective sample counts."""
     decision_dates = max(0, int(bar_count) - int(warmup))
     matured = max(0, decision_dates - int(horizon))
     indices = list(range(int(warmup), max(int(warmup), int(bar_count) - int(horizon))))
-    independent = len(non_overlapping(indices, int(horizon)))
+    independent_source = "legacy_spacing"
+    if dates is not None and len(dates) >= int(bar_count):
+        # Count with the same anchored phase the production ledger uses, so the reported
+        # independent size matches the labels actually consumed instead of a different rule.
+        _, provenance = anchored_non_overlapping(list(dates), indices, int(horizon))
+        independent = int(provenance.get("kept", 0))
+        independent_source = "anchored_phase"
+    else:
+        independent = len(non_overlapping(indices, int(horizon)))
     approximation = matured / int(horizon) if horizon else float(matured)
     return {
         "bar_count": int(bar_count),
@@ -77,6 +95,7 @@ def sample_diagnostics(*, bar_count: int, warmup: int, horizon: int) -> dict[str
         "raw_sample_count": matured,
         "matured_sample_count": matured,
         "nonoverlap_sample_count": independent,
+        "nonoverlap_count_basis": independent_source,
         "effective_sample_size_estimate": approximation,
         "effective_sample_size_kind": "approximation_only_raw_over_horizon",
         "sample_coverage": (matured / decision_dates) if decision_dates else 0.0,
@@ -161,9 +180,17 @@ def probabilistic_scores(
 ) -> dict[str, Any]:
     """Score the path against the historical base rate on identical dates.
 
-    ``predictions`` holds ``(index, probability, base_rate, outcome)`` for every out-of-sample
-    forecast whose label already matured. Pairing is by construction: the baseline is
-    the same-date base rate, so a difference cannot come from a different sample.
+    ``predictions`` holds ``(session_index, probability, base_rate, outcome)`` for every
+    out-of-sample forecast whose label already matured, where ``session_index`` is the
+    position of the decision session inside the frozen bar array - not a running number
+    over the filtered predictions. Pairing is by construction: the baseline is the
+    same-date base rate, so a difference cannot come from a different sample.
+
+    The dependence unit follows the actual session spacing. When the caller already
+    sampled non-overlapping decisions, adjacent forecasts share no label window, so the
+    moving-block length collapses to one record; applying a ``horizon + 1`` block to an
+    already-thinned list would treat ``(horizon + 1)**2`` sessions as one dependent block
+    and produce an interval that means nothing.
     """
     model_pairs = [(float(probability), int(outcome)) for _, probability, _, outcome in predictions]
     base_pairs = [(float(base), int(outcome)) for _, _, base, outcome in predictions if base is not None]
@@ -177,7 +204,11 @@ def probabilistic_scores(
     losses = [(probability - outcome) ** 2 for probability, outcome in model_common]
     base_losses = [(base - outcome) ** 2 for base, outcome in base_common]
     differences = [model - base for model, base in zip(losses, base_losses, strict=True)]
-    paired = _paired_interval(differences, block_length=max(1, int(horizon) + 1))
+    sessions = sorted({int(index) for index, _, base, _ in predictions if base is not None})
+    gaps = [right - left for left, right in itertools.pairwise(sessions)]
+    non_overlapping_sample = bool(gaps) and min(gaps) > int(horizon)
+    block_length = 1 if non_overlapping_sample else max(1, int(horizon) + 1)
+    paired = _paired_interval(differences, block_length=block_length)
     mean_difference = (sum(differences) / len(differences)) if differences else None
     return {
         "brier": brier,
@@ -187,10 +218,18 @@ def probabilistic_scores(
         "base_rate_log_loss": _log_loss(base_common),
         "calibration_slope": slope,
         "calibration_intercept": intercept,
+        "calibration_slope_method": "ols_of_outcome_on_logit_probability_diagnostic_only",
+        "calibration_slope_is_logistic_calibration_slope": False,
         "paired_common_samples": len(common),
         "brier_difference_model_minus_base": mean_difference,
         "brier_difference_interval": paired.get("interval"),
         "brier_difference_interval_status": paired.get("status"),
+        "block_length": block_length,
+        "block_length_basis": (
+            "one_record_because_labels_do_not_overlap" if non_overlapping_sample
+            else "horizon_plus_one_because_adjacent_labels_overlap"
+        ),
+        "minimum_session_gap": min(gaps) if gaps else None,
         "baseline": "same_date_historical_base_rate",
         "comparison_sample_matched": True,
         "scored_predictions": len(model_pairs),

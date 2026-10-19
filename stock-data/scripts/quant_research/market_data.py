@@ -104,3 +104,79 @@ def non_overlapping(indices: list[int], horizon: int) -> list[int]:
             kept.append(index)
             last_end = index + horizon
     return kept
+
+
+_MONDAY_EPOCH_ORDINAL = 719160  # date(1969, 12, 29) is a Monday; a non-Monday epoch
+# would collide adjacent weekdays in the formula below.
+
+
+def business_day_ordinal(day: str) -> int:
+    """Deterministic weekday count from a fixed epoch, derived from the date alone.
+
+    A sliding 52-week window cannot supply a global session counter, and anchoring the
+    sampling phase on the window's first bar makes the phase move with the window. This
+    ordinal depends only on the calendar date, so the same history keeps the same phase
+    no matter where the window starts. It counts Monday-Friday days and therefore does
+    not know about exchange holidays: two consecutive sessions normally differ by one,
+    occasionally by two. Callers must still enforce the session gap themselves.
+    """
+    from datetime import date
+
+    offset = date.fromisoformat(day).toordinal() - _MONDAY_EPOCH_ORDINAL
+    weeks, remainder = divmod(offset, 7)
+    return weeks * 5 + min(remainder, 5)
+
+
+def anchored_non_overlapping(
+    dates: list[str],
+    indices: list[int],
+    horizon: int,
+    *,
+    phase: int = 0,
+) -> tuple[list[int], dict[str, Any]]:
+    """Non-overlapping sample with a window-independent phase.
+
+    ``non_overlapping`` starts from whatever index the caller passes, so a window that
+    slides by one session replaces every sampled date. This selects candidates by an
+    absolute weekday ordinal instead, then walks them in session order and drops any
+    candidate that would overlap the previous kept label. Membership of a historical
+    date therefore no longer depends on where the window happens to begin.
+
+    The weekday step is ``horizon + 2`` rather than ``horizon + 1``: a step of
+    ``horizon + 1`` weekdays collapses to only ``horizon`` sessions whenever a single
+    exchange holiday falls inside the span, which forces those candidates to be dropped
+    and roughly halves the surviving sample. One weekday of slack absorbs a holiday and
+    keeps the session gap at ``horizon + 1`` or more, verified on real 250-bar data.
+    """
+    required_gap = max(1, int(horizon) + 1)
+    weekday_step = max(2, int(horizon) + 2)
+    usable = sorted(index for index in indices if 0 <= index < len(dates))
+    candidates = [index for index in usable if business_day_ordinal(dates[index]) % weekday_step == phase]
+    kept: list[int] = []
+    dropped_for_overlap = 0
+    last_end = -1
+    for index in candidates:
+        if index > last_end:
+            kept.append(index)
+            last_end = index + int(horizon)
+        else:
+            dropped_for_overlap += 1
+    provenance = {
+        "method": "absolute_weekday_phase_then_session_gap",
+        "phase": phase,
+        "weekday_step": weekday_step,
+        "required_session_gap": required_gap,
+        "candidates": len(candidates),
+        "kept": len(kept),
+        "dropped_for_overlap": dropped_for_overlap,
+        "weekday_ordinal_ignores_exchange_holidays": True,
+        "window_independent_phase": True,
+    }
+    if not kept:
+        # Documented deterministic fallback: no candidate cleared the phase filter, so
+        # the legacy spacing is used and the caller must lower its evidence grade.
+        fallback = non_overlapping(usable, int(horizon))
+        provenance.update(method="legacy_spacing_fallback", kept=len(fallback),
+                          window_independent_phase=False, fallback_reason="no_phase_candidates")
+        return fallback, provenance
+    return kept, provenance

@@ -48,4 +48,11 @@ The runtime writes `final_response.md` after both stages freeze and synthesis co
 - Hiding sample size, calibration status, horizon, label rule or holdout behavior in standard/debug reports.
 - Showing precision beyond what the sample/model justifies.
 
+- Treating a path's `qualification.route` as decoration: an `abstained` route must carry `prob_up = null`, and consensus independently rejects any path that contradicts itself.
+- Reporting an interval from a bootstrap whose block unit does not match the sample's real session spacing.
+- Calling `calibration_slope` (an OLS diagnostic of outcome on `logit(p)`) a logistic calibration slope.
+- Switching a candidate model on a point estimate; a switch needs same-date pairing and an interval that excludes zero on the pre-declared session minimum.
+
+An `indeterminate` verdict is a real result, not a failure: it means the fixed 52-week ledger cannot separate the candidates, so production stays where it is. Reaching the session minimum makes an interval computable; it does not make it sufficient evidence for a switch.
+
 When a probability is unsupported, emit `null`, explain the missing condition and continue with descriptive evidence only. Do not convert a factor score, sentiment label or directional majority into probability without a documented historical mapping.

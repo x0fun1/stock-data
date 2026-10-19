@@ -41,7 +41,7 @@ OOS 的 BY 调整以全部尝试候选作为检验家族，并计入无法计算
 
 B 另有三块可靠性诊断，全部只做披露、不参与概率计算。
 
-`sample_diagnostics` 把样本拆成四个数：`raw_sample_count`（决策日减去 H 得到的成熟标签数）、`nonoverlap_sample_count`（按 H+1 间距的保守独立样本数）、`effective_sample_size_estimate`（`raw / H`，明确标注 `approximation_only_raw_over_horizon`）和 `sample_coverage`。`overlapping_observations_are_independent` 固定为 `false`。52 周、250 根日线、60 session 预热下的实际值是：5D 为 185 原始 / 31 非重叠 / 覆盖 0.974，20D 为 170 原始 / 9 非重叠。这些数字说明为什么 B 的概率在 52 周下必然带厚区间，也说明为什么 `raw / H` 不能被当作精确有效样本量。
+`sample_diagnostics` 把样本拆成四个数：`raw_sample_count`（决策日减去 H 得到的成熟标签数）、`nonoverlap_sample_count`（按 H+1 间距的保守独立样本数）、`effective_sample_size_estimate`（`raw / H`，明确标注 `approximation_only_raw_over_horizon`）和 `sample_coverage`。`overlapping_observations_are_independent` 固定为 `false`。52 周、250 根日线、60 session 预热下的实际值是（INTC 5D）：`raw_sample_count` 185、`sample_coverage` 0.974；`nonoverlap_sample_count` 取决于取样规则并由 `nonoverlap_count_basis` 标注——锚定相位（生产默认）为 **27**，旧间距回退为 31；20D 锚定相位为 8、旧间距为 9。这些数字说明为什么 B 的概率在 52 周下必然带厚区间，也说明为什么 `raw / H` 不能被当作精确有效样本量。
 
 `probabilistic_scores` 在**同一批日期**上与同期历史基准率配对比较，输出 `brier`、`base_rate_brier`、`brier_skill_vs_base_rate`、`log_loss`、`base_rate_log_loss`、`calibration_slope`、`calibration_intercept`、`paired_common_samples`，以及"模型减基准"的 Brier 差与其循环移动块区间。区间在样本不足时返回 `insufficient_samples` 而不是给一个窄区间；`calibration_slope` 由 `logit(p)` 对标签的最小二乘拟合得到，只作诊断。基准是同日历史频率，因此差异不可能来自样本不同。
 
@@ -52,6 +52,26 @@ B 另有三块可靠性诊断，全部只做披露、不参与概率计算。
 依赖感知选择规则（`selection.overlapping_ic`，`selection_override="overlapping_block"`）用选择段全部成熟标签估计 Rank IC、以 H+1 为块长做移动块自助法、并要求 3 个子窗口的符号一致性 ≥ 2/3。它已实现并在 `scripts/selection_ab.py` 的 36 标的注册池上做过预先登记的新旧对照：两臂 Brier 为 0.2718 / 0.2681，差值为 −0.0040（新规则略优），但 holdout 只提供 15 个可评分 session，低于 session 块自助法所需的 24 个，因此按登记规则判为 `indeterminate`，**线上仍使用旧的间距点估计规则**。符号聚类区间（披露项，非判定项）为 [−0.0118, +0.0023]，同样跨零。结论：该替代规则没有获得证据支持，也没有被证据否定；换用需要更长的窗口，而不是调阈值。
 
 需要明确区分：以上都是可靠性披露。本轮没有引入拟合概率模型，没有改动概率聚合顺序，也没有声称预测准确率提升。`scripts/selection_ab.py` 的两臂共用同一份 52 周数据，比较的是选择估计量而不是新增历史。
+
+### B 的 52 周加固（v2.19.0）
+
+**资格是权威，不是标签。** `qualification.route = abstained` 时，Research B 一律不产出可报告概率：数值估计移入 `validation.unqualified_estimate`（含 `withheld_reason`），`status` 置 `insufficient_data`，`prob_up = None`。`consensus.forecast_assessment` 另做独立契约检查：若某路径声明 `route: abstained` 却仍带数值概率，记 `QUALIFICATION_CONTRACT_VIOLATION` 并按致命项排除该路径——只靠路径自述不足为凭。该排除只作用于该路径，不影响 A/C/D；数据 VETO 与路径弃权是两件事（前者否决整个预测，后者只是该路径无票）。
+
+**取样相位锚定在日历上。** 旧实现以窗口内第 60 根 K 线为锚，窗口向前滑动一天，31 个非重叠样本会**全部换掉**（实测重叠 0/31），桶成分因此每日无故抖动。新实现 `anchored_non_overlapping` 用绝对工作日序数（`business_day_ordinal`，以周一为纪元）取相位，再按 session 顺序强制 `>= horizon + 1` 间距：滑动 1–3 天时日内零漂移，只有滑出预热边界的最老样本会离开。工作日步长取 `horizon + 2` 而非 `horizon + 1`，因为单个交易日假期会让 `horizon + 1` 个工作日只剩 `horizon` 个 session，迫使候选被丢弃并把样本砍掉约四成。
+
+实测代价与收益（INTC 5D，250 根）：成熟非重叠样本 31 → 27；桶样本 9–11 波动 → 恒 9；窗口滑动 0–11 天的概率标准差 0.0633 → 0.0495（−22%）。
+
+**选择段不使用锚定相位，并披露原因。** 5D 的选择段恰为 60 个 session，需要 10 个标签、间距 6，密度上限正好等于下限，没有余量；改用锚定相位只得 8 个标签，会低于 `MINIMUM_SELECTION_LABELS` 并让整条路径弃权。因此选择段保留旧间距，`validation.sampling.selection` 记录 `window_independent_phase: false` 与 `reason: selection_segment_density_ceiling_equals_label_floor`；定义桶成分的两个账本（校准、留出）用锚定相位，`bucket_defining_segments_window_independent` 单独披露。**这意味因子选择仍在随窗口漂移**，是当前已知的不稳定来源，不是一个已解决的问题。
+
+**候选设计是显式选项，不是默认。** `SELECTION_PROFILES` 只有两个：`legacy`（5 因子、每族 2、间距点估计 IC，生产默认）与 `restricted`（3 因子、每族 1、依赖感知 IC + 方向稳定性）。`bucket_mode` 为 `three`（三分位，生产默认）或 `two`（中位数二分）。传 `None` 必为生产；候选从不隐式启用。双桶把每桶观察数翻倍（9 → 13），但那只是方差取舍，是否更好是登记在案的经验问题，不是结论。
+
+**预登记对照结果。** `scripts/research_b_ab.py` 在 36 标的注册池上比较四条臂（同一冻结行情、同一锚定账本、同一资格门槛）。Q1 选择规则、Q2 分桶模式的配对 Brier 差分别为 +0.0009 / +0.0009（正=候选更差），但只有 **11 个可评分 session**，低于 session 块自助法所需的 24 个，两问均判 `indeterminate`。按登记规则不切换，生产保持 legacy + three。
+
+**OOS 统计的时间单位已修正。** `probabilistic_scores` 现在接收真实 session 索引，并按实际间距决定依赖单位：若相邻预测间隔大于 `horizon`（即已非重叠取样），块长降为 1 条记录并披露 `block_length_basis: one_record_because_labels_do_not_overlap`；只有逐日重叠预测才用 `horizon + 1`。旧实现把过滤后的列表序号当索引，且对已抽稀的序列套用 `horizon + 1` 块，等价于把 `(horizon+1)^2` 个 session 当作一个依赖块。
+
+**`calibration_slope` 只是诊断。** 它由标签对 `logit(p)` 的最小二乘拟合得到，输出新增 `calibration_slope_method` 与 `calibration_slope_is_logistic_calibration_slope: false`，不得表述为经 Logistic 校准验证的斜率。
+
+**52 周下 B 的可达性（实测）。** 5D 可以给出概率（27 成熟 / 9 单桶 / 11 验证预测，门槛 12/6/8）；20D 只有 8 个成熟非重叠标签，达不到 12，按规则弃权，由 A/C 正常出票。**不允许**通过延长窗口、降低门槛或重新定义独立样本让 B 总有概率。
 
 ## C — 逻辑回归与防泄漏验证
 

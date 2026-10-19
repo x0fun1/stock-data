@@ -111,6 +111,16 @@ def forecast_assessment(
         messages.append("This path did not produce a contract-valid quantitative probability.")
 
     validation = result.get("validation") or {}
+    # A path that declares itself abstained must not vote, and this is checked here rather
+    # than trusted from the path: otherwise a path could report ``route: abstained`` and a
+    # numeric ``prob_up`` at the same time, and consensus would silently count it.
+    declared_route = (validation.get("qualification") or {}).get("route")
+    if declared_route == "abstained" and isinstance(probability, (int, float)) and not isinstance(probability, bool):
+        codes.append("QUALIFICATION_CONTRACT_VIOLATION")
+        messages.append(
+            "The path declared its qualification route 'abstained' but still reported a numeric "
+            "probability; the probability is rejected."
+        )
     name = result.get("researcher_id")
     calibration = ("empirical_frequency" if name in {"quant", "factor"}
                    else "calibrated" if validation.get("probability_calibration", {}).get("calibrated")
@@ -155,7 +165,10 @@ def forecast_assessment(
         messages.append("Some OOS records failed frozen-session, target, or matured-training-label verification; rejected records are excluded from validation metrics.")
     if result.get("status") not in {"success", "partial"}:
         codes.append("PATH_FAILED")
-    fatal_codes = [code for code in codes if code in {"SNAPSHOT_IDENTITY_INVALID", "PREDICTION_FAILED", "LEAKAGE_DETECTED"}]
+    fatal_codes = [code for code in codes if code in {
+        "SNAPSHOT_IDENTITY_INVALID", "PREDICTION_FAILED", "LEAKAGE_DETECTED",
+        "QUALIFICATION_CONTRACT_VIOLATION",
+    }]
     eligible_path = not fatal_codes
 
     return {

@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any
 
 from ..contracts import HORIZONS, researcher_result
-from ..market_data import forward_returns, market_bars, non_overlapping
+from ..market_data import anchored_non_overlapping, forward_returns, market_bars, non_overlapping
 from ..math_utils import (
     benjamini_yekutieli,
     circular_block_bootstrap_spearman,
@@ -32,6 +32,17 @@ MAX_FACTORS = 5
 MAX_FACTORS_PER_FAMILY = 2
 MAX_ABS_FACTOR_CORRELATION = 0.85
 MINIMUM_SIGN_CONSISTENCY = 2 / 3
+# Declared candidate profiles. ``legacy`` is production. ``restricted`` is the
+# low-complexity candidate the 52-week plan asks for: fewer factors, one per family, and
+# the dependency-aware estimator. It is a hypothesis under test, not a measured optimum,
+# and nothing selects it automatically.
+SELECTION_PROFILES: dict[str, dict[str, Any]] = {
+    "legacy": {"max_factors": 5, "max_factors_per_family": 2, "metric": "non_overlapping_point"},
+    "restricted": {"max_factors": 3, "max_factors_per_family": 1, "metric": "overlapping_block"},
+}
+BUCKET_MODES = ("three", "two")
+PRODUCTION_SELECTION_PROFILE = "legacy"
+PRODUCTION_BUCKET_MODE = "three"
 # "overlapping_block" estimates the Rank IC on every matured label of the segment and
 # requires directional stability; it is implemented and evaluated, but the registered
 # comparison could not separate it from the incumbent rule on a 52-week window, so the
@@ -270,8 +281,18 @@ def _empty_oos_forecasts(
     } for index in indices if labels[index] is not None]
 
 
-def _bucket_for_score(score: float | None, low_cut: float | None, high_cut: float | None) -> str | None:
-    if score is None or low_cut is None or high_cut is None:
+def _bucket_keys(mode: str) -> tuple[str, ...]:
+    return ("low", "high") if mode == "two" else ("low", "mid", "high")
+
+
+def _bucket_for_score(
+    score: float | None, low_cut: float | None, high_cut: float | None, mode: str = "three",
+) -> str | None:
+    if score is None or low_cut is None:
+        return None
+    if mode == "two":
+        return "low" if float(score) < float(low_cut) else "high"
+    if high_cut is None:
         return None
     if score <= low_cut:
         return "low"
@@ -280,8 +301,16 @@ def _bucket_for_score(score: float | None, low_cut: float | None, high_cut: floa
     return "mid"
 
 
-def _bucket_cuts(scores: list[float]) -> tuple[float | None, float | None]:
-    """Causal terciles from matured scores; fall back to a narrow band when terciles collapse."""
+def _bucket_cuts(scores: list[float], mode: str = "three") -> tuple[float | None, float | None]:
+    """Causal cut points from matured scores; fall back to a narrow band when they collapse.
+
+    The two-bucket candidate splits at the median, which roughly doubles the observations
+    per bucket on a 52-week ledger. That is a variance trade, not a free gain: it also
+    discards the resolution the third bucket carried, so which one scores better is an
+    empirical question and is pre-registered as one.
+    """
+    if mode == "two":
+        return quantile(scores, 0.5), None
     low_cut, high_cut = quantile(scores, 1 / 3), quantile(scores, 2 / 3)
     if low_cut is not None and high_cut is not None and low_cut < high_cut:
         return low_cut, high_cut
@@ -321,12 +350,31 @@ def run(
     loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None,
     *,
     selection_override: str | None = None,
+    sampling_mode: str = "anchored",
+    selection_profile: str | None = None,
+    bucket_mode: str = PRODUCTION_BUCKET_MODE,
 ) -> dict[str, Any]:
     """Produce the Research B probability.
 
     ``selection_override`` exists for reproducible rule comparisons and tests; the live
     path always uses ``SELECTION_METRIC``. It never changes the evaluation boundary.
+    ``sampling_mode`` selects the ledger phase rule: ``anchored`` (production) keeps the
+    sampling phase fixed to the calendar, ``legacy`` reproduces the pre-fix behaviour
+    where the phase moved with the window. It exists so the stability claim can be tested
+    rather than asserted.
+
+    ``selection_profile`` and ``bucket_mode`` expose the pre-registered candidate designs
+    (``restricted`` selection, ``two``-bucket estimation). Passing neither reproduces
+    production exactly; the candidates are never enabled implicitly.
     """
+    if bucket_mode not in BUCKET_MODES:
+        raise ValueError(f"bucket_mode must be one of {BUCKET_MODES}")
+    profile_name = selection_profile or PRODUCTION_SELECTION_PROFILE
+    if profile_name not in SELECTION_PROFILES:
+        raise ValueError(f"selection_profile must be one of {sorted(SELECTION_PROFILES)}")
+    profile = SELECTION_PROFILES[profile_name]
+    max_factors = int(profile["max_factors"])
+    max_factors_per_family = int(profile["max_factors_per_family"])
     manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     ticker, horizon_name = manifest["ticker"], manifest["horizon"]
     requested_horizon = HORIZONS[horizon_name]
@@ -337,7 +385,23 @@ def run(
     sample_feasibility = _sample_feasibility(n, requested_horizon)
     train_end = int(n * SELECTION_FRACTION)
     holdout_start = train_end
-    holdout_indices = non_overlapping(list(range(holdout_start, n - requested_horizon)), requested_horizon)
+    # Sampling phase is anchored on an absolute calendar ordinal, not on the window's
+    # first bar: a window that slides by one session used to replace every sampled date,
+    # which made bucket composition drift for no informational reason. See
+    # ``anchored_non_overlapping`` for the phase rule and its sample-count trade-off.
+    bar_dates = [row["date"] for row in bars]
+
+    def spaced(lo: int, hi: int) -> tuple[list[int], dict[str, Any]]:
+        """Sample with the configured phase rule; both branches share the same bounds."""
+        if sampling_mode == "legacy":
+            chosen = non_overlapping(list(range(lo, hi)), requested_horizon)
+            return chosen, {
+                "method": "legacy_spacing", "window_independent_phase": False,
+                "kept": len(chosen), "bounds": [lo, hi],
+            }
+        return anchored_non_overlapping(bar_dates, list(range(lo, hi)), requested_horizon)
+
+    holdout_indices, holdout_sampling = spaced(holdout_start, n - requested_horizon)
     labels_by_horizon = {h: forward_returns(close, h) for h in (1, 5, 20)}
     select_labels = labels_by_horizon[requested_horizon]
     oos_factor_inference = _oos_factor_inference(factors, select_labels, holdout_indices, bars, requested_horizon)
@@ -348,7 +412,10 @@ def run(
         for horizon in (1, 5, 20):
             labels = labels_by_horizon[horizon]
             eligible = [i for i in range(60, holdout_start) if i + horizon < holdout_start]
-            indices = non_overlapping(eligible, horizon)
+            if sampling_mode == "legacy":
+                indices = non_overlapping(eligible, horizon)
+            else:
+                indices, _ = anchored_non_overlapping(bar_dates, eligible, horizon)
             horizons[f"{horizon}D"] = _factor_metrics(values, labels, indices)
         decay[name] = {"family": family, "formula": formula, "horizons": horizons}
 
@@ -356,8 +423,26 @@ def run(
     # labels that matured inside it. The legacy rule spaces labels by the horizon; the
     # dependency-aware rule keeps every matured label of the segment and measures overlap
     # with a moving-block bootstrap, because ten spaced labels cannot rank eleven candidates.
-    selection_metric = str(selection_override or SELECTION_METRIC)
+    selection_metric = str(selection_override or profile["metric"] or SELECTION_METRIC)
     selection_pool = [i for i in range(FEATURE_WARMUP_SESSIONS, train_end) if i + requested_horizon < train_end]
+    # The selection segment is exactly half of 250 minus the warm-up, i.e. 60 sessions at
+    # 5D, and it must yield the declared 10 labels at a 6-session gap: the density ceiling
+    # equals the floor, so there is no slack for a stabilised phase. Anchoring here would
+    # return 8 labels and force the whole path to abstain, which the design does not allow.
+    # Selection therefore keeps the legacy spacing; its membership is disclosed as such and
+    # the bucket-defining ledgers below are anchored instead.
+    anchor_selection = [row["date"] for row in bars]
+    anchored_selection, _ = anchored_non_overlapping(anchor_selection, selection_pool, requested_horizon)
+    selection_sampling = {
+        "method": "legacy_spacing_selection_segment",
+        "window_independent_phase": False,
+        "reason": "selection_segment_density_ceiling_equals_label_floor",
+        "segment_sessions": len(selection_pool),
+        "labels_legacy": len(non_overlapping(selection_pool, requested_horizon)),
+        "labels_if_anchored": len(anchored_selection),
+        "label_floor": MINIMUM_SELECTION_LABELS,
+        "anchored_kept": False,
+    }
     select_indices = (
         non_overlapping(selection_pool, requested_horizon)
         if selection_metric == "non_overlapping_point"
@@ -419,17 +504,19 @@ def run(
         if correlation:
             rejected.append({"factor": name, "reason": "redundant", **correlation})
             continue
-        if sum(item[2] == family for item in retained) >= MAX_FACTORS_PER_FAMILY:
+        if sum(item[2] == family for item in retained) >= max_factors_per_family:
             rejected.append({"factor": name, "reason": "family_limit", "family": family})
             continue
         retained.append(candidate)
-        if len(retained) >= MAX_FACTORS:
+        if len(retained) >= max_factors:
             break
 
     warnings: list[str] = [
         "Returns are gross close-to-close observations; this factor path does not model execution, spreads, slippage or fees.",
         "Factor calibration uses only the 52-week daily-bar standard and never widens the window automatically to buy samples.",
     ]
+    # The guard must read the count actually applied, not the anchored count that was
+    # disclosed and rejected above; otherwise the path abstains on arithmetic it never used.
     spaced_selection_labels = len(non_overlapping(selection_pool, requested_horizon))
     if spaced_selection_labels < MINIMUM_SELECTION_LABELS:
         warnings.append(
@@ -472,16 +559,16 @@ def run(
         return sum(values) / len(values) if len(values) == len(standardized) and values else None
 
     # Every label matured by the final bar forms the causal calibration ledger (52-week standard).
-    calibration_indices = non_overlapping(
-        list(range(FEATURE_WARMUP_SESSIONS, n - requested_horizon)), requested_horizon,
+    calibration_indices, calibration_sampling = spaced(
+        FEATURE_WARMUP_SESSIONS, n - requested_horizon,
     )
     calibration_pairs = [(float(composite(i)), float(select_labels[i])) for i in calibration_indices if composite(i) is not None]
     # Bucket cut points are recomputed from matured scores only, so thin 52-week ledgers stay balanced
     # and neither the cuts nor the frequencies can see a label that has not matured yet.
-    low_cut, high_cut = _bucket_cuts([score for score, _ in calibration_pairs])
-    bucket_samples: dict[str, list[float]] = {"low": [], "mid": [], "high": []}
+    low_cut, high_cut = _bucket_cuts([score for score, _ in calibration_pairs], bucket_mode)
+    bucket_samples: dict[str, list[float]] = {key: [] for key in _bucket_keys(bucket_mode)}
     for score, target in calibration_pairs:
-        bucket = _bucket_for_score(score, low_cut, high_cut)
+        bucket = _bucket_for_score(score, low_cut, high_cut, bucket_mode)
         if bucket is not None:
             bucket_samples[bucket].append(target)
     calibration_prevalence = mean([float(target > 0) for _, target in calibration_pairs])
@@ -493,7 +580,7 @@ def run(
         len(values) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS for values in bucket_samples.values()
     )
     current_score = composite(n - 1)
-    current_bucket = _bucket_for_score(current_score, low_cut, high_cut)
+    current_bucket = _bucket_for_score(current_score, low_cut, high_cut, bucket_mode)
     selected_returns = bucket_samples.get(current_bucket, [])
     probability = (
         _shrunk_probability(selected_returns, calibration_prevalence)
@@ -515,7 +602,10 @@ def run(
             f"with a prior weight of {SHRINKAGE_PRIOR_OBSERVATIONS} observations."
         )
 
-    holdout_pairs: list[tuple[float, int, float | None]] = []
+    # ``session`` is the decision session's position inside the frozen bar array. It is
+    # carried through so the probability scorer can measure real session spacing instead
+    # of treating the filtered list's running number as an index.
+    holdout_pairs: list[tuple[int, float, int, float | None]] = []
     oos_forecasts: list[dict[str, Any]] = []
     for i in holdout_indices:
         score = composite(i)
@@ -530,14 +620,14 @@ def run(
             if composite(j) is not None and select_labels[j] is not None
         ]
         matured_base_rate = mean([float(value > 0) for _, value in matured_pairs])
-        matured_low_cut, matured_high_cut = _bucket_cuts([value for value, _ in matured_pairs])
-        matured_buckets: dict[str, list[float]] = {"low": [], "mid": [], "high": []}
+        matured_low_cut, matured_high_cut = _bucket_cuts([value for value, _ in matured_pairs], bucket_mode)
+        matured_buckets: dict[str, list[float]] = {key: [] for key in _bucket_keys(bucket_mode)}
         for matured_score, matured_target in matured_pairs:
-            bucket = _bucket_for_score(matured_score, matured_low_cut, matured_high_cut)
+            bucket = _bucket_for_score(matured_score, matured_low_cut, matured_high_cut, bucket_mode)
             if bucket is not None:
                 matured_buckets[bucket].append(matured_target)
         training_end = max((j + requested_horizon for j in matured), default=None)
-        bucket = _bucket_for_score(score, matured_low_cut, matured_high_cut)
+        bucket = _bucket_for_score(score, matured_low_cut, matured_high_cut, bucket_mode)
         sample = matured_buckets.get(bucket, [])
         forecast_probability = (
             _shrunk_probability(sample, matured_base_rate)
@@ -555,9 +645,9 @@ def run(
             "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0",
         })
         if forecast_probability is not None:
-            holdout_pairs.append((forecast_probability, int(target > 0), matured_base_rate))
-    brier = mean([(p - y) ** 2 for p, y, _ in holdout_pairs])
-    baseline_brier = mean([(base - y) ** 2 for _, y, base in holdout_pairs if base is not None])
+            holdout_pairs.append((i, forecast_probability, int(target > 0), matured_base_rate))
+    brier = mean([(p - y) ** 2 for _, p, y, _ in holdout_pairs])
+    baseline_brier = mean([(base - y) ** 2 for _, _, y, base in holdout_pairs if base is not None])
 
     lookbacks = {"momentum_5": 5, "momentum_20": 20, "momentum_60": 60, "reversal_1": 1, "trend_sma20": 20, "realized_volatility_20": 20, "volume_z20": 20, "range_position_20": 20, "close_location": 1, "overnight_gap": 1, "volume_return_corr20": 20}
     selected_factor_rows = [{"factor_name": name, "family": family, "formula": formula, "lookback": lookbacks.get(name), "training_direction": "positive" if signs.get(name, 1) > 0 else "negative", "current_contribution": standardized[name][-1] * signs[name] if standardized[name][-1] is not None else None, "training_rank_ic": metrics["rank_ic"], "coverage": metrics["coverage"]} for _, name, family, formula, _, metrics in retained if name in standardized]
@@ -576,40 +666,76 @@ def run(
     sample_feasibility["minimum_holdout_predictions"] = 10
     validation["sample_feasibility"] = sample_feasibility
     predictions = [
-        (position, forecast, base, outcome)
-        for position, (forecast, outcome, base) in enumerate(holdout_pairs)
+        (session, forecast, base, outcome)
+        for session, forecast, outcome, base in holdout_pairs
     ]
     validation["probabilistic_scores"] = probabilistic_scores(predictions, horizon=requested_horizon)
     validation["sample_diagnostics"] = sample_diagnostics(
         bar_count=n, warmup=FEATURE_WARMUP_SESSIONS, horizon=requested_horizon,
+        dates=[row["date"] for row in bars],
     )
     validation["selection"] = {
         "metric": selection_metric,
+        "profile": profile_name,
         "pool_observations": len(selection_pool),
         "spaced_observations": spaced_selection_labels,
         "minimum_abs_rank_ic": MINIMUM_ABS_SELECTION_IC,
         "minimum_sign_consistency": MINIMUM_SIGN_CONSISTENCY,
-        "max_factors": MAX_FACTORS,
-        "max_factors_per_family": MAX_FACTORS_PER_FAMILY,
+        "max_factors": max_factors,
+        "max_factors_per_family": max_factors_per_family,
         "max_abs_correlation": MAX_ABS_FACTOR_CORRELATION,
         "multiple_testing": multiple_testing_disclosure(selection_p),
         "candidates": selection_evidence,
         "rejected": rejected,
         "overlap_treated_as_dependence": selection_metric == "overlapping_block",
     }
+    validation["sampling"] = {
+        "selection": selection_sampling,
+        "holdout": holdout_sampling,
+        "calibration": calibration_sampling,
+        "phase_rule": "weekday_ordinal_mod_horizon_plus_two",
+        "mode": sampling_mode,
+        # Only the two ledgers that define bucket composition and the OOS ledger use the
+        # anchored phase; the selection segment keeps legacy spacing because its density
+        # ceiling equals the declared label floor. Both facts are reported, not merged.
+        "bucket_defining_segments_window_independent": all(
+            item.get("window_independent_phase") for item in (holdout_sampling, calibration_sampling)
+        ),
+        "selection_segment_window_independent": bool(selection_sampling.get("window_independent_phase")),
+    }
+    validation["bucket_mode"] = bucket_mode
+    validation["selection_profile"] = profile_name
     route = qualification(
         nonoverlap_matured=len(calibration_indices),
         bucket_observations=len(selected_returns),
         buckets_available=sum(1 for values in bucket_samples.values() if values),
         validation_predictions=len(holdout_pairs),
     )
+    # Qualification is the authority, not a label. A numeric estimate that fails the
+    # path's own declared floors is a research number, never a reportable probability:
+    # it moves to a diagnostic field and the path abstains. Without this the route could
+    # say ``abstained`` while ``prob_up`` stayed numeric, and consensus would count it.
+    unqualified_estimate = None
+    if probability is not None and route["route"] == ROUTE_ABSTAINED:
+        unqualified_estimate = {
+            "prob_up": probability,
+            "expected_return": expected,
+            "withheld_reason": route["route_reason"],
+            "note": "Computed but not reportable: the path failed its own declared floors.",
+        }
+        probability = None
+        expected = None
     if probability is None:
         route["route"] = ROUTE_ABSTAINED
-        route["route_reason"] = "probability_unavailable_for_current_session"
+        route["route_reason"] = route.get("route_reason") or "probability_unavailable_for_current_session"
         route["legacy_probability_available"] = False
+        status = "insufficient_data"
     else:
         route["legacy_probability_available"] = True
+    route["unqualified_estimate_retained"] = unqualified_estimate is not None
     validation["qualification"] = route
+    if unqualified_estimate is not None:
+        validation["unqualified_estimate"] = unqualified_estimate
     return researcher_result(
         "factor", ticker, horizon_name, manifest["snapshot_id"], status=status,
         prob_up=probability, expected_return=expected,
