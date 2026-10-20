@@ -10,7 +10,7 @@ from typing import Any
 
 from ..contracts import HORIZONS
 from ..market_data import forward_returns, non_overlapping
-from ..math_utils import logistic, mean
+from ..math_utils import logistic, mean, pearson
 
 MINIMUM_WEIGHT_WINDOW_SAMPLES = 20
 DEFAULT_BRIER_SKILL_EPSILON = 0.05
@@ -509,6 +509,66 @@ def _common_oos_metrics(
     }
 
 
+MINIMUM_DEPENDENCY_COMMON_DATES = 20
+
+
+def _path_error_dependency(
+    rows_by_path: dict[str, dict[str, dict[str, Any]]], names: list[str],
+) -> dict[str, Any]:
+    """Residual correlation across paths on the dates they all cover.
+
+    Path count is not evidence count: three models built on the same closes can
+    share nearly all of their error. Correlating ``probability - target`` keeps a
+    shared bullish drift from looking like agreement.
+    """
+    if len(names) < 2:
+        return {"status": "not_applicable", "reason": "fewer_than_two_forecast_paths",
+                "paths": len(names), "common_dates": 0, "mean_error_correlation": None,
+                "effective_independent_paths": None, "pairwise": {}}
+    missing = [name for name in names if name not in rows_by_path]
+    if missing:
+        return {"status": "not_assessed", "reason": "missing_dated_oos_rows",
+                "paths": len(names), "common_dates": 0, "mean_error_correlation": None,
+                "effective_independent_paths": None, "missing_path_ids": missing, "pairwise": {}}
+    common = set.intersection(*(set(rows_by_path[name]) for name in names))
+    usable = [
+        decision for decision in sorted(common)
+        if all(_valid_probability(rows_by_path[name][decision].get("probability"))
+               and isinstance(rows_by_path[name][decision].get("target"), (int, float))
+               for name in names)
+    ]
+    pairwise: dict[str, float | None] = {}
+    correlations: list[float] = []
+    for left_index, left in enumerate(names):
+        for right in names[left_index + 1:]:
+            left_errors = [float(rows_by_path[left][d]["probability"]) - float(rows_by_path[left][d]["target"])
+                           for d in usable]
+            right_errors = [float(rows_by_path[right][d]["probability"]) - float(rows_by_path[right][d]["target"])
+                            for d in usable]
+            value = pearson(left_errors, right_errors)
+            pairwise[f"{left}|{right}"] = round(value, 4) if value is not None else None
+            if value is not None:
+                correlations.append(value)
+    if len(usable) < MINIMUM_DEPENDENCY_COMMON_DATES or not correlations:
+        return {"status": "not_assessed", "reason": "insufficient_common_dates_or_constant_errors",
+                "paths": len(names), "common_dates": len(usable), "minimum_common_dates": MINIMUM_DEPENDENCY_COMMON_DATES,
+                "mean_error_correlation": None, "effective_independent_paths": None, "pairwise": pairwise}
+    average = sum(correlations) / len(correlations)
+    # Design effect for equicorrelated estimates: n / (1 + (n - 1) * rho).
+    effective = len(names) / (1 + (len(names) - 1) * max(0.0, average))
+    level = "high" if average >= 0.85 else "medium" if average >= 0.5 else "low"
+    return {
+        "status": "assessed",
+        "paths": len(names),
+        "common_dates": len(usable),
+        "mean_error_correlation": round(average, 4),
+        "dependency_level": level,
+        "effective_independent_paths": round(effective, 2),
+        "pairwise": pairwise,
+        "method": "Pearson correlation of probability-minus-outcome residuals on common dates; design-effect discount",
+    }
+
+
 def _policy_replay_quality(
     rows_by_path: dict[str, dict[str, dict[str, Any]]], manifest: dict[str, Any],
     bars: list[dict[str, Any]] | None,
@@ -787,6 +847,7 @@ def build_oos_probability_quality(
                             and _path_assessment(path, assessments).get("forecast_eligible", assessments is None) is True
                             and not path_has_detected_leakage(path, assessments)})
     common_oos = _common_oos_metrics(rows_by_path, active_names)
+    path_dependency = _path_error_dependency(rows_by_path, active_names)
     # A path with detected information leakage cannot support historical policy skill,
     # even when individual labels and dates in its submitted rows are well formed.
     replay_rows = {name: rows for name, rows in rows_by_path.items()
@@ -806,6 +867,7 @@ def build_oos_probability_quality(
         "paths": path_metrics,
         "row_validation": row_audits,
         "common_oos": common_oos,
+        "path_dependency": path_dependency,
         "candidate_path_common_oos": _common_oos_metrics(rows_by_path, all_names),
         "algorithm_policy_replay": replay,
         "ensemble_calibration": ensemble_calibration,

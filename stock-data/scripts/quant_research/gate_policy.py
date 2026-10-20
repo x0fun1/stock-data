@@ -118,6 +118,36 @@ def analysis_status(*, may_report_direction: bool, reporting_state: str, researc
     return "complete_with_limitations"
 
 
+POSITIVE_SKILL_GRADE = "positive_skill_with_estimated_interval_excluding_zero"
+
+
+def build_report_eligibility(consensus: dict[str, Any], adversarial: dict[str, Any]) -> dict[str, Any]:
+    """Split the three questions a reader actually asks.
+
+    A reportable probability is not a reportable direction, and neither is a
+    trading signal: entry timing, costs and an edge over the base rate are all
+    separate claims.
+    """
+    probability = consensus.get("reportable_probability", consensus.get("prob_up"))
+    probability_ok = isinstance(probability, (int, float)) and not isinstance(probability, bool)
+    direction_ok = bool(adversarial.get("may_report_direction")) and probability_ok
+    grade = str(consensus.get("predictive_evidence_grade", "insufficient_oos_evidence"))
+    reasons = ["entry_basis_not_modelled", "transaction_costs_not_modelled"]
+    if grade != POSITIVE_SKILL_GRADE:
+        reasons.append("no_independent_edge_vs_expanding_base_rate")
+    if not probability_ok:
+        reasons.append("probability_not_reportable")
+    if not direction_ok:
+        reasons.append("direction_not_reportable")
+    return {
+        "probability_report": probability_ok,
+        "direction_report": direction_ok,
+        "trading_signal": False,
+        "trading_signal_reasons": reasons,
+        "predictive_evidence_grade": grade,
+    }
+
+
 def aggregate_gate_telemetry(records: Iterable[dict[str, Any]]) -> dict[str, Any]:
     """Aggregate per-analysis rows; callers can combine daily multi-ticker runs."""
     rows = list(records)

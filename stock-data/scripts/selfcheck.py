@@ -920,18 +920,18 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "0a07d96a10f0159934f3920a3cc564528179dcb9fefab36c7e901d872a83ae3d",
-        "quant_result.json": "b71cfe8fa867a38351140a8e3d50f55bd0e1c11b8f272d744825d3f878e8c529",
-        "news_result.json": "44bfc39702eb43481a15ae736378576384f1ea4b59b84d6a1138111bc7521171",
+        "report.json": "35e6449e787e99d9ab7c259abc5410970d527d01973a3932aeffb128362e9276",
+        "quant_result.json": "40d2b0fd36ef7b12a8bcf376282386f93e0cb5f6f73c5a0d51a264f0c35aaa14",
+        "news_result.json": "690e95cebbda22b3e6396c03e6a2f07ea2a61c89f0ff3bf30b45353998d36ea8",
         "agent_summary.json": "7d6192fb268d10e1a2f4c8de84c29995c7cd768b22982cb8a0b815eb1d734056",
-        "final_response.md": "f23c4762739a13e5da17405b8e1f79c0d95ddd482bc251b48605eaa033492ed3",
+        "final_response.md": "72417e01e393ae10b19e8671a3796f3652813b3f72d440f83a3daae0688ce23c",
     },
     "news": {
-        "report.json": "473723c4d551551ca474f2e80746544d00549fbcc684f04c824b0f67608e5554",
-        "quant_result.json": "21d6eefa9f352da879630406dfe24af74bd45cf825c03d8d3d1e7d97a01a6662",
-        "news_result.json": "23b3cac4bab741d4cc621731e4b5ca0955f7e18f93c6c362388b8df5a343f02a",
+        "report.json": "2a52cf12e9973ab6accf892d02c624b211757e2f8ea166f7db48cf3d7fc098e5",
+        "quant_result.json": "2ba3e632e82ffb30c2ab4403a8b1b3f09afe57e8d77bfc6f3e82720b3131f1a9",
+        "news_result.json": "a5e311ab6f5b8dce3506714adf450a196adec2c7a545ec120b7f55112a4656fc",
         "agent_summary.json": "54ba77c2eb34204dd63e13bd1451154f8997f95619a58b6e4c163df52896ced6",
-        "final_response.md": "5ebb6727030c07eb303ea6c665c24e63624e693e380c39a7be8897d8321cc813",
+        "final_response.md": "6cf9b347aa1f37b91a63c83ff8ebd13bab05278819e564a4e71f402e69114596",
     },
 }
 GOLDEN_ANCHORS: dict[str, dict[str, object]] = {
@@ -2049,6 +2049,131 @@ def check_f33_holiday_collisions() -> None:
         raise AssertionError("final membership must not claim window independence")
 
 
+def check_f34_capacity_and_timing():
+    from quant_research.feasibility import build_forecast_feasibility, build_timing
+
+    bars = synth_bars(250)
+    manifest = {
+        "horizon": "20D",
+        "asof_timestamp": "2026-10-18T12:00:00Z",
+        "data_validation": {"latest_confirmed_close": {
+            "session_date": bars[-1]["date"], "close_at": "2026-10-16T20:00:00+00:00"}},
+    }
+    block = build_forecast_feasibility(manifest, bars)
+    if block["paths"]["quant"]["capacity_matured_non_overlapping"] != 10:
+        raise AssertionError("250 bars at H=20 must cap the non-overlapping ledger at 10")
+    if block["paths"]["quant"]["status"] != "capacity_insufficient":
+        raise AssertionError("10 labels cannot satisfy the 12-match Quant minimum")
+    if block["paths"]["factor"]["status"] != "capacity_insufficient":
+        raise AssertionError("the selection segment cannot host ten labels at H=20")
+    if block["paths"]["ml"]["status"] != "feasible":
+        raise AssertionError("the logistic path uses daily observations and remains feasible")
+
+    five_day = build_forecast_feasibility({**manifest, "horizon": "5D"}, bars)
+    if five_day["paths"]["quant"]["status"] != "feasible":
+        raise AssertionError("the 5D Quant path must be feasible on a 52-week window")
+    if five_day["paths"]["quant"].get("observed") is not None:
+        raise AssertionError("observed labels require results and must not be invented")
+
+    timing = build_timing(manifest, bars)
+    if timing["decision_at"] != "2026-10-16T20:00:00+00:00":
+        raise AssertionError("timing must carry the confirmed close, not the as-of clock")
+    if timing["label_basis"] != "close_to_close" or timing["entry_basis"] != "not_modelled":
+        raise AssertionError("timing must state the label basis and that entry is not modelled")
+    if timing["first_executable_at"] is not None:
+        raise AssertionError("first executable time must stay unresolved rather than guessed")
+
+
+def check_f35_confidence_disclosure_fields():
+    from quant_research.consensus import _confidence_composite, support_basis
+
+    path = {
+        "oos_validation": {"status": "acceptable"},
+        "probability_calibration": "calibrated",
+        "reason_codes": [],
+    }
+    composite = _confidence_composite(
+        base_score=85, path_assessments=[path, path], valid_count=2,
+        agreement="high", diversity="medium", manifest={"horizon": "5D"},
+        oos_probability_quality={
+            "algorithm_policy_replay": {},
+            "ensemble_calibration": {"status": "improved_on_subsequent_ledger_block"},
+        },
+        support_sessions=220,
+    )
+    if composite["support_basis"] != {"sessions_used": 220, "nominal_sessions": 252,
+                                      "scaled": True, "scaling_floor": 189}:
+        raise AssertionError("the confidence block must publish the ledger its tiers came from")
+    if composite["ensemble_calibrator_selected_on_retrospective_check"] is not True:
+        raise AssertionError("the calibrator was selected on the retrospective check")
+    if "ensemble_calibrator_validated" in composite:
+        raise AssertionError("the old field name overclaims independent validation")
+    if composite["independent_validation_status"] != "not_established":
+        raise AssertionError("no independent calibration check exists yet")
+    if support_basis(188)["scaled"] or support_basis(188)["sessions_used"] != 252:
+        raise AssertionError("below the scaling floor the nominal tiers must be used")
+    if support_basis(252)["scaled"]:
+        raise AssertionError("a full ledger is not a scaled ledger")
+
+
+def check_f36_eligibility_and_uncertainty():
+    from quant_research.consensus import _ensemble_uncertainty
+    from quant_research.gate_policy import build_report_eligibility
+
+    weak = {"reportable_probability": 0.57,
+            "predictive_evidence_grade": "no_observed_skill_vs_expanding_base_rate"}
+    eligibility = build_report_eligibility(weak, {"may_report_direction": True})
+    if not eligibility["probability_report"] or not eligibility["direction_report"]:
+        raise AssertionError("a reportable probability and direction are separate booleans")
+    if eligibility["trading_signal"] is not False:
+        raise AssertionError("no run may claim an executable trading signal")
+    for reason in ("entry_basis_not_modelled", "transaction_costs_not_modelled",
+                   "no_independent_edge_vs_expanding_base_rate"):
+        if reason not in eligibility["trading_signal_reasons"]:
+            raise AssertionError(f"a weak edge must be disclosed: {reason}")
+
+    strong = {"reportable_probability": 0.57,
+              "predictive_evidence_grade": "positive_skill_with_estimated_interval_excluding_zero"}
+    if "no_independent_edge_vs_expanding_base_rate" in build_report_eligibility(
+            strong, {"may_report_direction": True})["trading_signal_reasons"]:
+        raise AssertionError("a positive interval must not be reported as no edge")
+    blocked = build_report_eligibility({"reportable_probability": None}, {"may_report_direction": False})
+    if blocked["probability_report"] or blocked["direction_report"]:
+        raise AssertionError("a vetoed run reports neither probability nor direction")
+
+    uncertain = _ensemble_uncertainty([0.50, 0.57], {"status": "assessed", "effective_independent_paths": 1.4})
+    if uncertain["status"] != "not_estimable" or uncertain["interval"] is not None:
+        raise AssertionError("correlated paths cannot yield a probability interval")
+    descriptive = _ensemble_uncertainty([0.50, 0.57], {"status": "assessed", "effective_independent_paths": 2.0})
+    if descriptive["status"] != "descriptive_range_only" or descriptive["interval"] is not None:
+        raise AssertionError("a path range is descriptive, never a confidence interval")
+    if descriptive["path_probability_range"] != [0.50, 0.57]:
+        raise AssertionError("the descriptive range must be reported")
+
+
+def check_f37_path_error_dependency():
+    from quant_research.validation.probability_quality import _path_error_dependency
+
+    dates = [f"2026-01-{day:02d}" for day in range(1, 31)]
+    rows: dict[str, dict[str, dict[str, float | int]]] = {"a": {}, "b": {}}
+    for index, day in enumerate(dates):
+        probability = 0.40 + 0.004 * index
+        target = 1 if index % 2 == 0 else 0
+        rows["a"][day] = {"probability": probability, "target": target}
+        rows["b"][day] = {"probability": probability, "target": target}
+    dependency = _path_error_dependency(rows, ["a", "b"])
+    if dependency["status"] != "assessed":
+        raise AssertionError("thirty common dates are enough to assess dependency")
+    if dependency["mean_error_correlation"] != 1.0:
+        raise AssertionError("identical errors must correlate at one")
+    if dependency["effective_independent_paths"] != 1.0:
+        raise AssertionError("two perfectly correlated paths are one independent path")
+    short = _path_error_dependency({name: dict(list(values.items())[:10]) for name, values in rows.items()},
+                                   ["a", "b"])
+    if short["status"] != "not_assessed":
+        raise AssertionError("ten common dates cannot support a dependency claim")
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -2084,6 +2209,10 @@ CHECKS = [
     ("F31 qualification is authoritative", check_f31_qualification_is_authoritative),
     ("F32 candidate profiles opt-in", check_f32_candidate_profiles),
     ("F33 holiday collisions", check_f33_holiday_collisions),
+    ("F34 capacity and timing", check_f34_capacity_and_timing),
+    ("F35 confidence disclosure fields", check_f35_confidence_disclosure_fields),
+    ("F36 eligibility and uncertainty", check_f36_eligibility_and_uncertainty),
+    ("F37 path error dependency", check_f37_path_error_dependency),
 ]
 
 if __name__ == "__main__":

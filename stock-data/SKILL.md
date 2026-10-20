@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.19.0"}
+metadata: {version: "2.20.0"}
 ---
 
 # Stock Data & Quant Research
@@ -90,6 +90,8 @@ python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回�
 通用分析、简析及方向研究要求完整研究链路及八类证据；默认聊天回复为 **summary**，应包括价格/数据时间、Quant 概率/方向/confidence/报告状态、核心技术/因子证据、关键验证限制、News/事件、Quant-News 关系、主要风险和综合结论。完整 Backtest/IC/bias 范围在 `report.md`（standard），源、manifest、原因码与逐路径细节留在 JSON/debug。缺失项明确写未评估；摘要不重复内部 gate/debug 噪音。所有层级保留预测不确定性和历史证据非未来保证说明。
 
 Quant 成功生成且通过报告资格时，最终用户回复必须展示 `prob_up/direction/confidence/agreement`、数值 `confidence_score`、`confidence_score_kind`、`predictive_evidence_grade`、`PASS/DEGRADED/VETO`，并说明 raw/reportable basis 和 ensemble calibration 是否可用。分数须标注为启发式研究支持度，不是预测准确率；等级须区分证据不足、未观察到优于因果基准、探索性正向点估计和不确定性未估计的正向点估计。字段直接来自 `quant_result.json.consensus` / `synthesis.quant`；News 完成后仍显示同一 reportable Quant 概率并说明 aligned/mildly aligned/neutral/conflicting/unavailable；不通过主观新闻修改 Quant 概率。VETO 时对用户隐藏所有预测概率，说明致命原因；原始调试值只留在 debug artifact。
+
+回复中的 `- 时点口径：…`、`- 资格分层：…`、`- 概率区间：…` 三行由程序从冻结结果生成，宿主不得改写或删除：时点口径写明决策用的是哪一次确认收盘、标签为收盘到收盘、入场未建模；资格分层分别给出概率可报告、方向可报告与交易信号资格（交易信号在入场、成本与独立 edge 三项齐备前恒为不可）；概率区间在路径共享标签、独立块不足时写“不可估计”，不得用路径点估计伪造置信区间。`forecast_feasibility` 还必须披露每条路径的容量上限与所需样本：容量不足表示 52 周窗口无法承载该路径的既有门槛，路径应弃权而不是降门槛。
 
 消息面必须给出结果指向且可追溯到具体新闻：回复包含 `- 消息面逐条依据：…`（由冻结 News 结果生成的强制字段），写明据以判断利多/利空的标题与理由；没有依据时如实写“未评估/未得出有依据的利多或利空线索”，不得用标题数量或主观阅读充当结论，也不得把消息缺失说成中性。该字段是宿主交付契约的一部分，`validate-response` 会校验。
 

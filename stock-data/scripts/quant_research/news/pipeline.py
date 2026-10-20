@@ -511,6 +511,14 @@ def analyze_news(
         },
         "source_agreement": source_agreement,
         "market_confirmation": market_confirmation,
+        # The price reaction is computed from the same frozen OHLCV the Quant paths
+        # consume, so it is a consistency check on one dataset, not independent
+        # confirmation from a second market.
+        "price_reaction": {
+            "basis": "frozen_snapshot_ohlcv",
+            "independence": "not_independent_same_market_data",
+            "confirmation": market_confirmation,
+        },
         "major_events": events[:10],
         "background_records": [{key: item.get(key) for key in ("event_id", "opinion_id", "headline", "url", "first_published_at", "published_at", "ticker_relevance", "exclusion_reasons")} for item in excluded_evidence[:10]],
         "catalysts": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in positive[:5]],

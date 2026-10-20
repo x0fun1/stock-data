@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 
@@ -305,7 +306,62 @@ def _final_probability_note(fields: dict[str, Any], ticker: str, horizon: str) -
         return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的报告概率（等权均值经时间序后段检查的 ensemble calibration；回顾性检查，非独立确认）。"
                 f"News 只补充驱动解释和风险证据，不改变这份 Quant 报告概率。若需 raw/calibrated 原值，见调试 JSON。")
     return (f"Quant 当前对 {_cell(ticker)} 的 {_cell(horizon)} 窗口给出 {probability} 的报告概率（合格路径等权均值，未单独进行 ensemble calibration）。"
-            f"News 只补充驱动解释和风险证据，不改变这份 Quant 报告概率（等权路径均值）。若需 raw/calibrated 原值，见调试 JSON。")
+                f"News 只补充驱动解释和风险证据，不改变这份 Quant 报告概率（等权路径均值）。若需 raw/calibrated 原值，见调试 JSON。")
+
+
+def _timing_line(result: dict[str, Any]) -> str:
+    timing = (result.get("consensus") or {}).get("timing") or result.get("timing") or {}
+    moment = timing.get("decision_at") or timing.get("decision_session") or "未知"
+    return (f"- 时点口径：决策基于 {_decision_moment(moment)} 的收盘（收盘到收盘）；"
+            "入场未建模，该概率不是可执行交易信号")
+
+
+def _decision_moment(value: Any) -> str:
+    """Render a decision timestamp without Markdown-escaping the offset sign."""
+    text = str(value)
+    if len(text) == 10:
+        return _cell(text)
+    try:
+        parsed = datetime.fromisoformat(text.replace("Z", "+00:00"))
+    except ValueError:
+        return _cell(value)
+    return parsed.strftime("%Y-%m-%d %H:%M UTC")
+
+
+def _eligibility_line(result: dict[str, Any]) -> str:
+    eligibility = (result.get("consensus") or {}).get("eligibility") or {}
+    probability = "是" if eligibility.get("probability_report") else "否"
+    direction = "是" if eligibility.get("direction_report") else "否"
+    reasons = set(eligibility.get("trading_signal_reasons") or [])
+    edge = ("且未证明优于基准" if "no_independent_edge_vs_expanding_base_rate" in reasons
+            else "基准证据仍为回顾性")
+    return (f"- 资格分层：概率可报告={probability}；方向可报告={direction}；"
+            f"交易信号=不可（未建模入场与成本，{edge}）")
+
+
+def _uncertainty_line(result: dict[str, Any]) -> str:
+    block = (result.get("consensus") or {}).get("ensemble_uncertainty") or {}
+    if block.get("status") == "not_estimable":
+        return "- 概率区间：不可估计（合格路径共享同一批标签，不构成独立样本）"
+    spread = block.get("path_probability_range")
+    if isinstance(spread, list) and len(spread) == 2:
+        return (f"- 概率区间：未估计；路径概率范围 {_probability_text(spread[0])}–{_probability_text(spread[1])}"
+                "（描述性，不是置信区间）")
+    return "- 概率区间：不可估计"
+
+
+def _feasibility_lines(result: dict[str, Any]) -> list[str]:
+    feasibility = (result.get("consensus") or {}).get("forecast_feasibility") or {}
+    paths = feasibility.get("paths") or {}
+    if not paths:
+        return []
+    parts = []
+    for name in ("quant", "factor", "ml"):
+        row = paths.get(name) or {}
+        capacity = row.get("capacity_matured_non_overlapping", row.get("capacity_matured_observations"))
+        required = row.get("required_matured_non_overlapping", row.get("required_matured_observations"))
+        parts.append(f"{name} {_cell(capacity)}/{_cell(required)}（{_cell(row.get('status'))}）")
+    return ["- 容量预检（可达标签/所需，非重叠口径）：" + "；".join(parts) + "。"]
 
 
 def _ai_lean_line_text(news: dict[str, Any]) -> str:
@@ -366,6 +422,9 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
     required = {
         "identity": f"- 标的：{_cell(snapshot['ticker'])}；市场：{_cell(snapshot['market'])}；预测窗口：{_cell(snapshot['horizon'])}（交易 session）；分析截至：{_cell(snapshot['asof_timestamp'])}",
         "probability_note": _final_probability_note(fields, snapshot["ticker"], snapshot["horizon"]),
+        "timing": _timing_line(result),
+        "eligibility": _eligibility_line(result),
+        "uncertainty": _uncertainty_line(result),
         "news_relationship": f"- 消息面与 Quant 的关系：{_relationship_text(result.get('synthesis', {}))}",
         "news_lean": f"- 消息面逐条依据：{bounded_text(_ai_lean_line_text(result.get('news_result', {})), 600)}",
         "reporting_status": f"- 报告状态：{_cell(fields.get('reporting_status', result.get('reporting_status', 'degraded')))}",
@@ -444,7 +503,8 @@ def render_final_response(result: dict[str, Any], *, summary: dict[str, Any] | N
     if not news.get("events"):
         lines.append("- 无合格事件证据；不把消息缺失视为中性或已验证。")
     lines.append(required["news_lean"])
-    lines.extend(["", "### 综合", "", required["probability_note"], required["news_relationship"], required["analysis_status"]])
+    lines.extend(["", "### 综合", "", required["timing"], required["eligibility"], required["uncertainty"], "",
+                  required["probability_note"], required["news_relationship"], required["analysis_status"]])
     risks = sections["risk_counter_evidence"]["items"]
     lines.extend(f"- 风险：{_cell(row['detail'])}" for row in risks[:2])
     lines.append("- 历史验证不保证未来表现；这不是已验证的可盈利交易策略。")
@@ -642,6 +702,10 @@ def render_markdown(result: dict[str, Any]) -> str:
              "- Bar close is not a live quote. Source authenticity is not independently verified.", "",
              "## 2. Quant 数据面", "",
              *_quant_lines(quant_fields),
+             *_feasibility_lines(result),
+             _eligibility_line(result),
+             _uncertainty_line(result),
+             _timing_line(result),
              "", "**动量特征（独立诊断，不是上涨概率）**", "",
              *_momentum_lines(result), _momentum_relationship_line(result),
              *_economic_lines(quant.get("economic_viability")),

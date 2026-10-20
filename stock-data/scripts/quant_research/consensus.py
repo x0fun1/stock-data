@@ -212,6 +212,24 @@ MIN_STRONG_SUPPORT = 20
 SUPPORT_SCALING_FLOOR = DEFAULT_SUPPORT_SESSIONS * 3 // 4
 
 
+def support_basis(support_sessions: int | None) -> dict[str, Any]:
+    """Which ledger size the OOS tiers were derived from.
+
+    Scaling keeps every tier attainable on a 52-week ledger, but it also means a
+    ``strong`` label is relative to the attainable budget rather than an absolute
+    sample count. Callers must publish the basis next to the thresholds.
+    """
+    usable = (isinstance(support_sessions, int) and not isinstance(support_sessions, bool)
+              and support_sessions >= SUPPORT_SCALING_FLOOR)
+    sessions_used = min(DEFAULT_SUPPORT_SESSIONS, support_sessions) if usable else DEFAULT_SUPPORT_SESSIONS
+    return {
+        "sessions_used": sessions_used,
+        "nominal_sessions": DEFAULT_SUPPORT_SESSIONS,
+        "scaled": usable and sessions_used < DEFAULT_SUPPORT_SESSIONS,
+        "scaling_floor": SUPPORT_SCALING_FLOOR,
+    }
+
+
 def oos_support_thresholds(horizon_sessions: int,
                            support_sessions: int | None = None) -> dict[str, int]:
     """Non-overlapping OOS sample targets scaled to the research window actually available.
@@ -325,11 +343,14 @@ def _confidence_composite(*, base_score: float, path_assessments: list[dict[str,
     calibration_statuses = [item.get("probability_calibration", "uncalibrated") for item in path_assessments]
     calibrated_fraction = (sum(1 for status in calibration_statuses if status in {"calibrated", "empirical_frequency"}) / len(calibration_statuses)) if calibration_statuses else 0.0
     ensemble_calibration = oos_probability_quality.get("ensemble_calibration") or {}
-    ensemble_calibrator_validated = ensemble_calibration.get("status") == "improved_on_subsequent_ledger_block"
-    calibration_component = min(100.0, 40.0 + 45.0 * calibrated_fraction + (15.0 if ensemble_calibrator_validated else 0.0))
+    # The calibrator is *selected* on a retrospective ledger check: the block that
+    # decides whether to keep it is also the block that reports the improvement. That
+    # is not independent validation, so the field name must not say "validated".
+    ensemble_calibrator_selected = ensemble_calibration.get("status") == "improved_on_subsequent_ledger_block"
+    calibration_component = min(100.0, 40.0 + 45.0 * calibrated_fraction + (15.0 if ensemble_calibrator_selected else 0.0))
     if "uncalibrated" in calibration_statuses:
         confidence_reasons.append("uncalibrated_raw_probability")
-    if not ensemble_calibrator_validated:
+    if not ensemble_calibrator_selected:
         confidence_reasons.append("ensemble_calibration_unavailable")
 
     if any("LEAKAGE_AUDIT_INCOMPLETE" in (item.get("reason_codes") or []) for item in path_assessments):
@@ -405,11 +426,42 @@ def _confidence_composite(*, base_score: float, path_assessments: list[dict[str,
                             for key in component_weights if component_scores[key] < 100.0]
     return {"score": confidence_score, "label": _confidence_label(confidence_score),
             "reasons": list(dict.fromkeys(confidence_reasons)), "penalties": confidence_penalties,
-            "thresholds": thresholds, "component_scores": component_scores, "component_weights": component_weights,
+            "thresholds": thresholds, "support_basis": support_basis(support),
+            "component_scores": component_scores, "component_weights": component_weights,
             "calibration_statuses": calibration_statuses, "ensemble_calibration": ensemble_calibration,
-            "ensemble_calibrator_validated": ensemble_calibrator_validated,
+            "ensemble_calibrator_selected_on_retrospective_check": ensemble_calibrator_selected,
+            "independent_validation_status": "not_established",
             "ci_estimated": ci_estimated, "ci_low": ci_low, "ci_high": ci_high,
             "skill_uncertainty": skill_uncertainty}
+
+
+def _ensemble_uncertainty(probabilities: list[float], path_dependency: dict[str, Any]) -> dict[str, Any]:
+    """Say plainly that no probability interval is identified here.
+
+    Three paths sharing the same label dates are not three independent draws, so a
+    range over their point estimates is descriptive, not a confidence interval. The
+    block exists to keep that absence machine-readable instead of letting a host
+    invent an interval.
+    """
+    spread = [min(probabilities), max(probabilities)] if len(probabilities) >= 2 else None
+    effective = path_dependency.get("effective_independent_paths")
+    if len(probabilities) < 2:
+        status, reason = "not_estimable", "single_path"
+    elif path_dependency.get("status") != "assessed":
+        status, reason = "not_estimable", "path_dependency_not_assessed"
+    elif isinstance(effective, (int, float)) and not isinstance(effective, bool) and effective < 2:
+        status, reason = "not_estimable", "effective_independent_paths_below_two"
+    else:
+        status, reason = "descriptive_range_only", "no_per_date_ensemble_ledger"
+    return {
+        "status": status,
+        "method": "none",
+        "interval": None,
+        "path_probability_range": spread,
+        "effective_independent_paths": effective,
+        "reason": reason,
+        "note": "A probability interval is not identified from a small set of correlated paths; the range is descriptive only.",
+    }
 
 
 def build_consensus(
@@ -533,7 +585,7 @@ def build_consensus(
     component_weights = composite["component_weights"]
     calibration_statuses = composite["calibration_statuses"]
     ensemble_calibration = composite["ensemble_calibration"]
-    ensemble_calibrator_validated = composite["ensemble_calibrator_validated"]
+    ensemble_calibrator_selected = composite["ensemble_calibrator_selected_on_retrospective_check"]
     ci_estimated = composite["ci_estimated"]
     ci_low = composite["ci_low"]
     ci_high = composite["ci_high"]
@@ -542,7 +594,7 @@ def build_consensus(
     all_codes = [code for item in path_assessments for code in (item.get("reason_codes") or [])]
     if "uncalibrated" in calibration_statuses:
         warnings.append("Consensus includes raw uncalibrated model probabilities; calibration cannot be inferred from the path mean.")
-    if ensemble_calibrator_validated:
+    if ensemble_calibrator_selected:
         warnings.append("The ensemble probability carries a Platt calibrator estimated on the earliest 60% of the walk-forward ledger and checked on later ledger dates; the check block overlaps windows already used by path-level evaluation, so the improvement is descriptive rather than an independent confirmation.")
     else:
         warnings.append("The equal-weight consensus has no ensemble calibrator that improved the subsequent ledger check; its probability reliability is not established by path-level calibration alone.")
@@ -556,7 +608,7 @@ def build_consensus(
         warnings.extend(item.get("warnings", []))
 
     calibrated_probability = None
-    if ensemble_calibrator_validated:
+    if ensemble_calibrator_selected:
         calibrator = ensemble_calibration.get("calibrator") or {}
         slope = calibrator.get("slope")
         intercept = calibrator.get("intercept")
@@ -565,6 +617,8 @@ def build_consensus(
             clipped = max(1e-6, min(1 - 1e-6, float(probability)))
             calibrated_probability = logistic(intercept + slope * math.log(clipped / (1 - clipped)))
     reportable_probability = calibrated_probability if calibrated_probability is not None else probability
+    path_dependency = (oos_probability_quality.get("path_dependency") or {})
+    ensemble_uncertainty = _ensemble_uncertainty(probabilities, path_dependency)
     prediction = {
         "status": "available",
         "raw_probability": raw_probability,
@@ -574,6 +628,7 @@ def build_consensus(
                               if calibrated_probability is not None else "equal_weight_mean_of_valid_path_estimates"),
         "calibration_status": ("ensemble_calibrated_on_retrospective_ledger_check"
                                if calibrated_probability is not None else "ensemble_calibration_unavailable"),
+        "ensemble_uncertainty": ensemble_uncertainty,
     }
     economic = _economic_viability(valid)
     return {
@@ -598,6 +653,8 @@ def build_consensus(
         "agreement": agreement,
         "probability_range": [min(probabilities), max(probabilities)],
         "probability_dispersion": dispersion,
+        "ensemble_uncertainty": ensemble_uncertainty,
+        "path_dependency": path_dependency,
         "direction_agreement_ratio": max(sum(p > 0.5 for p in probabilities), sum(p < 0.5 for p in probabilities), sum(p == 0.5 for p in probabilities)) / len(probabilities),
         "diversity": diversity,
         "evidence_families": sorted(union),
@@ -615,10 +672,13 @@ def build_consensus(
                                   "component_scores": {key: round(component_scores[key]) for key in component_scores},
                                   "component_weights": component_weights,
                                   "oos_support_thresholds": thresholds,
+                                  "support_basis": support_basis(support_sessions),
                                   "final_score": confidence_score,
                                   "oos_validation": {key: assessments[key].get("oos_validation") for key in assessments},
                                   "calibration": {key: assessments[key].get("probability_calibration") for key in assessments},
                                   "ensemble_calibration": {key: ensemble_calibration.get(key) for key in ("status", "fit_dates", "validation_dates", "validation_improvement")},
+                                  "ensemble_calibrator_selected_on_retrospective_check": ensemble_calibrator_selected,
+                                  "independent_validation_status": "not_established",
                                   "policy_skill_uncertainty": {"estimated": ci_estimated,
                                                                "ci_low": float(ci_low) if ci_estimated else None,
                                                                "ci_high": (float(ci_high) if ci_estimated else None)},

@@ -13,7 +13,8 @@ from .audit import audit
 from .consensus import build_consensus, forecast_assessment, oos_support_sessions
 from .contracts import RESEARCHERS, researcher_result
 from .delivery import validate_response_text
-from .gate_policy import aggregate_gate_telemetry, analysis_status
+from .feasibility import build_forecast_feasibility, build_timing
+from .gate_policy import aggregate_gate_telemetry, analysis_status, build_report_eligibility
 from .jsonio import write_json
 from .news import load_frozen_result, prepare_news_input, run_news
 from .news.pipeline import freeze_result
@@ -136,6 +137,9 @@ def run_analysis(
         consensus["probability_basis"] = (consensus.get("prediction") or {}).get("probability_basis")
         consensus["prediction"] = {**(consensus.get("prediction") or {}), "reportable_probability": consensus.get("prob_up")}
         consensus["probability"] = consensus["prediction"]
+    consensus["forecast_feasibility"] = build_forecast_feasibility(manifest, bars, results)
+    consensus["timing"] = build_timing(manifest, bars)
+    consensus["eligibility"] = build_report_eligibility(consensus, adversarial)
     quant_result = {
         "schema_version": "1.2",
         "analysis_id": analysis_id,
