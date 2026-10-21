@@ -31,6 +31,19 @@ FEATURE_FAMILIES = {
 # history grows or its tail is truncated. 72 sessions ≈ 8 blocks per two-year post-warmup span.
 LEDGER_TEST_BLOCK_SESSIONS = 72
 
+# The frozen hyperparameters of the native logistic baseline. They are recorded in
+# ``validation.model_hyperparameters`` under a version id: changing any value without
+# bumping the version would silently mix incompatible predictions in the forward ledger.
+ML_PARAMETER_VERSION = "ml_params_v1"
+LOGISTIC_ITERATIONS = 500
+LOGISTIC_LEARNING_RATE = 0.12
+LOGISTIC_L2 = 1e-3
+PLATT_MIN_OBSERVATIONS = 40
+PLATT_ITERATIONS = 500
+PLATT_LEARNING_RATE = 0.05
+WALK_FORWARD_SPLITS = 8
+WALK_FORWARD_MINIMUM_TRAIN = 30
+
 
 @dataclass(frozen=True)
 class Observation:
@@ -87,7 +100,8 @@ def _features(bars: list[dict[str, Any]]) -> list[tuple[float, ...] | None]:
     return result
 
 
-def _fit(rows: list[Observation], *, iterations: int = 500, learning_rate: float = 0.12, l2: float = 1e-3) -> LogisticModel:
+def _fit(rows: list[Observation], *, iterations: int = LOGISTIC_ITERATIONS,
+         learning_rate: float = LOGISTIC_LEARNING_RATE, l2: float = LOGISTIC_L2) -> LogisticModel:
     if len(rows) < 30 or len({row.target for row in rows}) < 2:
         raise ValueError("logistic fit requires at least 30 observations from both classes")
     width = len(rows[0].features)
@@ -115,18 +129,18 @@ def _fit(rows: list[Observation], *, iterations: int = 500, learning_rate: float
 
 
 def _fit_platt(scores: list[float], targets: list[int]) -> tuple[float, float] | None:
-    if len(scores) < 40 or len(set(targets)) < 2:
+    if len(scores) < PLATT_MIN_OBSERVATIONS or len(set(targets)) < 2:
         return None
     slope, intercept = 1.0, 0.0
-    for _ in range(500):
+    for _ in range(PLATT_ITERATIONS):
         grad_slope = grad_intercept = 0.0
         for score, target in zip(scores, targets, strict=True):
             residual = logistic(intercept + slope * score) - target
             grad_slope += residual * score
             grad_intercept += residual
         n = len(scores)
-        slope -= 0.05 * (grad_slope / n + 1e-3 * slope)
-        intercept -= 0.05 * grad_intercept / n
+        slope -= PLATT_LEARNING_RATE * (grad_slope / n + 1e-3 * slope)
+        intercept -= PLATT_LEARNING_RATE * grad_intercept / n
     return slope, intercept
 
 
@@ -302,7 +316,7 @@ def _walk_forward(dataset: _Dataset, horizon: int, fit: _Fitter) -> _WalkForward
     """
     bars, observations = dataset.bars, dataset.observations
     intervals = [SampleInterval(row.decision, row.information_start, row.label_end) for row in observations]
-    folds = causal_walk_forward(intervals, n_splits=8, minimum_train=30,
+    folds = causal_walk_forward(intervals, n_splits=WALK_FORWARD_SPLITS, minimum_train=WALK_FORWARD_MINIMUM_TRAIN,
                                 pre_test_gap_sessions=horizon, block_sessions=LEDGER_TEST_BLOCK_SESSIONS)
     predictions: list[tuple[Observation, float, float]] = []
     boundaries: dict[int, dict[str, Any]] = {}
@@ -411,7 +425,7 @@ def _per_origin_calibration(dataset: _Dataset, horizon: int, ledger: _WalkForwar
             matured_cursor += 1
         refit_started = time.perf_counter()
         causal_calibration = (_fit_platt([score for _, _, score in matured], [item[0].target for item in matured])
-                              if len(matured) >= 40 else None)
+                              if len(matured) >= PLATT_MIN_OBSERVATIONS else None)
         wall_seconds += time.perf_counter() - refit_started
         if causal_calibration is not None:
             refits += 1
@@ -577,6 +591,17 @@ def _validation_block(
     ledger_non_overlapping = len(non_overlapping([row.decision for row, _, _ in ledger.predictions], horizon))
     return {
         "model": "native deterministic L2 logistic regression",
+        "model_hyperparameters": {
+            "version": ML_PARAMETER_VERSION,
+            "iterations": LOGISTIC_ITERATIONS,
+            "learning_rate": LOGISTIC_LEARNING_RATE,
+            "l2": LOGISTIC_L2,
+            "platt_min_observations": PLATT_MIN_OBSERVATIONS,
+            "platt_iterations": PLATT_ITERATIONS,
+            "platt_learning_rate": PLATT_LEARNING_RATE,
+            "walk_forward_splits": WALK_FORWARD_SPLITS,
+            "walk_forward_minimum_train": WALK_FORWARD_MINIMUM_TRAIN,
+        },
         "features": list(FEATURE_NAMES),
         "feature_families": dict(FEATURE_FAMILIES),
         "random_seed": 0,

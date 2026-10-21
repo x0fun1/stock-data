@@ -75,7 +75,7 @@ B 另有三块可靠性诊断，全部只做披露、不参与概率计算。
 
 ## C — 逻辑回归与防泄漏验证
 
-使用路径内独立 OHLCV 特征和确定性 L2 Logistic Regression。验证包含闭区间 Purged K-Fold、Embargo、仅用过去数据的全历史逐日 causal walk-forward 账本、fold 内标准化和最后的 chronological holdout。当前预测可在验证固定后用已成熟标签重拟合，但不使用 holdout 指标调整特征或参数。
+使用路径内独立 OHLCV 特征和确定性 L2 Logistic Regression。验证包含闭区间 Purged K-Fold、Embargo、仅用过去数据的全历史逐日 causal walk-forward 账本、fold 内标准化和最后的 chronological holdout。当前预测可在验证固定后用已成熟标签重拟合，但不使用 holdout 指标调整特征或参数。实际拟合参数固定为 `LOGISTIC_ITERATIONS=500`、`LOGISTIC_LEARNING_RATE=0.12`、`LOGISTIC_L2=1e-3`、`PLATT_MIN_OBSERVATIONS=40`、`WALK_FORWARD_SPLITS=8`、`WALK_FORWARD_MINIMUM_TRAIN=30`，并原样写入 `validation.model_hyperparameters`（版本 `ml_params_v1`）；改动任一数值必须同时升版本号，否则前向台账会把不兼容的预测当成同一模型。
 
 核对 `validation.purged_kfold`、`causal_walk_forward`、`probability_calibration`、`calibration_training`、`calibration_transfer`、`final_holdout`、`historical_asof_ledger` 和两类 leakage 声明。当前前 holdout 训练至少需 60 个成熟样本且包含两类标签；账本 walk-forward 训练下限为 30 个成熟前置样本（均按 52 周默认窗口校准）；Platt 校准至少需 40 个有效 walk-forward 预测且有两类标签。校准记录逐条保留预测时训练标签边界与校准标签边界，两者都必须早于对应决策日；冻结映射的拟合范围限定在预留 holdout 之前的非重叠子集，`final_holdout_used` 必须为 false。账本每一行按自身 origin 逐条重拟合 Platt：只使用标签在该行决策日之前已成熟的 walk-forward OOS 对数几率（成熟观测不足 40 或单一类别时保留 raw 输出并标 `uncalibrated`），并逐条记录校准标签边界与校准系数（供审计逐条复核概率值）；更晚拟合的映射绝不应用到更早的行；冻结映射只用于最终 holdout 转移检查与当前预测；逐日账本的相邻标签重叠，行级记录披露 `prediction_days`、`non_overlapping_prediction_count` 与 `effective_sample_size_estimate`。最终 holdout 只评价冻结训练/校准方案，不用于校准或选择参数。没有校准时保留 raw logistic probability 并明确标 `uncalibrated`、`partial`，不能称为校准概率；残留 train/test 区间重叠时为 `invalid`，概率置空。迁移后的 Platt 映射还会应用到在全部成熟标签上重拟合的当前模型，这一应用无法再用 holdout 复验；`calibration_transfer` 用未触碰的 chronological holdout 给出同一映射的 raw 与 calibrated Brier 对照，作为该迁移的唯一直观指标，不能当作迁移已校准证明。
 

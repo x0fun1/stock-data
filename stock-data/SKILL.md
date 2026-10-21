@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.20.0"}
+metadata: {version: "2.21.0"}
 ---
 
 # Stock Data & Quant Research
@@ -38,7 +38,7 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 | 任务 | 必须读取 | 按需读取 |
 |---|---|---|
 | 报价/历史/资料 | `references/analysis-paths.md` | `references/source-policies.md`（需要比较来源或解释缺口时） |
-| 通用分析/概率 | `references/researcher-contract.md`、`references/reliability-gates.md`、`references/quant-paths.md`、`references/probability-policy.md` | `references/point-in-time-policy.md`、`references/consensus-protocol.md`、`references/snapshot-schema.md`（遇到对应问题时） |
+| 通用分析/概率 | `references/researcher-contract.md`、`references/reliability-gates.md`、`references/quant-paths.md`、`references/probability-policy.md` | `references/point-in-time-policy.md`、`references/consensus-protocol.md`、`references/snapshot-schema.md`、`references/forward-ledger.md`（前向台账时） |
 | 新闻/事件/情绪 | `references/news-analysis.md`、`references/news-impact-rubric.md`、`references/source-policies.md` | `references/collection-adapter.md`（字段映射时）、`references/point-in-time-policy.md`（历史可用性问题时） |
 | 因子/回测 | `references/quant-paths.md` | `references/consensus-protocol.md`、`references/point-in-time-policy.md` |
 | 20 日动量特征 | `references/momentum-model.md` | `references/collection-adapter.md`（基准声明） |
@@ -71,7 +71,8 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 6. Quant 与 E 完成并冻结后才解释新闻。NewsInput 只有独立新闻、同快照行情和源日历元数据，不接收 Quant；按 [news-analysis.md](references/news-analysis.md) 做 PIT、相关性、时效、去重、事件/观点分离与行情关联。不可用 News 明确 `not_assessed`，不二次联网。
 7. 两份结果冻结并校验后综合。mixed/事件与观点冲突必须保留；neutral + 催化剂单列；News 不能改 Quant P(up) 或恢复被 veto 的概率。归因只能作为待验证解释。
 8. 先读取程序生成的 `final_response.md` summary；`agent_summary.json` 提供有界摘要，用户需要细节时再读取完整 `report.md`（standard）/debug。不得交付 `pre_veto_prob_up`、被排除路径概率或自行补数字。方向资格取 `may_report_direction`，总体完成度取 `analysis_status`，展示 `reporting_status` 和置信度原因。`confidence_score` 是启发式研究支持度评分，不是预测准确率；同时保留 `predictive_evidence_grade`、因果基准 Brier Skill、coverage、有效独立块数（不足时技能区间标记为不可估计）和无不确定性区间的限制。正向点估计不等于统计确认或已校准概率。
-9. 将实际准备发送的完整文本保存为 UTF-8 Markdown，用 `validate-response` 校验。缺字段、标的/窗口/时间不符、Quant 值被替换、缺冻结阶段或报告被修改时拒绝交付；按实际产物修复文本并重验。常规预测使用 `--cleanup-json` 时，待发送文件通过校验且宿主已读取/复制这份文本后，运行 `cleanup-run --run-dir <run_dir> --analysis-dir <report_dir> --response-file <同一待发送文本.md>`；命令会再次校验并清理本次登记的 JSON，保留 `report.md`、`final_response.md` 和 `cleanup_receipt.txt`。之后发送同一文本，不再摘要或改写强制字段。CLI 无法判断聊天是否实际送达；若宿主提供送达回调，应由回调触发清理。此校验仍不能拦截宿主绕过 Skill 直接发送。
+9. 需要累积独立样本时，用 `--ledger <path>` 在冻结后写入前向台账；`ledger-settle` 用后续快照结算已到期标签，`ledger-audit` 报告 Brier/基准 Brier/覆盖率。台账在 run 目录之外、append-only，`cleanup-run` 不会删除；同一 `prediction_id` 重复写入为 no-op，弃权也入账。详见 [forward-ledger.md](references/forward-ledger.md)。
+10. 将实际准备发送的完整文本保存为 UTF-8 Markdown，用 `validate-response` 校验。缺字段、标的/窗口/时间不符、Quant 值被替换、缺冻结阶段或报告被修改时拒绝交付；按实际产物修复文本并重验。常规预测使用 `--cleanup-json` 时，待发送文件通过校验且宿主已读取/复制这份文本后，运行 `cleanup-run --run-dir <run_dir> --analysis-dir <report_dir> --response-file <同一待发送文本.md>`；命令会再次校验并清理本次登记的 JSON，保留 `report.md`、`final_response.md` 和 `cleanup_receipt.txt`。之后发送同一文本，不再摘要或改写强制字段。CLI 无法判断聊天是否实际送达；若宿主提供送达回调，应由回调触发清理。此校验仍不能拦截宿主绕过 Skill 直接发送。
 
 仓库根目录示例，安装后改用已安装脚本绝对路径；输入与 runtime 位于用户可写目录：
 

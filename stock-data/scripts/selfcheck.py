@@ -920,15 +920,15 @@ def check_f19_retention_gc() -> None:
 # field that moved instead of only reporting a digest.
 GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
     "plain": {
-        "report.json": "35e6449e787e99d9ab7c259abc5410970d527d01973a3932aeffb128362e9276",
-        "quant_result.json": "40d2b0fd36ef7b12a8bcf376282386f93e0cb5f6f73c5a0d51a264f0c35aaa14",
+        "report.json": "8b469d8016254e39124695d90462222408a067e5553202cfebf360a8f8c4a846",
+        "quant_result.json": "15712140e6c8ffe6ff1b2c5a5aa2d6d5a497bf82eec9f26c112305bd9ece004f",
         "news_result.json": "690e95cebbda22b3e6396c03e6a2f07ea2a61c89f0ff3bf30b45353998d36ea8",
         "agent_summary.json": "7d6192fb268d10e1a2f4c8de84c29995c7cd768b22982cb8a0b815eb1d734056",
         "final_response.md": "72417e01e393ae10b19e8671a3796f3652813b3f72d440f83a3daae0688ce23c",
     },
     "news": {
-        "report.json": "2a52cf12e9973ab6accf892d02c624b211757e2f8ea166f7db48cf3d7fc098e5",
-        "quant_result.json": "2ba3e632e82ffb30c2ab4403a8b1b3f09afe57e8d77bfc6f3e82720b3131f1a9",
+        "report.json": "23ce12f14bf4baa7ad7b2aab00d9b3b3b12a67aad1b60ff044f01bc6ea97c878",
+        "quant_result.json": "27c22394b11cf8fdb2aa8962fe1e9c2a726f43ccf1f68c6179ce1290e175b177",
         "news_result.json": "a5e311ab6f5b8dce3506714adf450a196adec2c7a545ec120b7f55112a4656fc",
         "agent_summary.json": "54ba77c2eb34204dd63e13bd1451154f8997f95619a58b6e4c163df52896ced6",
         "final_response.md": "6cf9b347aa1f37b91a63c83ff8ebd13bab05278819e564a4e71f402e69114596",
@@ -2174,6 +2174,93 @@ def check_f37_path_error_dependency():
         raise AssertionError("ten common dates cannot support a dependency claim")
 
 
+def check_f38_ml_hyperparameters():
+    from quant_research.researchers import ml
+
+    bars = synth_bars(252)
+    manifest, market = ml_snapshot_stub(bars)
+    result = ml.run(Path("unused"), (manifest, market))
+    parameters = (result.get("validation") or {}).get("model_hyperparameters") or {}
+    if parameters.get("version") != "ml_params_v1":
+        raise AssertionError("the logistic baseline must publish a parameter version")
+    expected = {
+        "iterations": ml.LOGISTIC_ITERATIONS,
+        "learning_rate": ml.LOGISTIC_LEARNING_RATE,
+        "l2": ml.LOGISTIC_L2,
+        "platt_min_observations": ml.PLATT_MIN_OBSERVATIONS,
+        "walk_forward_splits": ml.WALK_FORWARD_SPLITS,
+        "walk_forward_minimum_train": ml.WALK_FORWARD_MINIMUM_TRAIN,
+    }
+    for key, value in expected.items():
+        if parameters.get(key) != value:
+            raise AssertionError(f"recorded hyperparameter {key} does not match the fitted value")
+
+
+def check_f39_forward_ledger():
+    from quant_research import ledger
+
+    result = {
+        "snapshot": {
+            "ticker": "SYN", "market": "US", "horizon": "5D",
+            "asof_timestamp": "2026-01-02T21:00:00Z",
+            "snapshot_id": "SYN_TEST", "snapshot_content_sha256": "a" * 64,
+        },
+        "consensus": {
+            "prob_up": 0.6, "raw_probability": 0.6, "calibrated_probability": None,
+            "probability_basis": "test", "direction": "bullish", "confidence": "low",
+            "confidence_score": 50, "predictive_evidence_grade": "insufficient_oos_evidence",
+            "eligibility": {"probability_report": True, "direction_report": True,
+                            "trading_signal": False, "trading_signal_reasons": []},
+            "timing": {"decision_session": "2026-01-02", "decision_at": "2026-01-02T21:00:00Z",
+                       "label_basis": "close_to_close", "entry_basis": "not_modelled"},
+        },
+        "engine": {"version": "test"},
+    }
+    work = Path(tempfile.mkdtemp(prefix="selfcheck_f39_"))
+    try:
+        path = work / "ledger.jsonl"
+        first = ledger.record_prediction(result, path)
+        second = ledger.record_prediction(result, path)
+        if first["status"] != "recorded" or second["status"] != "duplicate":
+            raise AssertionError("a retried analysis must not double-record the forecast")
+        events = ledger.read_events(path)
+        if len(events) != 1 or events[0]["status"] != "pending":
+            raise AssertionError("the ledger must hold one immutable pending prediction")
+
+        days = ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09"]
+        bars = [{"date": day, "close": 100 + index * 2} for index, day in enumerate(days)]
+        settlements, skipped = ledger.settle_pending(events, bars)
+        if skipped or len(settlements) != 1:
+            raise AssertionError(f"one prediction should settle cleanly: {skipped}")
+        if settlements[0]["hit"] != 1 or abs(settlements[0]["brier"] - 0.16) > 1e-12:
+            raise AssertionError("settlement must use probability minus outcome")
+        for event in settlements:
+            ledger._append(path, event)
+        settled_again, _ = ledger.settle_pending(ledger.read_events(path), bars)
+        if settled_again:
+            raise AssertionError("settlement must be idempotent")
+        report = ledger.audit(path)
+        if report["settled_predictions"] != 1 or report["pending_predictions"] != 0:
+            raise AssertionError(f"audit accounting is wrong: {report}")
+        if abs(report["overall"]["brier"] - 0.16) > 1e-9:
+            raise AssertionError("audit must recompute Brier from the recorded probability")
+
+        abstained = json.loads(json.dumps(result))
+        abstained["consensus"]["prob_up"] = None
+        abstained["snapshot"]["asof_timestamp"] = "2026-01-03T21:00:00Z"
+        recorded = ledger.record_prediction(abstained, path)
+        if recorded["status"] != "recorded":
+            raise AssertionError("an abstention must still enter the ledger")
+        latest = ledger.read_events(path)[-1]
+        if latest["status"] != "abstained":
+            raise AssertionError("an abstention must be labelled, not silently dropped")
+        _, skipped = ledger.settle_pending(ledger.read_events(path), bars)
+        if not any(item["reason"] == "prediction_abstained" for item in skipped):
+            raise AssertionError("an abstention has no outcome to settle")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -2213,6 +2300,8 @@ CHECKS = [
     ("F35 confidence disclosure fields", check_f35_confidence_disclosure_fields),
     ("F36 eligibility and uncertainty", check_f36_eligibility_and_uncertainty),
     ("F37 path error dependency", check_f37_path_error_dependency),
+    ("F38 ML hyperparameter record", check_f38_ml_hyperparameters),
+    ("F39 forward ledger", check_f39_forward_ledger),
 ]
 
 if __name__ == "__main__":

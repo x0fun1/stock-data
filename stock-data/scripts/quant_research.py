@@ -19,6 +19,9 @@ from quant_research.cleanup import (
 )
 from quant_research.contracts import MISSING_PROBABILITY_LABEL, normalize_request, utc_now
 from quant_research.delivery import validate_final_response
+from quant_research.ledger import audit as ledger_audit
+from quant_research.ledger import record_prediction
+from quant_research.ledger import settle as ledger_settle
 from quant_research.orchestrator import run_analysis
 from quant_research.paths import safe_output_destination
 from quant_research.retention import (
@@ -75,12 +78,14 @@ def main(argv: list[str] | None = None) -> int:
     analyze.add_argument("--output-root", type=Path, default=Path("runtime/research"))
     analyze.add_argument("--news-policy", type=Path, help="optional JSON event-type half-life policy for session-based decay")
     analyze.add_argument("--news-ai-assessment", type=Path, help="optional host-produced headline-level AI lean artifact (display-only evidence)")
+    analyze.add_argument("--ledger", type=Path, help="append this frozen prediction to an append-only forward ledger")
     pipeline = commands.add_parser("pipeline", help="compose request/adapt/freeze/analyze from already collected gateway DATA")
     pipeline.add_argument("--request", type=Path, required=True)
     pipeline.add_argument("--responses", type=Path, required=True)
     pipeline.add_argument("--output-root", type=Path, default=Path("runtime"))
     pipeline.add_argument("--captured-at-utc")
     pipeline.add_argument("--news-ai-assessment", type=Path, help="optional host-produced headline-level AI lean artifact (display-only evidence)")
+    pipeline.add_argument("--ledger", type=Path, help="append this frozen prediction to an append-only forward ledger")
     pipeline_mode = pipeline.add_mutually_exclusive_group()
     pipeline_mode.add_argument("--cleanup-json", action="store_true", help="isolate this pipeline run for explicit post-validation JSON cleanup")
     pipeline_mode.add_argument("--keep-json", action="store_true", help="retain JSON in the legacy shared output layout (default)")
@@ -89,6 +94,16 @@ def main(argv: list[str] | None = None) -> int:
     delivery = commands.add_parser("validate-response", help="check a prepared reply against frozen Quant/News results before delivery")
     delivery.add_argument("--analysis-dir", type=Path, required=True)
     delivery.add_argument("--response-file", type=Path, required=True)
+    ledger_record = commands.add_parser("ledger-record", help="append a frozen analysis to the forward ledger (idempotent)")
+    ledger_record.add_argument("--analysis-dir", type=Path, required=True)
+    ledger_record.add_argument("--ledger", type=Path, required=True)
+    ledger_settle_parser = commands.add_parser("ledger-settle", help="settle matured ledger predictions against a later frozen snapshot")
+    ledger_settle_parser.add_argument("--ledger", type=Path, required=True)
+    ledger_settle_parser.add_argument("--snapshot-dir", type=Path, required=True)
+    ledger_settle_parser.add_argument("--ticker")
+    ledger_settle_parser.add_argument("--horizon")
+    ledger_audit_parser = commands.add_parser("ledger-audit", help="score realized ledger predictions")
+    ledger_audit_parser.add_argument("--ledger", type=Path, required=True)
     cleanup = commands.add_parser("cleanup-run", help="preview or remove JSON owned by a run or explicitly named analysis")
     cleanup.add_argument("--run-dir", type=Path, help="isolated runtime/runs/<run_id> directory")
     cleanup.add_argument("--analysis-dir", type=Path, help="owned analysis directory (with --run-dir) or legacy analysis-only target")
@@ -181,6 +196,13 @@ def main(argv: list[str] | None = None) -> int:
                     update_run_workspace(owned_run, state="awaiting_cleanup")
                 summary = json.loads((location / "agent_summary.json").read_text(encoding="utf-8"))
                 result = {"status": "success", "analysis_status": summary["analysis_status"], "may_report_direction": summary["sections"]["final_synthesis"]["may_report_direction"], "report_dir": str(location), "json": str(location / "report.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json"), "final_response": str(location / "final_response.md")}
+                if getattr(args, "ledger", None):
+                    try:
+                        result["ledger"] = record_prediction(
+                            json.loads((location / "report.json").read_text(encoding="utf-8")), args.ledger)
+                    except Exception as exc:  # noqa: BLE001 - a ledger failure must not discard the analysis
+                        result["ledger"] = {"status": "error", "error_type": type(exc).__name__,
+                                            "error": bounded_text(exc)}
                 if owned_run is not None:
                     result["run_dir"] = str(owned_run)
                     result["cleanup_required"] = True
@@ -194,6 +216,14 @@ def main(argv: list[str] | None = None) -> int:
                 raise
         elif args.command == "validate-response":
             print(json.dumps(validate_final_response(args.analysis_dir, args.response_file), ensure_ascii=False))
+        elif args.command == "ledger-record":
+            value = json.loads((args.analysis_dir / "report.json").read_text(encoding="utf-8"))
+            print(json.dumps(record_prediction(value, args.ledger), ensure_ascii=False))
+        elif args.command == "ledger-settle":
+            print(json.dumps(ledger_settle(args.ledger, args.snapshot_dir, ticker=args.ticker,
+                                           horizon=args.horizon), ensure_ascii=False))
+        elif args.command == "ledger-audit":
+            print(json.dumps(ledger_audit(args.ledger), ensure_ascii=False))
         elif args.command == "cleanup-run":
             if args.run_dir is not None:
                 result = cleanup_owned_run(args.run_dir, analysis_dir=args.analysis_dir,
