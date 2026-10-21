@@ -134,24 +134,22 @@ def _run_ml(bars: list[dict]):
 
 def check_f01_current_probability_not_clobbered() -> None:
     bars = synth_bars()
-    result, fits, platt, _ = _run_ml(bars)
+    result, _fits, _platt, _ = _run_ml(bars)
     assert result["status"] in {"success", "partial"}, result["status"]
     rows = result["validation"]["oos_forecasts"]
-    assert rows and fits and platt
+    assert rows
     from quant_research.researchers.ml import logistic
 
-    feature_vector = None
     from quant_research.researchers import ml
 
-    features = ml._features(bars)
-    feature_vector = tuple(features[-1])
-    frozen = platt[0][2]
-    if frozen:
-        # The frozen Platt mapping is applied to the current refit model's logit; the
-        # check proves the current probability is not clobbered by any ledger row.
-        expected = logistic(frozen[1] + frozen[0] * fits[-1].score(feature_vector))
+    calibration = result["validation"]["current_prediction_calibration"]
+    raw = result["raw_probability"]
+    if calibration["applied"]:
+        # The published probability is the current refit model's logit passed through
+        # the calibration state matured before the current origin.
+        expected = logistic(calibration["intercept"] + calibration["slope"] * ml._logit(raw))
     else:
-        expected = fits[-1].predict(feature_vector)
+        expected = raw
     assert abs(result["prob_up"] - expected) < 1e-9, (result["prob_up"], expected)
     assert abs((result["prob_up"] or -1) - rows[-1]["probability"]) > 1e-12, "prob_up equals the last ledger row"
 
@@ -918,72 +916,60 @@ def check_f19_retention_gc() -> None:
 # domain) run in-process; identity and timing fields are normalised before
 # hashing, and a short anchor list is compared verbatim so a mismatch names the
 # field that moved instead of only reporting a digest.
-GOLDEN_PIPELINE: dict[str, dict[str, str]] = {
-    "plain": {
-        "report.json": "8b469d8016254e39124695d90462222408a067e5553202cfebf360a8f8c4a846",
-        "quant_result.json": "15712140e6c8ffe6ff1b2c5a5aa2d6d5a497bf82eec9f26c112305bd9ece004f",
-        "news_result.json": "690e95cebbda22b3e6396c03e6a2f07ea2a61c89f0ff3bf30b45353998d36ea8",
-        "agent_summary.json": "7d6192fb268d10e1a2f4c8de84c29995c7cd768b22982cb8a0b815eb1d734056",
-        "final_response.md": "72417e01e393ae10b19e8671a3796f3652813b3f72d440f83a3daae0688ce23c",
-    },
-    "news": {
-        "report.json": "23ce12f14bf4baa7ad7b2aab00d9b3b3b12a67aad1b60ff044f01bc6ea97c878",
-        "quant_result.json": "27c22394b11cf8fdb2aa8962fe1e9c2a726f43ccf1f68c6179ce1290e175b177",
-        "news_result.json": "a5e311ab6f5b8dce3506714adf450a196adec2c7a545ec120b7f55112a4656fc",
-        "agent_summary.json": "54ba77c2eb34204dd63e13bd1451154f8997f95619a58b6e4c163df52896ced6",
-        "final_response.md": "6cf9b347aa1f37b91a63c83ff8ebd13bab05278819e564a4e71f402e69114596",
-    },
-}
-GOLDEN_ANCHORS: dict[str, dict[str, object]] = {
-    "plain": {
-        "summary.analysis_status": "degraded",
-        "summary.reporting_status": "degraded",
-        "summary.sections.final_synthesis.may_report_direction": True,
-        "summary.sections.final_synthesis.news_relationship": "消息面交叉验证未评估",
-        "summary.sections.news.event_bias": "unknown",
-        "summary.sections.news.status": "not_assessed",
-        "quant.consensus.prob_up": 0.5853976420216035,
-        "quant.consensus.direction": "bullish",
-        "quant.consensus.confidence": "low",
-        "quant.consensus.agreement": "medium",
-        "quant.consensus.confidence_score": 58,
-        "quant.consensus.reporting_status": "degraded",
-        "quant.consensus.predictive_evidence_grade": "observed_skill_below_expanding_base_rate",
-        "quant.consensus.probability_basis": "ensemble_calibrated_equal_weight_mean_of_valid_path_estimates",
-        "quant.researchers.quant.status": "success",
-        "quant.researchers.factor.status": "success",
-        "quant.researchers.ml.status": "partial",
-        "quant.researchers.factor_backtest.status": "partial",
-        "news.status": "not_assessed",
-        "news.overall_direction": "unknown",
-        "news.event_strength": None,
-        "news.confidence": "unavailable",
-    },
-    "news": {
-        "summary.analysis_status": "degraded",
-        "summary.reporting_status": "degraded",
-        "summary.sections.final_synthesis.may_report_direction": True,
-        "summary.sections.final_synthesis.news_relationship": "消息面交叉验证未评估",
-        "summary.sections.news.event_bias": "unknown",
-        "summary.sections.news.status": "partial",
-        "quant.consensus.prob_up": 0.5853976420216035,
-        "quant.consensus.direction": "bullish",
-        "quant.consensus.confidence": "low",
-        "quant.consensus.agreement": "medium",
-        "quant.consensus.confidence_score": 58,
-        "quant.consensus.reporting_status": "degraded",
-        "quant.consensus.predictive_evidence_grade": "observed_skill_below_expanding_base_rate",
-        "quant.consensus.probability_basis": "ensemble_calibrated_equal_weight_mean_of_valid_path_estimates",
-        "quant.researchers.quant.status": "success",
-        "quant.researchers.factor.status": "success",
-        "quant.researchers.ml.status": "partial",
-        "quant.researchers.factor_backtest.status": "partial",
-        "news.status": "partial",
-        "news.overall_direction": "unknown",
-        "news.event_strength": None,
-        "news.confidence": "low",
-    },
-}
+GOLDEN_PIPELINE: dict[str, dict[str, str]] = {'news': {'agent_summary.json': 'b6b4cbca4b44fab56d97914da0bc59a7a5fdb44a0792ee0acc2181498f1de25a',
+          'final_response.md': 'e595dd0b32db77f19ff2f3c4c5960fa26521b4efa185f667f8494699f3a39641',
+          'news_result.json': 'a5e311ab6f5b8dce3506714adf450a196adec2c7a545ec120b7f55112a4656fc',
+          'quant_result.json': '3fc2f05804466181cfbd3f2f34a2e4b0c5ba3528be49df70dcec8a99cd6719e0',
+          'report.json': '67e32b040ac932b1724bd07779c07b89e48a04e8e17baa1c7ec3cd8a49084769'},
+ 'plain': {'agent_summary.json': 'cf2bd2c4119252154d742cc442127ee1df71d6a605aa879556abe946457ff949',
+           'final_response.md': '2ca1549710b8cd2d63c0b3767ff0390f4e74b9b3af0bcf1dfb7313490a97faac',
+           'news_result.json': '690e95cebbda22b3e6396c03e6a2f07ea2a61c89f0ff3bf30b45353998d36ea8',
+           'quant_result.json': 'c99ebc153ad1f8ab0405f94eb4cf410c64dc9cbf4697d82c4cb83884de40b689',
+           'report.json': 'e96b8d7293a3b3491635e31ba5f5469aae83056c95447715f58fb581db2ba449'}}
+GOLDEN_ANCHORS: dict[str, dict[str, object]] = {'news': {'news.confidence': 'low',
+          'news.event_strength': None,
+          'news.overall_direction': 'unknown',
+          'news.status': 'partial',
+          'quant.consensus.agreement': 'medium',
+          'quant.consensus.confidence': 'medium',
+          'quant.consensus.confidence_score': 60,
+          'quant.consensus.direction': 'bullish',
+          'quant.consensus.predictive_evidence_grade': 'no_observed_skill_vs_expanding_base_rate',
+          'quant.consensus.prob_up': 0.6875255669584401,
+          'quant.consensus.probability_basis': 'equal_weight_mean_of_valid_path_estimates',
+          'quant.consensus.reporting_status': 'degraded',
+          'quant.researchers.factor.status': 'success',
+          'quant.researchers.factor_backtest.status': 'partial',
+          'quant.researchers.ml.status': 'partial',
+          'quant.researchers.quant.status': 'success',
+          'summary.analysis_status': 'degraded',
+          'summary.reporting_status': 'degraded',
+          'summary.sections.final_synthesis.may_report_direction': True,
+          'summary.sections.final_synthesis.news_relationship': '消息面交叉验证未评估',
+          'summary.sections.news.event_bias': 'unknown',
+          'summary.sections.news.status': 'partial'},
+ 'plain': {'news.confidence': 'unavailable',
+           'news.event_strength': None,
+           'news.overall_direction': 'unknown',
+           'news.status': 'not_assessed',
+           'quant.consensus.agreement': 'medium',
+           'quant.consensus.confidence': 'medium',
+           'quant.consensus.confidence_score': 60,
+           'quant.consensus.direction': 'bullish',
+           'quant.consensus.predictive_evidence_grade': 'no_observed_skill_vs_expanding_base_rate',
+           'quant.consensus.prob_up': 0.6875255669584401,
+           'quant.consensus.probability_basis': 'equal_weight_mean_of_valid_path_estimates',
+           'quant.consensus.reporting_status': 'degraded',
+           'quant.researchers.factor.status': 'success',
+           'quant.researchers.factor_backtest.status': 'partial',
+           'quant.researchers.ml.status': 'partial',
+           'quant.researchers.quant.status': 'success',
+           'summary.analysis_status': 'degraded',
+           'summary.reporting_status': 'degraded',
+           'summary.sections.final_synthesis.may_report_direction': True,
+           'summary.sections.final_synthesis.news_relationship': '消息面交叉验证未评估',
+           'summary.sections.news.event_bias': 'unknown',
+           'summary.sections.news.status': 'not_assessed'}}
 
 _GOLDEN_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z")
 _GOLDEN_STAMP_ID = re.compile(r"\d{8}T\d{12}Z")
@@ -2181,15 +2167,16 @@ def check_f38_ml_hyperparameters():
     manifest, market = ml_snapshot_stub(bars)
     result = ml.run(Path("unused"), (manifest, market))
     parameters = (result.get("validation") or {}).get("model_hyperparameters") or {}
-    if parameters.get("version") != "ml_params_v1":
+    if parameters.get("version") != ml.ML_PARAMETER_VERSION:
         raise AssertionError("the logistic baseline must publish a parameter version")
     expected = {
         "iterations": ml.LOGISTIC_ITERATIONS,
         "learning_rate": ml.LOGISTIC_LEARNING_RATE,
         "l2": ml.LOGISTIC_L2,
         "platt_min_observations": ml.PLATT_MIN_OBSERVATIONS,
-        "walk_forward_splits": ml.WALK_FORWARD_SPLITS,
-        "walk_forward_minimum_train": ml.WALK_FORWARD_MINIMUM_TRAIN,
+        "refit_sessions": ml.REFIT_SESSIONS,
+        "training_window_sessions": ml.TRAINING_WINDOW_SESSIONS,
+        "minimum_training_rows": ml.MINIMUM_TRAINING_ROWS,
     }
     for key, value in expected.items():
         if parameters.get(key) != value:
@@ -2229,21 +2216,23 @@ def check_f39_forward_ledger():
 
         days = ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09"]
         bars = [{"date": day, "close": 100 + index * 2} for index, day in enumerate(days)]
-        settlements, skipped = ledger.settle_pending(events, bars)
+        settlements, skipped = ledger.settle_pending(events, bars, ticker="SYN", market="US")
         if skipped or len(settlements) != 1:
             raise AssertionError(f"one prediction should settle cleanly: {skipped}")
         if settlements[0]["hit"] != 1 or abs(settlements[0]["brier"] - 0.16) > 1e-12:
             raise AssertionError("settlement must use probability minus outcome")
         for event in settlements:
             ledger._append(path, event)
-        settled_again, _ = ledger.settle_pending(ledger.read_events(path), bars)
+        settled_again, _ = ledger.settle_pending(ledger.read_events(path), bars, ticker="SYN", market="US")
         if settled_again:
             raise AssertionError("settlement must be idempotent")
         report = ledger.audit(path)
         if report["settled_predictions"] != 1 or report["pending_predictions"] != 0:
             raise AssertionError(f"audit accounting is wrong: {report}")
-        if abs(report["overall"]["brier"] - 0.16) > 1e-9:
+        if abs(report["retrospective"]["brier"] - 0.16) > 1e-9:
             raise AssertionError("audit must recompute Brier from the recorded probability")
+        if report["prospective"]["samples"] != 0:
+            raise AssertionError("a snapshot recorded after its label matured is not prospective")
 
         abstained = json.loads(json.dumps(result))
         abstained["consensus"]["prob_up"] = None
@@ -2254,11 +2243,198 @@ def check_f39_forward_ledger():
         latest = ledger.read_events(path)[-1]
         if latest["status"] != "abstained":
             raise AssertionError("an abstention must be labelled, not silently dropped")
-        _, skipped = ledger.settle_pending(ledger.read_events(path), bars)
+        _, skipped = ledger.settle_pending(ledger.read_events(path), bars, ticker="SYN", market="US")
         if not any(item["reason"] == "prediction_abstained" for item in skipped):
             raise AssertionError("an abstention has no outcome to settle")
+
+        other = json.loads(json.dumps(result))
+        other["snapshot"]["ticker"] = "OTHER"
+        other["snapshot"]["snapshot_content_sha256"] = "b" * 64
+        other["snapshot"]["asof_timestamp"] = "2026-01-04T21:00:00Z"
+        if ledger.record_prediction(other, path)["status"] != "recorded":
+            raise AssertionError("the second instrument must enter the same ledger")
+        _, mixed = ledger.settle_pending(ledger.read_events(path), bars, ticker="SYN", market="US")
+        if not any(item["reason"] == "ticker_mismatch" for item in mixed):
+            raise AssertionError("bars for SYN must never settle an OTHER prediction")
     finally:
         shutil.rmtree(work, ignore_errors=True)
+
+
+def check_f40_ledger_metrics_semantics() -> None:
+    from quant_research import ledger
+
+    bars = [
+        {"date": (dt.date(2026, 1, 1) + dt.timedelta(days=offset)).isoformat(), "close": 100 + offset}
+        for offset in range(1, 60)
+        if (dt.date(2026, 1, 1) + dt.timedelta(days=offset)).weekday() < 5
+    ]
+    work = Path(tempfile.mkdtemp())
+    try:
+        path = work / "ledger.jsonl"
+        for offset in range(4):
+            decision = bars[20 + offset]["date"]
+            result = {
+                "snapshot": {
+                    "ticker": "SYN", "market": "US", "horizon": "5D",
+                    "asof_timestamp": f"{decision}T21:00:00Z",
+                    "snapshot_id": f"S{offset}",
+                    "snapshot_content_sha256": f"{offset:064d}",
+                },
+                "consensus": {
+                    "prob_up": 0.1,
+                    "timing": {"decision_session": decision, "decision_at": f"{decision}T21:00:00Z"},
+                },
+                "engine": {"version": "test"},
+            }
+            ledger.record_prediction(result, path, bars=bars)
+        appended, _ = ledger.settle_pending(ledger.read_events(path), bars, ticker="SYN", market="US")
+        for event in appended:
+            ledger._append(path, event)
+        report = ledger.audit(path)
+        if report["prospective"]["samples"] != 0 or report["retrospective"]["samples"] != 4:
+            raise AssertionError("a past snapshot must stay retrospective")
+        metrics = report["retrospective"]
+        if metrics["observed_up_rate"] != 1.0:
+            raise AssertionError("observed_up_rate must be the realised label base rate")
+        if metrics["direction_accuracy"] != 0.0:
+            raise AssertionError("four confident down calls on four up labels are zero accuracy")
+        if "hit_rate" in metrics:
+            raise AssertionError("hit_rate must not be used for a base-rate field")
+        if metrics["causal_baseline_samples"] != 4:
+            raise AssertionError("every settled row needs a causal baseline")
+        if any(record.get("baseline_probability") != 1.0 for record in appended):
+            raise AssertionError("the causal baseline may only use labels matured by the decision")
+        if any(record.get("baseline_frozen_at") != "prediction" for record in appended):
+            raise AssertionError("a baseline computed at recording time must be frozen there")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def check_f41_production_replay_capacity() -> None:
+    short = synth_bars(252)
+    result, _, _, _ = _run_ml(short)
+    validation = result["validation"]
+    replay = validation["production_replay"]
+    if not 10 <= replay["observations"] <= 40:
+        raise AssertionError(f"52-week non-overlapping replay should be sparse: {replay['observations']}")
+    if validation["probability_calibration"]["reachable"]:
+        raise AssertionError("Platt calibration cannot be reachable with a 52-week window")
+    if replay["calibrated_predictions"] != 0:
+        raise AssertionError("an unreachable calibrator must not be applied")
+    if result["calibrated_probability"] is not None:
+        raise AssertionError("an unreachable calibrator must not be published")
+    warnings = " ".join(result["warnings"])
+    if "does not apply" not in warnings and "not applied" not in warnings:
+        raise AssertionError("the report must disclose the unreachable calibrator")
+    longer, _, _, _ = _run_ml(synth_bars(640))
+    if longer["validation"]["probability_calibration"]["status"] != "fitted":
+        raise AssertionError("a longer archive must be able to fit the shadow calibrator")
+    if longer["calibrated_probability"] is None:
+        raise AssertionError("a fitted calibrator must reach the published probability")
+
+
+def check_f42_live_entry_matches_replay() -> None:
+    bars = synth_bars(640)
+    result, _, _, _ = _run_ml(bars)
+    rows = result["validation"]["oos_forecasts"]
+    target = rows[len(rows) // 2]
+    replay_entry, _, _, _ = _run_ml(bars[: target["decision_index"] + 1])
+    if abs(replay_entry["prob_up"] - target["probability"]) > 1e-9:
+        raise AssertionError(
+            f"the live entry and the replay disagree at {target['decision_session']}: "
+            f"{replay_entry['prob_up']} vs {target['probability']}"
+        )
+    if abs(replay_entry["raw_probability"] - target["raw_probability"]) > 1e-9:
+        raise AssertionError("the raw logits must agree at the same origin")
+
+
+def check_f43_compact_candidate_is_shadow_only() -> None:
+    from quant_research.researchers import ml
+
+    market = {
+        "data": {
+            "currency": "USD", "exchange": "US", "adjustment": "unadjusted",
+            "bars": synth_bars(400), "source_symbol": "SYN",
+            "fetched_at_utc": "2026-01-02T00:00:00Z", "source_timestamp": "2026-01-02T00:00:00Z",
+        },
+        "_data_validation": {"forecast_eligible": True},
+    }
+    dataset = ml._dataset(market, 5, feature_set="compact_v1")
+    if list(ml.FEATURE_SETS["compact_v1"]["names"]) != ["return_5", "return_20", "volatility_20"]:
+        raise AssertionError("the compact candidate must be frozen at three features")
+    vector = dataset.features[-1]
+    if vector is None or len(vector) != 3:
+        raise AssertionError("the compact candidate must expose exactly three inputs")
+    records, _, _ = ml._replay(dataset, 5, ml._Fitter())
+    if not records:
+        raise AssertionError("the compact candidate must be replayable")
+    default = ml.run(None, ({"ticker": "SYN", "horizon": "5D", "snapshot_id": "s", "market": "US"}, market))
+    if default["validation"]["model_hyperparameters"]["feature_set"] != "full_v1":
+        raise AssertionError("the compact candidate must not replace the production feature set")
+
+
+def check_f44_forward_eligibility() -> None:
+    from quant_research import ledger
+
+    work = Path(tempfile.mkdtemp())
+    try:
+        path = work / "ledger.jsonl"
+        today = dt.datetime.now(dt.timezone.utc).date()
+        session = today - dt.timedelta(days=1)
+        while session.weekday() >= 5:
+            session -= dt.timedelta(days=1)
+        live = {
+            "snapshot": {
+                "ticker": "SYN", "market": "US", "horizon": "5D",
+                "asof_timestamp": f"{session.isoformat()}T20:00:00Z",
+                "snapshot_id": "LIVE", "snapshot_content_sha256": "a" * 64,
+            },
+            "consensus": {
+                "prob_up": 0.6,
+                "timing": {
+                    "decision_session": session.isoformat(),
+                    "decision_at": f"{session.isoformat()}T20:00:00Z",
+                },
+            },
+            "engine": {"version": "test"},
+        }
+        recorded = ledger.record_prediction(live, path)
+        if not recorded["prospective_eligible"]:
+            raise AssertionError("a snapshot recorded before its label matures must be prospective")
+        old = json.loads(json.dumps(live))
+        old["snapshot"]["snapshot_content_sha256"] = "c" * 64
+        old["snapshot"]["asof_timestamp"] = "2023-01-03T20:00:00Z"
+        old["consensus"]["timing"] = {
+            "decision_session": "2023-01-03",
+            "decision_at": "2023-01-03T20:00:00Z",
+        }
+        historical = ledger.record_prediction(old, path, import_reason="backfill")
+        if historical["prospective_eligible"]:
+            raise AssertionError("a historical import must not enter the forward score")
+        events = {
+            event["prediction_id"]: event
+            for event in ledger.read_events(path) if event["event"] == "prediction"
+        }
+        if events[ledger._prediction_id(old)]["import_reason"] != "backfill":
+            raise AssertionError("the import reason must be recorded")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def check_f45_candidates_never_switch_production() -> None:
+    import research_candidates
+
+    report = research_candidates.evaluate(synth_bars(640), 5)
+    if report["switch"] is not False:
+        raise AssertionError("a candidate evaluation must never switch production")
+    if not report["ml"]["paired"] or not report["quant"]["paired"]:
+        raise AssertionError("both pre-registered arms need paired rows")
+    if report["ml"]["verdict"]["status"] not in {
+        "indeterminate", "not_supported", "candidate_supported",
+    }:
+        raise AssertionError("the verdict must come from the pre-registered rule")
+    if report["preregistration"]["minimum_sessions"] != 120:
+        raise AssertionError("the pre-registered sample floor must stay explicit")
 
 
 CHECKS = [
@@ -2302,6 +2478,12 @@ CHECKS = [
     ("F37 path error dependency", check_f37_path_error_dependency),
     ("F38 ML hyperparameter record", check_f38_ml_hyperparameters),
     ("F39 forward ledger", check_f39_forward_ledger),
+    ("F40 ledger metrics semantics", check_f40_ledger_metrics_semantics),
+    ("F41 production replay capacity", check_f41_production_replay_capacity),
+    ("F42 live entry matches replay", check_f42_live_entry_matches_replay),
+    ("F43 compact candidate is shadow only", check_f43_compact_candidate_is_shadow_only),
+    ("F44 forward eligibility", check_f44_forward_eligibility),
+    ("F45 candidates never switch production", check_f45_candidates_never_switch_production),
 ]
 
 if __name__ == "__main__":

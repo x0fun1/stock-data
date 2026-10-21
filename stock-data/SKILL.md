@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "2.21.0"}
+metadata: {version: "2.22.0"}
 ---
 
 # Stock Data & Quant Research
@@ -16,7 +16,7 @@ metadata: {version: "2.21.0"}
 
 新 Yahoo gateway 需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA_YAHOO_CACHE_DIR`；collector 必须显式传 `--cache-dir`。保留 bar-label 源时间及未知 unit；response map 不自动等于合格预测输入，24h/source_before_close 等现有审计可能阻断，不能伪造字段或更改 gate。
 
-`yahoo_collect.py` 仅采集 market 域，生成现有 adapter 接受的 response map；新闻由宿主 Finnhub MCP 单独采集并映射。pipeline 仍离线，snapshot schema 1.2、Quant 中央 gate、Quant → 审计 → News → 综合时序保持不变。Research A/B 的时序 OOS、IC 推断和共识概率质量字段是可选研究输出，Skill 加权保持关闭；成本情景与预测置信度分离。Research C 继续使用标准库逻辑回归，逐 origin 只用当时已成熟标签的因果 OOS 预测重拟合 Platt（校准标签边界逐条记录并审计；冻结映射只用于最终 holdout 转移检查与当前预测，不再回顾性应用于早期行）；账本披露非重叠计数、有效样本估计与校准/未校准行数；集成校准须通过时间序后段改进检查（回顾性、非独立确认）才会成为报告概率；XGBoost/LightGBM 未实现且不加载。yfinance 是 Yahoo 路由的必需依赖并按需懒加载；缺依赖时自动尝试旧兼容接口，失败或无映射时如实报告。`--list`/`--help` 不联网。版本/可安装来源、缓存、日期/复权和网络边界以参考与实际实现为准，不把声明当联网验收。旧 Yahoo 签名与结构保留，作为强制自动回退路径；不修改已安装 Skill 或长期 memory。
+`yahoo_collect.py` 仅采集 market 域，生成现有 adapter 接受的 response map；新闻由宿主 Finnhub MCP 单独采集并映射。pipeline 仍离线，snapshot schema 1.2、Quant 中央 gate、Quant → 审计 → News → 综合时序保持不变。Research A/B 的时序 OOS、IC 推断和共识概率质量字段是可选研究输出，Skill 加权保持关闭；成本情景与预测置信度分离。Research C 继续使用标准库逻辑回归，但生产入口与历史回放共用同一个 `predict_at_origin()`：在绝对 20-session 锚点用当时已成熟标签重拟合，训练最多回看 252 个 session，回放只评分 H+1 非重叠决策；每行保存锚点、训练/校准标签边界与系数。没有冻结 pre-holdout 映射，也不再把 fold 模型的历史行当作生产证据。Platt 校准只使用已成熟的非重叠回放预测，至少 40 个且含两类；52 周窗口通常只有约 18～21 个，故发布概率保持 raw 并标 `partial`/`capacity_insufficient`，校准器只写入 shadow；更长的归档才可能启用校准。集成校准同样只写 shadow，不改变发布概率；XGBoost/LightGBM 未实现且不加载，compact 特征集仅作为未启用的预登记候选。yfinance 是 Yahoo 路由的必需依赖并按需懒加载；缺依赖时自动尝试旧兼容接口，失败或无映射时如实报告。`--list`/`--help` 不联网。版本/可安装来源、缓存、日期/复权和网络边界以参考与实际实现为准，不把声明当联网验收。旧 Yahoo 签名与结构保留，作为强制自动回退路径；不修改已安装 Skill 或长期 memory。
 
 ## 任务路由与按需阅读
 
@@ -63,15 +63,15 @@ Fast/Standard/Deep 是任务成本的选择原则，当前 CLI 没有 depth 参�
 
 ## 通用分析、方向或概率研究
 
-1. 确认证券身份、资产类型、意图、horizon、as-of 与用户区间。请求契约见 [researcher-contract.md](references/researcher-contract.md)。默认行情窗口是最新已确认收盘日前推 52 周（364 个自然日，约 252 个交易日），这是预测数据的黄金基准；用户显式区间优先，但样本不足不能自动扩窗或降低门槛。
+1. 确认证券身份、资产类型、意图、horizon、as-of 与用户区间。请求契约见 [researcher-contract.md](references/researcher-contract.md)。默认行情窗口是最新已确认收盘日前推 52 周（364 个自然日，约 252 个交易日）；这是本 Skill 的工程默认与数据约束，不是已证明统计最优的普适窗口；用户显式区间优先，但样本不足不能自动扩窗或降低门槛。
 2. 一次采集并保存市场数据及可用新闻。行情与新闻抓取可并行；来源映射、收盘/freshness 检查、Quant 和最终综合有串行依赖。详细字段见 [collection-adapter.md](references/collection-adapter.md) 和 [reliability-gates.md](references/reliability-gates.md)。每路径不重新下载行情，短新闻窗口不冒充行情档案。
 3. 将 provider 数据明确映射成 `data.bars/articles`；原始 envelope 独立保留且脱敏。不要从字段名猜复权、发布时间、交易日、来源 symbol 或单位。global 调用优先 `--params-file` 和 `--output`，避免全量 stdout 进入上下文。
 4. 常规预测使用 `pipeline --cleanup-json`，让 collection、快照和分析文件进入本次独占的 `runtime/runs/<run_id>/`；交付文本校验后再调用 `cleanup-run`。审计、调试或要求复现的研究使用 `--keep-json`（或逐阶段命令），完整保留 JSON。两种模式都消费同一快照；只在预测资格存在致命阻断时跳过 Quant，其他缺口进入 Reporting Gate 降级或策略限制。`pipeline` 启动前会执行一次节流的 `gc`（两种布局模式都触发，每 24 小时最多一次，`--no-gc` 关闭），清扫上次硬崩溃遗留的临时文件、补清理超过 `--pending-days` 仍未交付的运行，并按 `--retain-days`（默认 30 天）删除已完成的 run 目录。
-5. 最低数据计算条件满足时必须尝试 A 条件频率、B 因子验证、C L2 Logistic Regression、D 时间序列 IC/forward-return 诊断；所有所选路径返回后才形成共识和 E 审计。A 当前与历史 OOS 共用同一个成熟匹配样本门槛；每条 OOS 记录要由冻结行情复核决策日、H-session 标签、目标真值、训练标签边界，以及校准标签边界与校准系数（如适用，边界必须早于对应决策日）。共识 OOS 同时报告当前合格路径集合、全候选诊断和按日期可用路径组成的历史等权策略回放，并与因果扩展基率在相同有预测日期上比较。B 必须报告当前校准样本预算；不得自动扩窗、降门槛或把理论预算说成实际预测证据。D/E 不投概率票。策略级 PBO/DSR、交易成本和组合回测仅限制盈利策略声明，不否定单次方向概率。具体实现见 [quant-paths.md](references/quant-paths.md)。
+5. 最低数据计算条件满足时必须尝试 A 条件频率、B 因子验证、C L2 Logistic Regression、D 时间序列 IC/forward-return 诊断；所有所选路径返回后才形成共识和 E 审计。A 当前与历史 OOS 共用同一个成熟匹配样本门槛；每条 OOS 记录要由冻结行情复核决策日、H-session 标签、目标真值、训练标签边界，以及校准标签边界与校准系数（如适用，边界必须严格早于对应决策日）。C 的 OOS 只来自生产一致的非重叠回放，`production_replay`/`probability_calibration` 必须披露 52 周窗口的校准容量；容量不足时不得用校准概率自称。共识 OOS 同时报告当前合格路径集合、全候选诊断和按日期可用路径组成的历史等权策略回放，并与因果扩展基率在相同有预测日期上比较。B 必须报告当前校准样本预算；不得自动扩窗、降门槛或把理论预算说成实际预测证据。D/E 不投概率票。策略级 PBO/DSR、交易成本和组合回测仅限制盈利策略声明，不否定单次方向概率。具体实现见 [quant-paths.md](references/quant-paths.md)。
 6. Quant 与 E 完成并冻结后才解释新闻。NewsInput 只有独立新闻、同快照行情和源日历元数据，不接收 Quant；按 [news-analysis.md](references/news-analysis.md) 做 PIT、相关性、时效、去重、事件/观点分离与行情关联。不可用 News 明确 `not_assessed`，不二次联网。
 7. 两份结果冻结并校验后综合。mixed/事件与观点冲突必须保留；neutral + 催化剂单列；News 不能改 Quant P(up) 或恢复被 veto 的概率。归因只能作为待验证解释。
 8. 先读取程序生成的 `final_response.md` summary；`agent_summary.json` 提供有界摘要，用户需要细节时再读取完整 `report.md`（standard）/debug。不得交付 `pre_veto_prob_up`、被排除路径概率或自行补数字。方向资格取 `may_report_direction`，总体完成度取 `analysis_status`，展示 `reporting_status` 和置信度原因。`confidence_score` 是启发式研究支持度评分，不是预测准确率；同时保留 `predictive_evidence_grade`、因果基准 Brier Skill、coverage、有效独立块数（不足时技能区间标记为不可估计）和无不确定性区间的限制。正向点估计不等于统计确认或已校准概率。
-9. 需要累积独立样本时，用 `--ledger <path>` 在冻结后写入前向台账；`ledger-settle` 用后续快照结算已到期标签，`ledger-audit` 报告 Brier/基准 Brier/覆盖率。台账在 run 目录之外、append-only，`cleanup-run` 不会删除；同一 `prediction_id` 重复写入为 no-op，弃权也入账。详见 [forward-ledger.md](references/forward-ledger.md)。
+9. 需要累积独立样本时，用 `--ledger <path>` 在冻结后写入前向台账；`ledger-settle` 用后续快照结算已到期标签，`ledger-audit` 报告 Brier/因果基准 Brier/方向准确率/覆盖率。台账 schema 2.0 在 run 目录之外、append-only，`cleanup-run` 不会删除；`prospective_eligible` 只有在标签成熟前写入才为 true，历史快照补录必须给 `--import-reason` 且只进回顾分组。结算身份以快照 manifest 的 ticker/market 为准，缺省不再按任意标的结算；`observed_up_rate` 是标签上涨占比，不是模型命中率。详见 [forward-ledger.md](references/forward-ledger.md)。
 10. 将实际准备发送的完整文本保存为 UTF-8 Markdown，用 `validate-response` 校验。缺字段、标的/窗口/时间不符、Quant 值被替换、缺冻结阶段或报告被修改时拒绝交付；按实际产物修复文本并重验。常规预测使用 `--cleanup-json` 时，待发送文件通过校验且宿主已读取/复制这份文本后，运行 `cleanup-run --run-dir <run_dir> --analysis-dir <report_dir> --response-file <同一待发送文本.md>`；命令会再次校验并清理本次登记的 JSON，保留 `report.md`、`final_response.md` 和 `cleanup_receipt.txt`。之后发送同一文本，不再摘要或改写强制字段。CLI 无法判断聊天是否实际送达；若宿主提供送达回调，应由回调触发清理。此校验仍不能拦截宿主绕过 Skill 直接发送。
 
 仓库根目录示例，安装后改用已安装脚本绝对路径；输入与 runtime 位于用户可写目录：
@@ -90,7 +90,7 @@ python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回�
 
 通用分析、简析及方向研究要求完整研究链路及八类证据；默认聊天回复为 **summary**，应包括价格/数据时间、Quant 概率/方向/confidence/报告状态、核心技术/因子证据、关键验证限制、News/事件、Quant-News 关系、主要风险和综合结论。完整 Backtest/IC/bias 范围在 `report.md`（standard），源、manifest、原因码与逐路径细节留在 JSON/debug。缺失项明确写未评估；摘要不重复内部 gate/debug 噪音。所有层级保留预测不确定性和历史证据非未来保证说明。
 
-Quant 成功生成且通过报告资格时，最终用户回复必须展示 `prob_up/direction/confidence/agreement`、数值 `confidence_score`、`confidence_score_kind`、`predictive_evidence_grade`、`PASS/DEGRADED/VETO`，并说明 raw/reportable basis 和 ensemble calibration 是否可用。分数须标注为启发式研究支持度，不是预测准确率；等级须区分证据不足、未观察到优于因果基准、探索性正向点估计和不确定性未估计的正向点估计。字段直接来自 `quant_result.json.consensus` / `synthesis.quant`；News 完成后仍显示同一 reportable Quant 概率并说明 aligned/mildly aligned/neutral/conflicting/unavailable；不通过主观新闻修改 Quant 概率。VETO 时对用户隐藏所有预测概率，说明致命原因；原始调试值只留在 debug artifact。
+Quant 成功生成且通过报告资格时，最终用户回复必须展示 `prob_up/direction/confidence/agreement`、数值 `confidence_score`、`confidence_score_kind`、`predictive_evidence_grade`、`PASS/DEGRADED/VETO`，并说明 raw/reportable basis、shadow 校准候选是否存在，以及它当前未应用。分数须标注为启发式研究支持度，不是预测准确率；等级须区分证据不足、未观察到优于因果基准、探索性正向点估计和不确定性未估计的正向点估计。字段直接来自 `quant_result.json.consensus` / `synthesis.quant`；News 完成后仍显示同一 reportable Quant 概率并说明 aligned/mildly aligned/neutral/conflicting/unavailable；不通过主观新闻修改 Quant 概率。VETO 时对用户隐藏所有预测概率，说明致命原因；原始调试值只留在 debug artifact。
 
 回复中的 `- 时点口径：…`、`- 资格分层：…`、`- 概率区间：…` 三行由程序从冻结结果生成，宿主不得改写或删除：时点口径写明决策用的是哪一次确认收盘、标签为收盘到收盘、入场未建模；资格分层分别给出概率可报告、方向可报告与交易信号资格（交易信号在入场、成本与独立 edge 三项齐备前恒为不可）；概率区间在路径共享标签、独立块不足时写“不可估计”，不得用路径点估计伪造置信区间。`forecast_feasibility` 还必须披露每条路径的容量上限与所需样本：容量不足表示 52 周窗口无法承载该路径的既有门槛，路径应弃权而不是降门槛。
 
