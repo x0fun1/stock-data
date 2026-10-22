@@ -96,7 +96,12 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     selected = _matured_matching_indices(closes, forward, current, horizon)
     outcomes = [float(forward[index]) for index in selected if forward[index] is not None]
     wins = sum(value > 0 for value in outcomes)
-    probability = wins / len(outcomes) if outcomes else None
+    raw_probability = wins / len(outcomes) if outcomes else None
+    current_base_rate = _causal_up_rate(forward, current, horizon)
+    probability = (
+        _shrunk_probability(wins, len(outcomes), current_base_rate)
+        if raw_probability is not None else None
+    )
     interval = wilson_interval(wins, len(outcomes)) if outcomes else None
     expected = mean(outcomes)
 
@@ -115,18 +120,21 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             sum(value > 0 for value in prior_outcomes) / len(prior_outcomes)
             if len(prior_outcomes) >= MINIMUM_MATCHING_SAMPLES else None
         )
-        if probability_at_decision is not None:
-            predicted_decisions.append(decision)
         training_label_end = max((i + horizon for i in candidates), default=None)
         causal_base = _causal_up_rate(forward, decision, horizon)
         shadow_shrunk = _shrunk_probability(
             sum(1 for value in prior_outcomes if value > 0), len(prior_outcomes), causal_base,
         )
+        reported_at_decision = shadow_shrunk if probability_at_decision is not None else None
+        if reported_at_decision is not None:
+            predicted_decisions.append(decision)
         oos_forecasts.append({
             "decision_session": bars[decision]["date"],
             "label_end_session": bars[decision + horizon]["date"],
             "target": int(float(forward[decision]) > 0),
-            "probability": probability_at_decision,
+            "probability": reported_at_decision,
+            "raw_probability": probability_at_decision,
+            "shrinkage_applied": reported_at_decision is not None,
             "training_label_end_session": bars[training_label_end]["date"] if training_label_end is not None else None,
             "training_sample_count": len(prior_outcomes),
             "causal_base_rate": causal_base,
@@ -148,7 +156,6 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         expected = None
         status = "insufficient_data"
         warnings.append(f"Only {len(outcomes)} non-overlapping historical matches; at least {MINIMUM_MATCHING_SAMPLES} are required to report a conditional probability.")
-    current_base_rate = _causal_up_rate(forward, current, horizon)
     shadow_shrunk_probability = (
         _shrunk_probability(sum(1 for value in outcomes if value > 0), len(outcomes), current_base_rate)
         if len(outcomes) >= MINIMUM_MATCHING_SAMPLES else None
@@ -164,7 +171,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     evidence = {"positive": [], "negative": []}
     if probability is not None:
         target = "positive" if probability >= 0.5 else "negative"
-        evidence[target].append({"family": "momentum", "hypothesis": "20-session momentum sign conditions the H-session return hit rate", "signal_value": current_signal, "empirical_hit_rate": probability, "non_overlapping_samples": len(outcomes), "n_raw": len(outcomes), "n_effective": len(outcomes), "wilson_95_interval": list(interval) if interval else None, "wilson_interval_method": "Wilson score; nominal IID approximation, time-series coverage not validated", "wilson_coverage_validated": False, "mean_forward_return": expected, "rationale": rationale})
+        evidence[target].append({"family": "momentum", "hypothesis": "20-session momentum sign conditions the H-session return hit rate", "signal_value": current_signal, "empirical_hit_rate": raw_probability, "shrunk_probability": probability, "probability_basis": "empirical_bayes_shrunk_conditional_frequency", "non_overlapping_samples": len(outcomes), "n_raw": len(outcomes), "n_effective": len(outcomes), "wilson_95_interval": list(interval) if interval else None, "wilson_interval_method": "Wilson score; nominal IID approximation, time-series coverage not validated", "wilson_coverage_validated": False, "mean_forward_return": expected, "rationale": rationale})
     if manifest.get("data_quality", {}).get("overall") == "low":
         warnings.append("Snapshot data quality is low; treat this result as exploratory.")
     momentum_block = compute_momentum(
@@ -211,15 +218,20 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             "history_span_sessions": current - selected[0] if selected else 0,
             "training_label_end_boundary": bars[max((i + horizon for i in selected), default=current)]["date"] if selected else None,
             "prediction_decision_session": bars[current]["date"],
-            "prior_policy": {"method": "none; empirical conditional frequency is retained", "bayesian_shrinkage": "not_implemented", "time_decay": "none"},
+            "prior_policy": {
+                "method": "empirical-Bayes shrinkage toward the causal unconditional up-rate",
+                "bayesian_shrinkage": "implemented",
+                "prior_observations": SHRINKAGE_PRIOR_OBSERVATIONS,
+                "time_decay": "none",
+            },
             "quant_shrinkage_candidate": {
-                "used_for_reported_probability": False,
-                "status": "candidate_available" if shadow_shrunk_probability is not None else "abstained",
+                "used_for_reported_probability": True,
+                "status": "applied" if shadow_shrunk_probability is not None else "abstained",
                 "prior_observations": SHRINKAGE_PRIOR_OBSERVATIONS,
                 "causal_base_rate": current_base_rate,
                 "observations": len(outcomes),
                 "wins": sum(1 for value in outcomes if value > 0),
-                "incumbent_probability": probability,
+                "incumbent_probability": raw_probability,
                 "candidate_probability": shadow_shrunk_probability,
             },
             "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
@@ -227,5 +239,6 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             "momentum_20d": momentum_block,
         },
         data_used=data_used, warnings=warnings,
-        probability_source="non_overlapping_historical_conditional_frequency" if probability is not None else None,
+        probability_source="empirical_bayes_shrunk_conditional_frequency" if probability is not None else None,
+        raw_probability=raw_probability if probability is not None else None,
     )

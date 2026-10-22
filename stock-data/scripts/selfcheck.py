@@ -916,26 +916,26 @@ def check_f19_retention_gc() -> None:
 # domain) run in-process; identity and timing fields are normalised before
 # hashing, and a short anchor list is compared verbatim so a mismatch names the
 # field that moved instead of only reporting a digest.
-GOLDEN_PIPELINE: dict[str, dict[str, str]] = {'news': {'agent_summary.json': 'b6b4cbca4b44fab56d97914da0bc59a7a5fdb44a0792ee0acc2181498f1de25a',
-          'final_response.md': 'e595dd0b32db77f19ff2f3c4c5960fa26521b4efa185f667f8494699f3a39641',
+GOLDEN_PIPELINE: dict[str, dict[str, str]] = {'news': {'agent_summary.json': 'fe50905bc1889f89bb5b4f6ab01830a2c94b71d3d226c70d1b5d888ab9af1912',
+          'final_response.md': '5fbd5b030e5cb5de4d0c6b46dc7f8f942b0186aca86faaf1c4756a2b2efa17c8',
           'news_result.json': 'a5e311ab6f5b8dce3506714adf450a196adec2c7a545ec120b7f55112a4656fc',
-          'quant_result.json': '3fc2f05804466181cfbd3f2f34a2e4b0c5ba3528be49df70dcec8a99cd6719e0',
-          'report.json': '67e32b040ac932b1724bd07779c07b89e48a04e8e17baa1c7ec3cd8a49084769'},
- 'plain': {'agent_summary.json': 'cf2bd2c4119252154d742cc442127ee1df71d6a605aa879556abe946457ff949',
-           'final_response.md': '2ca1549710b8cd2d63c0b3767ff0390f4e74b9b3af0bcf1dfb7313490a97faac',
+          'quant_result.json': 'd06ea35fa13cac88db1cdacb063e6d5755ab905255bf60ea0fb47a1a9dd9ab0b',
+          'report.json': '57a11c0db63e70c2f68c66c4c9722482544a9ef5cc89511095da6487f158c9b0'},
+ 'plain': {'agent_summary.json': '798588c60edab67bd0c4a0fdfa374ae132fe261b1a306e4288ac96a333b17235',
+           'final_response.md': '09c5f1f0b286ed71fd5ed8473a0f6525580e74fcbb9b262ebb31dd1f1b3309af',
            'news_result.json': '690e95cebbda22b3e6396c03e6a2f07ea2a61c89f0ff3bf30b45353998d36ea8',
-           'quant_result.json': 'c99ebc153ad1f8ab0405f94eb4cf410c64dc9cbf4697d82c4cb83884de40b689',
-           'report.json': 'e96b8d7293a3b3491635e31ba5f5469aae83056c95447715f58fb581db2ba449'}}
+           'quant_result.json': 'c37baef239def1ed66da481ee63245ea894daa2acd0b4e21c2af4d0872573df3',
+           'report.json': '03ea2a5b6e4b90845c1a9a789b47d70346ae4d4fba00b4eeebb3ac206071b793'}}
 GOLDEN_ANCHORS: dict[str, dict[str, object]] = {'news': {'news.confidence': 'low',
           'news.event_strength': None,
           'news.overall_direction': 'unknown',
           'news.status': 'partial',
-          'quant.consensus.agreement': 'medium',
-          'quant.consensus.confidence': 'medium',
-          'quant.consensus.confidence_score': 60,
+          'quant.consensus.agreement': 'high',
+          'quant.consensus.confidence': 'low',
+          'quant.consensus.confidence_score': 54,
           'quant.consensus.direction': 'bullish',
-          'quant.consensus.predictive_evidence_grade': 'no_observed_skill_vs_expanding_base_rate',
-          'quant.consensus.prob_up': 0.6875255669584401,
+          'quant.consensus.predictive_evidence_grade': 'observed_skill_below_expanding_base_rate',
+          'quant.consensus.prob_up': 0.6583983439926192,
           'quant.consensus.probability_basis': 'equal_weight_mean_of_valid_path_estimates',
           'quant.consensus.reporting_status': 'degraded',
           'quant.researchers.factor.status': 'success',
@@ -952,12 +952,12 @@ GOLDEN_ANCHORS: dict[str, dict[str, object]] = {'news': {'news.confidence': 'low
            'news.event_strength': None,
            'news.overall_direction': 'unknown',
            'news.status': 'not_assessed',
-           'quant.consensus.agreement': 'medium',
-           'quant.consensus.confidence': 'medium',
-           'quant.consensus.confidence_score': 60,
+           'quant.consensus.agreement': 'high',
+           'quant.consensus.confidence': 'low',
+           'quant.consensus.confidence_score': 54,
            'quant.consensus.direction': 'bullish',
-           'quant.consensus.predictive_evidence_grade': 'no_observed_skill_vs_expanding_base_rate',
-           'quant.consensus.prob_up': 0.6875255669584401,
+           'quant.consensus.predictive_evidence_grade': 'observed_skill_below_expanding_base_rate',
+           'quant.consensus.prob_up': 0.6583983439926192,
            'quant.consensus.probability_basis': 'equal_weight_mean_of_valid_path_estimates',
            'quant.consensus.reporting_status': 'degraded',
            'quant.researchers.factor.status': 'success',
@@ -2437,6 +2437,28 @@ def check_f45_candidates_never_switch_production() -> None:
         raise AssertionError("the pre-registered sample floor must stay explicit")
 
 
+def check_f46_quant_shrinkage_is_applied() -> None:
+    from quant_research.researchers import quant
+
+    bars = synth_bars(252)
+    manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": "s", "market": "US"}
+    result = quant.run(None, (manifest, synth_market(bars)))
+    candidate = (result["validation"] or {}).get("quant_shrinkage_candidate") or {}
+    if candidate.get("used_for_reported_probability") is not True:
+        raise AssertionError("the pre-registered shrinkage must be applied")
+    if candidate.get("status") != "applied":
+        raise AssertionError("a reportable quant probability needs an applied shrinkage record")
+    expected = (
+        candidate["wins"] + quant.SHRINKAGE_PRIOR_OBSERVATIONS * candidate["causal_base_rate"]
+    ) / (candidate["observations"] + quant.SHRINKAGE_PRIOR_OBSERVATIONS)
+    if abs(expected - result["prob_up"]) > 1e-12:
+        raise AssertionError("the published quant probability must equal the shrinkage formula")
+    if abs(result["raw_probability"] - candidate["incumbent_probability"]) > 1e-12:
+        raise AssertionError("the raw conditional frequency must stay available")
+    if quant.MINIMUM_MATCHING_SAMPLES != 12:
+        raise AssertionError("the 12-match floor is deliberate and must not be lowered")
+
+
 CHECKS = [
     ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
@@ -2484,6 +2506,7 @@ CHECKS = [
     ("F43 compact candidate is shadow only", check_f43_compact_candidate_is_shadow_only),
     ("F44 forward eligibility", check_f44_forward_eligibility),
     ("F45 candidates never switch production", check_f45_candidates_never_switch_production),
+    ("F46 quant shrinkage is applied", check_f46_quant_shrinkage_is_applied),
 ]
 
 if __name__ == "__main__":

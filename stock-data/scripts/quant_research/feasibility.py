@@ -14,7 +14,8 @@ from typing import Any
 QUANT_MIN_MATCHES = 12
 FACTOR_MIN_MATURED = 18
 FACTOR_MIN_SELECTION_LABELS = 10
-ML_MIN_TRAIN = 30
+ML_MIN_TRAIN = 60
+ML_CALIBRATION_MIN = 40
 
 QUANT_WARMUP_SESSIONS = 20
 FACTOR_WARMUP_SESSIONS = 60
@@ -63,7 +64,9 @@ def _observed(results: dict[str, Any] | None, researcher_id: str) -> int | None:
         counts = validation.get("calibration_bucket_counts") or {}
         value = sum(int(item) for item in counts.values() if isinstance(item, int)) if counts else None
     elif researcher_id == "ml":
-        value = validation.get("oos_predictions")
+        value = (validation.get("production_replay") or {}).get(
+            "observations", validation.get("non_overlapping_prediction_count"),
+        )
     else:
         value = None
     return value if isinstance(value, int) and not isinstance(value, bool) else None
@@ -79,7 +82,11 @@ def build_forecast_feasibility(
     quant_capacity = _spaced_capacity(sessions, horizon, QUANT_WARMUP_SESSIONS)
     factor_capacity = _spaced_capacity(sessions, horizon, FACTOR_WARMUP_SESSIONS)
     selection_capacity = _selection_capacity(sessions, horizon)
-    ml_capacity = _daily_matured(sessions, horizon, FACTOR_WARMUP_SESSIONS)
+    ml_training_capacity = _daily_matured(sessions, horizon, FACTOR_WARMUP_SESSIONS)
+    ml_replay_capacity = max(
+        0,
+        (sessions - FACTOR_WARMUP_SESSIONS - horizon - ML_MIN_TRAIN) // (horizon + 1),
+    )
 
     quant = {
         "required_matured_non_overlapping": QUANT_MIN_MATCHES,
@@ -100,10 +107,19 @@ def build_forecast_feasibility(
         "basis": "three buckets of six matured labels plus ten selection labels",
     }
     ml = {
-        "required_matured_observations": ML_MIN_TRAIN,
-        "capacity_matured_observations": ml_capacity,
-        "status": _status(ml_capacity, ML_MIN_TRAIN),
-        "basis": "daily overlapping observations; necessary but not sufficient because each fold also needs test rows",
+        "required_training_rows": ML_MIN_TRAIN,
+        "capacity_training_rows": ml_training_capacity,
+        "required_non_overlapping_replay": 1,
+        "capacity_non_overlapping_replay": ml_replay_capacity,
+        "required_calibration_observations": ML_CALIBRATION_MIN,
+        "capacity_calibration_observations": ml_replay_capacity,
+        "calibration_status": _status(ml_replay_capacity, ML_CALIBRATION_MIN),
+        "status": _status(ml_training_capacity, ML_MIN_TRAIN),
+        "basis": (
+            "60 matured training rows are required; the replay scores non-overlapping H+1 decisions. "
+            "The 52-week window usually supplies fewer than the 40 matured replay rows Platt needs, "
+            "so the published probability is raw and calibration is disclosed as capacity-limited."
+        ),
     }
     paths = {"quant": quant, "factor": factor, "ml": ml}
     for name in paths:

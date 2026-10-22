@@ -161,14 +161,14 @@ def compare_quant(bars: list[dict[str, Any]], horizon_sessions: int) -> dict[str
         {
             "decision_session": row["decision_session"],
             "horizon": horizon_sessions,
-            "incumbent": row["probability"],
-            "candidate": row["shadow_shrunk_probability"],
+            "incumbent": row["raw_probability"],
+            "candidate": row["probability"],
             "target": row["target"],
-            "difference": _brier(row["shadow_shrunk_probability"], row["target"])
-            - _brier(row["probability"], row["target"]),
+            "difference": _brier(row["probability"], row["target"])
+            - _brier(row["raw_probability"], row["target"]),
         }
         for row in rows
-        if row.get("shadow_shrunk_probability") is not None
+        if row.get("raw_probability") is not None
         and row.get("probability") is not None
         and index_by_date.get(row["decision_session"], -1) % (horizon_sessions + 1) == 0
     ]

@@ -57,10 +57,10 @@ TRAINING_WINDOW_SESSIONS = 252
 # The frozen hyperparameters of the native logistic baseline. They are recorded in
 # ``validation.model_hyperparameters`` under a version id: changing any value without
 # bumping the version would silently mix incompatible predictions in the forward ledger.
-ML_PARAMETER_VERSION = "ml_params_v2"
+ML_PARAMETER_VERSION = "ml_params_v3"
 LOGISTIC_ITERATIONS = 500
 LOGISTIC_LEARNING_RATE = 0.12
-LOGISTIC_L2 = 1e-3
+LOGISTIC_L2 = 1.5
 PLATT_MIN_OBSERVATIONS = 40
 PLATT_ITERATIONS = 500
 PLATT_LEARNING_RATE = 0.05
@@ -129,8 +129,11 @@ def _features(bars: list[dict[str, Any]], feature_set: str = DEFAULT_FEATURE_SET
     return result
 
 
-def _fit(rows: list[Observation], *, iterations: int = LOGISTIC_ITERATIONS,
-         learning_rate: float = LOGISTIC_LEARNING_RATE, l2: float = LOGISTIC_L2) -> LogisticModel:
+def _fit(rows: list[Observation], *, iterations: int | None = None,
+         learning_rate: float | None = None, l2: float | None = None) -> LogisticModel:
+    iterations = LOGISTIC_ITERATIONS if iterations is None else iterations
+    learning_rate = LOGISTIC_LEARNING_RATE if learning_rate is None else learning_rate
+    l2 = LOGISTIC_L2 if l2 is None else l2
     if len(rows) < 30 or len({row.target for row in rows}) < 2:
         raise ValueError("logistic fit requires at least 30 observations from both classes")
     width = len(rows[0].features)
@@ -283,7 +286,10 @@ def _dataset(market: dict[str, Any], horizon: int, feature_set: str = DEFAULT_FE
         target_return = closes[index + horizon] / closes[index] - 1
         observations.append(Observation(
             decision=index,
-            information_start=max(0, index - warmup),
+            # The interval that must be purged is the label interval
+            # [decision, decision + horizon]. The feature lookback is legitimately
+            # observable at the decision close and is not a label overlap.
+            information_start=index,
             label_end=index + horizon,
             features=vector,
             target=int(target_return > 0),
