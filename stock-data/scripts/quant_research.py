@@ -97,10 +97,22 @@ def main(argv: list[str] | None = None) -> int:
     ledger_record = commands.add_parser("ledger-record", help="append a frozen analysis to the forward ledger (idempotent)")
     ledger_record.add_argument("--analysis-dir", type=Path, required=True)
     ledger_record.add_argument("--ledger", type=Path, required=True)
+    ledger_record.add_argument(
+        "--snapshot-dir",
+        type=Path,
+        help="frozen snapshot; when supplied, the causal baseline is frozen at prediction time",
+    )
+    ledger_record.add_argument(
+        "--import-reason",
+        help="why a snapshot that is already past its label maturity is being recorded; it stays retrospective",
+    )
     ledger_settle_parser = commands.add_parser("ledger-settle", help="settle matured ledger predictions against a later frozen snapshot")
     ledger_settle_parser.add_argument("--ledger", type=Path, required=True)
     ledger_settle_parser.add_argument("--snapshot-dir", type=Path, required=True)
-    ledger_settle_parser.add_argument("--ticker")
+    ledger_settle_parser.add_argument(
+        "--ticker",
+        help="optional cross-check; the snapshot manifest ticker is authoritative and a mismatch is an error",
+    )
     ledger_settle_parser.add_argument("--horizon")
     ledger_audit_parser = commands.add_parser("ledger-audit", help="score realized ledger predictions")
     ledger_audit_parser.add_argument("--ledger", type=Path, required=True)
@@ -199,7 +211,8 @@ def main(argv: list[str] | None = None) -> int:
                 if getattr(args, "ledger", None):
                     try:
                         result["ledger"] = record_prediction(
-                            json.loads((location / "report.json").read_text(encoding="utf-8")), args.ledger)
+                            json.loads((location / "report.json").read_text(encoding="utf-8")),
+                            args.ledger, snapshot_dir=snapshot_dir)
                     except Exception as exc:  # noqa: BLE001 - a ledger failure must not discard the analysis
                         result["ledger"] = {"status": "error", "error_type": type(exc).__name__,
                                             "error": bounded_text(exc)}
@@ -218,7 +231,9 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(validate_final_response(args.analysis_dir, args.response_file), ensure_ascii=False))
         elif args.command == "ledger-record":
             value = json.loads((args.analysis_dir / "report.json").read_text(encoding="utf-8"))
-            print(json.dumps(record_prediction(value, args.ledger), ensure_ascii=False))
+            print(json.dumps(record_prediction(
+                value, args.ledger, import_reason=args.import_reason,
+                snapshot_dir=args.snapshot_dir), ensure_ascii=False))
         elif args.command == "ledger-settle":
             print(json.dumps(ledger_settle(args.ledger, args.snapshot_dir, ticker=args.ticker,
                                            horizon=args.horizon), ensure_ascii=False))

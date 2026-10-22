@@ -582,9 +582,59 @@ def run(
     sample_feasibility["all_current_buckets_meet_minimum"] = all(
         len(values) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS for values in bucket_samples.values()
     )
+    # The bucket ledger starts at the warm-up and therefore reuses labels that also
+    # ranked the factors. Disclose the reuse instead of calling the whole ledger
+    # independent calibration evidence, and compute an honest candidate that starts
+    # only after the selection segment. The candidate never changes the reported
+    # probability in this version.
+    reused_selection_labels = [i for i in calibration_indices if i + requested_horizon < train_end]
+    cross_boundary_labels = [i for i in calibration_indices if i < train_end <= i + requested_horizon]
+    post_selection_labels = [i for i in calibration_indices if i >= train_end]
+    sample_feasibility["selection_labels_reused_for_calibration"] = len(reused_selection_labels)
+    sample_feasibility["cross_boundary_calibration_labels"] = len(cross_boundary_labels)
+    sample_feasibility["post_selection_calibration_labels"] = len(post_selection_labels)
+    sample_feasibility["calibration_reuses_selection_labels"] = bool(reused_selection_labels)
     current_score = composite(n - 1)
     current_bucket = _bucket_for_score(current_score, low_cut, high_cut, bucket_mode)
     selected_returns = bucket_samples.get(current_bucket, [])
+    honest_pairs = [
+        (float(composite(i)), float(select_labels[i]))
+        for i in post_selection_labels
+        if composite(i) is not None and select_labels[i] is not None
+    ]
+    honest_low_cut, honest_high_cut = _bucket_cuts([score for score, _ in honest_pairs], bucket_mode)
+    honest_buckets: dict[str, list[float]] = {key: [] for key in _bucket_keys(bucket_mode)}
+    for score, target in honest_pairs:
+        bucket = _bucket_for_score(score, honest_low_cut, honest_high_cut, bucket_mode)
+        if bucket is not None:
+            honest_buckets[bucket].append(target)
+    honest_bucket = _bucket_for_score(current_score, honest_low_cut, honest_high_cut, bucket_mode)
+    honest_sample = honest_buckets.get(honest_bucket, [])
+    honest_probability = (
+        _shrunk_probability(honest_sample, mean([float(target > 0) for _, target in honest_pairs]))
+        if honest_bucket is not None
+        and len(honest_sample) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS
+        and all(
+            len(values) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS
+            for values in honest_buckets.values()
+        )
+        else None
+    )
+    honest_counts = {key: len(value) for key, value in honest_buckets.items()}
+    honest_candidate = {
+        "used_for_reported_probability": False,
+        "status": "candidate_available" if honest_probability is not None else "abstained",
+        "reason": (
+            "post_selection_labels_available"
+            if honest_probability is not None else
+            f"post-selection budget is {len(honest_pairs)} labels with counts {honest_counts}; "
+            f"at least {MINIMUM_FACTOR_BUCKET_OBSERVATIONS} per bucket are required"
+        ),
+        "selection_boundary_session": bars[train_end]["date"] if train_end < n else None,
+        "observations": len(honest_pairs),
+        "bucket_counts": honest_counts,
+        "probability": honest_probability,
+    }
     probability = (
         _shrunk_probability(selected_returns, calibration_prevalence)
         if current_bucket is not None and len(selected_returns) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS
@@ -664,7 +714,7 @@ def run(
     status = "success" if probability is not None and len(holdout_pairs) >= 10 else "partial" if probability is not None else "insufficient_data"
     if probability is not None and len(holdout_pairs) < 10:
         warnings.append("The rolling-origin evaluation has fewer than 10 matured-label factor predictions.")
-    validation = {"method": "52-week standard: training-segment factor selection + correlation pruning + rolling-origin matured-label bucket calibration with causal terciles", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "oos_factor_inference": oos_factor_inference, "oos_forecasts": oos_forecasts, "oos_evaluable_samples": len(oos_forecasts), "oos_predictions": len(holdout_pairs), "oos_coverage": len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else 0.0, "oos_abstain_rate": 1 - len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else None, "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0", "candidate_factor_count": len(factors), "selection_label_count": len(select_indices), "evaluation_mode": "rolling_origin_matured_labels", "evaluation_predictions": len(holdout_indices), "calibration_label_capacity": len(calibration_indices), "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_bucket_raw_probabilities": {key: (sum(value > 0 for value in values) / len(values) if values else None) for key, values in bucket_samples.items()}, "calibration_bucket_cut_points": {"low": low_cut, "high": high_cut}, "bucket_cuts_recomputed_from_matured_scores": True, "calibration_base_rate": calibration_prevalence, "probability_shrinkage": {"prior_observations": SHRINKAGE_PRIOR_OBSERVATIONS, "bucket_weight": len(selected_returns) / (len(selected_returns) + SHRINKAGE_PRIOR_OBSERVATIONS) if probability is not None else None, "base_rate": calibration_prevalence}, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_labels_non_overlapping": True, "calibration_labels_matured_before_each_decision": True, "oos_inference_did_not_select_or_modify_probability": True}}
+    validation = {"method": "52-week standard: training-segment factor selection + correlation pruning + rolling-origin matured-label bucket calibration with causal terciles", "selected_factors": selected_factor_rows, "factor_family_count": diversity, "factor_decay": decay, "oos_factor_inference": oos_factor_inference, "oos_forecasts": oos_forecasts, "oos_evaluable_samples": len(oos_forecasts), "oos_predictions": len(holdout_pairs), "oos_coverage": len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else 0.0, "oos_abstain_rate": 1 - len(holdout_pairs) / len(oos_forecasts) if oos_forecasts else None, "target_definition": f"close[t+{requested_horizon}] / close[t] - 1 > 0", "candidate_factor_count": len(factors), "selection_label_count": len(select_indices), "evaluation_mode": "rolling_origin_matured_labels", "evaluation_predictions": len(holdout_indices), "calibration_label_capacity": len(calibration_indices), "calibration_observations": len(calibration_pairs), "calibration_bucket_counts": {key: len(value) for key, value in bucket_samples.items()}, "calibration_bucket_raw_probabilities": {key: (sum(value > 0 for value in values) / len(values) if values else None) for key, values in bucket_samples.items()}, "calibration_bucket_cut_points": {"low": low_cut, "high": high_cut}, "bucket_cuts_recomputed_from_matured_scores": True, "calibration_base_rate": calibration_prevalence, "honest_calibration_candidate": honest_candidate, "probability_shrinkage": {"prior_observations": SHRINKAGE_PRIOR_OBSERVATIONS, "bucket_weight": len(selected_returns) / (len(selected_returns) + SHRINKAGE_PRIOR_OBSERVATIONS) if probability is not None else None, "base_rate": calibration_prevalence}, "holdout_predictions": len(holdout_pairs), "holdout_brier": brier, "holdout_base_rate_brier": baseline_brier, "holdout_start_session": bars[holdout_start]["date"] if holdout_start < n else None, "factor_correlation_threshold": 0.85, "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "selection_precedes_calibration_and_holdout": True, "calibration_reuses_selection_labels": bool(reused_selection_labels), "selection_reused_label_count": len(reused_selection_labels), "cross_boundary_label_count": len(cross_boundary_labels), "post_selection_label_count": len(post_selection_labels), "calibration_labels_non_overlapping": True, "calibration_labels_matured_before_each_decision": True, "oos_inference_did_not_select_or_modify_probability": True}}
     validation["diagnostics_label_end_exclusive"] = holdout_start
     sample_feasibility["minimum_holdout_predictions"] = 10
     validation["sample_feasibility"] = sample_feasibility

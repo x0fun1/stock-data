@@ -22,8 +22,12 @@ def _oos_baseline_checks(researchers: list[dict[str, Any]]) -> list[dict[str, An
 
     def visit(value: Any, researcher_id: str, path: str) -> None:
         if isinstance(value, dict):
-            score = value.get("brier", value.get("holdout_brier"))
-            baseline = value.get("base_rate_brier", value.get("holdout_base_rate_brier"))
+            production = value.get("production_replay") if isinstance(value.get("production_replay"), dict) else {}
+            score = value.get("brier", value.get("holdout_brier", production.get("brier")))
+            baseline = value.get(
+                "base_rate_brier",
+                value.get("holdout_base_rate_brier", production.get("causal_baseline_brier")),
+            )
             if isinstance(score, (int, float)) and isinstance(baseline, (int, float)):
                 checks.append({
                     "researcher_id": researcher_id,
@@ -50,6 +54,8 @@ def _oos_baseline_checks(researchers: list[dict[str, Any]]) -> list[dict[str, An
 
 def _has_chronological_holdout(value: Any) -> bool:
     if isinstance(value, dict):
+        if value.get("oos_rows_are_non_overlapping") is True and isinstance(value.get("production_replay"), dict):
+            return True
         if value.get("one_time_chronological_holdout") is True:
             return True
         if any(

@@ -347,10 +347,14 @@ def _confidence_composite(*, base_score: float, path_assessments: list[dict[str,
     # decides whether to keep it is also the block that reports the improvement. That
     # is not independent validation, so the field name must not say "validated".
     ensemble_calibrator_selected = ensemble_calibration.get("status") == "improved_on_subsequent_ledger_block"
-    calibration_component = min(100.0, 40.0 + 45.0 * calibrated_fraction + (15.0 if ensemble_calibrator_selected else 0.0))
+    # Selection is disclosed but earns no calibration credit: the published
+    # probability stays raw until the shadow calibrator has prospective evidence.
+    calibration_component = min(100.0, 40.0 + 45.0 * calibrated_fraction)
     if "uncalibrated" in calibration_statuses:
         confidence_reasons.append("uncalibrated_raw_probability")
-    if not ensemble_calibrator_selected:
+    if ensemble_calibrator_selected:
+        confidence_reasons.append("ensemble_calibrator_shadow_only_not_applied")
+    else:
         confidence_reasons.append("ensemble_calibration_unavailable")
 
     if any("LEAKAGE_AUDIT_INCOMPLETE" in (item.get("reason_codes") or []) for item in path_assessments):
@@ -595,7 +599,7 @@ def build_consensus(
     if "uncalibrated" in calibration_statuses:
         warnings.append("Consensus includes raw uncalibrated model probabilities; calibration cannot be inferred from the path mean.")
     if ensemble_calibrator_selected:
-        warnings.append("The ensemble probability carries a Platt calibrator estimated on the earliest 60% of the walk-forward ledger and checked on later ledger dates; the check block overlaps windows already used by path-level evaluation, so the improvement is descriptive rather than an independent confirmation.")
+        warnings.append("A Platt calibrator was selected on an earliest-60% / later-ledger check, but the check block overlaps windows already used by path-level evaluation. It is recorded in shadow only and is not applied to the published probability until prospective evidence exists.")
     else:
         warnings.append("The equal-weight consensus has no ensemble calibrator that improved the subsequent ledger check; its probability reliability is not established by path-level calibration alone.")
     if len(valid) < 2:
@@ -607,7 +611,7 @@ def build_consensus(
     for item in path_assessments:
         warnings.extend(item.get("warnings", []))
 
-    calibrated_probability = None
+    shadow_calibrated_probability = None
     if ensemble_calibrator_selected:
         calibrator = ensemble_calibration.get("calibrator") or {}
         slope = calibrator.get("slope")
@@ -615,19 +619,34 @@ def build_consensus(
         if (isinstance(slope, (int, float)) and not isinstance(slope, bool)
                 and isinstance(intercept, (int, float)) and not isinstance(intercept, bool)):
             clipped = max(1e-6, min(1 - 1e-6, float(probability)))
-            calibrated_probability = logistic(intercept + slope * math.log(clipped / (1 - clipped)))
-    reportable_probability = calibrated_probability if calibrated_probability is not None else probability
+            shadow_calibrated_probability = logistic(intercept + slope * math.log(clipped / (1 - clipped)))
+    calibrated_probability = None
+    reportable_probability = probability
+    shadow_block = {
+        "applied": False,
+        "status": "shadow_only_retrospective_selection" if shadow_calibrated_probability is not None
+        else "unavailable",
+        "selected_on_retrospective_check": bool(ensemble_calibrator_selected),
+        "probability": shadow_calibrated_probability,
+        "selected_through_session": ensemble_calibration.get("selected_through_session"),
+        "subsequent_observations": ensemble_calibration.get("subsequent_observations"),
+        "selection_effect": (
+            "the same block selects the calibrator and reports its Brier improvement; "
+            "it is not an independent confirmation of the final published policy"
+        ),
+    }
     path_dependency = (oos_probability_quality.get("path_dependency") or {})
     ensemble_uncertainty = _ensemble_uncertainty(probabilities, path_dependency)
     prediction = {
         "status": "available",
         "raw_probability": raw_probability,
         "calibrated_probability": calibrated_probability,
+        "shadow_calibrated_probability": shadow_calibrated_probability,
+        "shadow_calibration": shadow_block,
         "reportable_probability": reportable_probability,
-        "probability_basis": ("ensemble_calibrated_equal_weight_mean_of_valid_path_estimates"
-                              if calibrated_probability is not None else "equal_weight_mean_of_valid_path_estimates"),
-        "calibration_status": ("ensemble_calibrated_on_retrospective_ledger_check"
-                               if calibrated_probability is not None else "ensemble_calibration_unavailable"),
+        "probability_basis": "equal_weight_mean_of_valid_path_estimates",
+        "calibration_status": ("ensemble_calibration_shadow_only"
+                               if shadow_calibrated_probability is not None else "ensemble_calibration_unavailable"),
         "ensemble_uncertainty": ensemble_uncertainty,
     }
     economic = _economic_viability(valid)
@@ -639,8 +658,8 @@ def build_consensus(
         "skill_weight_validation": skill_weight_validation,
         "path_assessments": assessments,
         "path_input_rejections": input_rejections,
-        "calibration_status": ("ensemble_calibrated_on_retrospective_ledger_check"
-                               if calibrated_probability is not None else "equal_weight_mean_not_ensemble_calibrated"),
+        "calibration_status": "equal_weight_mean_not_ensemble_calibrated",
+        "shadow_calibration": shadow_block,
         "available_paths": len(valid),
         "path_ids": [r["researcher_id"] for r in valid],
         "prob_up": reportable_probability,

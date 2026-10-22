@@ -518,10 +518,11 @@ def _link(title: Any, url: Any) -> str:
 
 def _validation_summary(item: dict[str, Any]) -> dict[str, Any]:
     value = item.get("validation") or {}
-    holdout = value.get("final_holdout") or {}
+    production = value.get("production_replay") or {}
+    holdout = production.get("recent_segment") or value.get("final_holdout") or {}
     return {"oos_predictions": value.get("oos_predictions", value.get("holdout_predictions", holdout.get("observations"))),
-            "brier": value.get("brier", value.get("holdout_brier", holdout.get("brier"))),
-            "base_rate_brier": value.get("base_rate_brier", value.get("holdout_base_rate_brier", holdout.get("base_rate_brier"))),
+            "brier": value.get("brier", value.get("holdout_brier", production.get("brier", holdout.get("brier")))),
+            "base_rate_brier": value.get("base_rate_brier", value.get("holdout_base_rate_brier", production.get("causal_baseline_brier", holdout.get("base_rate_brier")))),
             "calibration": item.get("probability_calibration", "not_assessed"),
             "sample_feasibility": value.get("sample_feasibility")}
 
@@ -711,7 +712,7 @@ def render_markdown(result: dict[str, Any]) -> str:
              *_economic_lines(quant.get("economic_viability")),
              f"- Status: {_cell(quant.get('status'))}",
              "- Confidence、agreement 与 diversity 保留 Quant 原值/原尺度；分类标签不换算为百分比。",
-             f"- Calibration: {_cell(quant.get('calibration_status'))}; " + ("equal-weight mean carries an ensemble calibrator that improved the subsequent ledger block (retrospective check, non-independent)." if quant.get("calibrated_probability") is not None else "equal-weight mean does not carry an ensemble calibrator that improved the subsequent ledger check.")]
+             f"- Calibration: {_cell(quant.get('calibration_status'))}; " + ("a retrospective ensemble calibrator is recorded in shadow only and is not applied to the published probability." if "shadow_only" in str(quant.get("calibration_status")) else "the equal-weight mean is reported without an ensemble calibrator.")]
     probability_range = quant.get("probability_range")
     lines.append(f"- Range across eligible paths (not a statistical confidence interval): {_probability_text(probability_range[0])}–{_probability_text(probability_range[1])}" if probability_range else "- Range across eligible paths: Unavailable")
     lines.extend(["", "| Path | Role / status | Eligible | Reportable P(up) | OOS N | Calibration |", "|---|---|---|---:|---:|---|"])

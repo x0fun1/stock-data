@@ -355,12 +355,19 @@ def _audit_oos_path(
             if _valid_probability(row.get("probability")) and row.get("decision_session") in session_index
         )
         summary["non_overlapping_prediction_count"] = len(non_overlapping(predicted_indices, horizon))
-        summary["effective_sample_size_estimate"] = round(summary["valid_predictions"] / (horizon + 1))
-        summary["overlap_disclosure"] = (
-            f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; "
-            "non-overlapping count and effective size are the conservative references for thresholds; "
-            "skill intervals use block resampling"
-        )
+        if validation.get("oos_rows_are_non_overlapping") is True:
+            summary["effective_sample_size_estimate"] = summary["valid_predictions"]
+            summary["overlap_disclosure"] = (
+                f"non-overlapping {horizon}-session labels supplied by the path; "
+                "each row is a distinct production-consistent decision and is counted once"
+            )
+        else:
+            summary["effective_sample_size_estimate"] = round(summary["valid_predictions"] / (horizon + 1))
+            summary["overlap_disclosure"] = (
+                f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; "
+                "non-overlapping count and effective size are the conservative references for thresholds; "
+                "skill intervals use block resampling"
+            )
     else:
         summary["non_overlapping_prediction_count"] = None
         summary["effective_sample_size_estimate"] = None
