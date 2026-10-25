@@ -18,7 +18,7 @@ from ..math_utils import (
     sample_std,
     spearman,
 )
-from ..reliability import ROUTE_ABSTAINED, probabilistic_scores, qualification, sample_diagnostics
+from ..reliability import ROUTE_ABSTAINED, probabilistic_scores, sample_diagnostics
 from ..selection import multiple_testing_disclosure, overlapping_ic, shift_p_values, stability_verdict
 from ..snapshot import load_snapshot
 
@@ -41,8 +41,9 @@ SELECTION_PROFILES: dict[str, dict[str, Any]] = {
     "restricted": {"max_factors": 3, "max_factors_per_family": 1, "metric": "overlapping_block"},
 }
 BUCKET_MODES = ("three", "two")
-PRODUCTION_SELECTION_PROFILE = "legacy"
-PRODUCTION_BUCKET_MODE = "three"
+MODEL_VERSION = "factor_restricted_two_honest_v1"
+PRODUCTION_SELECTION_PROFILE = "restricted"
+PRODUCTION_BUCKET_MODE = "two"
 # "overlapping_block" estimates the Rank IC on every matured label of the segment and
 # requires directional stability; it is implemented and evaluated, but the registered
 # comparison could not separate it from the incumbent rule on a 52-week window, so the
@@ -65,8 +66,8 @@ def _matured_label_capacity(bar_count: int, horizon: int) -> int:
     return _spaced_label_count(FEATURE_WARMUP_SESSIONS, bar_count - 1 - horizon, horizon)
 
 
-def _sample_feasibility(bar_count: int, horizon: int) -> dict[str, Any]:
-    required = 3 * MINIMUM_FACTOR_BUCKET_OBSERVATIONS
+def _sample_feasibility(bar_count: int, horizon: int, bucket_mode: str = PRODUCTION_BUCKET_MODE) -> dict[str, Any]:
+    required = len(_bucket_keys(bucket_mode)) * MINIMUM_FACTOR_BUCKET_OBSERVATIONS
 
     def ready(size: int) -> bool:
         return (
@@ -89,7 +90,8 @@ def _sample_feasibility(bar_count: int, horizon: int) -> dict[str, Any]:
         "status": "capacity_below_52_week_minimum" if not ready(bar_count) else "budget_possible_not_guaranteed_by_factor_scores",
         "window_standard": "52_weeks_of_daily_bars",
         "minimum_bucket_observations": MINIMUM_FACTOR_BUCKET_OBSERVATIONS,
-        "required_calibration_observations_for_three_balanced_buckets": required,
+        "required_calibration_observations_for_predeclared_buckets": required,
+        "bucket_mode": bucket_mode,
         "minimum_selection_labels": MINIMUM_SELECTION_LABELS,
         "selection_label_capacity": selection_capacity,
         "max_matured_non_overlapping_label_capacity": capacity,
@@ -100,7 +102,7 @@ def _sample_feasibility(bar_count: int, horizon: int) -> dict[str, Any]:
         "estimated_minimum_daily_bars": low,
         "estimated_minimum_calendar_weeks": round(low / 5.0, 1),
         "additional_daily_bars_at_current_history_length": max(0, low - bar_count),
-        "estimate_assumptions": "52-week standard: fixed 50% chronological selection segment, 60-session feature warm-up, H+1-session label spacing, labels matured by the decision bar, and three balanced buckets of 6 observations; score ties and missing factors can increase the requirement",
+        "estimate_assumptions": "52-week standard: fixed chronological selection segment, 60-session feature warm-up, H+1-session label spacing, labels matured by the decision bar, and the predeclared bucket count times 6 observations; score ties and missing factors can increase the requirement",
         "requested_window_preserved": True,
     }
 
@@ -383,7 +385,7 @@ def run(
     close = [row["close"] for row in bars]
     factors = _factors(bars)
     n = len(bars)
-    sample_feasibility = _sample_feasibility(n, requested_horizon)
+    sample_feasibility = _sample_feasibility(n, requested_horizon, bucket_mode)
     train_end = int(n * SELECTION_FRACTION)
     holdout_start = train_end
     # Sampling phase is anchored on an absolute calendar ordinal, not on the window's
@@ -575,7 +577,6 @@ def run(
         if bucket is not None:
             bucket_samples[bucket].append(target)
     calibration_prevalence = mean([float(target > 0) for _, target in calibration_pairs])
-    overall_forward_return = mean([target for _, target in calibration_pairs])
     sample_feasibility["calibration_observations_with_complete_factor_scores"] = len(calibration_pairs)
     sample_feasibility["calibration_available"] = len(calibration_pairs)
     sample_feasibility["calibration_bucket_counts"] = {key: len(value) for key, value in bucket_samples.items()}
@@ -622,7 +623,7 @@ def run(
     )
     honest_counts = {key: len(value) for key, value in honest_buckets.items()}
     honest_candidate = {
-        "used_for_reported_probability": False,
+        "used_for_reported_probability": True,
         "status": "candidate_available" if honest_probability is not None else "abstained",
         "reason": (
             "post_selection_labels_available"
@@ -635,12 +636,14 @@ def run(
         "bucket_counts": honest_counts,
         "probability": honest_probability,
     }
-    probability = (
-        _shrunk_probability(selected_returns, calibration_prevalence)
-        if current_bucket is not None and len(selected_returns) >= MINIMUM_FACTOR_BUCKET_OBSERVATIONS
-        else None
+    # Shadow contract: only labels matured after the factor-selection segment may
+    # inform the reported bucket probability.  If that budget is insufficient the
+    # candidate abstains instead of falling back to the selection labels.
+    probability = honest_probability
+    expected = (
+        _shrunk_mean(honest_sample, mean([float(target > 0) for _, target in honest_pairs]))
+        if probability is not None else None
     )
-    expected = _shrunk_mean(selected_returns, overall_forward_return) if probability is not None else None
     if probability is None:
         if current_bucket is None:
             warnings.append("The latest OHLCV row did not produce a complete selected-factor score.")
@@ -666,7 +669,7 @@ def run(
         if target is None:
             continue
         # Rolling origin: only labels whose outcome was known at decision session i may train this forecast.
-        matured = [j for j in calibration_indices if j + requested_horizon <= i]
+        matured = [j for j in calibration_indices if j >= train_end and j + requested_horizon <= i]
         matured_pairs = [
             (float(composite(j)), float(select_labels[j]))
             for j in matured
@@ -762,12 +765,21 @@ def run(
     }
     validation["bucket_mode"] = bucket_mode
     validation["selection_profile"] = profile_name
-    route = qualification(
-        nonoverlap_matured=len(calibration_indices),
-        bucket_observations=len(selected_returns),
-        buckets_available=sum(1 for values in bucket_samples.values() if values),
-        validation_predictions=len(holdout_pairs),
-    )
+    route = {
+        "route": "shadow_candidate" if probability is not None else ROUTE_ABSTAINED,
+        "route_reason": (
+            "post_selection_bucket_budget_met"
+            if probability is not None else
+            f"post_selection_budget_insufficient:{len(honest_pairs)} labels, {honest_counts} bucket counts"
+        ),
+        "checks": {
+            "post_selection_labels": len(honest_pairs),
+            "bucket_counts": honest_counts,
+            "minimum_per_bucket": MINIMUM_FACTOR_BUCKET_OBSERVATIONS,
+        },
+        "production_eligible": False,
+        "shadow_only": True,
+    }
     # Qualification is the authority, not a label. A numeric estimate that fails the
     # path's own declared floors is a research number, never a reportable probability:
     # it moves to a diagnostic field and the path abstains. Without this the route could

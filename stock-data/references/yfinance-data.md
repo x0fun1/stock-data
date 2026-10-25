@@ -93,7 +93,7 @@ adjusted OHLC 由同根 `Adj Close / Close` 等比例转换；保留 ratio、pro
 
 ## 研究衔接与兼容
 
-[yahoo_collect.py](../scripts/yahoo_collect.py) 只采 market 域，复用宿主已有 Finnhub 成功结果；不把 yfinance 参数塞进研究 request，不让 pipeline 隐式联网。字段与 provenance 见 [collection-adapter.md](collection-adapter.md)。仍为 schema 1.2，无新增必填字段。
+[yahoo_collect.py](../scripts/yahoo_collect.py) 只采 market 域，复用宿主已有 Finnhub 成功结果；不把 yfinance 参数塞进研究 request，不让 pipeline 隐式联网。字段与 provenance 见 [collection-adapter.md](collection-adapter.md)。使用 snapshot schema 1.3；forecast 必须提供 `policy_window` 与拆股调整的 provider close。
 
 方向研究仍按 Quant → 验证/审计 → News → Final Synthesis；新闻失败记 not_assessed，不能当 neutral 或改 Quant P(up)。中央 [reliability-gates.md](reliability-gates.md) 权威：复权/日历未知是降级，不自动致命；明确污染/身份/价格冲突按原 gate 处理。
 

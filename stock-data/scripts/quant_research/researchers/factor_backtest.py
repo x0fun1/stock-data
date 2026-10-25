@@ -1,8 +1,4 @@
-"""Research D: single-security time-series factor IC and forward-return checks.
-
-This is a diagnostic, not the cross-sectional portfolio engine described by the
-Factor Backtest upstream. It deliberately emits no directional probability.
-"""
+"""Research D: 5-session descriptive factor diagnostics (never a probability)."""
 
 from __future__ import annotations
 
@@ -10,16 +6,17 @@ import math
 from pathlib import Path
 from typing import Any
 
-from ..contracts import HORIZONS, researcher_result
+from ..contracts import researcher_result
+from ..forecast_policy import FORECAST_HORIZON_SESSIONS
 from ..market_data import forward_returns, market_bars, non_overlapping
 from ..math_utils import mean, pearson, quantile, sample_std, spearman
 from ..snapshot import load_snapshot
 
 MIN_HOLDOUT_OBSERVATIONS = 20
+MODEL_VERSION = "factor_backtest_5d_descriptive_v1"
 
 
 def _factor_values(bars: list[dict[str, Any]]) -> dict[str, tuple[str, list[float | None]]]:
-    """Build a fixed OHLCV factor set locally from the shared raw bars."""
     n = len(bars)
     close = [row["close"] for row in bars]
     open_ = [row["open"] for row in bars]
@@ -35,7 +32,7 @@ def _factor_values(bars: list[dict[str, Any]]) -> dict[str, tuple[str, list[floa
                 values[i] = close[i] / close[i - window] - 1.0
         result[f"momentum_{window}"] = ("momentum", values)
 
-    reversal: list[float | None] = [None] * n
+    one_day: list[float | None] = [None] * n
     gap: list[float | None] = [None] * n
     close_location: list[float | None] = [None] * n
     trend: list[float | None] = [None] * n
@@ -43,7 +40,7 @@ def _factor_values(bars: list[dict[str, Any]]) -> dict[str, tuple[str, list[floa
     volume_z: list[float | None] = [None] * n
     for i in range(n):
         if i >= 1 and close[i - 1] > 0:
-            reversal[i] = close[i] / close[i - 1] - 1.0
+            one_day[i] = close[i] / close[i - 1] - 1.0
             gap[i] = open_[i] / close[i - 1] - 1.0
         day_range = high[i] - low[i]
         if day_range > 0:
@@ -59,7 +56,9 @@ def _factor_values(bars: list[dict[str, Any]]) -> dict[str, tuple[str, list[floa
             volume_z[i] = (volume[i] - sum(volume_window) / len(volume_window)) / scale if scale else 0.0
 
     result.update({
-        "reversal_1": ("reversal", reversal),
+        # The factor was already a one-day return; only the name and family change
+        # in this round, so the sign is not flipped while its meaning is renamed.
+        "momentum_1": ("momentum", one_day),
         "trend_sma20": ("trend", trend),
         "range_position_20": ("trend", range_position),
         "volume_z20": ("volume", volume_z),
@@ -83,11 +82,8 @@ def _aligned(values: list[float | None], labels: list[float | None], indices: li
 
 
 def _metrics(
-    values: list[float | None],
-    labels: list[float | None],
-    indices: list[int],
-    low_cut: float | None,
-    high_cut: float | None,
+    values: list[float | None], labels: list[float | None], indices: list[int],
+    low_cut: float | None, high_cut: float | None,
 ) -> dict[str, Any]:
     x, y = _aligned(values, labels, indices)
     low_returns = [ret for value, ret in zip(x, y, strict=True) if low_cut is not None and value <= low_cut]
@@ -95,7 +91,8 @@ def _metrics(
     spread = mean(high_returns) - mean(low_returns) if high_returns and low_returns else None
     enough = len(x) >= MIN_HOLDOUT_OBSERVATIONS
     return {
-        "status": "available" if enough else "insufficient_data",
+        "status": "available" if enough else ("descriptive_only" if len(x) >= 3 else "insufficient_data"),
+        "descriptive_only": not enough,
         "observations": len(x),
         "minimum_observations": MIN_HOLDOUT_OBSERVATIONS,
         "spearman_time_series_ic": spearman(x, y) if len(x) >= 3 else None,
@@ -104,6 +101,7 @@ def _metrics(
         "top_minus_bottom_training_quantile_return": spread,
         "top_quantile_observations": len(high_returns),
         "bottom_quantile_observations": len(low_returns),
+        "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor" if not enough else "meets the predeclared observation floor",
     }
 
 
@@ -115,55 +113,55 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     factors = _factor_values(bars)
     n = len(bars)
     split = int(n * 0.7)
-    requested_horizon = HORIZONS[horizon_name]
-    requested_key = f"{requested_horizon}D"
+    horizon = FORECAST_HORIZON_SESSIONS
+    labels = forward_returns(closes, horizon)
     metrics: dict[str, Any] = {}
-    requested_available = 0
-    requested_observations = 0
-    labels_by_horizon = {h: forward_returns(closes, h) for h in (1, 5, 20)}
-
+    available = 0
+    observations = 0
     for name, (family, values) in factors.items():
-        horizons: dict[str, Any] = {}
-        for horizon in (1, 5, 20):
-            labels = labels_by_horizon[horizon]
-            warmup = 60
-            train_indices = non_overlapping(
-                [i for i in range(warmup, split) if i + horizon < split], horizon
-            )
-            holdout_indices = non_overlapping(
-                [i for i in range(split, n) if i + horizon < n], horizon
-            )
-            train_x, _ = _aligned(values, labels, train_indices)
-            low_cut, high_cut = quantile(train_x, 0.2), quantile(train_x, 0.8)
-            training = _metrics(values, labels, train_indices, low_cut, high_cut)
-            holdout = _metrics(values, labels, holdout_indices, low_cut, high_cut)
-            if horizon == requested_horizon:
-                requested_available += int(holdout["status"] == "available")
-                requested_observations += int(holdout["observations"])
-            horizons[f"{horizon}D"] = {"training": training, "holdout": holdout}
-        metrics[name] = {"family": family, "horizons": horizons}
-
-    status = "success" if requested_available else "partial" if requested_observations else "insufficient_data"
-    warnings = [
-        "Single-security results are time-series IC/forward-return diagnostics, not the cross-sectional Rank IC or portfolio backtest from the upstream skill.",
-        "Forward returns are gross close-to-close diagnostics; this path does not simulate trades, benchmark-relative NAV, turnover costs, or market impact.",
-    ]
-    if not requested_available:
-        warnings.append(
-            f"No {requested_key} holdout factor reached the minimum observation count for an IC diagnostic; "
-            "other horizons are still reported descriptively."
+        train_indices = non_overlapping(
+            [i for i in range(60, split) if i + horizon < split], horizon
         )
+        holdout_indices = non_overlapping(
+            [i for i in range(split, n) if i + horizon < n], horizon
+        )
+        train_x, _ = _aligned(values, labels, train_indices)
+        low_cut, high_cut = quantile(train_x, 0.2), quantile(train_x, 0.8)
+        holdout = _metrics(values, labels, holdout_indices, low_cut, high_cut)
+        available += int(holdout["status"] == "available")
+        observations += int(holdout["observations"])
+        metrics[name] = {
+            "family": family,
+            "horizon": "5D",
+            "training": _metrics(values, labels, train_indices, low_cut, high_cut),
+            "holdout": holdout,
+        }
 
+    status = "success" if available else ("partial" if observations else "insufficient_data")
+    warnings = [
+        "Single-security 5-session IC/forward-return diagnostics only; not a cross-sectional Rank IC or portfolio backtest.",
+        "Descriptive evidence: this path never feeds the production probability, eligibility or model promotion.",
+        "Gross close-to-close diagnostics; no trades, funding, turnover costs or market impact are simulated.",
+    ]
+    if not available:
+        warnings.append(
+            f"No 5D holdout factor reached {MIN_HOLDOUT_OBSERVATIONS} observations; ICs remain exploratory."
+        )
+    primary = metrics.get("momentum_20") or {}
+    holdout = primary.get("holdout") or {}
     validation = {
-        "method": "fixed-factor time-series IC and forward-return diagnostics",
+        "model_version": MODEL_VERSION,
+        "method": "fixed-factor 5D time-series IC and forward-return diagnostics",
         "universe_type": "single_security",
-        "signal_timing": "factor uses OHLCV through close[t]; label is close[t+h] / close[t] - 1",
-        "split": {"training_fraction": 0.7, "holdout_fraction": 0.3, "holdout_start_session": bars[split]["date"] if split < n else None},
+        "signal_timing": "factor uses OHLCV through close[t]; label is close[t+5] / close[t] - 1",
+        "split": {"training_fraction": 0.7, "holdout_fraction": 0.3,
+                  "holdout_start_session": bars[split]["date"] if split < n else None},
         "non_overlapping_labels": True,
         "minimum_holdout_observations": MIN_HOLDOUT_OBSERVATIONS,
-        "requested_horizon": requested_key,
-        "candidate_factor_count": len(factors),
-        "horizons": ["1D", "5D", "20D"],
+        "horizons": ["5D"],
+        "descriptive_only": True,
+        "information_coefficient": holdout.get("spearman_time_series_ic"),
+        "holdout_sample_count": holdout.get("observations"),
         "factor_metrics": metrics,
         "leakage_audit": {
             "features_use_data_through_decision_close_only": True,
@@ -173,11 +171,11 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         },
         "full_cross_sectional_backtest": {
             "status": "not_assessed",
-            "reason": "requires a multi-ticker factor panel, point-in-time universe, benchmark, adjusted/tradable price matrices and security masks",
+            "reason": "requires a multi-ticker factor panel, point-in-time universe and security masks",
         },
     }
     return researcher_result(
         "factor_backtest", ticker, horizon_name, manifest["snapshot_id"],
         status=status, result_role="diagnostic", validation=validation,
-        data_used=["daily raw OHLCV"], warnings=warnings,
+        data_used=["daily split-adjusted OHLCV"], warnings=warnings,
     )

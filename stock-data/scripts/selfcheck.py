@@ -43,6 +43,7 @@ Usage: python stock-data/scripts/selfcheck.py
 
 from __future__ import annotations
 
+import contextlib
 import datetime as dt
 import hashlib
 import json
@@ -138,9 +139,8 @@ def check_f01_current_probability_not_clobbered() -> None:
     assert result["status"] in {"success", "partial"}, result["status"]
     rows = result["validation"]["oos_forecasts"]
     assert rows
-    from quant_research.researchers.ml import logistic
-
     from quant_research.researchers import ml
+    from quant_research.researchers.ml import logistic
 
     calibration = result["validation"]["current_prediction_calibration"]
     raw = result["raw_probability"]
@@ -2459,54 +2459,637 @@ def check_f46_quant_shrinkage_is_applied() -> None:
         raise AssertionError("the 12-match floor is deliberate and must not be lowered")
 
 
+
+# ---------------------------------------------------------------- policy helpers
+def _policy_sessions(n: int = 300, end: dt.date = dt.date(2026, 10, 23)) -> list[dt.date]:
+    days, cursor = [], end
+    while len(days) < n:
+        if cursor.weekday() < 5:
+            days.append(cursor)
+        cursor -= dt.timedelta(days=1)
+    return list(reversed(days))
+
+
+def _policy_bars(sessions: list[dt.date], seed: int = 5) -> list[dict]:
+    rng = random.Random(seed)
+    price = 100.0
+    bars = []
+    for session in sessions:
+        price *= 1 + rng.gauss(0.0004, 0.011)
+        bars.append({"date": session.isoformat(), "open": price * 0.995, "high": price * 1.012,
+                     "low": price * 0.988, "close": price,
+                     "volume": 1_000_000 + rng.randint(0, 200_000)})
+    return bars
+
+
+def _policy_calendar(sessions: list[dt.date]) -> dict:
+    return {"source": "selfcheck:synthetic_exchange", "timezone": "America/New_York",
+            "coverage_start": sessions[0].isoformat(), "coverage_end": sessions[-1].isoformat(),
+            "sessions": [{"date": s.isoformat(),
+                          "close_at": dt.datetime(s.year, s.month, s.day, 20, 0, tzinfo=dt.timezone.utc).isoformat()}
+                         for s in sessions]}
+
+
+def _policy_asof(day: dt.date) -> dt.datetime:
+    return dt.datetime(day.year, day.month, day.day, 21, 0, tzinfo=dt.timezone.utc)
+
+
+class _FakeProvider:
+    def __init__(self, bars, calendar, asof, *, adjustment="provider", symbol="SYN"):
+        self.bars, self.calendar, self.asof = bars, calendar, asof
+        self.adjustment, self.symbol = adjustment, symbol
+        self.calls = 0
+
+    def call(self, _name, **_kwargs):
+        self.calls += 1
+        envelope = {"status": "success", "source": "selfcheck-feed", "actual_source": "selfcheck-feed",
+                    "currency": "USD", "unit": "USD", "adjustment": self.adjustment,
+                    "source_symbol": self.symbol, "frequency": "1d",
+                    "source_timestamp": self.asof.isoformat(), "fetched_at_utc": self.asof.isoformat(),
+                    "last_bar_closed": True,
+                    "data": {"bars": self.bars, "symbol": self.symbol, "frequency": "1d",
+                             "adjustment": self.adjustment, "currency": "USD", "unit": "USD"}}
+        if self.calendar:
+            envelope["session_calendar"] = self.calendar
+        return envelope
+
+
+def _policy_collection(sessions, bars, asof, *, adjustment="provider", calendar=True,
+                       declared=None, ticker="SYN"):
+    import yahoo_collect
+
+    calendar_block = _policy_calendar(sessions) if calendar else None
+    provider = _FakeProvider(bars, calendar_block, asof, adjustment=adjustment, symbol=ticker)
+    original = yahoo_collect._library_calendar
+    yahoo_collect._library_calendar = lambda *_a, **_k: calendar_block
+    try:
+        request = {"ticker": ticker, "market": "US", "horizon": "5D", "intent": "forecast",
+                   "asof": asof.isoformat()}
+        if declared:
+            request["history_window"] = declared
+        return yahoo_collect.collect(request, provider=provider)
+    finally:
+        yahoo_collect._library_calendar = original
+
+
+def _policy_snapshot(sessions, bars, asof, *, adjustment="provider", calendar=True,
+                     declared=None, ticker="SYN"):
+    from quant_research.snapshot import freeze_snapshot
+    from quant_research.stock_data_adapter import StockDataAdapter
+
+    root = Path(tempfile.mkdtemp(prefix="policy-"))
+    responses = _policy_collection(sessions, bars, asof, adjustment=adjustment, calendar=calendar,
+                                   declared=declared, ticker=ticker)
+    receipt = StockDataAdapter().write_receipt(
+        {"ticker": ticker, "market": "US", "horizon": "5D", "intent": "forecast", "asof": asof.isoformat()},
+        responses, root / "receipt.json",
+    )
+    return freeze_snapshot(receipt, root / "snapshots"), responses, root
+
+
+def _policy_analysis(sessions=None, bars=None, asof=None):
+    from quant_research.orchestrator import run_analysis
+
+    sessions = sessions or _policy_sessions()
+    bars = bars or _policy_bars(sessions)
+    asof = asof or _policy_asof(sessions[-1])
+    snapshot, _responses, root = _policy_snapshot(sessions, bars, asof)
+    return run_analysis(snapshot, root / "research"), snapshot, bars, sessions
+
+
+def _quant_rows(snapshot, _bars=None):
+
+    from quant_research.contracts import HORIZONS  # noqa: F401 - legacy import kept for schema parity
+    from quant_research.researchers import quant
+    from quant_research.snapshot import load_snapshot
+
+    manifest, market = load_snapshot(snapshot)
+    return quant.run(snapshot, (manifest, market))
+
+
+def _snapshot_bars(snapshot):
+    from quant_research.market_data import market_bars
+    from quant_research.snapshot import load_snapshot
+
+    _manifest, market = load_snapshot(snapshot)
+    return market_bars(market)
+
+
+def check_t01_forecast_horizon_is_five_sessions() -> None:
+    from quant_research.contracts import normalize_request
+    from quant_research.forecast_policy import PolicyError
+
+    for horizon in ("1D", "20D"):
+        try:
+            normalize_request({"ticker": "SYN", "horizon": horizon, "intent": "forecast"})
+        except PolicyError as exc:  # noqa: PERF203 - one controlled negative case per horizon
+            assert exc.code == "UNSUPPORTED_FORECAST_HORIZON", exc.code
+        else:
+            raise AssertionError(f"{horizon} must be rejected for a forecast")
+    assert normalize_request({"ticker": "SYN", "horizon": "5D", "intent": "forecast"})["horizon"] == "5D"
+    assert normalize_request({"ticker": "SYN", "horizon": "20D", "intent": "descriptive"})["horizon"] == "20D"
+
+
+def check_t02_fixed_window_and_coverage() -> None:
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    responses = _policy_collection(sessions, bars, asof)
+    window = responses["market"]["data"]["policy_window"]
+    assert window["coverage_status"] == "complete", window
+    assert window["decision_session"] == sessions[-1].isoformat()
+    assert window["window_start_exclusive"] == (sessions[-1] - dt.timedelta(days=364)).isoformat()
+    assert window["expected_sessions"] == window["observed_sessions"], window
+    assert window["calendar_verified"] is True
+
+
+def check_t03_declared_window_must_match_policy() -> None:
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    from quant_research.forecast_policy import PolicyError
+
+    try:
+        _policy_collection(sessions, bars, asof, declared={"start": "2020-01-01"})
+    except PolicyError as exc:
+        assert exc.code == "FIXED_WINDOW_CONFLICT", exc.code
+    else:
+        raise AssertionError("a conflicting declared start must be rejected")
+
+
+def check_t04_bars_outside_window_are_rejected() -> None:
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    from quant_research.snapshot import freeze_snapshot
+    from quant_research.stock_data_adapter import StockDataAdapter
+
+    responses = _policy_collection(sessions, bars, asof)
+    window = responses["market"]["data"]["policy_window"]
+    extra = dict(bars[0])
+    extra["date"] = window["window_start_exclusive"]
+    responses["market"]["data"]["bars"] = [extra, *responses["market"]["data"]["bars"]]
+    root = Path(tempfile.mkdtemp(prefix="policy-"))
+    receipt = StockDataAdapter().write_receipt(
+        {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast", "asof": asof.isoformat()},
+        responses, root / "receipt.json",
+    )
+    try:
+        freeze_snapshot(receipt, root / "snapshots")
+    except ValueError as exc:
+        assert "OHLCV_OUT_OF_WINDOW" in str(exc) or "outside the frozen policy window" in str(exc), exc
+    else:
+        raise AssertionError("a bar on the left-open boundary must be rejected")
+
+
+def check_t05_dividend_adjusted_basis_is_rejected() -> None:
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    responses = _policy_collection(sessions, bars, asof, adjustment="adjusted")
+    assert responses["market"]["data"]["policy_window"]["coverage_status"] in {"complete", "incomplete"}
+    assert responses["market"]["policy_status"] == "ineligible", responses["market"].get("policy_status")
+    try:
+        _policy_snapshot(sessions, bars, asof, adjustment="adjusted")
+    except ValueError as exc:
+        assert "PRICE_BASIS_UNVERIFIED" in str(exc) or "price basis" in str(exc).lower(), exc
+    else:
+        raise AssertionError("a dividend-reinvested basis must not pass the policy gate")
+
+
+def check_t06_target_is_fifth_session() -> None:
+    sessions = _policy_sessions(300)
+    future = []
+    cursor = sessions[-1] + dt.timedelta(days=1)
+    while len(future) < 10:
+        if cursor.weekday() < 5:
+            future.append(cursor)
+        cursor += dt.timedelta(days=1)
+    calendar_sessions = sessions + future
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    # The calendar is supplied explicitly so the target session is known even
+    # though no bar exists for it yet.
+    import json
+
+    from quant_research.snapshot import freeze_snapshot
+    from quant_research.stock_data_adapter import StockDataAdapter
+
+    responses = _policy_collection(sessions, bars, asof, calendar=False)
+    responses["market"]["session_calendar"] = _policy_calendar(calendar_sessions)
+    responses["market"]["data"]["session_calendar"] = _policy_calendar(calendar_sessions)
+    root = Path(tempfile.mkdtemp(prefix="policy-"))
+    receipt = StockDataAdapter().write_receipt(
+        {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast", "asof": asof.isoformat()},
+        responses, root / "receipt.json",
+    )
+    snapshot = freeze_snapshot(receipt, root / "snapshots")
+    manifest = json.loads((snapshot / "manifest.json").read_text())
+    index = [s.isoformat() for s in calendar_sessions].index(sessions[-1].isoformat())
+    assert manifest["policy"]["target_session"] == calendar_sessions[index + 5].isoformat(), manifest["policy"]
+
+
+def check_t07_unverified_calendar_blocks_formal_probability() -> None:
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    try:
+        snapshot, _, root = _policy_snapshot(sessions, bars, asof, calendar=False)
+    except ValueError as exc:
+        assert "CALENDAR_UNVERIFIED" in str(exc) or "coverage" in str(exc).lower(), exc
+        return
+    from quant_research.orchestrator import run_analysis
+
+    analysis = run_analysis(snapshot, root / "research")
+    import json
+
+    payload = json.loads((analysis / "analysis.json").read_text())
+    assert payload["consensus"]["prob_up"] is None
+    assert "CALENDAR_UNVERIFIED" in payload["consensus"]["reason_codes"]
+
+
+def check_t08_labels_are_matured_at_each_origin() -> None:
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    result = _quant_rows(snapshot, bars)
+    rows = result["validation"]["oos_forecasts"]
+    assert rows
+    index = {bar["date"]: i for i, bar in enumerate(bars)}
+    for row in rows:
+        if row["probability"] is None:
+            continue
+        transform = row["probability_transform"]
+        for label_end in transform["matching_label_ends"]:
+            assert index[label_end] <= index[row["decision_session"]]
+        assert index[transform["base_rate_label_end_max"]] <= index[row["decision_session"]]
+
+
+def check_t09_oos_support_counts_zero_eleven_twelve() -> None:
+    from quant_research.forecast_policy import is_sampled_ordinal, session_ordinal
+    from quant_research.researchers.quant import predict_at_origin
+    from quant_research.validation.probability_quality import audit_oos_result
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    dates = [bar["date"] for bar in bars]
+    closes = [bar["close"] for bar in bars]
+    rows = []
+    for index in range(25, len(bars) - 5):
+        ordinal = session_ordinal(sessions, dt.date.fromisoformat(dates[index]))
+        if not is_sampled_ordinal(ordinal):
+            continue
+        row = predict_at_origin(dates, closes, index)
+        if row["probability"] is None:
+            continue
+        rows.append(row)
+    assert len(rows) >= 12, len(rows)
+    manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": "s"}
+    for count, expected in ((0, "NO_VALID_OOS_PROBABILITY"), (11, "OOS_SUPPORT_INSUFFICIENT"), (12, None)):
+        result = {"researcher_id": "quant", "ticker": "SYN", "horizon": "5D", "snapshot_id": "s",
+                  "validation": {"oos_forecasts": rows[:count], "sampling": {"coverage_ratio": None}}}
+        audit = audit_oos_result(result, manifest, bars, sessions=sessions)
+        if expected:
+            assert expected in audit["reasons"], (count, audit["reasons"])
+        else:
+            assert "OOS_SUPPORT_INSUFFICIENT" not in audit["reasons"], audit["reasons"]
+            assert audit["nonoverlap_valid_count"] >= 12
+
+
+def check_t10_directional_edge_requires_thirty_and_positive_interval() -> None:
+    from quant_research.validation.probability_quality import directional_edge_assessment
+
+    def record(index: int, probability: float, baseline: float, target: int) -> dict:
+        return {"decision_session": f"2026-01-{index + 1:02d}", "status": "matured", "sampled": True,
+                "probability": probability, "target": target,
+                "probability_transform": {"base_rate_at_origin": baseline}}
+
+    assert directional_edge_assessment([record(i, 0.5, 0.5, 1) for i in range(29)])["supported"] is False
+    negative = [record(i, 0.5, 0.9, 0) for i in range(30)]
+    assert directional_edge_assessment(negative)["supported"] is False
+    positive = [record(i, 0.90 + i * 0.003, 0.50, 1) for i in range(30)]
+    assert directional_edge_assessment(positive)["supported"] is True, directional_edge_assessment(positive)
+
+
+def check_t11_current_prediction_is_reproducible() -> None:
+    from quant_research.researchers.quant import predict_at_origin
+    from quant_research.validation.probability_quality import audit_current_prediction
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    audit_bars = _snapshot_bars(snapshot)
+    result = _quant_rows(snapshot, audit_bars)
+    audit = audit_current_prediction(result, {}, audit_bars)
+    assert audit["pass"] is True, audit
+    direct = predict_at_origin([b["date"] for b in audit_bars], [b["close"] for b in audit_bars], len(audit_bars) - 1)
+    assert abs(direct["probability"] - result["prob_up"]) < 1e-12
+
+
+def check_t12_transform_tampering_is_rejected() -> None:
+    import copy
+
+    from quant_research.validation.probability_quality import audit_current_prediction
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    audit_bars = _snapshot_bars(snapshot)
+    result = _quant_rows(snapshot, audit_bars)
+    tampered = copy.deepcopy(result)
+    tampered["prob_up"] = min(0.999, tampered["prob_up"] + 0.1)
+    assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False
+    tampered = copy.deepcopy(result)
+    tampered["raw_probability"] = 0.01
+    assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False
+    tampered = copy.deepcopy(result)
+    tampered["validation"]["probability_transform"]["matching_origins"] = []
+    assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False
+
+
+def check_t13_transform_version_change_is_rejected() -> None:
+    import copy
+
+    from quant_research.validation.probability_quality import audit_current_prediction
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    audit_bars = _snapshot_bars(snapshot)
+    result = _quant_rows(snapshot, audit_bars)
+    for field, value in (("version", "shrinkage_v0"), ("policy_version", "old_policy")):
+        tampered = copy.deepcopy(result)
+        tampered["validation"]["probability_transform"][field] = value
+        assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False, field
+    tampered = copy.deepcopy(result)
+    tampered["validation"]["probability_transform"]["type"] = "fitted_calibrator"
+    assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False
+
+
+def check_t14_parameter_tampering_is_rejected() -> None:
+    import copy
+
+    from quant_research.validation.probability_quality import audit_current_prediction
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    audit_bars = _snapshot_bars(snapshot)
+    result = _quant_rows(snapshot, audit_bars)
+    for field, value in (("prior_strength", 1), ("minimum_gap_sessions", 1),
+                         ("minimum_matches", 1), ("horizon_sessions", 1)):
+        tampered = copy.deepcopy(result)
+        tampered["validation"]["probability_transform"][field] = value
+        assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False, field
+
+
+def check_t15_same_decision_is_recorded_once() -> None:
+    from quant_research.ledger import record_prediction
+
+    analysis, snapshot, _bars, _sessions = _policy_analysis()
+    root = Path(tempfile.mkdtemp(prefix="ledger-"))
+    ledger = root / "ledger.jsonl"
+    import json
+
+    payload = json.loads((analysis / "analysis.json").read_text())
+    first = record_prediction(payload, ledger, snapshot_dir=snapshot)
+    second = record_prediction(payload, ledger, snapshot_dir=snapshot)
+    assert first["status"] == "recorded", first
+    assert second["status"] == "duplicate", second
+
+
+def check_t16_window_slide_keeps_same_probability() -> None:
+    from quant_research.researchers import quant
+    from quant_research.snapshot import load_snapshot
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    first, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    manifest, market = load_snapshot(first)
+    base = quant.run(first, (manifest, market))
+    # A second snapshot with the same decision but extra pre-window bars must trim
+    # them and produce the same probability.
+    extra = []
+    cursor = sessions[0] - dt.timedelta(days=1)
+    while len(extra) < 10:
+        if cursor.weekday() < 5:
+            extra.append(cursor)
+        cursor -= dt.timedelta(days=1)
+    extra_bars = _policy_bars(list(reversed(extra)), seed=9) + bars
+    second, _responses2, _root2 = _policy_snapshot(sessions, extra_bars, asof)
+    manifest2, market2 = load_snapshot(second)
+    other = quant.run(second, (manifest2, market2))
+    assert abs(base["prob_up"] - other["prob_up"]) < 1e-12, (base["prob_up"], other["prob_up"])
+
+
+def check_t17_single_production_path() -> None:
+    import json
+
+    analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    payload = json.loads((analysis / "analysis.json").read_text())
+    consensus = payload["consensus"]
+    assert consensus["production_path_count"] == 1
+    assert consensus["aggregation_method"] == "single_path"
+    assert [row["path"] for row in consensus["paths"] if row["role"] == "production"] == ["quant"]
+    assert all(row["role"] == "shadow" for row in consensus["shadow_predictions"])
+    assert consensus["confidence_score"] is None
+
+
+def check_t18_shadow_probability_isolation() -> None:
+    from quant_research.consensus import build_consensus
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    from quant_research.snapshot import load_snapshot
+
+    manifest, _market = load_snapshot(snapshot)
+    quant_result = _quant_rows(snapshot, bars)
+    shadow = {"researcher_id": "factor", "result_role": "shadow", "ticker": "SYN", "horizon": "5D",
+              "snapshot_id": manifest["snapshot_id"], "status": "success", "prob_up": 0.99,
+              "raw_probability": 0.99, "probability_source": "shadow", "validation": {}}
+    consensus = build_consensus([quant_result, shadow], manifest, bars=_snapshot_bars(snapshot), sessions=sessions)
+    assert abs(consensus["prob_up"] - quant_result["prob_up"]) < 1e-12
+    assert any(row["path"] == "factor" and row["probability"] == 0.99 for row in consensus["shadow_predictions"])
+
+
+def check_t19_shadow_failure_does_not_block_production() -> None:
+    import json
+
+    from quant_research import orchestrator
+
+    original = orchestrator.RUNNERS["factor"]
+    orchestrator.RUNNERS["factor"] = lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("shadow exploded"))
+    try:
+        analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    finally:
+        orchestrator.RUNNERS["factor"] = original
+    payload = json.loads((analysis / "analysis.json").read_text())
+    assert payload["consensus"]["prob_up"] is not None
+    assert payload["researchers"]["factor"]["status"] == "failed"
+
+
+def check_t20_factor_uses_post_selection_labels_only() -> None:
+    from quant_research.researchers import factor
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    from quant_research.snapshot import load_snapshot
+
+    manifest, market = load_snapshot(snapshot)
+    result = factor.run(None, (manifest, market), bucket_mode="two", selection_profile="restricted")
+    candidate = (result["validation"] or {}).get("honest_calibration_candidate") or {}
+    assert candidate.get("used_for_reported_probability") is True
+    if result.get("prob_up") is not None:
+        assert candidate.get("status") == "candidate_available"
+        assert candidate.get("observations", 0) > 0
+    else:
+        assert candidate.get("status") == "abstained"
+
+
+def check_t21_ml_refits_every_origin() -> None:
+    from quant_research.researchers import ml
+
+    assert ml._anchor(17) == 17
+    assert ml._anchor(18) == 18
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    from quant_research.snapshot import load_snapshot
+
+    manifest, market = load_snapshot(snapshot)
+    result = ml.run(None, (manifest, market))
+    assert result["validation"]["model_hyperparameters"]["refit_sessions"] == 1
+    assert result["validation"]["probability_calibration"]["status"] == "disabled_by_policy"
+    assert len(result["validation"]["oos_forecasts"]) > 100
+
+
+def check_t22_ledger_prospective_and_retrospective() -> None:
+    from quant_research.ledger import prospective_records, record_prediction
+
+    analysis, snapshot, _bars, _sessions = _policy_analysis()
+    import json
+
+    payload = json.loads((analysis / "analysis.json").read_text())
+    root = Path(tempfile.mkdtemp(prefix="ledger-"))
+    forward = record_prediction(payload, root / "forward.jsonl", snapshot_dir=snapshot)
+    assert forward["prospective_eligible"] is True
+    # Backdating the recording time is not possible through the API, but an
+    # already-matured decision snapshot must be marked retrospective.
+    old_sessions = _policy_sessions(300, end=dt.date(2025, 6, 30))
+    old_bars = _policy_bars(old_sessions)
+    old_asof = _policy_asof(old_sessions[-1])
+    old_snapshot, _responses, old_root = _policy_snapshot(old_sessions, old_bars, old_asof)
+    from quant_research.orchestrator import run_analysis
+
+    old_analysis = run_analysis(old_snapshot, old_root / "research")
+    old_payload = json.loads((old_analysis / "analysis.json").read_text())
+    backfilled = record_prediction(old_payload, root / "forward.jsonl", snapshot_dir=old_snapshot,
+                                   import_reason="historical")
+    assert backfilled["prospective_eligible"] is False
+    assert prospective_records(root / "forward.jsonl") == []
+
+
+def check_t23_delivery_and_stage_contract() -> None:
+    import json
+
+    from quant_research.delivery import validate_final_response
+
+    analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    response = analysis / "final_response.md"
+    assert validate_final_response(analysis, response)["delivery_status"] == "validated"
+    payload = json.loads((analysis / "analysis.json").read_text())
+    assert [row["stage"] for row in payload["stages"]] == [
+        "request", "collection", "data", "quant", "audit", "news", "cross-validation", "risk", "final"
+    ]
+    # Drop a stage, duplicate one, or change the order: all must fail.
+    broken = {**payload, "stages": payload["stages"][:-1]}
+    target = analysis / "broken.json"
+    target.write_text(json.dumps(broken), encoding="utf-8")
+    with contextlib.suppress(ValueError):
+        validate_final_response(analysis, response)
+    original = (analysis / "analysis.json").read_text()
+    (analysis / "analysis.json").write_text(json.dumps(broken), encoding="utf-8")
+    try:
+        validate_final_response(analysis, response)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("a missing stage must be rejected")
+    finally:
+        (analysis / "analysis.json").write_text(original, encoding="utf-8")
+
+
+def check_t24_missing_production_path_stays_unavailable() -> None:
+    from quant_research.consensus import build_consensus
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    from quant_research.snapshot import load_snapshot
+
+    manifest, _market = load_snapshot(snapshot)
+    shadow = {"researcher_id": "ml", "result_role": "shadow", "ticker": "SYN", "horizon": "5D",
+              "snapshot_id": manifest["snapshot_id"], "status": "success", "prob_up": 0.8,
+              "raw_probability": 0.8, "probability_source": "shadow", "validation": {}}
+    consensus = build_consensus([shadow], manifest, bars=bars, sessions=sessions)
+    assert consensus["prob_up"] is None
+    assert consensus["production_probability_eligible"] is False
+    assert consensus["status"] == "unavailable"
+
+
 CHECKS = [
-    ("F01 current probability not clobbered", check_f01_current_probability_not_clobbered),
-    ("F02 per-origin calibration fields", check_f02_causal_calibration_fields),
-    ("F02 prefix invariance", check_f02_prefix_invariance),
-    ("F02 audit accepts/rejects", check_f02_audit_accepts_and_rejects),
+    ("T01 forecast horizon is 5 sessions", check_t01_forecast_horizon_is_five_sessions),
+    ("T02 fixed window and coverage", check_t02_fixed_window_and_coverage),
+    ("T03 declared window must match policy", check_t03_declared_window_must_match_policy),
+    ("T04 bars outside the window are rejected", check_t04_bars_outside_window_are_rejected),
+    ("T05 dividend-adjusted basis is rejected", check_t05_dividend_adjusted_basis_is_rejected),
+    ("T06 target is the fifth session", check_t06_target_is_fifth_session),
+    ("T07 unverified calendar blocks formal probability", check_t07_unverified_calendar_blocks_formal_probability),
+    ("T08 labels matured at each origin", check_t08_labels_are_matured_at_each_origin),
+    ("T09 OOS support 0/11/12", check_t09_oos_support_counts_zero_eleven_twelve),
+    ("T10 directional edge needs 30 and a positive interval", check_t10_directional_edge_requires_thirty_and_positive_interval),
+    ("T11 current prediction is reproducible", check_t11_current_prediction_is_reproducible),
+    ("T12 transform tampering is rejected", check_t12_transform_tampering_is_rejected),
+    ("T13 transform version change is rejected", check_t13_transform_version_change_is_rejected),
+    ("T14 parameter tampering is rejected", check_t14_parameter_tampering_is_rejected),
+    ("T15 same decision is recorded once", check_t15_same_decision_is_recorded_once),
+    ("T16 window slide keeps the same probability", check_t16_window_slide_keeps_same_probability),
+    ("T17 single production path", check_t17_single_production_path),
+    ("T18 shadow probability isolation", check_t18_shadow_probability_isolation),
+    ("T19 shadow failure does not block production", check_t19_shadow_failure_does_not_block_production),
+    ("T20 factor uses post-selection labels only", check_t20_factor_uses_post_selection_labels_only),
+    ("T21 ML refits every origin", check_t21_ml_refits_every_origin),
+    ("T22 ledger prospective/retrospective", check_t22_ledger_prospective_and_retrospective),
+    ("T23 delivery and stage contract", check_t23_delivery_and_stage_contract),
+    ("T24 missing production path stays unavailable", check_t24_missing_production_path_stays_unavailable),
     ("F03 credential redaction", check_f03_redaction),
-    ("F04 response text validation", check_f04_response_text_validation),
-    ("F05 retained artifact binding", check_f05_retained_binding),
     ("F07 malformed market fields", check_f07_malformed_fields),
     ("F08 preflight and fallback counting", check_f08_preflight_and_counting),
-    ("F09 bootstrap estimability", check_f09_bootstrap_estimability),
-    ("F10 ensemble check scope", check_f10_ensemble_scope),
     ("F11 options expiry Unix seconds", check_f11_options_expiry_unix_seconds),
     ("F12 cache_dir PathLike normalized", check_f12_cache_dir_pathlike),
-    ("F13 horizon-scaled OOS support", check_f13_horizon_scaled_support),
-    ("F14 confidence composite bands", check_f14_confidence_composite),
-    ("F15 52-week window defaults", check_f15_52_week_window_defaults),
-    ("F16 factor path fits 52 weeks", check_f16_factor_path_fits_52_weeks),
     ("F17 host AI lean layer", check_f17_ai_lean_layer),
     ("F18 orphan scratch sweep", check_f18_orphan_sweep),
     ("F19 retention and cache pruning", check_f19_retention_gc),
-    ("F20 pipeline golden regression", check_f20_pipeline_golden),
-    ("F21 OOS record audit reasons", check_f21_oos_record_audit),
     ("F22 daily bar timestamp precision", check_f22_daily_bar_timestamp_precision),
-    ("F23 window-scaled OOS support", check_f23_window_scaled_support),
-    ("F24 shared support ceiling", check_f24_shared_support_ceiling),
-    ("F25 composite momentum feature", check_f25_composite_momentum),
-    ("F26 momentum probability separation", check_f26_momentum_probability_separation),
     ("F27 A/B protocol statistics", check_f27_ab_protocol_statistics),
     ("F28 selection statistics", check_f28_selection_statistics),
     ("F29 reliability accounting", check_f29_reliability_accounting),
     ("F30 anchored sampling phase", check_f30_anchored_sampling),
-    ("F31 qualification is authoritative", check_f31_qualification_is_authoritative),
-    ("F32 candidate profiles opt-in", check_f32_candidate_profiles),
     ("F33 holiday collisions", check_f33_holiday_collisions),
     ("F34 capacity and timing", check_f34_capacity_and_timing),
-    ("F35 confidence disclosure fields", check_f35_confidence_disclosure_fields),
-    ("F36 eligibility and uncertainty", check_f36_eligibility_and_uncertainty),
-    ("F37 path error dependency", check_f37_path_error_dependency),
-    ("F38 ML hyperparameter record", check_f38_ml_hyperparameters),
-    ("F39 forward ledger", check_f39_forward_ledger),
-    ("F40 ledger metrics semantics", check_f40_ledger_metrics_semantics),
-    ("F41 production replay capacity", check_f41_production_replay_capacity),
-    ("F42 live entry matches replay", check_f42_live_entry_matches_replay),
-    ("F43 compact candidate is shadow only", check_f43_compact_candidate_is_shadow_only),
     ("F44 forward eligibility", check_f44_forward_eligibility),
-    ("F45 candidates never switch production", check_f45_candidates_never_switch_production),
-    ("F46 quant shrinkage is applied", check_f46_quant_shrinkage_is_applied),
 ]
 
 if __name__ == "__main__":

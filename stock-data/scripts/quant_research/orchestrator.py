@@ -1,23 +1,32 @@
-"""Run isolated researcher entrypoints, then consensus, adversarial audit, and reports."""
+"""Run the fixed-policy research pipeline and bind every stage to one snapshot."""
 
 from __future__ import annotations
 
+import hashlib
+import json
 import time
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from . import __version__
 from .audit import audit
-from .consensus import build_consensus, forecast_assessment, oos_support_sessions
-from .contracts import RESEARCHERS, researcher_result
+from .consensus import build_consensus, forecast_assessment
+from .contracts import researcher_result
 from .delivery import validate_response_text
-from .feasibility import build_forecast_feasibility, build_timing
-from .gate_policy import aggregate_gate_telemetry, analysis_status, build_report_eligibility
+from .feasibility import build_timing
+from .forecast_policy import (
+    POLICY_VERSION,
+    REQUIRED_STAGES,
+    is_sampled_ordinal,
+    model_identity,
+    session_ordinal,
+)
 from .jsonio import write_json
-from .news import load_frozen_result, prepare_news_input, run_news
-from .news.pipeline import freeze_result
+from .ledger import prospective_records
+from .market_data import calendar_session_list, market_bars
+from .news import freeze_result, load_frozen_result, prepare_news_input, run_news
 from .paths import safe_output_destination
 from .report import (
     build_agent_summary,
@@ -29,7 +38,6 @@ from .researchers import factor, factor_backtest, ml, quant
 from .security import bounded_text
 from .snapshot import load_snapshot
 from .synthesis import build_synthesis
-from .validation.probability_quality import audit_oos_result
 
 RUNNERS: dict[str, Callable[[Path, tuple[dict[str, Any], dict[str, Any]] | None], dict[str, Any]]] = {
     "quant": quant.run,
@@ -38,205 +46,231 @@ RUNNERS: dict[str, Callable[[Path, tuple[dict[str, Any], dict[str, Any]] | None]
     "factor_backtest": factor_backtest.run,
 }
 
+ROLE_BY_PATH = {"quant": "production", "factor": "shadow", "ml": "shadow", "factor_backtest": "diagnostic"}
+
+
+def _canonical_digest(payload: Any) -> str:
+    return hashlib.sha256(json.dumps(payload, sort_keys=True, separators=(",", ":"), default=str).encode("utf-8")).hexdigest()
+
+
+def _stage(stages: list[dict[str, Any]], name: str, status: str, *, payload: Any = None, reason: str | None = None,
+           run_id: str | None = None, snapshot_id: str | None = None) -> None:
+    if name not in REQUIRED_STAGES:
+        raise ValueError(f"unknown stage: {name}")
+    if any(item["stage"] == name for item in stages):
+        raise ValueError(f"duplicate stage: {name}")
+    stages.append({
+        "stage": name,
+        "status": status,
+        "reason": reason,
+        "run_id": run_id,
+        "snapshot_id": snapshot_id,
+        "policy_version": POLICY_VERSION,
+        "payload_sha256": _canonical_digest(payload) if payload is not None else None,
+    })
+
+
+def _validate_stages(stages: list[dict[str, Any]]) -> None:
+    names = [item["stage"] for item in stages]
+    if names != list(REQUIRED_STAGES):
+        raise ValueError(f"stage sequence must be exactly {list(REQUIRED_STAGES)}; got {names}")
+    for item in stages:
+        if item["status"] not in {"complete", "skipped", "not_applicable", "not_assessed", "blocked", "insufficient_data"}:
+            raise ValueError(f"invalid stage status: {item['status']}")
+        if item["status"] != "complete" and not item.get("reason"):
+            raise ValueError(f"stage {item['stage']} must explain a non-complete status")
+
+
+def _decision_sampled(decision_session: str | None, sessions: list[date] | None) -> bool | None:
+    if not decision_session or not sessions:
+        return None
+    try:
+        ordinal = session_ordinal(sessions, date.fromisoformat(decision_session))
+    except ValueError:
+        return None
+    return is_sampled_ordinal(ordinal)
+
 
 def run_analysis(
     snapshot_dir: Path, output_root: Path, news_policy: dict[str, Any] | None = None,
     *, on_analysis_created: Callable[[Path], None] | None = None,
     news_ai_assessment: dict[str, Any] | None = None,
+    ledger_path: Path | None = None,
 ) -> Path:
-    pipeline_started = time.perf_counter()
-    snapshot_load_started = time.perf_counter()
-    loaded = load_snapshot(snapshot_dir, include_news=True)
-    snapshot_load_seconds = time.perf_counter() - snapshot_load_started
-    manifest, market = loaded[:2]
-    news_domain = loaded[2] if len(loaded) == 3 else None
-    bars = market.get("data", {}).get("bars", [])
+    started = time.perf_counter()
+    manifest, market = load_snapshot(snapshot_dir)
+    snapshot_id = manifest["snapshot_id"]
+    run_id = manifest.get("run_id") or snapshot_id
     report_manifest = {
-        **manifest,
-        "market_history_start": bars[0].get("date") if bars else None,
-        "market_history_end": bars[-1].get("date") if bars else None,
-        "research_window": market.get("data", {}).get("history_window"),
+        "ticker": manifest["ticker"],
+        "market": manifest["market"],
+        "horizon": manifest["horizon"],
+        "asof_timestamp": manifest.get("asof_timestamp"),
+        "snapshot_id": snapshot_id,
+        "policy": manifest.get("policy") or {},
+        "target_session": (manifest.get("policy") or {}).get("target_session"),
+        "data_validation": manifest.get("data_validation") or {},
+        "data_quality": manifest.get("data_quality") or {},
+        "warnings": (manifest.get("data_quality") or {}).get("issues") or [],
     }
-    analysis_id = f"{manifest['snapshot_id']}_analysis_{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%S%fZ')}"
-    destination = safe_output_destination(output_root, analysis_id)
-    destination.mkdir(parents=True, exist_ok=False)
-    if on_analysis_created is not None:
-        on_analysis_created(destination)
-    researcher_dir = destination / "researchers"
-    researcher_dir.mkdir()
-
-    results: dict[str, dict[str, Any]] = {}
-    path_assessments: dict[str, dict[str, Any]] = {}
-    researcher_wall_seconds: dict[str, float] = {}
-    quant_started = time.perf_counter()
-    for researcher_id in RESEARCHERS:
-        path_started = time.perf_counter()
-        try:
-            # Each path receives only the frozen snapshot path. Its result is written
-            # after completion and is not passed to any later researcher.
-            if not manifest.get("data_validation", {}).get("forecast_eligible", False):
-                result = researcher_result(researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"], status="insufficient_data", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=["Prediction skipped: a fatal prediction-eligibility blocker was detected; non-fatal validation/audit gaps do not skip Quant."])
-            else:
-                result = RUNNERS[researcher_id](snapshot_dir, (manifest, market))
-        except Exception as exc:  # noqa: BLE001 - isolate a path failure and continue the ensemble
-            result = researcher_result(
-                researcher_id, manifest["ticker"], manifest["horizon"], manifest["snapshot_id"],
-                status="failed", result_role="diagnostic" if researcher_id == "factor_backtest" else "forecast", warnings=[f"Research path failed: {type(exc).__name__}: {bounded_text(exc)}"],
-            )
-        finally:
-            researcher_wall_seconds[researcher_id] = time.perf_counter() - path_started
-        results[researcher_id] = result
-
-    # OOS support thresholds scale to the widest ledger in the run, so every path has to be
-    # audited before any assessment is graded; grading them inline would let the first path
-    # define a ceiling the others never see.
-    for result in results.values():
-        if result.get("result_role", "forecast") == "forecast":
-            oos_evidence_audit = audit_oos_result(result, manifest, bars)
-            result["oos_evidence_audit"] = oos_evidence_audit
-    support_sessions = oos_support_sessions(list(results.values()))
-    for researcher_id, result in results.items():
-        assessment = forecast_assessment(result, manifest,
-                                         oos_evidence_audit=result.get("oos_evidence_audit"),
-                                         support_sessions=support_sessions)
-        # Merge rather than replace: the path's own disclosures (cost basis,
-        # calibration state, sample shortfalls) must survive gating messages.
-        merged_warnings = list(dict.fromkeys([*result.get("warnings", []), *assessment.get("warnings", [])]))
-        result.update(assessment)
-        result["warnings"] = merged_warnings
-        path_assessments[researcher_id] = assessment
-        write_json(researcher_dir / f"{researcher_id}.json", result)
-
-    consensus = build_consensus(list(results.values()), manifest, assessments=path_assessments, bars=bars)
-    consensus["horizon_type"] = manifest.get("data_validation", {}).get("horizon_type", "unavailable")
-    consensus["session_horizon_verified"] = bool(manifest.get("data_validation", {}).get("session_horizon_verified", False))
-    adversarial = audit(manifest, list(results.values()), consensus)
-    if not adversarial.get("may_report_direction", False):
-        prediction = {**(consensus.get("prediction") or {}), "status": "veto", "reportable_probability": None,
-                      "raw_probability": None, "calibrated_probability": None}
-        consensus = {
-            **consensus,
-            "pre_veto_prob_up": consensus.get("prob_up"),
-            "pre_veto_probability_range": consensus.get("probability_range"),
-            "prob_up": None,
-            "reportable_probability": None,
-            "raw_probability": None,
-            "calibrated_probability": None,
-            "prediction": prediction,
-            "probability": prediction,
-            "probability_range": None,
-            "direction": "research_invalid",
-            "direction_suppressed": True,
-            "reporting_status": "veto",
-        }
-    else:
-        consensus["reporting_status"] = adversarial.get("reporting_status", "degraded")
-        consensus["reportable_probability"] = consensus.get("prob_up")
-        # Promote the documented machine-readable basis from the nested
-        # prediction block so synthesis.quant can retain it.
-        consensus["probability_basis"] = (consensus.get("prediction") or {}).get("probability_basis")
-        consensus["prediction"] = {**(consensus.get("prediction") or {}), "reportable_probability": consensus.get("prob_up")}
-        consensus["probability"] = consensus["prediction"]
-    consensus["forecast_feasibility"] = build_forecast_feasibility(manifest, bars, results)
-    consensus["timing"] = build_timing(manifest, bars)
-    consensus["eligibility"] = build_report_eligibility(consensus, adversarial)
-    quant_result = {
-        "schema_version": "1.2",
-        "analysis_id": analysis_id,
+    ticker, market_name = manifest["ticker"], manifest["market"]
+    policy = manifest.get("policy") or {}
+    run = {
+        "schema_version": "analysis-3.0",
+        "run_id": run_id,
+        "snapshot_id": snapshot_id,
+        "policy_version": POLICY_VERSION,
         "created_at": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
-        "engine": {"name": "stock-data-quant-research", "version": __version__},
+        "package_version": __version__,
+    }
+    destination = safe_output_destination(output_root, run_id)
+    snapshot_binding = {"snapshot_id": snapshot_id, "content_sha256": manifest.get("snapshot_content_sha256")}
+    destination.mkdir(parents=True, exist_ok=True)
+    stages: list[dict[str, Any]] = []
+    _stage(stages, "request", "complete", payload=manifest.get("request"), run_id=run_id, snapshot_id=snapshot_id)
+    write_json(destination / "request.json", manifest.get("request") or {})
+    _stage(stages, "collection", "complete", payload=manifest.get("source_payload_sha256"), run_id=run_id, snapshot_id=snapshot_id)
+    write_json(destination / "snapshot.json", {
+        "schema_version": "analysis-snapshot-binding-1.0",
+        "snapshot_id": snapshot_id,
+        "source_payload_sha256": manifest.get("source_payload_sha256"),
+        "policy": policy,
+        "binding": snapshot_binding,
+    })
+
+    data_status = "complete" if (manifest.get("data_validation") or {}).get("forecast_eligible") else "blocked"
+    _stage(stages, "data", data_status, payload=manifest.get("data_validation"),
+           reason=None if data_status == "complete" else "snapshot data validation did not pass", run_id=run_id, snapshot_id=snapshot_id)
+    write_json(destination / "data.json", {
+        "data_quality": manifest.get("data_quality"),
+        "data_validation": manifest.get("data_validation"),
+        "policy": policy,
+    })
+
+    raw_bars = (market.get("data") or {}).get("bars") or []
+    bars = market_bars(market) if data_status == "complete" else [
+        {"date": str(row.get("date"))[:10], "close": row.get("close")} for row in raw_bars if isinstance(row, dict)
+    ]
+    sessions = calendar_session_list(market)
+    results: dict[str, dict[str, Any]] = {}
+    if data_status == "complete":
+        for path in ("quant", "factor", "ml", "factor_backtest"):
+            try:
+                result = RUNNERS[path](snapshot_dir, (manifest, market))
+            except Exception as exc:  # noqa: BLE001 - isolate a candidate failure from the production path
+                result = researcher_result(
+                    path, ticker, manifest["horizon"], snapshot_id, status="failed",
+                    result_role=ROLE_BY_PATH[path],
+                    warnings=[f"Research path failed: {type(exc).__name__}: {bounded_text(exc)}"],
+                )
+            result["result_role"] = ROLE_BY_PATH[path]
+            result["model_version"] = model_identity(path)["model_version"]
+            result["policy_version"] = POLICY_VERSION
+            results[path] = result
+    quant_status = (results.get("quant") or {}).get("status", "blocked")
+    _stage(stages, "quant", "complete" if quant_status == "success" else ("insufficient_data" if quant_status == "insufficient_data" else "blocked"),
+           payload={path: {"status": item.get("status"), "prob_up": item.get("prob_up")} for path, item in results.items()},
+           reason=None if quant_status == "success" else "production path A did not produce a probability", run_id=run_id, snapshot_id=snapshot_id)
+
+    prospective: list[dict[str, Any]] = []
+    if ledger_path:
+        try:
+            prospective = prospective_records(ledger_path, ticker=ticker, market=market_name)
+        except (OSError, ValueError):
+            prospective = []
+    assessments: dict[str, dict[str, Any]] = {}
+    if "quant" in results:
+        assessments["quant"] = forecast_assessment(
+            results["quant"], manifest, bars=bars, sessions=sessions, prospective_records=prospective,
+        )
+    consensus = build_consensus(
+        list(results.values()), manifest,
+        assessments=assessments, bars=bars, sessions=sessions, prospective_records=prospective,
+    )
+    consensus["decision_sampled"] = _decision_sampled(
+        (market.get("data") or {}).get("policy_window", {}).get("decision_session"), sessions
+    )
+    consensus["timing"] = build_timing(manifest, bars)
+    consensus["timing"]["target_session"] = policy.get("target_session")
+    news_result = None
+    frozen_path = snapshot_dir / "news_result.json"
+    if frozen_path.is_file():
+        try:
+            news_result, _ = load_frozen_result(frozen_path)
+        except ValueError:
+            news_result = None
+    if news_result is None and news_policy is not None:
+        payload = prepare_news_input(snapshot_dir)
+        news_result = run_news(payload, news_policy, news_ai_assessment)
+        freeze_result(frozen_path, news_result, result_name="news_result.json")
+    news_result = news_result or {"status": "not_assessed", "snapshot_id": snapshot_id,
+                                  "ticker": ticker, "market": market_name, "horizon": manifest.get("horizon"),
+                                  "asof_timestamp": manifest.get("asof_timestamp")}
+
+    adversarial = audit(
+        manifest, list(results.values()), consensus,
+        bars=bars, sessions=sessions, news=news_result, prospective_records=prospective,
+    )
+    if not adversarial["may_report_probability"]:
+        consensus["prob_up"] = None
+        consensus["reportable_probability"] = None
+        consensus["direction"] = "unavailable"
+        consensus["status"] = "unavailable"
+        consensus["production"]["prob_up"] = None
+        consensus["production"]["model_lean"] = "unavailable"
+        consensus["reason_codes"] = sorted(set(consensus.get("reason_codes", []) + adversarial.get("reason_codes", [])))
+    _stage(stages, "audit", "complete", payload=adversarial, run_id=run_id, snapshot_id=snapshot_id)
+    write_json(destination / "audit.json", adversarial)
+    (destination / "researchers").mkdir(exist_ok=True)
+    for path, item in results.items():
+        write_json(destination / "researchers" / f"{path}.json", item)
+    freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
+
+    news_status = news_result.get("status") or "not_assessed"
+    _stage(stages, "news", "complete" if news_status in {"valid", "complete"} else "not_assessed",
+           payload={"status": news_status}, reason=None if news_status in {"valid", "complete"} else "news evidence unavailable or not assessed",
+           run_id=run_id, snapshot_id=snapshot_id)
+    _stage(stages, "cross-validation", "not_applicable",
+           reason="news and Quant are reported independently; news never re-scores the production probability", run_id=run_id, snapshot_id=snapshot_id)
+    _stage(stages, "risk", "not_assessed",
+           reason="returns are gross close-to-close observations; execution, spread, slippage and fees are not modelled", run_id=run_id, snapshot_id=snapshot_id)
+
+    synthesis = build_synthesis({**run, "snapshot": report_manifest, "consensus": consensus,
+                                 "adversarial_audit": adversarial, "researchers": results}, news_result)
+    final = {
+        **run,
         "snapshot": report_manifest,
         "researchers": results,
         "consensus": consensus,
         "adversarial_audit": adversarial,
-    }
-    # Seal the full Quant result before News begins. The News runner receives
-    # only the snapshot path and policy; it is never passed this object or file.
-    freeze_result(destination / "quant_result.json", quant_result, result_name="quant_result.json")
-    quant_wall_seconds = time.perf_counter() - quant_started
-    news_started = time.perf_counter()
-    try:
-        # Snapshot loading is separate from the analyst entrypoint. After this
-        # conversion, run_news receives only the restricted in-memory contract.
-        news_input = prepare_news_input(snapshot_dir, (manifest, market), loaded_news_domain=news_domain)
-        news_result = run_news(news_input, news_policy, news_ai_assessment)
-        freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
-    except Exception as exc:  # noqa: BLE001 - a News-layer error must not erase the completed Quant output
-        news_result = {
-            "schema_version": "1.2",
-            "status": "not_assessed",
-            "ticker": manifest["ticker"],
-            "market": manifest["market"],
-            "horizon": manifest["horizon"],
-            "asof_timestamp": manifest["asof_timestamp"],
-            "snapshot_id": manifest["snapshot_id"],
-            "overall_direction": "unknown",
-            "sentiment": {"label": "unknown", "score": None, "confidence": "unavailable", "cross_source_divergence": "unknown"},
-            "market_confirmation": "not_assessed",
-            "major_events": [], "catalysts": [], "risks": [], "warnings": [f"News layer failed: {type(exc).__name__}: {bounded_text(exc)}"],
-            "confidence": "unavailable",
-        }
-        freeze_result(destination / "news_result.json", news_result, result_name="news_result.json")
-    news_wall_seconds = time.perf_counter() - news_started
-
-    # Synthesis is the only stage that loads both independently frozen results.
-    quant_frozen, quant_freeze_verified = load_frozen_result(destination / "quant_result.json")
-    news_frozen, news_freeze = load_frozen_result(destination / "news_result.json")
-    synthesis = build_synthesis(quant_frozen, news_frozen)
-    final = {
-        **quant_frozen,
-        "quant_result_freeze": quant_freeze_verified,
-        "news_result": news_frozen,
-        "news_result_freeze": news_freeze,
+        "news_result": news_result,
         "synthesis": synthesis,
+        "analysis_status": consensus.get("status"),
+        "reporting_status": "reportable" if consensus.get("production_probability_eligible") else "unavailable",
     }
-    final["reporting_status"] = adversarial.get("reporting_status", "veto")
-    final["gate_telemetry"] = aggregate_gate_telemetry([{
-        "prediction_available": bool(adversarial.get("may_report_direction")) and final.get("consensus", {}).get("reportable_probability") is not None,
-        "reporting_status": final["reporting_status"],
-    }])
-    final["analysis_status"] = analysis_status(
-        may_report_direction=bool(adversarial.get("may_report_direction")),
-        reporting_state=str(final["reporting_status"]),
-        researcher_statuses=[row.get("status") for row in results.values()],
-        news_status=str(news_frozen.get("status", "not_assessed")),
-    )
-    final["stages"] = [
-        {"stage": "request", "status": "validated"},
-        {"stage": "collection", "status": "source_receipt_loaded", "fresh_fetch_performed_by_analyze": False},
-        {"stage": "data_validation", "status": manifest["data_validation"].get("reporting_status", "veto"), "prediction_eligible": manifest["data_validation"].get("forecast_eligible", False)},
-        {"stage": "quant", "status": "returned", "paths": {key: row["status"] for key, row in results.items()}},
-        {"stage": "audit", "status": adversarial["status"]},
-        {"stage": "quant_freeze", "status": "verified"},
-        {"stage": "news", "status": news_frozen.get("status", "not_assessed")},
-        {"stage": "news_freeze", "status": "verified"},
-        {"stage": "cross_validation", "status": synthesis["alignment"]},
-        {"stage": "risk_uncertainty", "status": "aggregated"},
-        {"stage": "final", "status": final["analysis_status"]},
-    ]
-    ml_validation = results.get("ml", {}).get("validation") or {}
-    performance = {
-        "measurement": "wall_clock_perf_counter; runtime memory tracing disabled",
-        "analysis_through_synthesis_wall_seconds": time.perf_counter() - pipeline_started,
-        "snapshot_loads": 1,
-        "snapshot_load_wall_seconds": snapshot_load_seconds,
-        "researcher_snapshot_reads": 0,
-        "researcher_wall_seconds": researcher_wall_seconds,
-        "quant_through_frozen_result_wall_seconds": quant_wall_seconds,
-        "news_through_frozen_result_wall_seconds": news_wall_seconds,
-        "ml_training": ml_validation.get("model_training_performance", {"status": "not_assessed"}),
-        "ml_model_selection": ml_validation.get("model_selection", {"status": "not_assessed"}),
-        "peak_memory_bytes": None,
-        "peak_memory_status": "not_measured_in_normal_runtime",
-    }
-    final["performance"] = performance
-    summary = build_agent_summary(final)
-    summary["sections"]["quant"]["performance"] = performance
-    summary = enforce_agent_summary_budget(summary)
-    write_json(destination / "report.json", final)
-    write_json(destination / "agent_summary.json", summary)
-    (destination / "report.md").write_text(render_markdown(final), encoding="utf-8")
-    response = render_final_response(final, summary=summary)
+    _stage(stages, "final", "complete", payload={"consensus": consensus, "audit": adversarial, "synthesis": synthesis},
+           run_id=run_id, snapshot_id=snapshot_id)
+    _validate_stages(stages)
+    final["stages"] = stages
+
+    agent_summary = enforce_agent_summary_budget(build_agent_summary(final))
+    markdown = render_markdown(final)
+    response = render_final_response(final, summary=agent_summary)
     validate_response_text(final, response)
+    write_json(destination / "agent_summary.json", agent_summary)
+    _markdown_path = destination / "report.md"
+    _markdown_path.write_text(markdown, encoding="utf-8")
+    write_json(destination / "analysis.json", final)
     (destination / "final_response.md").write_text(response, encoding="utf-8")
+    final["artifacts"] = {
+        "analysis": str(destination / "analysis.json"),
+        "markdown": str(_markdown_path),
+        "agent_summary": str(destination / "agent_summary.json"),
+        "final_response": str(destination / "final_response.md"),
+    }
+    write_json(destination / "analysis.json", final)
+    run["stages"] = stages
+    run["elapsed_seconds"] = round(time.perf_counter() - started, 3)
+    if on_analysis_created is not None:
+        on_analysis_created(destination)
     return destination

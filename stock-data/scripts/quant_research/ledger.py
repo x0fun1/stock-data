@@ -28,12 +28,19 @@ import hashlib
 import json
 import math
 import os
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
-SCHEMA_VERSION = "ledger-2.0"
-READABLE_SCHEMAS = frozenset({SCHEMA_VERSION, "ledger-1.0"})
+from .forecast_policy import (
+    POLICY_VERSION,
+    TARGET_VERSION,
+    ledger_group_key,
+    model_identity,
+)
+
+SCHEMA_VERSION = "ledger-3.0"
+READABLE_SCHEMAS = frozenset({SCHEMA_VERSION, "ledger-2.0", "ledger-1.0"})
 PREDICTION = "prediction"
 SETTLEMENT = "settlement"
 SETTLEMENT_RULE = "close_to_close_horizon_sessions"
@@ -257,6 +264,8 @@ def record_prediction(
     consensus = result.get("consensus") or {}
     if not isinstance(snapshot, dict) or not snapshot.get("ticker") or not snapshot.get("horizon"):
         raise ValueError("result does not contain a frozen snapshot")
+    if snapshot.get("horizon") != "5D":
+        raise ValueError("the fixed policy ledger only accepts 5D forecasts")
     probability = consensus.get("prob_up")
     if probability is not None and (
         not isinstance(probability, (int, float))
@@ -269,9 +278,19 @@ def record_prediction(
     events = read_events(ledger_path)
     if any(event["event"] == PREDICTION and event.get("prediction_id") == prediction_id for event in events):
         return {"status": "duplicate", "prediction_id": prediction_id, "ledger": str(ledger_path)}
+    group_key = ledger_group_key(ticker=str(snapshot.get("ticker")), market=str(snapshot.get("market")), path="quant")
     timing = consensus.get("timing") or result.get("timing") or {}
+    decision_session = timing.get("decision_session")
+    if any(
+        event.get("event") == PREDICTION
+        and event.get("group_key") == group_key
+        and event.get("decision_session") == decision_session
+        for event in events
+    ):
+        return {"status": "duplicate", "reason": "same_group_and_decision_session", "ledger": str(ledger_path)}
     recorded_at = _parse_time(_now())
-    assert recorded_at is not None
+    if recorded_at is None:
+        raise ValueError("system clock could not be parsed")
     decision_at = _parse_time(timing.get("decision_at")) or _parse_time(snapshot.get("asof_timestamp"))
     horizon_sessions = _horizon_sessions(snapshot.get("horizon"))
     if bars is None and snapshot_dir is not None:
@@ -322,15 +341,24 @@ def record_prediction(
         "entry_basis": timing.get("entry_basis", "not_modelled"),
         "prob_up": consensus.get("prob_up"),
         "raw_probability": consensus.get("raw_probability"),
-        "calibrated_probability": consensus.get("calibrated_probability"),
-        "shadow_calibrated_probability": consensus.get("shadow_calibrated_probability"),
-        "calibration_status": consensus.get("calibration_status"),
-        "probability_basis": consensus.get("probability_basis"),
+        "calibrated_probability": None,
+        "calibration_status": "disabled_by_policy",
+        "probability_basis": consensus.get("probability_label") or "uncalibrated_model_estimate",
         "direction": consensus.get("direction"),
-        "confidence": consensus.get("confidence"),
-        "confidence_score": consensus.get("confidence_score"),
-        "predictive_evidence_grade": consensus.get("predictive_evidence_grade"),
+        "confidence": None,
+        "confidence_score": None,
+        "confidence_score_deprecated": True,
+        "predictive_evidence_grade": None,
         "eligibility": consensus.get("eligibility"),
+        "policy_version": POLICY_VERSION,
+        "model_version": model_identity("quant")["model_version"],
+        "feature_version": model_identity("quant")["feature_version"],
+        "target_version": TARGET_VERSION,
+        "group_key": ledger_group_key(ticker=str(snapshot.get("ticker")), market=str(snapshot.get("market")), path="quant"),
+        "probability_transform": (consensus.get("production") or {}).get("probability_transform"),
+        "causal_base_rate": (consensus.get("production") or {}).get("causal_base_rate"),
+        "decision_sampled": consensus.get("decision_sampled"),
+        "production_probability_eligible": consensus.get("production_probability_eligible"),
         "engine_version": (result.get("engine") or {}).get("version"),
         "forward_eligibility": forward,
         "prospective_eligible": bool(forward["prospective_eligible"]),
@@ -360,7 +388,7 @@ def _causal_base_rates(bars: list[dict[str, Any]], horizon_sessions: int) -> lis
             close = float("nan")
         closes.append(close)
     up_flags: list[int] = [0]
-    for index in range(0, max(0, len(closes) - horizon_sessions)):
+    for index in range(max(0, len(closes) - horizon_sessions)):
         start, end = closes[index], closes[index + horizon_sessions]
         up_flags.append(up_flags[-1] + (1 if math.isfinite(start) and math.isfinite(end) and end > start else 0))
     rates: list[float | None] = []
@@ -671,6 +699,8 @@ def audit(ledger_path: Path) -> dict[str, Any]:
         seen_dates[key] = seen_dates.get(key, 0) + 1
     settled_forward = len(prospective)
     coverage = settled_forward / (settled_forward + len(pending_prospective)) if settled_forward + len(pending_prospective) else None
+    cutoff = (date.today() - timedelta(days=364)).isoformat()
+    recent = [item for item in prospective if str(item.get("decision_session") or "") >= cutoff]
     return {
         "schema_version": SCHEMA_VERSION,
         "ledger": str(ledger_path),
@@ -689,6 +719,9 @@ def audit(ledger_path: Path) -> dict[str, Any]:
             {"|".join(str(part) for part in key): count for key, count in seen_dates.items() if count > 1}.items()
         ),
         "metrics_basis": "prospective_eligible_predictions_only",
+        "evaluation_window_days": 364,
+        "evaluation_window_start": cutoff,
+        "recent_prospective": _metrics(recent),
         "overall": _metrics(prospective),
         "prospective": _metrics(prospective),
         "retrospective": _metrics(retrospective),
@@ -703,3 +736,46 @@ def audit(ledger_path: Path) -> dict[str, Any]:
             "legacy ledger-1.0 rows cannot be proven prospective and are reported separately",
         ],
     }
+
+
+def prospective_records(
+    ledger_path: str | Path, *, ticker: str | None = None, market: str | None = None,
+) -> list[dict[str, Any]]:
+    """Matured, prospective, same-version records for the directional-edge check.
+
+    Only predictions recorded before their label matured are returned.  Imported
+    history and retrospective backfills can never become prospective evidence.
+    """
+
+    events = read_events(Path(ledger_path))
+    predictions: dict[str, dict[str, Any]] = {}
+    settlements: dict[str, dict[str, Any]] = {}
+    for event in events:
+        if event.get("event") == PREDICTION:
+            predictions[event["prediction_id"]] = event
+        elif event.get("event") == SETTLEMENT:
+            settlements[event["prediction_id"]] = event
+    rows = []
+    for prediction_id, settlement in settlements.items():
+        prediction = predictions.get(prediction_id)
+        if not prediction or prediction.get("prospective_eligible") is not True:
+            continue
+        if prediction.get("policy_version") != POLICY_VERSION or prediction.get("target_version") != TARGET_VERSION:
+            continue
+        if ticker and str(prediction.get("ticker")).upper() != ticker.upper():
+            continue
+        if market and str(prediction.get("market")).upper() != market.upper():
+            continue
+        transform = prediction.get("probability_transform") or {}
+        rows.append({
+            "decision_session": prediction.get("decision_session"),
+            "probability": prediction.get("prob_up"),
+            "target": settlement.get("hit"),
+            "probability_transform": transform,
+            "causal_base_rate": transform.get("base_rate_at_origin", prediction.get("causal_base_rate")),
+            "sampled": prediction.get("decision_sampled") is True,
+            "status": "matured",
+            "evidence_scope": "prospective_fixed_52w",
+            "settled_at": settlement.get("recorded_at"),
+        })
+    return rows

@@ -1,59 +1,57 @@
-# Consensus and Adversarial Audit
+# Consensus Protocol
 
-## Consensus
+## Single path, no ensemble
 
-Consensus reads A/B/C after all paths return. It requires valid snapshot identity, fatal data-integrity checks and contract-valid path probabilities. `mode=standard/strict` does not add OOS/calibration eligibility thresholds: weak/insufficient OOS and unavailable calibration lower confidence and set reporting to `DEGRADED`; they do not discard an otherwise valid probability. Detected leakage, invalid target construction or fatal data conflicts still veto. D never votes.
+`consensus.aggregation_method` is `single_path` and
+`production_path_count` is 1. The production probability is exactly the
+eligible Research A estimate. A/B/C equal-weight means, Brier-skill weights,
+ensemble Platt calibrators and heuristic confidence scores are removed.
 
-Eligible path estimates receive equal arithmetic weight; this is not a majority vote. Keep `raw_probability`, `calibrated_probability`, `shadow_calibrated_probability` and `reportable_probability` distinct. The combined `calibrated_probability` stays null: the retrospective Platt candidate is recorded in `shadow_calibration` and never becomes the published value. `reportable_probability` is the plain equal-weight mean and `raw_probability` repeats it; enabling an ensemble calibrator requires a frozen mapping plus prospective evidence. Report number/names of paths, mean, range/stddev, directional agreement ratio, disagreement grade and evidence-family diversity. The path range is not a statistical interval.
+| Path | Role | Effect on the published number |
+|---|---|---|
+| A `quant` | production | the published probability, when eligible |
+| B `factor` | shadow | displayed separately; no vote, no fallback |
+| C `ml` | shadow | displayed separately; no vote, no fallback |
+| D `factor_backtest` | diagnostic | descriptive IC only; never a probability |
 
-Confidence is separate from probability and never a veto by itself. The policy uses an explainable 0–100 weighted evidence composite, with labels high (80–100), medium (60–79), low (40–59), very low (<40). It is not prediction accuracy, correctness probability or a statistical interval. Report causes such as fallback calendar, unknown adjustment, single provider, OOS/calibration gaps, weak agreement, absence of an ensemble calibrator that improved the subsequent ledger check, and insufficient evidence. `predictive_evidence_grade` separately compares the historical date-by-date equal-weight policy to a causal expanding base rate. Grades are insufficient evidence, observed skill below the base rate (interval entirely below zero), no observed positive skill, exploratory positive skill (fewer than the horizon-scaled full-support target; e.g. 38 non-overlapping predicted dates at 5D under the one-year default window), and, at that target or more, positive point skill with uncertainty unestimated, estimated interval excluding zero, or estimated interval including zero. The bootstrap interval is estimated, and can drive grading, only when the ledger supplies at least four independent blocks and the resamples vary; otherwise the interval is marked not estimable. No grade claims statistical confirmation. Brier Skill weights are generated only as experimental temporal-validation diagnostics when common dated OOS support is sufficient; the live consensus remains equal-weight until independent real-snapshot OOS and performance acceptance is complete.
+If A fails, abstains or is ineligible, `prob_up` stays null even when B/C have
+numbers. A shadow path can never replace A.
 
-The composite blends five dimensions — data integrity (0.20), OOS validation (0.25), policy-replay skill (0.25), calibration (0.15) and consensus robustness (0.15) — each scored 0–100 so a closed gap earns full credit. Policy replay scores full credit when a positive skill carries an estimated interval excluding zero, 65 when the interval is unestimated or includes zero, 20 when evidence is insufficient to grade, 15 for a nonpositive point estimate, and 10 when the interval lies entirely below the expanding base rate. OOS support maps path statuses to 100/80/45/20 points (strong/acceptable/weak/insufficient) with thresholds scaled to the one-year default window: tiers derive from the widest non-overlapping ledger the run actually holds, each capped at that budget, and scaling applies only when the ledger covers at least three quarters of the nominal window, so a materially shorter study keeps the nominal tiers and reports insufficient support. Per-path grading and the composite read the same ledger ceiling. Caps keep labels honest: a single usable path caps the score at 74, an interval entirely below the base rate at 64, and a nonpositive point estimate at 74. These are conservative heuristic choices, not empirically calibrated accuracy adjustments. Any rejected OOS row applies the existing `oos_evidence_invalid` adjustment (-10 on the OOS dimension) and incomplete leakage audits -15. `row_validation` exposes counts, `rejected_sample_rate` and reasons; neither a rate-based replacement threshold nor these penalty sizes have been validated on independent market data. Missing records and verified timing violations should not be treated as interchangeable solely by rejection percentage.
+## Five separate flags
 
-Path IDs must be unique. All records sharing a duplicate ID are excluded from both voting and OOS diagnostics, with `path_input_rejections` explaining the exclusion. `build_consensus` passes its explicit `assessments` into probability-quality and experimental-weight diagnostics; a missing assessment excludes that path from the current forecast cohort. Standalone diagnostics accept the same optional map. Omitting it retains legacy path annotations/defaults and is disclosed as `assessment_source=legacy_path_annotations`; that mode does not independently certify current forecast eligibility. Historical policy replay still uses valid dated paths independently of today's eligibility, while explicit leakage findings exclude a path from replay.
+The consensus publishes `computable`, `current_prediction_integrity_pass`,
+`oos_integrity_pass`, `production_probability_eligible`,
+`directional_edge_supported` and `trading_signal_eligible`. Do not collapse them
+into one score and do not describe a computable estimate as production-ready.
 
-Evidence families describe input exposure, not independent information or fitted feature contribution. C reports its momentum, trend, volatility and volume inputs rather than labeling the entire logistic model as momentum. Price-range close location belongs to trend/price position; the overnight price return belongs to momentum. These conventions also govern B's limit of two selected factors per family, so correcting labels may change B's retained set. Jaccard overlap is a taxonomy-based heuristic and cannot establish independence between models sharing the same OHLCV source.
+Thresholds are fixed:
 
-## OOS probability quality and experimental weights
+- current matching sample: at least 12 same-sign matured origins, 6 sessions apart;
+- prefix replay: at least 12 valid non-overlapping predictions from the fixed
+  exchange-session phase (anchor 2000-01-03, ordinal mod 6 == 0);
+- prospective evidence: at least 30 truly prospective, non-overlapping, matured
+  outcomes before any directional-edge claim;
+- no sample-size scaling: a shorter listing or incomplete window reports the
+  actual gap instead of borrowing a lower relative standard.
 
-Each researcher may publish dated `validation.oos_forecasts[]` rows. The runtime validates path identity, decision/label sessions against frozen bars, exact `decision + H` label end, close-derived binary target, target definition, as-of maturity, duplicate decisions, and training-label end no later than the decision. Rejected rows include structured reasons and are excluded from metrics. Comparisons require the same ticker, horizon, target definition, label-end session and common OOS decision dates. Reports include per-path Brier, Log Loss, ten-bin reliability data, ECE, valid-prediction coverage, abstain rate and bucket counts. They also show common-date metrics for current eligible paths, the all-candidate intersection, and the stricter subset where every path in the selected set predicted; model-specific coverage is never hidden. A single eligible path still receives its own common-set metrics. Calibration intervals are not claimed for path metrics. Because the ledger records daily walk-forward predictions whose horizon labels overlap, per-path records also expose `prediction_days`, a conservative `non_overlapping_prediction_count` and an `effective_sample_size_estimate`; evidence thresholds use the non-overlapping count, and repeated labels are not counted as equal independent samples. ECE is auxiliary. The adversarial audit separately cross-checks each forecast path's self-reported OOS Brier against the value recomputed from the same path's validated dated rows; a mismatch is reported as `OOS_SELF_REPORT_MISMATCH` instead of the self-report being trusted, and paths whose rows were rejected or unavailable are marked not comparable.
+## Shadow isolation
 
-The `algorithm_policy_replay` uses each validated historical OOS date once and averages all paths with a valid prediction on that date. It compares only those exact scored dates to a Jeffreys-smoothed expanding base rate formed from matured, non-overlapping labels available by the decision session. It records the number of eligible OOS label dates, predicted-date coverage, an `active_path_mask` with available path IDs for each date, active path count, Brier, Log Loss, Brier Skill, a conservative `non_overlapping_predicted_dates` count, and a moving-block bootstrap percentile interval for the skill (blocks of consecutive predicted sessions preserve horizon-overlap dependence; 95% percentile interval, fixed seed, disclosed iterations). This remains a retrospective replay of the frozen snapshot; dates absent from all path OOS records and historical changes in data eligibility are not reconstructed, so it is not an independent prospective validation.
+Shadow results are copied into `shadow_predictions` with
+`production_probability: false`. Their status, probability and model version may
+be displayed, but they do not enter `prob_up`, `model_lean`,
+`production_probability_eligible`, `directional_edge_supported` or any report
+status. A shadow crash is isolated and never blocks A.
 
-The experimental Brier Skill diagnostic first intersects dated OOS rows and uses only dates with a valid probability from every path. It splits those common rows chronologically into an earlier estimation window and a later evaluation window; the evaluation window starts strictly after the last estimation label so that estimation labels mature first (daily ledgers need this purge because adjacent horizon labels overlap). The baseline is the positive rate in the estimation window; each path's Brier and `skill_i = max(0, (baseline_brier - path_brier) / baseline_brier)` use that same window. Candidate weights are proportional to `skill_i + epsilon`, with configurable `epsilon` defaulting to 0.05. An invalid/zero baseline, missing path score, incompatible target/window or fewer than 20 rows in either window returns equal-weight fallback. Output records `common_oos_samples`, `weight_estimation_start/end`, evaluation dates, `baseline_brier`, per-path `path_brier`, skills, epsilon, concentration risk and later-window weighted/equal/base-rate Brier. This diagnostic never changes the current forecast; `weighting` remains `equal` and `current_weighting_enabled=false` until a separately governed independent OOS run and performance review approves deployment.
+## What is not published
 
-A separate `ensemble_calibration` diagnostic fits a deterministic Platt calibrator on the earliest 60% of predicted dates and checks it on later dates that begin strictly after the fit block's last label end. The check block overlaps windows already used by path-level evaluation, so the result is descriptive, not independent confirmation. The candidate is recorded in `shadow_calibration` with `applied: false`; it never changes the published probability. `calibrated_probability` stays null, the reportable value remains the raw equal-weight mean, and `calibration_status` says `ensemble_calibration_shadow_only` when a shadow candidate exists. Enabling an ensemble calibrator requires a frozen mapping plus prospective evidence, not another retrospective check.
+- no `confidence_score` (field is null and deprecated);
+- no `predictive_evidence_grade` 0–100 substitute;
+- no ensemble probability range presented as a confidence interval;
+- no probability blending between Quant and News.
 
-The existing `spread > 0.30` class remains a descriptive extreme-disagreement risk marker and has not been recalibrated on a real development set. Availability of three paths does not remove that signal. Audit withholds the report only when an adequately sized later common OOS evaluation shows both the current equal-weight consensus and every contributing path fail to beat the estimation-window base-rate Brier; with insufficient or inconclusive support it records `LOW_FACTOR_AGREEMENT` and applies the existing reporting gate. Experimental skill weights cannot rescue an equal-weight forecast.
+## Evidence blocks
 
-The optional `economic_viability` report averages available path gross expected returns and applies assumed 5/10/20 bp round-trip costs as a sensitivity table. This does not estimate actual fees, slippage, market impact, or executable net returns. It is not read by the confidence or consensus probability calculation. The News input contract also excludes this field.
-
-If fewer than two paths return valid probabilities, label `single_path`; zero valid probabilities means unavailable. A single-path estimate may be reported as DEGRADED if it passes prediction integrity. Exclude an invalid/leaking path; explicit leakage detection or another fatal pipeline-integrity defect vetoes the combined report under current policy.
-
-## Horizon semantics
-
-With a resolved complete calendar, labels use confirmed exchange sessions. Under observation-date fallback, historical labels count `h` next OHLCV observations and the future horizon is estimated; report `horizon_type=estimated_observed_sessions` and lower confidence. Never call the fallback calendar-verified. Factor diagnostics follow the same frozen horizon semantics.
-
-## Factor IC and forward-return diagnostic
-
-Research D tests a fixed OHLCV factor set against 1D/5D/20D forward returns using chronological splits, non-overlapping labels and cutoffs learned only on the training segment. For a single ticker, label Spearman IC as time-series IC. The grouped return spread is a descriptive time-series statistic, not a long/short portfolio simulation. `factor_backtest` insufficiency is supporting-validation information and does not veto a probability absent detected leakage or invalid target construction.
-
-Research B separately reports every candidate's final-window time-series IC, approximate moving-block bootstrap interval, circular-shift diagnostic p-value, and Benjamini–Yekutieli adjusted p-value where estimable. That untouched window is evaluation-only and never selects a factor or changes a forecast. The shift test assumes stationarity, and neither its assumption nor bootstrap interval coverage is validated; interpret these fields as exploratory. DSR remains `not_assessed` without strategy returns.
-
-The upstream cross-sectional Rank IC / portfolio contract remains unavailable until a dated multi-ticker factor panel, point-in-time membership, compatible price and security-mask matrices, calendar and benchmark are supplied. Transaction costs, turnover, benchmark-relative NAV and market impact are not inferred from close-to-close labels.
-
-## Adversarial audit
-
-This is stage E (Adversarial / Backtesting Bias Audit), implemented by `scripts/quant_research/audit.py` after consensus. Its output is `quant_result.json.adversarial_audit`, not a fifth researcher probability.
-
-The audit checks snapshot identity/digest, path snapshot consistency, probability provenance/range, explicit feature/label leakage declarations, overlapping validation intervals, chronological holdout evidence, OOS Brier versus baseline, observed factor-candidate counts, PIT/future-date warnings, validation limitations, diversity and probability disagreement. Missing audit evidence is a confidence/reporting limitation; a declared failed leakage/target timing check is fatal. Timing checks rely on structured researcher declarations and are not a formal proof of every feature implementation.
-
-Fatal veto conditions are blocked prediction eligibility, zero valid predictions, an explicitly non-forecast request, invalid snapshot identity, invalid probability contract, latest-price conflict, confirmed unadjusted corporate-action contamination, detected leakage or prediction failure. Calendar absence/fallback, adjustment unknown and weak OOS/missing calibration lower forecast confidence/report status but do not veto. PBO/DSR, transaction-cost and portfolio evidence are strategy-only warnings: they do not veto or downgrade probability-only reporting status, but strategy eligibility remains unvalidated. VETO suppresses every user-facing probability. Strategy eligibility is required before any profitability/strategy claim.
-
-PBO, DSR, realistic costs/market impact and survivorship are `not_assessed` when the requisite strategy-trial return matrix, trial count, cost model, point-in-time universe or delisted-name history is absent. Candidate-factor counts describe observed search scope, not a complete count of strategy trials. Present PBO/DSR/cost values remain unverified without input and calculation receipts.
-
-Quant forecast and factor-diagnostic paths use OHLCV only. After the Quant result and audit are frozen, a separate News/Sentiment stage reports timestamp-valid events, opinion tone and observed market reactions from the same frozen snapshot. It is not a forecast path and never votes in consensus or changes its probability. If article timing, coverage or evidence is insufficient, mark News `not_assessed`; a daily-bar association is not a causal finding. Only Final Synthesis reads both frozen results and preserves the original Quant estimate.
-
-## Historical reliability heuristic
-
-The initial version compares available OOS Brier scores to reported base-rate Brier baselines. This is a coarse path-health signal, not a stable track record. No persistent reliability history or regime-adjusted weighting is claimed.
+`consensus.evidence` reports replay type, replay valid/non-overlapping counts,
+abstentions, coverage, prospective count, required thresholds, calibration
+status and the paired relative-skill intervals. These are the only inputs a
+narrator may use for evidence language.

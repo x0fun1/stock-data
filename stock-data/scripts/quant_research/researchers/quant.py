@@ -1,35 +1,57 @@
-"""Research A: hypothesis-led empirical conditional-frequency baseline."""
+"""Research A: causal empirical shrinkage on the fixed 52-week / 5-session window.
+
+The estimator is deliberately unchanged from the pre-policy candidate: the state
+is the sign of the 20-session rate of change, matching historical origins must
+have matured by the decision close and be at least six sessions apart, the prior
+strength is 12 and at least 12 matches are required.  What changes is that every
+number is now re-derivable from the frozen bars: the probability transform
+record carries the exact matching origins, the base-rate label boundary and the
+formula version, and the current prediction and every walk-forward row are
+produced by the same function.
+"""
 
 from __future__ import annotations
 
+from datetime import date
 from pathlib import Path
 from typing import Any
 
-from ..contracts import HORIZONS, researcher_result
-from ..market_data import adjusted_close_series, forward_returns, market_bars, non_overlapping
+from ..contracts import researcher_result
+from ..forecast_policy import (
+    FORECAST_HORIZON_SESSIONS,
+    NONOVERLAP_GAP_SESSIONS,
+    SHRINKAGE_MIN_MATCHES,
+    SHRINKAGE_PRIOR_STRENGTH,
+    SHRINKAGE_VERSION,
+    model_identity,
+)
+from ..market_data import (
+    adjusted_close_series,
+    calendar_session_list,
+    evaluation_sample,
+    forward_returns,
+    market_bars,
+    non_overlapping,
+    prediction_price_series,
+)
 from ..math_utils import mean, wilson_interval
 from ..momentum import compute as compute_momentum
 from ..momentum import rank_ic_diagnostic
 from ..momentum import roc as momentum_roc
 from ..snapshot import load_snapshot
 
-# Minimum non-overlapping same-sign matured matches required to report a conditional
-# probability; calibrated so that the one-year default research window can support the
-# path (the previous value of 30 implicitly required roughly two years of sessions).
-MINIMUM_MATCHING_SAMPLES = 12
-
-# Pre-registered shrinkage candidate for Research A: the conditional frequency is
-# pulled toward the causal unconditional up-rate with 12 prior observations. The
-# prior is a fixed design choice, not a value tuned on this repository's results.
-SHRINKAGE_PRIOR_OBSERVATIONS = 12
+MINIMUM_MATCHING_SAMPLES = SHRINKAGE_MIN_MATCHES
+SHRINKAGE_PRIOR_OBSERVATIONS = SHRINKAGE_PRIOR_STRENGTH
+ROC_WINDOW = 20
 
 
-def _causal_up_rate(forward: list[float | None], decision: int, horizon: int) -> float | None:
-    matured = [
-        value for index, value in enumerate(forward[: max(0, decision - horizon + 1)])
-        if value is not None
-    ]
-    return sum(1 for value in matured if value > 0) / len(matured) if matured else None
+def _causal_up_rate(forward: list[float | None], decision: int, horizon: int) -> tuple[float | None, list[int]]:
+    """Return the causal up-rate and the label origins that matured by ``decision``."""
+
+    origins = [index for index in range(max(0, decision - horizon + 1)) if forward[index] is not None]
+    if not origins:
+        return None, []
+    return sum(1 for index in origins if float(forward[index]) > 0) / len(origins), origins
 
 
 def _shrunk_probability(wins: int, observations: int, base_rate: float | None) -> float | None:
@@ -38,8 +60,135 @@ def _shrunk_probability(wins: int, observations: int, base_rate: float | None) -
     return (wins + SHRINKAGE_PRIOR_OBSERVATIONS * base_rate) / (observations + SHRINKAGE_PRIOR_OBSERVATIONS)
 
 
+def _matching_indices(
+    closes: list[float], forward: list[float | None], decision: int, horizon: int,
+    *, window: int = ROC_WINDOW, gap: int = NONOVERLAP_GAP_SESSIONS,
+) -> list[int]:
+    """Same-sign, matured origins accepted in chronological order at least ``gap`` apart.
+
+    The sign rule treats a zero ROC as non-negative and is fixed for the version.
+    Selection is causal: only labels whose target session is at/before the
+    decision session are eligible.
+    """
+
+    current_signal = momentum_roc(closes, decision, window)
+    if current_signal is None:
+        return []
+    current_positive = current_signal >= 0
+    selected: list[int] = []
+    last = None
+    for prior in range(window, min(decision, len(forward))):
+        if prior + horizon > decision or forward[prior] is None:
+            continue
+        prior_signal = momentum_roc(closes, prior, window)
+        if prior_signal is None or (prior_signal >= 0) != current_positive:
+            continue
+        if last is not None and prior - last < gap:
+            continue
+        selected.append(prior)
+        last = prior
+    return selected
+
+
+def predict_at_origin(
+    dates: list[str],
+    closes: list[float],
+    decision: int,
+    *,
+    horizon: int = FORECAST_HORIZON_SESSIONS,
+    window_start_exclusive: str | None = None,
+    gap: int = NONOVERLAP_GAP_SESSIONS,
+) -> dict[str, Any]:
+    """Produce the frozen-policy prediction for one decision session.
+
+    All inputs are prefix data: the feature uses closes up to ``decision`` and the
+    base rate uses only labels that matured at or before that close.  The returned
+    ``probability_transform`` is the audit contract; auditors rebuild the sample
+    from bars rather than trusting the summary counts.
+    """
+
+    if not 0 <= decision < len(closes):
+        raise ValueError("decision index outside the price series")
+    current_signal = momentum_roc(closes, decision, ROC_WINDOW)
+    base_rate, base_origins = _causal_up_rate(forward_returns(closes, horizon), decision, horizon)
+    forward = forward_returns(closes, horizon)
+    identity = model_identity("quant")
+    transform = {
+        "type": "causal_empirical_shrinkage",
+        "version": SHRINKAGE_VERSION,
+        "feature": {"name": "roc20", "window_sessions": ROC_WINDOW, "zero_state": "non_negative"},
+        "horizon_sessions": horizon,
+        "minimum_gap_sessions": gap,
+        "minimum_matches": MINIMUM_MATCHING_SAMPLES,
+        "prior_strength": SHRINKAGE_PRIOR_OBSERVATIONS,
+        "base_rate_source": "all_matured_daily_5d_labels",
+        "base_rate_label_count": len(base_origins),
+        "base_rate_label_end_max": dates[base_origins[-1] + horizon] if base_origins else None,
+        "matching_origins": [],
+        "matching_label_ends": [],
+        "policy_version": identity["policy_version"],
+        "model_version": identity["model_version"],
+        "feature_version": identity["feature_version"],
+        "target_version": identity["target_version"],
+    }
+    row: dict[str, Any] = {
+        "decision_session": dates[decision],
+        "decision_index": decision,
+        "probability": None,
+        "raw_probability": None,
+        "probability_transform": transform,
+        "causal_base_rate": base_rate,
+        "target": int(float(forward[decision]) > 0) if forward[decision] is not None else None,
+        "label_end_session": dates[decision + horizon] if decision + horizon < len(dates) else None,
+        "status": "abstained",
+        "reason_code": None,
+        "model_identity": identity,
+    }
+    if current_signal is None:
+        row["reason_code"] = "FEATURE_UNAVAILABLE"
+        return row
+    if base_rate is None:
+        row["reason_code"] = "BASE_RATE_UNAVAILABLE"
+        return row
+    selected = _matching_indices(closes, forward, decision, horizon, gap=gap)
+    transform["matching_origins"] = [dates[index] for index in selected]
+    transform["matching_label_ends"] = [dates[index + horizon] for index in selected]
+    transform["matching_label_end_max"] = transform["matching_label_ends"][-1] if selected else None
+    transform["base_rate_at_origin"] = base_rate
+    transform["wins"] = sum(1 for index in selected if float(forward[index]) > 0)
+    transform["observations"] = len(selected)
+    if len(selected) < MINIMUM_MATCHING_SAMPLES:
+        row["reason_code"] = "MATCHING_SAMPLES_INSUFFICIENT"
+        row["matching_observations"] = len(selected)
+        return row
+    probability = _shrunk_probability(transform["wins"], len(selected), base_rate)
+    raw = transform["wins"] / len(selected)
+    row.update(
+        probability=probability,
+        raw_probability=raw,
+        matching_observations=len(selected),
+        matching_wins=transform["wins"],
+        status="matured",
+        mean_forward_return=mean([float(forward[index]) for index in selected]),
+        wilson_95_interval=list(wilson_interval(transform["wins"], len(selected))),
+        wilson_interval_scope="raw_matching_hit_frequency_only; overlapping labels, not a confidence interval for the shrunk probability",
+    )
+    row["available_history_days"] = (
+        (date.fromisoformat(dates[decision]) - date.fromisoformat(window_start_exclusive)).days
+        if window_start_exclusive else None
+    )
+    row["available_history_sessions"] = decision + 1
+    row["full_52w_input"] = bool(
+        window_start_exclusive and row["available_history_days"] is not None and row["available_history_days"] >= 364
+    )
+    row["evidence_scope"] = "prefix_walk_forward"
+    row["target_definition"] = f"close[t+{horizon}] / close[t] - 1 > 0"
+    return row
+
+
 def _benchmark_series(market: dict[str, Any]) -> tuple[dict[str, float] | None, dict[str, Any]]:
     """Extract the declared benchmark series, refusing to guess one."""
+
     block = (market.get("data") or {}).get("benchmark")
     if not isinstance(block, dict):
         return None, {"symbol": None, "selection": "absent", "status": "absent"}
@@ -56,124 +205,89 @@ def _benchmark_series(market: dict[str, Any]) -> tuple[dict[str, float] | None, 
     return dict(zip(dates, values, strict=True)), {**meta, "status": "ok", "price_basis": provenance["basis_status"]}
 
 
-def _matured_matching_indices(
-    closes: list[float], forward: list[float | None], decision: int, horizon: int, *, window: int = 20,
-) -> list[int]:
-    """Return only prior same-signal samples whose complete labels are observable at decision close."""
-    current_signal = momentum_roc(closes, decision, window)
-    if current_signal is None:
-        return []
-    matching: list[int] = []
-    for prior in range(window, min(decision, len(forward))):
-        label_end = prior + horizon
-        if label_end > decision or forward[prior] is None:
-            continue
-        prior_signal = momentum_roc(closes, prior, window)
-        if prior_signal is not None and (prior_signal >= 0) == (current_signal >= 0):
-            matching.append(prior)
-    return non_overlapping(matching, horizon)
-
-
 def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any]] | None = None) -> dict[str, Any]:
-    # The orchestrator may pass the once-validated in-memory snapshot. Keep the
-    # path-only entrypoint for direct use and backward compatibility.
     manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     ticker, horizon_name = manifest["ticker"], manifest["horizon"]
-    horizon = HORIZONS[horizon_name]
+    horizon = FORECAST_HORIZON_SESSIONS
     bars = market_bars(market)
-    closes = [row["close"] for row in bars]
-    # Composite momentum feature: computed on the adjusted basis and reported next to the
-    # baseline. It never touches ``prob_up`` -- the plan forbids using the score as a new
-    # sample filter, so the probability still comes from the plain ROC20 sign.
-    momentum_dates, momentum_closes, price_provenance = adjusted_close_series(market)
+    # The production target and every feature ratio use the same declared
+    # split-adjusted close, never a dividend-reinvested substitute.
+    dates, closes, price_provenance = prediction_price_series(market)
+    momentum_dates, momentum_closes, momentum_provenance = adjusted_close_series(market)
     benchmark_closes, benchmark_meta = _benchmark_series(market)
-    forward = forward_returns(closes, horizon)
+    window_start = ((market.get("data") or {}).get("policy_window") or {}).get("window_start_exclusive")
+    sessions = calendar_session_list(market)
     current = len(bars) - 1
-    current_signal = momentum_roc(closes, current, 20)
+    current_signal = momentum_roc(closes, current, ROC_WINDOW)
     if current_signal is None:
-        return researcher_result("quant", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data", warnings=["At least 21 daily closes are required for the predeclared 20-session momentum hypothesis."])
+        return researcher_result(
+            "quant", ticker, horizon_name, manifest["snapshot_id"], status="insufficient_data",
+            warnings=["At least 21 daily closes are required for the predeclared 20-session momentum hypothesis."],
+        )
 
-    selected = _matured_matching_indices(closes, forward, current, horizon)
-    outcomes = [float(forward[index]) for index in selected if forward[index] is not None]
-    wins = sum(value > 0 for value in outcomes)
-    raw_probability = wins / len(outcomes) if outcomes else None
-    current_base_rate = _causal_up_rate(forward, current, horizon)
-    probability = (
-        _shrunk_probability(wins, len(outcomes), current_base_rate)
-        if raw_probability is not None else None
-    )
-    interval = wilson_interval(wins, len(outcomes)) if outcomes else None
-    expected = mean(outcomes)
+    current_row = predict_at_origin(dates, closes, current, horizon=horizon, window_start_exclusive=window_start)
+    probability = current_row["probability"]
+    transform = current_row["probability_transform"]
+    forward = forward_returns(closes, horizon)
 
-    # Full-history daily causal walk-forward ledger: every matured decision session records what
-    # the frozen policy would have predicted at that close, rebuilding its matching history from
-    # that boundary. Adjacent horizon labels overlap across sessions; conservative non-overlapping
-    # counts and block-based inference treat the ledger accordingly (see validation metadata).
-    holdout_start = max(20 + horizon, int(len(bars) * 0.8))
+    ledger_decisions = [
+        index for index in range(ROC_WINDOW + horizon, current)
+        if index + horizon <= current and forward[index] is not None
+    ]
     oos_forecasts: list[dict[str, Any]] = []
-    ledger_decisions = [i for i in range(20 + horizon, current) if forward[i] is not None and i + horizon <= current]
     predicted_decisions: list[int] = []
     for decision in ledger_decisions:
-        candidates = _matured_matching_indices(closes, forward, decision, horizon)
-        prior_outcomes = [float(forward[i]) for i in candidates if forward[i] is not None]
-        probability_at_decision = (
-            sum(value > 0 for value in prior_outcomes) / len(prior_outcomes)
-            if len(prior_outcomes) >= MINIMUM_MATCHING_SAMPLES else None
-        )
-        training_label_end = max((i + horizon for i in candidates), default=None)
-        causal_base = _causal_up_rate(forward, decision, horizon)
-        shadow_shrunk = _shrunk_probability(
-            sum(1 for value in prior_outcomes if value > 0), len(prior_outcomes), causal_base,
-        )
-        reported_at_decision = shadow_shrunk if probability_at_decision is not None else None
-        if reported_at_decision is not None:
+        row = predict_at_origin(dates, closes, decision, horizon=horizon, window_start_exclusive=window_start)
+        row["label_available_at"] = dates[decision + horizon]
+        if row["probability"] is not None:
             predicted_decisions.append(decision)
-        oos_forecasts.append({
-            "decision_session": bars[decision]["date"],
-            "label_end_session": bars[decision + horizon]["date"],
-            "target": int(float(forward[decision]) > 0),
-            "probability": reported_at_decision,
-            "raw_probability": probability_at_decision,
-            "shrinkage_applied": reported_at_decision is not None,
-            "training_label_end_session": bars[training_label_end]["date"] if training_label_end is not None else None,
-            "training_sample_count": len(prior_outcomes),
-            "causal_base_rate": causal_base,
-            "shadow_shrunk_probability": shadow_shrunk,
-            "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
-        })
-    oos_predictions = [
-        (float(row["probability"]), int(row["target"]))
-        for row in oos_forecasts if row["probability"] is not None
+        oos_forecasts.append(row)
+
+    matured_oos = [row for row in oos_forecasts if row["probability"] is not None]
+    nonsampled = evaluation_sample(oos_forecasts, sessions)
+    sample_rows = nonsampled["sampled_predictions"]
+    brier = mean([(float(row["probability"]) - int(row["target"])) ** 2 for row in matured_oos]) if matured_oos else None
+    warnings = [
+        "Returns are gross close-to-close observations; this baseline does not model execution, spreads, slippage or fees.",
+        "The replay ledger records daily predictions whose 5-session labels overlap; the 6-session sample is a conservative policy, and its records remain correlated.",
     ]
-    brier = mean([(p - y) ** 2 for p, y in oos_predictions])
-    base_rate = mean([float(value > 0) for value in outcomes]) if outcomes else None
-    base_brier = mean([(base_rate - y) ** 2 for _, y in oos_predictions]) if base_rate is not None else None
-    warnings: list[str] = []
-    warnings.append("Returns are gross close-to-close observations; this baseline does not model execution, spreads, slippage or fees.")
-    status = "success"
-    if len(outcomes) < MINIMUM_MATCHING_SAMPLES:
-        probability = None
-        expected = None
-        status = "insufficient_data"
-        warnings.append(f"Only {len(outcomes)} non-overlapping historical matches; at least {MINIMUM_MATCHING_SAMPLES} are required to report a conditional probability.")
-    shadow_shrunk_probability = (
-        _shrunk_probability(sum(1 for value in outcomes if value > 0), len(outcomes), current_base_rate)
-        if len(outcomes) >= MINIMUM_MATCHING_SAMPLES else None
-    )
-    if not oos_predictions:
-        status = "partial" if probability is not None else "insufficient_data"
-        warnings.append("No sufficiently populated expanding-window ledger predictions were available.")
-    warnings.append("The walk-forward ledger records daily overlapping predictions; effective independent samples are fewer than prediction days and skill intervals use block resampling.")
-    if current_signal >= 0:
-        rationale = "The predeclared 20-session momentum signal is non-negative. Historical labels are selected only from earlier sessions with the same signal sign."
-    else:
-        rationale = "The predeclared 20-session momentum signal is negative. Historical labels are selected only from earlier sessions with the same signal sign."
+    if probability is None:
+        warnings.append(
+            f"No reportable probability: {current_row.get('reason_code')} "
+            f"({current_row.get('matching_observations', transform.get('observations', 0))} matches, "
+            f"{MINIMUM_MATCHING_SAMPLES} required)."
+        )
+    if not matured_oos:
+        warnings.append("No matured walk-forward prediction was available on this prefix.")
+    if current_row.get("full_52w_input") is False:
+        warnings.append("Current decision does not yet have a full 52-week input window.")
     evidence = {"positive": [], "negative": []}
     if probability is not None:
         target = "positive" if probability >= 0.5 else "negative"
-        evidence[target].append({"family": "momentum", "hypothesis": "20-session momentum sign conditions the H-session return hit rate", "signal_value": current_signal, "empirical_hit_rate": raw_probability, "shrunk_probability": probability, "probability_basis": "empirical_bayes_shrunk_conditional_frequency", "non_overlapping_samples": len(outcomes), "n_raw": len(outcomes), "n_effective": len(outcomes), "wilson_95_interval": list(interval) if interval else None, "wilson_interval_method": "Wilson score; nominal IID approximation, time-series coverage not validated", "wilson_coverage_validated": False, "mean_forward_return": expected, "rationale": rationale})
-    if manifest.get("data_quality", {}).get("overall") == "low":
-        warnings.append("Snapshot data quality is low; treat this result as exploratory.")
+        evidence[target].append({
+            "family": "momentum",
+            "hypothesis": "20-session momentum sign conditions the 5-session return hit rate",
+            "signal_value": current_signal,
+            "empirical_hit_rate": current_row["raw_probability"],
+            "shrunk_probability": probability,
+            "probability_basis": "causal_empirical_shrinkage",
+            "probability_transform_version": SHRINKAGE_VERSION,
+            "matching_observations": current_row["matching_observations"],
+            "matching_wins": current_row["matching_wins"],
+            "n_raw": current_row["matching_observations"],
+            "n_effective": current_row["matching_observations"],
+            "wilson_95_interval": current_row["wilson_95_interval"],
+            "wilson_interval_method": "Wilson score on the raw matching hit frequency; nominal IID approximation with overlapping labels; not a confidence interval for the shrunk probability",
+            "wilson_coverage_validated": False,
+            "mean_forward_return": current_row["mean_forward_return"],
+            "rationale": (
+                "The predeclared 20-session momentum signal is "
+                f"{'non-negative' if current_signal >= 0 else 'negative'}. Historical labels are selected only from "
+                "earlier sessions with the same signal sign, matured by the decision close and at least six sessions apart."
+            ),
+        })
+    if (manifest.get("data_quality") or {}).get("overall") == "blocked":
+        warnings.append("Snapshot data validation is blocked; this result is retained only for diagnosis.")
     momentum_block = compute_momentum(
         momentum_closes,
         momentum_dates,
@@ -181,64 +295,79 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         symbol=ticker,
         benchmark_symbol=benchmark_meta.get("symbol"),
         benchmark_selection=benchmark_meta.get("selection", "absent"),
-        price_field=price_provenance["price_field"],
+        price_field=momentum_provenance["price_field"],
     )
-    momentum_block["price_basis"] = price_provenance
+    momentum_block["price_basis"] = momentum_provenance
     momentum_block["benchmark"]["status"] = benchmark_meta.get("status")
-    if price_provenance["basis_status"] == "unverified":
-        momentum_block["warnings"].append("price_basis_unverified")
     momentum_block["diagnostic_rank_ic"] = rank_ic_diagnostic(
         momentum_closes, momentum_dates, benchmark_closes, horizon=horizon
     )
-    data_used = ["daily raw OHLCV close"]
-    if benchmark_closes is not None:
-        data_used.append(f"benchmark adjusted close ({benchmark_meta.get('symbol')})")
+    identity = model_identity("quant")
     return researcher_result(
-        "quant", ticker, horizon_name, manifest["snapshot_id"], status=status,
-        prob_up=probability, expected_return=expected, evidence=evidence,
+        "quant", ticker, horizon_name, manifest["snapshot_id"],
+        status="success" if probability is not None else "insufficient_data",
+        prob_up=probability,
+        expected_return=current_row.get("mean_forward_return") if probability is not None else None,
+        evidence=evidence,
         validation={
-            "method": "full-history daily causal walk-forward ledger on the frozen snapshot; expanding conditional frequency; no Bayesian prior or time decay",
+            "method": "causal empirical shrinkage on a prefix walk-forward ledger; fixed 52-week window; no fitted calibrator",
+            "model_identity": identity,
+            "ledger_scope": "prefix_walk_forward",
             "minimum_matching_samples": MINIMUM_MATCHING_SAMPLES,
-            "holdout_start_session": bars[holdout_start]["date"] if holdout_start < len(bars) else None,
-            "oos_scope": "full-history daily walk-forward ledger; adjacent labels overlap; non-overlapping count and effective size are the conservative references for thresholds; skill intervals use block resampling",
-            "oos_predictions": len(oos_predictions),
-            "prediction_days": len(oos_predictions),
+            "oos_scope": "prefix walk-forward within the frozen 52-week snapshot; daily overlapping labels; 6-session sampled subset reported separately",
+            "oos_predictions": len(matured_oos),
+            "prediction_days": len(matured_oos),
             "oos_evaluable_samples": len(oos_forecasts),
+            "abstained_predictions": len(oos_forecasts) - len(matured_oos),
             "non_overlapping_prediction_count": len(non_overlapping(predicted_decisions, horizon)),
-            "effective_sample_size_estimate": round(len(oos_predictions) / (horizon + 1)),
-            "oos_coverage": len(oos_predictions) / len(oos_forecasts) if oos_forecasts else 0.0,
-            "oos_abstain_rate": 1 - len(oos_predictions) / len(oos_forecasts) if oos_forecasts else None,
+            "sampled_predictions": len(sample_rows),
+            "sampling": nonsampled_sampling(nonsampled),
+            "oos_coverage": len(matured_oos) / len(oos_forecasts) if oos_forecasts else 0.0,
+            "oos_abstain_rate": 1 - len(matured_oos) / len(oos_forecasts) if oos_forecasts else None,
             "oos_forecasts": oos_forecasts,
             "brier": brier,
-            "base_rate_brier": base_brier,
-            "non_overlapping_training_labels": len(outcomes),
-            "n_raw": len(outcomes),
-            "n_effective": len(outcomes),
-            "n_oos": len(oos_predictions),
-            "history_span_sessions": current - selected[0] if selected else 0,
-            "training_label_end_boundary": bars[max((i + horizon for i in selected), default=current)]["date"] if selected else None,
-            "prediction_decision_session": bars[current]["date"],
+            "non_overlapping_training_labels": current_row.get("matching_observations"),
+            "n_raw": current_row.get("matching_observations") if probability is not None else None,
+            "n_effective": current_row.get("matching_observations") if probability is not None else None,
+            "n_oos": len(matured_oos),
+            "history_span_sessions": current - min(
+                (int(index) for index in range(len(dates)) if dates[index] in set(transform["matching_origins"])),
+                default=current,
+            ),
+            "prediction_decision_session": dates[current],
+            "probability_transform": transform,
             "prior_policy": {
                 "method": "empirical-Bayes shrinkage toward the causal unconditional up-rate",
-                "bayesian_shrinkage": "implemented",
                 "prior_observations": SHRINKAGE_PRIOR_OBSERVATIONS,
                 "time_decay": "none",
+                "tuned_on_this_window": False,
             },
-            "quant_shrinkage_candidate": {
-                "used_for_reported_probability": True,
-                "status": "applied" if shadow_shrunk_probability is not None else "abstained",
-                "prior_observations": SHRINKAGE_PRIOR_OBSERVATIONS,
-                "causal_base_rate": current_base_rate,
-                "observations": len(outcomes),
-                "wins": sum(1 for value in outcomes if value > 0),
-                "incumbent_probability": raw_probability,
-                "candidate_probability": shadow_shrunk_probability,
+            "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0 on split-adjusted closes",
+            "target_version": identity["target_version"],
+            "price_basis": price_provenance,
+            "leakage_audit": {
+                "features_use_data_through_decision_close_only": True,
+                "future_returns_used_only_as_labels": True,
+                "training_labels_matured_by_decision": True,
+                "base_rate_labels_matured_by_decision": True,
+                "matching_gap_sessions": NONOVERLAP_GAP_SESSIONS,
+                "oos_labels_overlap_disclosure": f"daily prefix ledger; adjacent {horizon}-session labels overlap",
             },
-            "target_definition": f"close[t+{horizon}] / close[t] - 1 > 0",
-            "leakage_audit": {"features_use_data_through_decision_close_only": True, "future_returns_used_only_as_labels": True, "training_labels_non_overlapping": True, "training_labels_matured_by_decision": True, "oos_labels_non_overlapping": False, "oos_labels_overlap_disclosure": f"daily walk-forward ledger; adjacent {horizon}-session labels overlap; effective independent size is smaller than the prediction-day count"},
             "momentum_20d": momentum_block,
         },
-        data_used=data_used, warnings=warnings,
-        probability_source="empirical_bayes_shrunk_conditional_frequency" if probability is not None else None,
-        raw_probability=raw_probability if probability is not None else None,
+        data_used=["daily split-adjusted close (provider close; dividends not reinvested)"],
+        warnings=warnings,
+        probability_source="causal_empirical_shrinkage" if probability is not None else None,
+        raw_probability=current_row.get("raw_probability") if probability is not None else None,
     )
+
+
+def nonsampled_sampling(block: dict[str, Any]) -> dict[str, Any]:
+    sampling = dict(block.get("sampling") or {})
+    sampling.update({
+        "total_predictions": block.get("total_predictions"),
+        "matured_predictions": block.get("matured_predictions"),
+        "nonoverlap_predictions": block.get("nonoverlap_predictions"),
+        "coverage_ratio": block.get("coverage_ratio"),
+    })
+    return sampling

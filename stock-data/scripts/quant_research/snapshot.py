@@ -17,12 +17,14 @@ from zoneinfo import ZoneInfo
 
 from .contracts import normalize_request, parse_timestamp, utc_now
 from .data_checks import EXCHANGE_TIMEZONES, calendar_sessions, check_market
+from .forecast_policy import FORECAST_HORIZON_SESSIONS
 from .gate_policy import classify_reasons
 from .jsonio import canonical_bytes, write_json
 from .paths import safe_output_destination, validate_path_component
 from .security import provider_failed, sanitize_data
 
-SCHEMA_VERSION = "1.2"
+SCHEMA_VERSION = "1.3"
+READABLE_SCHEMA_VERSIONS = frozenset({"1.0", "1.1", "1.2", SCHEMA_VERSION})
 DOMAINS = (
     "market",
     "fundamentals",
@@ -145,7 +147,8 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
     errors, warnings, count = validate_collection(domains, request)
     gate = check_market(domains["market"], request, captured_at=captured_at,
                         resolved_calendar_evidence=resolved_calendar_evidence,
-                        allow_library_calendar=allow_library_calendar)
+                        allow_library_calendar=allow_library_calendar,
+                        enforce_policy=not legacy)
     if errors or gate["errors"]:
         raise ValueError("snapshot rejected: " + "; ".join(sorted(set(errors + gate["errors"]))))
     if legacy:
@@ -158,29 +161,40 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
         gate["forecast_eligible"] = False
     warnings = sorted(set(warnings + gate["blockers"] + gate["warnings"]))
     statuses = {name: str(domains[name].get("status", "unavailable")) for name in DOMAINS}
-    sources = {name: {key: block.get(key) for key in ("actual_source", "source_timestamp", "currency", "unit", "adjustment", "adjustment_evidence", "session_calendar", "latest_price_observations", "fallback_used", "fallback_reason")} | {"fetched_at": block.get("fetched_at_utc", block.get("fetched_at"))} for name, block in domains.items()}
-    penalties = {
-        "CALENDAR_FALLBACK_USED": 10, "ADJUSTMENT_UNKNOWN": 10,
-        "CORPORATE_ACTION_UNKNOWN": 5, "LATEST_CLOSE_SINGLE_PROVIDER": 5,
-        "EXTREME_PRICE_MOVE_UNRECONCILED": 10, "MARKET_UNITS_UNVERIFIED": 5,
-    }
-    history_penalty = round(min(20.0, max(0.0, (252 - count) / 252 * 20.0)))
-    reason_penalties = [{"reason_code": code, "points": penalties[code]} for code in sorted(set(gate["reason_codes"])) if code in penalties]
-    confidence_score = 100.0 - history_penalty - sum(item["points"] for item in reason_penalties)
-    confidence_penalties = ([{"reason": "limited_history_depth", "points": history_penalty}] if history_penalty else []) + reason_penalties
+    sources = {name: {key: block.get(key) for key in ("actual_source", "source_timestamp", "currency", "unit", "adjustment", "price_basis", "price_basis_source", "adjustment_evidence", "session_calendar", "latest_price_observations", "fallback_used", "fallback_reason")} | {"fetched_at": block.get("fetched_at_utc", block.get("fetched_at"))} for name, block in domains.items()}
+    # The former 0-100 "confidence" composite is gone.  Data quality is reported
+    # as observed-vs-expected evidence, never as a score that can stand in for
+    # probability integrity or out-of-sample support.
+    policy_window = ((domains.get("market") or {}).get("data") or {}).get("policy_window") or {}
+    expected_sessions = policy_window.get("expected_sessions")
+    observed_sessions = policy_window.get("observed_sessions", count)
+    coverage_ratio = (
+        round(min(1.0, observed_sessions / expected_sessions), 4)
+        if isinstance(expected_sessions, int) and expected_sessions > 0
+        else None
+    )
     if not gate["forecast_eligible"]:
-        confidence_score = min(confidence_score, 39.0)
-        if not any(item.get("reason") == "fatal_prediction_integrity" for item in confidence_penalties):
-            confidence_penalties.append({"reason": "fatal_prediction_integrity", "points": 60})
-    confidence_score = max(0.0, min(100.0, confidence_score))
-    quality = "high" if confidence_score >= 80 else "medium" if confidence_score >= 60 else "low" if confidence_score >= 40 else "very_low"
-    score = round(confidence_score / 100.0, 4)
+        quality = "blocked"
+    elif gate["warnings"] or (coverage_ratio is not None and coverage_ratio < 1.0):
+        quality = "partial"
+    else:
+        quality = "complete"
     return {"market_bar_count": count, "data_domains": statuses, "sources": sources, "data_validation": gate,
             "latest_confirmed_close": gate["latest_confirmed_close"], "warnings": warnings,
-            "data_quality": {"overall": quality, "score": score, "confidence_score": round(confidence_score),
-                             "confidence_penalties": confidence_penalties,
-                             "components": {"history_depth": min(1.0, count / 252), "prediction_eligible": gate["forecast_eligible"], "required_domains": ["market"]},
-                             "issues": warnings, "reason_codes": gate["reason_codes"]}}
+            "data_quality": {
+                "schema": "data_completeness_v2",
+                "overall": quality,
+                "score": None,
+                "score_deprecated": True,
+                "deprecated_fields": ["score", "confidence_score", "confidence_penalties", "overall_quality_labels"],
+                "components": {
+                    "observed_sessions": observed_sessions,
+                    "expected_sessions": expected_sessions,
+                    "coverage_ratio": coverage_ratio,
+                    "prediction_eligible": gate["forecast_eligible"],
+                    "required_domains": ["market"],
+                },
+                "issues": warnings, "reason_codes": gate["reason_codes"]}}
 
 
 def freeze_snapshot(
@@ -221,6 +235,11 @@ def freeze_snapshot(
         # A non-empty schedule only establishes closure for the dates it actually contains.
         exclude = bool(bars) and (parse_timestamp(close_row["close_at"]) > parse_timestamp(asof_timestamp)
                                   if close_row is not None else last_day == asof_day and market.get("last_bar_closed") is not True)
+        if exclude and request.get("intent") == "forecast":
+            raise ValueError(
+                "snapshot rejected: the decision-session bar is not confirmed closed; "
+                "fixed-policy forecasts must be created after the exchange close"
+            )
         if exclude:
             market_data = dict(market_data)
             market_data["bars"] = bars[:-1]
@@ -278,6 +297,28 @@ def freeze_snapshot(
         "domain_sha256s": normalized_hashes,
         "raw_domain_sha256s": raw_hashes,
     }
+    if request.get("intent") == "forecast":
+        market_policy = (normalized.get("market", {}).get("data") or {}).get("policy_window")
+        calendar = (normalized.get("market", {}).get("session_calendar")
+                    or (normalized.get("market", {}).get("data") or {}).get("session_calendar") or {})
+        session_dates = [row.get("date") for row in calendar.get("sessions") or [] if isinstance(row, dict)]
+        decision = (market_policy or {}).get("decision_session")
+        target_session = None
+        if decision in session_dates:
+            index = session_dates.index(decision) + FORECAST_HORIZON_SESSIONS
+            target_session = session_dates[index] if index < len(session_dates) else None
+        manifest["policy"] = {
+            **request.get("policy", {}),
+            "decision_session": decision,
+            "target_session": target_session,
+            "window_start_exclusive": (market_policy or {}).get("window_start_exclusive"),
+            "window_end_inclusive": (market_policy or {}).get("window_end_inclusive"),
+            "expected_sessions": (market_policy or {}).get("expected_sessions"),
+            "observed_sessions": (market_policy or {}).get("observed_sessions"),
+            "missing_sessions": (market_policy or {}).get("missing_sessions"),
+            "coverage_status": (market_policy or {}).get("coverage_status"),
+            "calendar_verified": (market_policy or {}).get("calendar_verified"),
+        }
     manifest.update(derived)
     manifest["manifest_sha256"] = hashlib.sha256(canonical_bytes(manifest)).hexdigest()
 
@@ -308,7 +349,7 @@ def load_snapshot(
     if not manifest_path.is_file() or not market_path.is_file():
         raise ValueError("snapshot must include manifest.json and market.json")
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
-    if manifest.get("schema_version") not in {"1.0", "1.1", SCHEMA_VERSION}:
+    if manifest.get("schema_version") not in READABLE_SCHEMA_VERSIONS:
         raise ValueError(f"unsupported snapshot schema: {manifest.get('schema_version')!r}")
     snapshot_id = validate_path_component(manifest.get("snapshot_id"), label="snapshot_id")
     domains: dict[str, Any] = {}
@@ -342,7 +383,7 @@ def load_snapshot(
     schema_version = manifest.get("schema_version")
     resolved_calendar = (manifest.get("data_validation") or {}).get("resolved_calendar_evidence")
     derived = _derived_metadata(domains, request, captured_at=manifest.get("collection_captured_at"),
-                                legacy=schema_version in {"1.0", "1.1"},
+                                legacy=schema_version != SCHEMA_VERSION,
                                 resolved_calendar_evidence=resolved_calendar)
     manifest.update(derived)
     market = domains["market"]

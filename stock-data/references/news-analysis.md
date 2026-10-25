@@ -2,7 +2,7 @@
 
 ## Order, isolation and trust
 
-`orchestrator.run_analysis()` finishes prediction eligibility, A/B/C/D, consensus and E, then writes and hashes `quant_result.json` before News interpretation. Fatal data/model-integrity blockers produce an abstention result; nonfatal calendar/adjustment/OOS/calibration/strategy-audit gaps allow Quant to run and mark the result degraded. News cannot restore a fatal veto or alter probability. Collection of prices and headlines can be parallel; interpretation remains after Quant. News failure preserves the frozen Quant result and marks the complete analysis degraded.
+`orchestrator.run_analysis()` finishes prediction eligibility, A/B/C/D, consensus and E, then writes and hashes `analysis.json` before News interpretation. A missing production probability produces an abstention result; shadow/diagnostic gaps never restore it. News cannot restore a veto or alter probability. Collection of prices and headlines can be parallel; interpretation remains after Quant. News failure preserves the frozen Quant result and marks the complete analysis degraded.
 
 `prepare_news_input(snapshot_dir)` re-verifies the snapshot and builds `NewsInput`: identity/as-of, normalized articles, provider aggregate, frozen OHLCV and bounded coverage metadata. It cannot read the Quant output directory. `analyze_news()` accepts only this contract and optional decay policy. Synthesis alone consumes both hash-verified stage results and checks ticker, market, horizon, snapshot and as-of equality.
 
@@ -55,7 +55,7 @@ Event confidence is at most medium, requiring at least three eligible event clus
 
 ## Synthesis and artifacts
 
-News emits no probability. Synthesis preserves reportable Quant P(up) and compares market-behavior evidence with reported catalysts. Mixed event evidence has priority and cannot be overwritten by opinion/provider tone. Explicit event/opinion conflict remains `MIXED`. Other labels include alignment/divergence (with stronger variants only under disclosed reaction/confidence conditions), `CATALYST_WITH_NEUTRAL_QUANT`, `OPINION_ONLY_CROSS_CHECK`, `NOT_ASSESSED`, and `ABSTAIN`. Conflict lowers confidence; vetoed/invalid Quant cannot be rescued by News.
+News emits no probability. Synthesis preserves reportable Quant P(up) and compares market-behavior evidence with reported catalysts. Mixed event evidence has priority and cannot be overwritten by opinion/provider tone. Explicit event/opinion conflict remains `MIXED`. Other labels include alignment/divergence (with stronger variants only under disclosed reaction/confidence conditions), `CATALYST_WITH_NEUTRAL_QUANT`, `OPINION_ONLY_CROSS_CHECK`, `NOT_ASSESSED`, and `ABSTAIN`. Conflict is recorded as a warning and retained as mixed evidence; vetoed/invalid Quant cannot be rescued by News.
 
 `news_result.json` and its freeze receipt retain detailed evidence. Default chat Summary is concise; `report.md` is the standard detail and JSON/debug retains source-level traces. News evidence is integrated with the existing Quant probability/status; it cannot alter a number. IC/bias/PBO/DSR/cost scope is reported in the standard/debug artifacts, not represented as completed strategy validation.
 

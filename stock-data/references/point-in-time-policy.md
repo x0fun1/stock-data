@@ -2,35 +2,45 @@
 
 ## Primary research window
 
-- The default direction-research window is the latest one year ending at the latest market session whose close is confirmed at the snapshot as-of time.
-- Preserve any longer provider response in the raw envelope, but keep the selected primary window in normalized daily bars and record its actual start and end dates.
-- Honor an explicit user-selected period. Do not silently widen a short window to satisfy calibration or holdout minimums; report the affected path as partial or insufficient with a null probability.
-- A longer-history sensitivity analysis is a separate run with its own snapshot and results. Do not blend its probabilities into the primary window's consensus.
+The forecast window is fixed: `(decision_session - 364 calendar days,
+decision_session]`. Decision is the latest completed exchange session at the
+as-of instant. The window does not slide with the run date, does not widen to
+buy samples and has no warm-up bars outside it.
+
+Features, matching samples, the base rate, factor selection, ML training and
+calibration all read only data inside this window. A bar outside it is dropped
+(and counted) or rejected; it is never used.
 
 ## Signal and target timing
 
-For a daily close signal at session `t`, features may use data available through that close. The target is `close[t+h] / close[t] - 1`, where `h` is 1, 5 or 20 future exchange sessions. It is not a natural-day approximation or an executable fill model.
+For a decision at session `t`, features may use data available through that
+close. The target is the close of the fifth exchange session after `t` divided
+by the close at `t`, minus one, on the split-adjusted basis. It is not a natural
+day approximation or an executable fill model. With a verified calendar, the
+fifth session is resolved by session index; without one, no formal probability
+is published.
 
 ## Availability and revisions
 
-- Preserve the source's event time separately from gateway fetch time.
-- For text and fundamentals, use publication or filing/availability time. The economic period end alone does not establish that data was known then.
-- Preserve SEC `filed_at`, accession, units, period, and revision/vintage when supplied.
-- Latest-only financials, analyst aggregates and recommendations can describe the current state but cannot be used to construct historical values without a vintage history.
-- News without a reliable publication timestamp is excluded from a strict historical test.
-- No historical index/universe features are inferred from today's membership.
-- Research A/B/C/D numeric forecast and factor-diagnostic paths continue to use OHLCV only. After Quant is complete and frozen, the separate News layer can analyze only articles with timezone-aware publication/update timestamps no later than the shared snapshot as-of. It does not extend the selected OHLCV window or fetch again.
-- The News layer uses a source-reported score only when present; deterministic event/opinion screening is marked heuristic and uncalibrated. It deduplicates articles into canonical events, counts opinion clusters separately, and computes recency in observed exchange sessions. The default half-life is `max(requested horizon, 30 sessions)` so the decay spans the 3-month evidence window; a pure 5-session half-life would discard everything older than a month. `--news-policy` may configure `half_life_sessions_by_event_type`, `max_age_calendar_days` and `minimum_time_decay`.
-- Market reaction uses supplied close times when available; nominal 16:00 is an unverified fallback. Intraday news is whole-day association without a post-publication opening gap. Divergence does not establish sell-the-news/priced-in causality. Benchmark-relative return and immature windows remain unavailable.
-- No historical point-in-time news archive is fabricated from a short current-news feed. A one-year Quant price window does not imply one year of News coverage; report source coverage separately.
+- Preserve source event time separately from fetch time.
+- For text and fundamentals use publication/filing time, not period end.
+- Provider price history is download-time revised. Snapshot manifests disclose
+  `provider_revision_status` and `historical_availability_status`; bars do not
+  claim a per-bar `available_at` unless supplied.
+- No historical universe or index membership is inferred from today's data.
+- No time decay or half-life is applied to the production estimator.
 
 ## Leakage controls
 
-- Future return labels are generated only after feature construction and never enter feature values.
-- Research A uses prior, matured, non-overlapping labels for conditional frequencies. At decision session `t`, a label from `i` is available only when its `label_end = i + h <= t`; each walk-forward prediction rebuilds its matching history from that boundary. The full-history ledger records one prediction per matured decision session; adjacent horizon labels overlap, so conservative non-overlapping counts and effective-size estimates are disclosed and block resampling is used for skill intervals. The current implementation applies a fixed 12-observation empirical-Bayes shrinkage toward the causal unconditional up-rate and no time decay; the 12-match floor is unchanged.
-- Research B selects signs and scales in an earlier chronological segment, maps scores in a later segment, and reports an untouched later holdout separately.
-- B decay diagnostics require label_end strictly before holdout_start; current signed contributions are separate from training IC signs.
-- Research C uses explicit information intervals and a production-consistent replay. At each decision the model is refitted at an absolute 20-session anchor using labels that had matured at that anchor, with training decisions capped at the trailing 252 sessions. The replay scores non-overlapping H+1 decisions only, and each row is produced by the same `predict_at_origin()` function the live entry uses. Calibration logits come only from matured, non-overlapping replay rows whose label boundary is strictly before the decision; when fewer than 40 such rows exist, the raw logistic probability is published and the calibrator is shadow-only. There is no frozen pre-holdout mapping and no final-holdout transfer step in the published path.
-- Research D computes OHLCV factors only through close[t], forms forward returns only as labels, learns training quantile cutoffs before the chronological holdout, and uses non-overlapping label starts. With one ticker, its Spearman statistic is time-series IC rather than cross-sectional Rank IC.
-- If source timing, adjustment status, or label boundary cannot be established, downgrade or reject the affected result. Do not silently repair lineage.
-- [Reliability gates](reliability-gates.md) define calendar/close/freshness and adjustment. Publication, occurrence, announcement and scheduled times remain separate; a new article cannot reset an old event's age.
+- Future returns are labels only; they never enter features.
+- Research A: at decision `t`, a matching origin's label is eligible only when
+  `origin + 5 <= t`; the base rate uses only labels matured by `t`. Every replay
+  row rebuilds its own history from its boundary.
+- Research B: factor selection uses only the chronological selection segment;
+  the reported bucket probability uses only labels matured after that segment.
+- Research C: every origin refits from labels matured by that origin inside the
+  snapshot; the live entry and replay share the same function.
+- Research D: 5-session labels only; training quantile cuts are fixed before the
+  chronological holdout.
+- If source timing, adjustment status or label boundary cannot be established,
+  downgrade to diagnostic or reject; never silently repair lineage.

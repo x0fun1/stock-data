@@ -2,7 +2,7 @@
 
 `stock-data` 是面向美股、港股及相应 ETF 的可安装 Skill。行情、基本面、技术指标、专项数据经已连接的 Finnhub MCP 或本包 global gateway 获取；新闻唯一来源为宿主 Finnhub MCP `get-news-pulse`。量化研究脚本只处理已采集的数据，不联网更新快照。
 
-普通个股/ETF 的“分析、简析、怎么看、综合分析”和方向判断默认执行 **数据验证 → Quant → 验证/审计 → News → 综合 → 交付校验**，使用 `intent=forecast`，未指定 horizon 时为 `5D`，行情窗口默认为最近 52 周（364 个自然日，约 252 个交易日，预测数据的黄金基准）。简析只缩短篇幅，不省略 Quant。明确的事实、历史或专项请求按需取数。完整规则以 [SKILL.md](stock-data/SKILL.md) 及其引用文档为准。
+普通个股/ETF 的“分析、简析、怎么看、综合分析”和方向判断默认执行 **数据验证 → Quant → 验证/审计 → News → 综合 → 交付校验**，使用 `intent=forecast`，horizon 固定 `5D`，窗口固定为 `(decision-364 个自然日, decision]`，价格基础为拆股调整、不含分红再投资。只有 A 路径（`quant`）在窗口覆盖完整、日历可验证、当前/OOS 可重算且有效非重叠 OOS 预测 ≥12 时才发布正式概率；B/C 为影子研究，D 为 5D 描述性诊断。简析只缩短篇幅，不省略 Quant。完整规则以 [SKILL.md](stock-data/SKILL.md) 及其引用文档为准。
 
 ## 安装
 
@@ -29,7 +29,7 @@
 python -m pip install -r stock-data/requirements.txt
 ```
 
-量化运行使用标准库及 IANA 时区数据库；Windows 缺数据库时需要 `tzdata`。gateway 需要 `requests`；Yahoo 路由依赖由 `requirements-yahoo.txt` 引入并按需加载。Finnhub 连接、API key、网络权限与来源授权由宿主提供，见 [source-policies.md](stock-data/references/source-policies.md)。
+量化运行使用标准库、IANA 时区数据库和 `exchange_calendars`（XNYS/XHKG）验证交易所 session；Windows 缺时区数据库时需要 `tzdata`。未安装 `exchange_calendars` 时只能输出诊断，不能发布正式 5 交易日概率（`CALENDAR_UNVERIFIED`）。gateway 需要 `requests`；Yahoo 路由依赖由 `requirements-yahoo.txt` 引入并按需加载。Finnhub 连接、API key、网络权限与来源授权由宿主提供，见 [source-policies.md](stock-data/references/source-policies.md)。
 
 ## 升级
 
@@ -63,7 +63,7 @@ python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回�
 python stock-data/scripts/quant_research.py gc --output-root runtime --dry-run
 ```
 
-`pipeline` 完成 request → adapt → freeze → analyze。A/B/C 生成合格预测并形成共识，D 做单证券时间序列诊断，E 审计；Quant 冻结后才运行独立 News，再冻结并综合。News 不修改 Quant 概率。优先读取生成的 `final_response.md`，实际待发送文本必须通过校验；CLI `status: success` 仅表示产物写出，还需检查 `analysis_status`、`may_report_direction` 和报告状态。
+`pipeline` 完成 request → adapt → freeze → analyze。A 是唯一生产路径，B/C 影子研究，D 做 5D 单证券诊断，E 审计；Quant 冻结后才运行独立 News，再冻结并综合。News 不修改 Quant 概率。优先读取生成的 `final_response.md`，实际待发送文本必须通过校验；CLI `status: success` 仅表示产物写出，还需检查 `consensus.production_probability_eligible`、`directional_edge_supported` 和阶段回执。
 
 `--cleanup-json` 将本次运行隔离到 `runtime/runs/<run_id>/`。宿主读取/复制已校验回复后，`cleanup-run` 再次校验并仅删除本次登记的 JSON，保留 `report.md`、`final_response.md`、`cleanup_receipt.txt`。可先加 `--dry-run` 预览。外部输入、其他运行和 provider 缓存都不在 run 清理范围内；失败/中断运行默认保留。需要复现或审计时使用 `--keep-json`；清理后不能再进行依赖原 JSON 的交付校验。
 
@@ -82,7 +82,7 @@ python -B stock-data/scripts/quant_research.py schema --kind request
 python -B stock-data/scripts/selfcheck.py
 ```
 
-前五步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验（覆盖校准因果性与前缀不变性、脱敏、交付/清理校验、崩溃残留清扫与保留过期、数据门槛边界、Yahoo 预检与区间可估计性、流水线产物黄金回归，以及 OOS 审计逐条拒收码），不访问网络。本仓库仅保留运行 Skill、必需参考和安装说明，不附带独立测试套件、历史审计或上游源码档案；离线回归校验以 `selfcheck.py` 为唯一入口。
+前五步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验（T01–T24：固定 5 日 horizon、52 周窗口与覆盖、窗口冲突、越界 K 线、价格基础、目标 session、日历不可验证、标签成熟、0/11/12 OOS 支持、30 条前向优势、当前概率可重算、transform/参数/版本篡改、同 decision 去重、窗口滑动、单生产路径、影子隔离、B 选因子边界、C 日频重拟合、台账前向/回顾、阶段与交付契约；另保留脱敏、清理、保留过期、Yahoo 预检等回归），不访问网络。本仓库仅保留运行 Skill、必需参考和安装说明，不附带独立测试套件、历史审计或上游源码档案；离线回归校验以 `selfcheck.py` 为唯一入口。
 
 ## 代码质量
 
@@ -103,4 +103,4 @@ JSON 序列化集中在 `quant_research/jsonio.py`：快照 manifest、冻结阶
 - [快照契约](stock-data/references/snapshot-schema.md)：冻结输入、完整性和输出路径边界。
 - [来源限制](stock-data/references/source-policies.md)、[来源与许可记录](stock-data/references/upstream-provenance.md)：网络授权、来源声明及集成边界。
 
-当前 Skill `2.23.0`，research runtime `0.20.0`，snapshot schema `1.2`，forward ledger schema `2.0`。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。
+当前 Skill `3.0.0`，research runtime `0.21.0`，snapshot schema `1.3`，analysis schema `analysis-3.0`，forward ledger schema `ledger-3.0`。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。

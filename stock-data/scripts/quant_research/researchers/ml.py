@@ -39,26 +39,18 @@ FEATURE_FAMILIES = {
     "volatility_20": "volatility", "volume_z20": "volume", "range_position20": "trend",
     "gap_1": "momentum", "close_location": "trend",
 }
-DEFAULT_FEATURE_SET = "full_v1"
+DEFAULT_FEATURE_SET = "compact_v1"
 FEATURE_NAMES = FEATURE_SETS[DEFAULT_FEATURE_SET]["names"]
 
-# A model is refitted only at fixed, absolute session anchors. The live entry and
-# the replay both read the anchor ``(origin // 20) * 20``, so the same history
-# prefix always produces the same model and the same probability. A 20-session
-# (roughly monthly) cadence keeps the fit cost bounded on a 52-week window; the
-# cadence is part of the model definition, not a per-run choice.
-REFIT_SESSIONS = 20
-
-# Every prediction reads at most 52 weeks of its own past. This is the same
-# window the collector enforces; the cap also keeps a longer archival snapshot
-# from silently turning the model into a multi-year fit.
-TRAINING_WINDOW_SESSIONS = 252
+# Every origin is refitted from the rows matured by that origin inside the fixed
+# 52-week snapshot. There is no monthly anchor and no 252-row proxy for the
+# calendar window.
 
 # The frozen hyperparameters of the native logistic baseline. They are recorded in
 # ``validation.model_hyperparameters`` under a version id: changing any value without
 # bumping the version would silently mix incompatible predictions in the forward ledger.
 ML_PARAMETER_VERSION = "ml_params_v3"
-LOGISTIC_ITERATIONS = 500
+LOGISTIC_ITERATIONS = 60
 LOGISTIC_LEARNING_RATE = 0.12
 LOGISTIC_L2 = 1.5
 PLATT_MIN_OBSERVATIONS = 40
@@ -240,7 +232,7 @@ def _logit(probability: float) -> float:
 
 def _causal_prefix(closes: list[float], horizon: int) -> list[int]:
     prefix = [0]
-    for index in range(0, max(0, len(closes) - horizon)):
+    for index in range(max(0, len(closes) - horizon)):
         prefix.append(prefix[-1] + (1 if closes[index + horizon] > closes[index] else 0))
     return prefix
 
@@ -307,15 +299,14 @@ def _dataset(market: dict[str, Any], horizon: int, feature_set: str = DEFAULT_FE
 
 
 def _anchor(origin: int) -> int:
-    return (origin // REFIT_SESSIONS) * REFIT_SESSIONS
+    return origin
 
 
 def _training_rows(dataset: _Dataset, anchor: int) -> list[Observation]:
-    """Labels had matured at the anchor and no decision is older than the window."""
-    start = anchor - TRAINING_WINDOW_SESSIONS + 1
+    """Labels had matured at the anchor; the snapshot date window bounds the rows."""
     return [
         row for row in dataset.observations
-        if row.decision >= start and row.label_end <= anchor
+        if row.label_end <= anchor
     ]
 
 
@@ -338,7 +329,7 @@ def _predict_at_origin(
     dataset: _Dataset,
     origin: int,
     calibration: _Calibration,
-    fit: "_Fitter",
+    fit: _Fitter,
 ) -> _OriginPrediction | None:
     anchor = _anchor(origin)
     rows = _training_rows(dataset, anchor)
@@ -349,7 +340,10 @@ def _predict_at_origin(
         return None
     model = fit(rows)
     raw = model.predict(vector)
-    probability = _platt_apply(calibration.mapping, _logit(raw)) if calibration.mapping else raw
+    # Calibration is disabled by policy for this candidate.  The raw logistic
+    # output is reported as an uncalibrated estimate.
+    probability = raw
+    calibration = _Calibration(None, calibration.observations, calibration.label_end, "disabled_by_policy")
     return _OriginPrediction(
         origin=origin,
         anchor=anchor,
@@ -363,15 +357,13 @@ def _predict_at_origin(
     )
 
 
-def _replay(dataset: _Dataset, horizon: int, fit: "_Fitter") -> tuple[list[dict[str, Any]], int, float]:
+def _replay(dataset: _Dataset, horizon: int, fit: _Fitter) -> tuple[list[dict[str, Any]], int, float]:
     """Causal, non-overlapping replay built by the same function as the live entry."""
     started = time.perf_counter()
     prefix = _causal_prefix(dataset.closes, horizon)
-    stride = horizon + 1
-    origins = [
-        origin for origin in range(dataset.warmup, dataset.n - horizon)
-        if origin % stride == 0
-    ]
+    # Every decision session is archived; the policy's fixed 6-session phase is
+    # applied by the auditor, not by silently dropping five of every six rows.
+    origins = list(range(dataset.warmup, dataset.n - horizon))
     records: list[dict[str, Any]] = []
     models: dict[int, LogisticModel] = {}
     for origin in origins:
@@ -467,15 +459,15 @@ def _summary(records: list[dict[str, Any]]) -> dict[str, Any]:
 def _validation_block(
     dataset: _Dataset,
     horizon: int,
-    fit: "_Fitter",
+    fit: _Fitter,
     records: list[dict[str, Any]],
     current: _OriginPrediction,
     wall_seconds: float,
 ) -> dict[str, Any]:
     summary = _summary(records)
     recent = _summary(records[-max(1, len(records) // 5):])
-    matured_for_current = current.calibration.observations
-    capacity_reachable = matured_for_current >= PLATT_MIN_OBSERVATIONS
+    matured_for_current = current.training_rows
+    capacity_reachable = False
     maximum_non_overlapping = max(
         0, (dataset.n - dataset.warmup - horizon - MINIMUM_TRAINING_ROWS) // (horizon + 1)
     )
@@ -489,8 +481,8 @@ def _validation_block(
             "feature_set": dataset.feature_set,
             "features": list(FEATURE_SETS[dataset.feature_set]["names"]),
             "feature_warmup_sessions": dataset.warmup,
-            "refit_sessions": REFIT_SESSIONS,
-            "training_window_sessions": TRAINING_WINDOW_SESSIONS,
+            "refit_sessions": 1,
+            "training_window": "fixed_52_week_snapshot_date_window",
             "minimum_training_rows": MINIMUM_TRAINING_ROWS,
             "iterations": LOGISTIC_ITERATIONS,
             "learning_rate": LOGISTIC_LEARNING_RATE,
@@ -502,28 +494,27 @@ def _validation_block(
         "leakage_audit": {
             "features_use_data_through_decision_close_only": True,
             "target_excluded_from_features": True,
-            "training_labels_matured_at_absolute_refit_anchor": True,
-            "calibration_labels_matured_strictly_before_origin": True,
+            "training_labels_matured_by_origin": True,
+            "calibration_disabled_by_policy": True,
             "live_entry_and_replay_share_predict_at_origin": True,
-            "training_window_capped_at_52_weeks": True,
-            "replay_labels_non_overlapping": True,
+            "training_window_bounded_by_date": True,
+            "training_rows_are_daily_overlapping_labels": True,
             "replay_spacing_sessions": horizon + 1,
             "purged_kfold": {"retained_interval_overlaps": 0, "method": "not_needed_for_non_overlapping_replay"},
         },
         "production_replay": {
-            "method": "absolute-anchor refit; same function as the live entry; non-overlapping decisions",
-            "refit_sessions": REFIT_SESSIONS,
-            "training_window_sessions": TRAINING_WINDOW_SESSIONS,
+            "method": "daily refit at every origin; same function as the live entry",
+            "refit_sessions": 1,
             **summary,
             "non_overlapping_predictions": len(records),
             "eligible_decisions": actionable_decisions,
             "coverage": round(len(records) / actionable_decisions, 6),
             "recent_segment": recent,
             "calibration_shadow": {
-                "status": current.calibration.status,
+                "status": "disabled_by_policy",
                 "matured_non_overlapping_predictions": matured_for_current,
-                "required": PLATT_MIN_OBSERVATIONS,
-                "reachable": capacity_reachable,
+                "required": None,
+                "reachable": False,
                 "maximum_possible_in_window": maximum_non_overlapping,
             },
         },
@@ -532,8 +523,8 @@ def _validation_block(
             **summary,
             "non_overlapping_predictions": len(records),
             "effective_sample_size_estimate": len(records),
-            "calibrated_prediction_count": summary["calibrated_predictions"],
-            "uncalibrated_prediction_count": summary["uncalibrated_predictions"],
+            "calibrated_prediction_count": 0,
+            "uncalibrated_prediction_count": len(records),
         },
         "oos_forecasts": records,
         "oos_evaluable_samples": len(records),
@@ -546,18 +537,17 @@ def _validation_block(
             "produced at that decision with the same absolute refit anchor and the calibration state "
             "matured before it"
         ),
-        "oos_rows_are_non_overlapping": True,
+        "oos_rows_are_non_overlapping": False,
         "oos_coverage": round(len(records) / actionable_decisions, 6),
         "oos_abstain_rate": round(1 - len(records) / actionable_decisions, 6),
         "all_oos_label_observations": len(dataset.observations),
         "target_definition": target_definition,
         "probability_calibration": {
             "method": (
-                "Platt scaling on matured non-overlapping production-replay logits"
-                if current.calibration.mapping else "none"
+                "disabled_by_policy"
             ),
-            "calibrated": current.calibration.mapping is not None,
-            "status": current.calibration.status,
+            "calibrated": False,
+            "status": "disabled_by_policy",
             "calibration_observations": matured_for_current,
             "fit_observations": matured_for_current,
             "required_observations": PLATT_MIN_OBSERVATIONS,
@@ -570,20 +560,12 @@ def _validation_block(
             ),
         },
         "calibration_capacity": {
-            "window_sessions": TRAINING_WINDOW_SESSIONS,
+            "status": "disabled_by_policy",
             "warmup_sessions": dataset.warmup,
             "horizon_sessions": horizon,
-            "spacing_sessions": horizon + 1,
-            "maximum_non_overlapping_in_window": maximum_non_overlapping,
-            "matured_at_current_origin": matured_for_current,
-            "required_for_platt": PLATT_MIN_OBSERVATIONS,
-            "reachable": capacity_reachable,
-            "conclusion": (
-                "calibration reachable"
-                if capacity_reachable else
-                "52-week window cannot supply the 40 non-overlapping matured predictions Platt requires; "
-                "the reported probability stays raw and the calibrator is not applied"
-            ),
+            "training_rows_at_current_origin": matured_for_current,
+            "training_rows_are_independent": False,
+            "note": "no Platt or ensemble calibrator is fitted under the fixed policy",
         },
         "current_prediction_refit_anchor_session": dataset.bars[current.anchor]["date"],
         "current_prediction_calibration": {

@@ -1,436 +1,172 @@
-"""Adversarial checks that can warn or veto; this module does not predict."""
+"""Adversarial audit of the fixed-policy forecast.
+
+The audit has one job: decide whether the production probability may be shown as
+a direction.  It does not invent a confidence score, does not grade shadow paths
+and does not blend probabilities.  Every check is either a hard veto, a warning
+that bounds the claim, or an informational note.
+"""
 
 from __future__ import annotations
 
 from typing import Any
 
-from .gate_policy import classify_reasons
+from .forecast_policy import (
+    MIN_PROSPECTIVE_NONOVERLAP,
+    MIN_VALID_OOS_NONOVERLAP,
+    POLICY_VERSION,
+    PRICE_BASIS,
+)
 
 
-def _has_non_null_key(value: Any, keys: set[str]) -> bool:
-    if isinstance(value, dict):
-        if any(key in value and value[key] is not None for key in keys):
-            return True
-        return any(_has_non_null_key(child, keys) for child in value.values())
-    if isinstance(value, list):
-        return any(_has_non_null_key(child, keys) for child in value)
-    return False
+def _veto(state: dict[str, Any], code: str, message: str) -> None:
+    state["reason_codes"].append(code)
+    state["vetoes"].append(message)
 
 
-def _oos_baseline_checks(researchers: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    checks: list[dict[str, Any]] = []
-
-    def visit(value: Any, researcher_id: str, path: str) -> None:
-        if isinstance(value, dict):
-            production = value.get("production_replay") if isinstance(value.get("production_replay"), dict) else {}
-            score = value.get("brier", value.get("holdout_brier", production.get("brier")))
-            baseline = value.get(
-                "base_rate_brier",
-                value.get("holdout_base_rate_brier", production.get("causal_baseline_brier")),
-            )
-            if isinstance(score, (int, float)) and isinstance(baseline, (int, float)):
-                checks.append({
-                    "researcher_id": researcher_id,
-                    "validation_path": path,
-                    "brier": float(score),
-                    "base_rate_brier": float(baseline),
-                    "beats_base_rate": float(score) < float(baseline),
-                })
-            for key, child in value.items():
-                if isinstance(child, (dict, list)):
-                    visit(child, researcher_id, f"{path}.{key}" if path else str(key))
-        elif isinstance(value, list):
-            for index, child in enumerate(value):
-                visit(child, researcher_id, f"{path}[{index}]")
-
-    for result in researchers:
-        if result.get("result_role", "forecast") != "forecast":
-            continue
-        validation = result.get("validation")
-        if isinstance(validation, dict):
-            visit(validation, str(result.get("researcher_id", "unknown")), "validation")
-    return checks
+def _warn(state: dict[str, Any], code: str, message: str) -> None:
+    state["reason_codes"].append(code)
+    state["warnings"].append(message)
 
 
-def _has_chronological_holdout(value: Any) -> bool:
-    if isinstance(value, dict):
-        if value.get("oos_rows_are_non_overlapping") is True and isinstance(value.get("production_replay"), dict):
-            return True
-        if value.get("one_time_chronological_holdout") is True:
-            return True
-        if any(
-            isinstance(value.get(key), str) and value[key]
-            for key in ("holdout_start_session", "start_session")
-        ):
-            return True
-        return any(_has_chronological_holdout(child) for child in value.values())
-    if isinstance(value, list):
-        return any(_has_chronological_holdout(child) for child in value)
-    return False
-
-
-def _self_report_cross_check(researchers: list[dict[str, Any]], consensus: dict[str, Any]) -> dict[str, Any]:
-    """Cross-check self-reported OOS Brier values against recomputed ones.
-
-    The adversarial audit must not trust a researcher's own metric when the
-    runtime can recompute it from the same path's validated dated OOS rows. A
-    path whose closest self-reported Brier does not match the recomputed value
-    is surfaced as a mismatch; paths whose supplied rows failed frozen
-    validation, or that report no metric, are explicitly not comparable rather
-    than silently treated as consistent.
-    """
-    quality = consensus.get("oos_probability_quality") or {}
-    path_metrics = quality.get("paths") or {}
-    row_validation = quality.get("row_validation") or {}
-    reported = _oos_baseline_checks(researchers)
-    tolerance = 1e-6
-    findings: list[dict[str, Any]] = []
-    for result in researchers:
-        if result.get("result_role", "forecast") != "forecast":
-            continue
-        name = str(result.get("researcher_id", "unknown"))
-        recomputed = (path_metrics.get(name) or {}).get("brier_score")
-        if not isinstance(recomputed, (int, float)) or isinstance(recomputed, bool):
-            findings.append({"researcher_id": name, "status": "not_comparable",
-                             "reason": "no recomputed OOS Brier score is available for this path"})
-            continue
-        audit_summary = row_validation.get(name) or {}
-        if audit_summary.get("rejected_samples"):
-            findings.append({"researcher_id": name, "status": "not_comparable",
-                             "reason": (f"{audit_summary.get('rejected_samples')} supplied dated OOS record(s) "
-                                        "failed frozen validation and are excluded from the recomputed metric")})
-            continue
-        values = [check["brier"] for check in reported if check["researcher_id"] == name]
-        if not values:
-            findings.append({"researcher_id": name, "status": "not_comparable",
-                             "reason": "the path reports no self-reported OOS Brier value"})
-            continue
-        closest = min(values, key=lambda value: abs(float(value) - float(recomputed)))
-        consistent = abs(float(closest) - float(recomputed)) <= tolerance
-        findings.append({"researcher_id": name, "status": "consistent" if consistent else "mismatch",
-                         "recomputed_brier": float(recomputed), "closest_self_reported_brier": closest,
-                         "self_reported_values": values})
-    mismatches = [finding for finding in findings if finding["status"] == "mismatch"]
-    consistent = [finding for finding in findings if finding["status"] == "consistent"]
-    if mismatches:
-        status, detail = "mismatch", "At least one forecast path's self-reported OOS Brier does not match the value recomputed from the same path's validated dated OOS rows."
-    elif consistent:
-        status, detail = "consistent", f"Recomputed OOS Brier scores match the closest self-reported value on {len(consistent)} forecast path(s)."
-    else:
-        status, detail = "not_comparable", "No forecast path supplied both self-reported and recomputable dated OOS Brier evidence."
-    return {"status": status, "detail": detail, "tolerance": tolerance, "method": "closest self-reported Brier vs Brier recomputed from validated dated OOS rows", "paths": findings}
-
-
-def _bias_audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus: dict[str, Any]) -> dict[str, Any]:
-    auditable_paths = [result for result in researchers if result.get("status") not in {"failed", "invalid"}]
-    leak_checks: list[bool] = []
-    holdout_checks: list[bool] = []
-    candidate_counts: dict[str, int] = {}
-    observed_factor_names: set[str] = set()
-    for result in auditable_paths:
-        validation = result.get("validation") or {}
-        leakage = validation.get("leakage_audit", {}) if isinstance(validation, dict) else {}
-        labels_ok = leakage.get("future_returns_used_only_as_labels", leakage.get("target_excluded_from_features"))
-        leak_checks.append(
-            leakage.get("features_use_data_through_decision_close_only") is True
-            and labels_ok is True
-        )
-        holdout_checks.append(_has_chronological_holdout(validation))
-        decay = validation.get("factor_decay")
-        if isinstance(decay, dict):
-            candidate_counts[str(result.get("researcher_id"))] = len(decay)
-            observed_factor_names.update(str(name) for name in decay)
-        factor_metrics = validation.get("factor_metrics")
-        if isinstance(factor_metrics, dict):
-            candidate_counts[str(result.get("researcher_id"))] = len(factor_metrics)
-            observed_factor_names.update(str(name) for name in factor_metrics)
-        selected = validation.get("candidate_factor_count")
-        if isinstance(selected, int) and str(result.get("researcher_id")) not in candidate_counts:
-            candidate_counts[str(result.get("researcher_id"))] = selected
-    candidate_total = len(observed_factor_names) if observed_factor_names else sum(candidate_counts.values())
-    factor_inference = next((
-        (result.get("validation") or {}).get("oos_factor_inference")
-        for result in researchers
-        if isinstance((result.get("validation") or {}).get("oos_factor_inference"), dict)
-    ), None)
-
-    oos_checks = _oos_baseline_checks(researchers)
-    pbo_available = _has_non_null_key(manifest, {"pbo", "pbo_estimate"}) or any(
-        _has_non_null_key(result.get("validation", {}), {"pbo", "pbo_estimate"}) for result in researchers
-    )
-    dsr_available = _has_non_null_key(manifest, {"dsr", "deflated_sharpe_ratio"}) or any(
-        _has_non_null_key(result.get("validation", {}), {"dsr", "deflated_sharpe_ratio"}) for result in researchers
-    )
-    cost_available = any(
-        _has_non_null_key(result.get("validation", {}), {"cost_model", "cost_sensitivity", "net_returns"})
-        for result in researchers
-    )
-    single_security = any(
-        (result.get("validation") or {}).get("universe_type") == "single_security"
-        for result in researchers
-    ) or not manifest.get("universe")
-    if not leak_checks:
-        leakage_status, leakage_detail = "not_assessed", "no research path was available"
-    elif all(leak_checks):
-        leakage_status, leakage_detail = "pass", "all available research paths supplied passing feature/label timing audits"
-    else:
-        leakage_status, leakage_detail = "warning", "at least one available research path lacks a complete feature/label timing audit"
-    if not holdout_checks:
-        holdout_status, holdout_detail = "not_assessed", "no research path was available"
-    elif all(holdout_checks):
-        holdout_status, holdout_detail = "pass", "all available research paths report chronological OOS evidence"
-    else:
-        holdout_status, holdout_detail = "warning", "at least one available research path lacks a chronological holdout marker"
-    if pbo_available or dsr_available:
-        overfit_status = "partial"
-        overfit_detail = "a PBO or DSR value is present but its trial universe and assumptions are not independently verified"
-    elif candidate_total > 1:
-        overfit_status = "warning"
-        if factor_inference:
-            overfit_detail = (
-                f"{candidate_total} factor candidates were inspected; OOS time-series IC inference reports "
-                f"{factor_inference.get('p_adjustment_method', 'no adjusted method')} across "
-                f"{factor_inference.get('trials', 0)} attempted factors. This does not correct strategy-level "
-                "selection or replace the missing strategy-trial return matrix for PBO/DSR."
-            )
-        else:
-            overfit_detail = (
-                f"{candidate_total} distinct factor candidates were inspected; selection-adjusted factor inference "
-                "is unavailable, and no complete strategy-trial return matrix is available for PBO/DSR"
-            )
-    else:
-        overfit_status = "not_assessed"
-        overfit_detail = "no complete strategy-trial return matrix or registered parameter-search count is available"
-    economic = consensus.get("economic_viability") or {}
-    sensitivity_status = (
-        "simplified_assumption_scenario_only"
-        if economic.get("status") == "scenario_sensitivity_only"
-        else "not_assessed"
-    )
-    cost_detail = (
-        "cost-related fields are present but their execution assumptions and calculations have not been independently verified."
-        if cost_available
-        else "only assumed 5/10/20 bp round-trip sensitivity scenarios are available; actual fees, slippage, market impact, and strategy net returns remain unassessed."
-        if sensitivity_status != "not_assessed"
-        else "forecast and factor diagnostics use gross close-to-close returns; no executable strategy or cost inputs were supplied."
-    )
-    return {
-        "look_ahead_and_label_timing": {"status": leakage_status, "detail": leakage_detail},
-        "chronological_out_of_sample": {"status": holdout_status, "detail": holdout_detail},
-        "oos_brier_vs_base_rate": oos_checks,
-        "multiple_testing_and_overfitting": {
-            "status": overfit_status,
-            "candidate_factor_counts_by_path": candidate_counts,
-            "distinct_factor_candidates_observed": candidate_total,
-            "detail": overfit_detail,
-            "oos_factor_inference": factor_inference or {"status": "not_assessed", "method": "none"},
-        },
-        "pbo": {
-            "status": "present_unverified" if pbo_available else "not_assessed",
-            "detail": "PBO requires a candidate-strategy return matrix across repeated splits; it is not inferred from one factor or ticker series.",
-        },
-        "deflated_sharpe_ratio": {
-            "status": "present_unverified" if dsr_available else "not_assessed",
-            "detail": "DSR requires strategy returns, a Sharpe estimate, and a defensible count of all trials.",
-        },
-        "transaction_costs_and_market_impact": {
-            "status": "present_unverified" if cost_available else "not_assessed",
-            "detail": cost_detail,
-        },
-        "transaction_cost_sensitivity": {
-            "status": sensitivity_status,
-            "round_trip_cost_bps": [row.get("round_trip_cost_bps") for row in economic.get("scenarios", []) if isinstance(row, dict)],
-            "does_not_validate_execution": True,
-        },
-        "survivorship_bias": {
-            "status": "not_assessed_single_security" if single_security else "not_assessed",
-            "detail": "no point-in-time universe membership, historical security lifecycle, or delisted-name coverage was supplied for an independent survivorship audit.",
-        },
-    }
-
-
-def audit(manifest: dict[str, Any], researchers: list[dict[str, Any]], consensus: dict[str, Any]) -> dict[str, Any]:
-    vetoes: list[str] = []
-    warnings: list[str] = []
-    reason_codes: list[str] = []
-
-    def warn(code: str, message: str) -> None:
-        reason_codes.append(code)
-        warnings.append(message)
-
-    def veto(code: str, message: str) -> None:
-        reason_codes.append(code)
-        vetoes.append(message)
-
+def audit(
+    manifest: dict[str, Any],
+    researchers: list[dict[str, Any]],
+    consensus: dict[str, Any],
+    *,
+    bars: list[dict[str, Any]] | None = None,
+    sessions: list[Any] | None = None,
+    news: dict[str, Any] | None = None,
+    prospective_records: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
+    del bars, sessions  # replay checks read the consensus assessment, not raw bars
+    state: dict[str, Any] = {"vetoes": [], "warnings": [], "reason_codes": []}
+    checks: dict[str, Any] = {}
+    request = manifest.get("request") or {}
     snapshot_id = manifest.get("snapshot_id")
+    policy = manifest.get("policy") or {}
     gate = manifest.get("data_validation") or {}
-    prediction_gate = gate.get("prediction_eligibility", {})
-    prediction_state = prediction_gate.get("status")
-    if prediction_state is None:  # Legacy snapshots used a single boolean gate.
-        prediction_state = "eligible" if gate.get("forecast_eligible", False) else "blocked"
-    if prediction_state != "eligible":
-        blocked_codes = prediction_gate.get("blockers", [])
-        reason_codes.extend(blocked_codes)
-        if not blocked_codes:
-            reason_codes.append("PREDICTION_FAILED")
-        vetoes.extend("Prediction eligibility: " + str(item)
-                      for item in gate.get("blockers", []) + gate.get("errors", []))
-        if not vetoes:
-            vetoes.append("Prediction eligibility is blocked by a fatal market-data integrity condition.")
-    if consensus.get("available_paths", 0) == 0:
-        veto("PREDICTION_FAILED", "No quantitative path produced a valid probability.")
-    if manifest.get("request", {}).get("intent") in {"descriptive", "factor_research"}:
-        veto("DESCRIPTIVE_REQUEST", "Request intent does not authorize a future-direction probability.")
-    if not snapshot_id or not manifest.get("source_payload_sha256"):
-        veto("SNAPSHOT_IDENTITY_INVALID", "Snapshot identity or source payload digest is missing.")
 
-    reason_codes.extend(gate.get("reason_codes", []))
-    for item in gate.get("warnings", []):
-        warn("DATA_WARNING", "Data quality: " + str(item))
-    for item in manifest.get("warnings", []):
-        warn("DATA_WARNING", "Snapshot: " + str(item))
-    if manifest.get("data_quality", {}).get("overall") in {"low", "very_low"}:
-        warn("DATA_QUALITY_LOW", "Snapshot quality score is low; interpret the forecast as exploratory.")
+    if request.get("intent") != "forecast":
+        _veto(state, "DESCRIPTIVE_REQUEST", "Request intent does not authorize a future-direction probability.")
+    if not snapshot_id or not manifest.get("source_payload_sha256"):
+        _veto(state, "SNAPSHOT_IDENTITY_INVALID", "Snapshot identity or source payload digest is missing.")
+    for result in researchers:
+        if result.get("snapshot_id") != snapshot_id:
+            _veto(state, "SNAPSHOT_IDENTITY_INVALID", f"{result.get('researcher_id')} used a different snapshot identity.")
+    checks["snapshot_identity"] = "checked"
+
+    policy_ok = (
+        policy.get("policy_version") == POLICY_VERSION
+        and policy.get("coverage_status") == "complete"
+        and bool(policy.get("calendar_verified"))
+    )
+    checks["policy"] = {
+        "policy_version": policy.get("policy_version"),
+        "coverage_status": policy.get("coverage_status"),
+        "calendar_verified": policy.get("calendar_verified"),
+        "expected_sessions": policy.get("expected_sessions"),
+        "observed_sessions": policy.get("observed_sessions"),
+        "missing_sessions": policy.get("missing_sessions"),
+    }
+    if policy.get("policy_version") != POLICY_VERSION:
+        _veto(state, "POLICY_VERSION_MISMATCH", "Snapshot policy version does not match the active fixed-window policy.")
+    if policy.get("coverage_status") != "complete":
+        _veto(state, "INSUFFICIENT_HISTORY_COVERAGE",
+              f"52-week coverage is {policy.get('coverage_status') or 'missing'}; expected "
+              f"{policy.get('expected_sessions')} sessions, observed {policy.get('observed_sessions')}, "
+              f"missing {policy.get('missing_sessions')}.")
+    if not policy.get("calendar_verified"):
+        _veto(state, "CALENDAR_UNVERIFIED", "Exchange calendar is unverified; a formal 5-session probability cannot be published.")
+    price_basis = (gate.get("policy") or {}).get("price_basis") or policy.get("price_basis")
+    checks["price_basis"] = price_basis
+    if price_basis != PRICE_BASIS:
+        _veto(state, "PRICE_BASIS_UNVERIFIED", "Price basis is not the declared split-adjusted close.")
+
+    assessment = consensus.get("assessment") or {}
+    checks["current_prediction_integrity_pass"] = bool(assessment.get("current_prediction_integrity_pass"))
+    checks["oos_integrity_pass"] = bool(assessment.get("oos_integrity_pass"))
+    if not assessment.get("current_prediction_integrity_pass"):
+        _veto(state, "PREDICTION_INTEGRITY_FAILED", "Current probability could not be reproduced from frozen bars and fixed parameters.")
+    if not assessment.get("oos_integrity_pass"):
+        _veto(state, "OOS_INTEGRITY_FAILED", "At least one OOS probability record failed the integrity audit.")
+    if consensus.get("prob_up") is not None and not consensus.get("production_probability_eligible"):
+        _veto(state, "PRODUCTION_PROBABILITY_LEAKED", "A production probability is present although A is not eligible.")
+    if consensus.get("aggregation_method") != "single_path" or int(consensus.get("production_path_count") or 0) != 1:
+        _veto(state, "AGGREGATION_CONTRACT", "Consensus must use exactly one production path.")
+    if consensus.get("confidence_score") is not None:
+        _veto(state, "CONFIDENCE_SCORE_PRESENT", "A 0-100 aggregate confidence score must not be published.")
+    for item in consensus.get("shadow_predictions") or []:
+        if item.get("production_probability"):
+            _veto(state, "SHADOW_PATH_PROMOTED", f"{item.get('path')} is shadow-only but is marked as production.")
+        probability = item.get("probability")
+        if probability is not None and (isinstance(probability, bool) or not isinstance(probability, (int, float)) or not 0 <= probability <= 1):
+            _veto(state, "SHADOW_PROBABILITY_INVALID", f"{item.get('path')} shadow probability is outside [0,1].")
 
     for result in researchers:
-        name = str(result.get("researcher_id", "unknown"))
+        role = result.get("result_role", "forecast")
+        path = str(result.get("researcher_id"))
         probability = result.get("prob_up")
-        if result.get("snapshot_id") != snapshot_id:
-            veto("SNAPSHOT_IDENTITY_INVALID", f"{name} researcher used a different snapshot identity.")
-        if result.get("result_role") == "diagnostic" and probability is not None:
-            veto("PREDICTION_FAILED", f"{name} is diagnostic-only and must not emit a consensus probability.")
+        if role == "diagnostic" and probability is not None:
+            _veto(state, "DIAGNOSTIC_EMITTED_PROBABILITY", f"{path} is diagnostic-only and must not emit a probability.")
         if probability is not None:
             if isinstance(probability, bool) or not isinstance(probability, (int, float)) or not 0 <= probability <= 1:
-                veto("PREDICTION_FAILED", f"{name} produced an invalid probability value.")
+                _veto(state, "PREDICTION_FAILED", f"{path} produced an invalid probability value.")
             if not result.get("probability_source"):
-                veto("PREDICTION_FAILED", f"{name} probability has no quantitative provenance.")
-        elif result.get("result_role", "forecast") != "diagnostic" and result.get("status") in {"success", "partial"}:
-            warn("PATH_FAILED", f"{name} status is {result.get('status')} but its probability is unavailable.")
-        elif result.get("status") in {"failed", "invalid", "insufficient_data"}:
-            warn("PATH_FAILED", f"{name} path did not produce a usable probability ({result.get('status')}).")
-        for warning in result.get("warnings", []):
-            warn("PATH_WARNING", f"{name}: {warning}")
+                _veto(state, "PREDICTION_FAILED", f"{path} probability has no provenance.")
+        if role == "forecast":
+            leakage = (result.get("validation") or {}).get("leakage_audit") or {}
+            if leakage.get("future_returns_used_only_as_labels") is False:
+                _veto(state, "LEAKAGE_DETECTED", f"{path} declared future returns outside the label role.")
+            if leakage.get("features_use_data_through_decision_close_only") is False:
+                _veto(state, "LEAKAGE_DETECTED", f"{path} declared features beyond the decision close.")
 
-        validation = result.get("validation", {})
-        leakage = validation.get("leakage_audit", {}) if isinstance(validation, dict) else {}
-        if result.get("result_role", "forecast") == "forecast":
-            feature_check = leakage.get("features_use_data_through_decision_close_only")
-            label_check = leakage.get("future_returns_used_only_as_labels", leakage.get("target_excluded_from_features"))
-            if feature_check is False or label_check is False:
-                veto("LEAKAGE_DETECTED", f"{name} declared a failing feature-availability or target/label timing check.")
-            elif feature_check is not True or label_check is not True:
-                warn("LEAKAGE_AUDIT_INCOMPLETE", f"{name} has incomplete leakage audit evidence; its probability is retained with lower confidence.")
-        purged = validation.get("purged_kfold", {}) if isinstance(validation, dict) else {}
-        if isinstance(purged, dict) and purged.get("retained_interval_overlaps", 0) not in (None, 0):
-            veto("LEAKAGE_DETECTED", f"{name} retained overlapping training/test information intervals.")
+    validation = (next((r for r in researchers if r.get("researcher_id") == "quant"), {}) or {}).get("validation") or {}
+    nonoverlap = int((assessment.get("oos_evidence_audit") or {}).get("nonoverlap_valid_count") or 0)
+    checks["oos_nonoverlap"] = nonoverlap
+    if nonoverlap < MIN_VALID_OOS_NONOVERLAP:
+        _warn(state, "OOS_SUPPORT_INSUFFICIENT",
+              f"Only {nonoverlap} valid non-overlapping OOS predictions; {MIN_VALID_OOS_NONOVERLAP} required for publication.")
+    prospective = [row for row in (prospective_records or []) if row.get("sampled") is True and row.get("status") == "matured"]
+    checks["prospective_nonoverlap"] = len(prospective)
+    if not assessment.get("directional_edge_supported"):
+        _warn(state, "DIRECTIONAL_EDGE_UNPROVEN",
+              f"No supported directional edge; {len(prospective)}/{MIN_PROSPECTIVE_NONOVERLAP} prospective non-overlapping outcomes.")
+    if validation.get("price_basis", {}).get("dividends_reinvested") is not False:
+        _warn(state, "PRICE_BASIS_UNVERIFIED", "Price series does not explicitly declare dividends as excluded.")
+    if (manifest.get("data_quality") or {}).get("overall") == "partial":
+        _warn(state, "DATA_WARNING", "Snapshot has non-fatal data-quality limitations; coverage and price basis are reported separately.")
+    if news is not None and (news.get("status") in {"unavailable", "not_assessed", None}):
+        _warn(state, "NEWS_NOT_ASSESSED", "News evidence is unavailable or not assessed; it neither supports nor blocks the quant probability.")
 
-    if consensus.get("available_paths", 0) < 2:
-        warn("OOS_MARKER_MISSING", "Cross-validation by independent paths is unavailable; do not call this an ensemble consensus.")
-    if consensus.get("agreement") in {"high_disagreement", "extreme_disagreement"}:
-        warn("LOW_FACTOR_AGREEMENT", "Consensus probability is unstable across research paths.")
-    weight_validation = consensus.get("skill_weight_validation") or {}
-    evaluation = weight_validation.get("evaluation") or {}
-    evaluation_path_brier = evaluation.get("path_brier") or {}
-    baseline_brier = evaluation.get("baseline_brier")
-    equal_brier = evaluation.get("equal_weight_brier")
-    evaluation_samples = evaluation.get("evaluation_samples", 0)
-    all_paths_fail_baseline = (
-        isinstance(baseline_brier, (int, float))
-        and bool(evaluation_path_brier)
-        and all(isinstance(value, (int, float)) and value >= baseline_brier
-                for value in evaluation_path_brier.values())
-    )
-    independently_unreliable = (
-        evaluation.get("status") == "available"
-        and isinstance(evaluation_samples, int) and evaluation_samples >= 20
-        and isinstance(equal_brier, (int, float)) and isinstance(baseline_brier, (int, float))
-        and equal_brier >= baseline_brier and all_paths_fail_baseline
-    )
-    extreme_disagreement = consensus.get("agreement") == "extreme_disagreement"
-    probability_range = consensus.get("probability_range")
-    spread = (float(probability_range[1]) - float(probability_range[0])
-              if isinstance(probability_range, list) and len(probability_range) == 2
-              and all(isinstance(value, (int, float)) and not isinstance(value, bool) for value in probability_range)
-              else None)
-    consensus_validation = {
-        "disagreement_status": "extreme_risk_signal" if extreme_disagreement else consensus.get("agreement", "not_assessed"),
-        "probability_spread": spread,
-        "existing_descriptive_extreme_threshold": 0.30,
-        "threshold_validation_status": "inherited_descriptive_threshold_not_recalibrated_without_real_development_snapshots",
-        "common_oos_samples": weight_validation.get("common_oos_samples", 0),
-        "weight_estimation_start": weight_validation.get("weight_estimation_start"),
-        "weight_estimation_end": weight_validation.get("weight_estimation_end"),
-        "evaluation_start": weight_validation.get("evaluation_start"),
-        "evaluation_end": weight_validation.get("evaluation_end"),
-        "equal_weight_brier": equal_brier,
-        "baseline_brier": baseline_brier,
-        "path_brier": evaluation_path_brier,
-        "current_weighting_enabled": False,
-        "reliability_outcome": "all_paths_and_equal_weight_fail_common_oos_base_rate" if independently_unreliable else "not_conclusively_failed",
-    }
-    if extreme_disagreement and independently_unreliable:
-        veto("PREDICTION_FAILED", "Extreme path disagreement coincides with independently evaluated common OOS Brier scores that do not beat the base-rate benchmark; the Quant report is withheld.")
-    elif extreme_disagreement:
-        warn("LOW_FACTOR_AGREEMENT", "Extreme disagreement is treated as an independent risk signal. Common OOS support does not establish a validated automatic override threshold, so the existing equal-weight probability remains subject to ordinary reporting gates.")
-    bias_checks = _bias_audit(manifest, researchers, consensus)
-    cross_check = _self_report_cross_check(researchers, consensus)
-    bias_checks["oos_self_report_cross_check"] = cross_check
-    if cross_check["status"] == "mismatch":
-        warn("OOS_SELF_REPORT_MISMATCH", "At least one self-reported OOS Brier does not match the value recomputed from the same path's validated dated OOS rows; treat the affected validation claims as unverified.")
-    if bias_checks["look_ahead_and_label_timing"]["status"] == "warning":
-        warn("LEAKAGE_AUDIT_INCOMPLETE", "At least one research path lacks a complete declared feature/label timing audit.")
-    if bias_checks["chronological_out_of_sample"]["status"] == "warning":
-        warn("OOS_INSUFFICIENT", "At least one research path lacks a chronological out-of-sample marker.")
-    overfit_status = bias_checks["multiple_testing_and_overfitting"]["status"]
-    strategy_limitations: list[str] = []
-    if overfit_status == "warning":
-        strategy_limitations.extend(["PBO_NOT_ASSESSED", "DSR_NOT_ASSESSED"])
-        warn("PBO_NOT_ASSESSED", "Overfitting is not fully quantified: a complete strategy-trial history for selection-adjusted significance/PBO/DSR is unavailable.")
-        warn("DSR_NOT_ASSESSED", "Deflated Sharpe Ratio is not assessed without a complete, reproducible strategy-trial return universe.")
-    elif overfit_status == "partial":
-        strategy_limitations.extend(["PBO_NOT_ASSESSED", "DSR_NOT_ASSESSED"])
-        warn("PBO_NOT_ASSESSED", "PBO/DSR-related values are present but their trial universe and assumptions have not been independently verified.")
-        warn("DSR_NOT_ASSESSED", "Deflated Sharpe Ratio inputs and strategy-trial assumptions have not been independently verified.")
-    else:
-        strategy_limitations.extend(["PBO_NOT_ASSESSED", "DSR_NOT_ASSESSED"])
-        warn("PBO_NOT_ASSESSED", "PBO/DSR are not assessed; this does not cancel the direction probability.")
-        warn("DSR_NOT_ASSESSED", "DSR is not assessed without a strategy-trial return matrix.")
-    if bias_checks["transaction_costs_and_market_impact"]["status"] == "not_assessed":
-        strategy_limitations.append("TRANSACTION_COST_NOT_ASSESSED")
-        warn("TRANSACTION_COST_NOT_ASSESSED", "Transaction costs and market impact are not assessed; reported returns are gross diagnostics.")
-    elif bias_checks["transaction_costs_and_market_impact"]["status"] == "present_unverified":
-        strategy_limitations.append("TRANSACTION_COST_NOT_ASSESSED")
-        warn("TRANSACTION_COST_NOT_ASSESSED", "Cost/market-impact fields are present but have not been independently verified.")
-    strategy_limitations.append("PORTFOLIO_BACKTEST_MISSING")
-    warn("PORTFOLIO_BACKTEST_MISSING", "No portfolio-level backtest was supplied; do not infer strategy profitability from a single-security probability.")
-    if str(bias_checks["survivorship_bias"]["status"]).startswith("not_assessed"):
-        warn("SURVIVORSHIP_NOT_ASSESSED", "Survivorship bias is not independently assessed because point-in-time universe and delisted-name history are unavailable.")
-    if any(not check["beats_base_rate"] for check in bias_checks["oos_brier_vs_base_rate"]):
-        warn("OOS_INSUFFICIENT", "At least one reported forecast OOS Brier score does not beat its base-rate benchmark.")
-
-    bias_checks["prediction_veto"] = "LEAKAGE_DETECTED" in reason_codes
-    bias_checks["strategy_veto"] = bool(strategy_limitations)
-    classification = classify_reasons(reason_codes)
-    # Invalid paths that were excluded do not cancel valid independent paths; detected leakage does.
-    has_probability = consensus.get("available_paths", 0) > 0
-    status = "veto" if vetoes or not has_probability else classification["status"]
-    strategy_status = "not_validated" if strategy_limitations else "validated"
+    eligible = bool(consensus.get("production_probability_eligible")) and not state["vetoes"]
+    may_report_probability = eligible and consensus.get("prob_up") is not None
+    checks["news_relationship"] = "independent_of_quant_probability"
     return {
-        "status": "veto" if status == "veto" else "pass_with_warnings" if warnings else "pass",
-        "reporting_status": status,
-        "reason_codes": list(dict.fromkeys(reason_codes)),
-        "vetoes": sorted(set(vetoes)),
-        "warnings": sorted(set(warnings)),
-        "may_report_direction": status != "veto" and has_probability,
-        "prediction_eligibility": {"status": "eligible" if has_probability and status != "veto" else "blocked",
-                                   "blockers": classification["blockers"]},
-        "reporting_eligibility": {"status": status, "warnings": classification["warnings"],
-                                  "informational": classification["informational"]},
-        "strategy_eligibility": {"status": strategy_status, "blockers": [], "limitations": list(dict.fromkeys(strategy_limitations)),
-                                 "required_for_probability": False, "required_for_strategy_claim": True},
-        "bias_audit": bias_checks,
-        "consensus_validation": consensus_validation,
-        "oos_probability_quality": consensus.get("oos_probability_quality", {"status": "not_assessed"}),
-        "skill_weight_validation": weight_validation,
-        "verification_scope": "data and path declarations plus reported OOS metrics; not independent proof of provider authenticity or a full strategy audit",
+        "status": "approved" if may_report_probability else "vetoed",
+        "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+        "vetoes": state["vetoes"],
+        "warnings": state["warnings"],
+        "reason_codes": sorted(set(state["reason_codes"])),
+        "may_report_probability": may_report_probability,
+        "may_report_direction": may_report_probability,
+        "production_eligibility": {
+            "computable": bool(consensus.get("computable")),
+            "current_prediction_integrity_pass": bool(consensus.get("current_prediction_integrity_pass")),
+            "oos_integrity_pass": bool(consensus.get("oos_integrity_pass")),
+            "production_probability_eligible": bool(consensus.get("production_probability_eligible")),
+            "directional_edge_supported": bool(consensus.get("directional_edge_supported")),
+            "trading_signal_eligible": False,
+        },
+        "checks": checks,
+        "bias_audit": {
+            "survivorship": "not_assessed_no_delisting_universe",
+            "look_ahead": "transform replay verifies labels matured by each decision close",
+            "data_snooping": "single predeclared model; no path or weight selection on this window",
+            "costs": "gross close-to-close; no execution, spread, slippage or fees",
+            "provider_revision": (manifest.get("policy") or {}).get("provider_revision_status", "disclosed"),
+        },
+        "confidence_score": None,
+        "confidence_score_deprecated": True,
+        "evidence_summary": consensus.get("evidence") or {},
+        "policy_ok": policy_ok,
     }

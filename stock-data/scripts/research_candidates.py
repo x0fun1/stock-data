@@ -68,7 +68,6 @@ def _block_interval(values: list[float], block: int, *,
     for _ in range(iterations):
         start = rng.randrange(0, max(1, len(values) - block + 1))
         sample = values[start:start + block]
-        cursor = start + block
         while len(sample) < len(values):
             start = rng.randrange(0, max(1, len(values) - block + 1))
             sample.extend(values[start:start + block])

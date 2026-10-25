@@ -2,6 +2,7 @@
 requests>=2.31,<3
 -r requirements-yahoo.txt
 
-# Optional: enables calendar-verified session closure when the market source supplies no schedule.
-# Not installed by default; the runtime degrades to CALENDAR_FALLBACK_USED without it.
-# exchange_calendars>=4,<5
+# Required for formal 5-session forecasts: verified exchange calendars (XNYS/XHKG).
+# Without it the runtime can only produce diagnostics (CALENDAR_UNVERIFIED), because
+# observed bar labels cannot certify that the fifth session exists or that a bar is missing.
+exchange_calendars>=4,<5

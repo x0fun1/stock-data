@@ -17,7 +17,7 @@ from quant_research.cleanup import (
     release_pipeline_lock,
     update_run_workspace,
 )
-from quant_research.contracts import MISSING_PROBABILITY_LABEL, normalize_request, utc_now
+from quant_research.contracts import normalize_request, utc_now
 from quant_research.delivery import validate_final_response
 from quant_research.ledger import audit as ledger_audit
 from quant_research.ledger import record_prediction
@@ -44,15 +44,15 @@ def _json_file(path: Path, value: Any) -> None:
 
 def _schema(kind: str) -> dict[str, Any]:
     if kind == "request":
-        return {"schema_version": "1.2", "required": {"ticker": "validated symbol str", "market": "US|HK", "horizon": "1D|5D|20D", "asof": "ISO-8601 timestamp with timezone or null", "mode": "standard|strict"}, "optional": {"intent": "forecast|descriptive|factor_research", "asset_type": "stock|etf|index|unknown", "instrument": "resolved_ticker/provider_symbols/source/currency/unit", "history_window": "start/end/selection", "history_start": "ISO date", "history_end": "ISO date"}, "defaults": {"market": "US", "horizon": "5D", "asof": None, "mode": "standard", "intent": "forecast", "asset_type": "unknown"}}
+        return {"schema_version": "3.0", "required": {"ticker": "validated symbol str", "market": "US|HK", "horizon": "5D for intent=forecast; 1D|5D|20D only for descriptive/factor_research", "asof": "ISO-8601 timestamp with timezone or null", "mode": "standard|strict"}, "optional": {"intent": "forecast|descriptive|factor_research", "asset_type": "stock|etf|index|unknown", "instrument": "resolved_ticker/provider_symbols/source/currency/unit", "history_window": "exactly the policy boundary when supplied; omit to let the collector compute it", "history_start": "ISO date (deprecated; must match policy)", "history_end": "ISO date (deprecated; must match policy)"}, "defaults": {"market": "US", "horizon": "5D", "asof": None, "mode": "standard", "intent": "forecast", "asset_type": "unknown"}, "policy": {"policy_version": "fixed_52w_5d_v1", "history_calendar_days": 364, "horizon_sessions": 5, "window": "(decision-364d, decision]", "unsupported_horizon_error": "UNSUPPORTED_FORECAST_HORIZON", "window_conflict_error": "FIXED_WINDOW_CONFLICT"}}
     if kind == "collection":
-        return {"schema_version": "1.2", "required": ["request", "captured_at_utc", "domains"], "domains": {name: {"status": "complete|partial|unavailable|failed", "actual_source": "provider name", "fetched_at_utc": "timestamp", "data": "normalized domain payload"} for name in DOMAINS}, "market_data": {"forecast_required": ["data.bars[]", "data.symbol", "data.frequency=1d", "data.history_window", "actual_source", "source_timestamp", "fetched_at_utc", "currency", "unit"], "nonfatal_optional": ["session_calendar", "latest_price_observations[]", "adjustment", "adjustment_evidence"], "calendar_resolution": ["complete supplied calendar", "pinned optional exchange-calendar library", "observed OHLCV dates (estimated horizon)"], "bar_fields": ["date", "open", "high", "low", "close", "volume"], "adjustment": "adjusted|unadjusted|split_adjusted|total_return|unknown"}, "missing_evidence": "calendar/adjustment/OOS/calibration gaps degrade confidence; only fatal prediction-integrity failures block probability"}
+        return {"schema_version": "1.3", "required": ["request", "captured_at_utc", "domains"], "domains": {name: {"status": "complete|partial|unavailable|failed", "actual_source": "provider name", "fetched_at_utc": "timestamp", "data": "normalized domain payload"} for name in DOMAINS}, "market_data": {"forecast_required": ["data.bars[]", "data.symbol", "data.frequency=1d", "data.history_window", "data.policy_window", "price_basis=split_adjusted", "actual_source", "source_timestamp", "fetched_at_utc", "currency", "unit"], "nonfatal_optional": ["session_calendar", "latest_price_observations[]", "adjustment", "adjustment_evidence"], "calendar_resolution": ["complete supplied calendar", "pinned optional exchange-calendar library", "observed OHLCV dates (estimated horizon)"], "bar_fields": ["date", "open", "high", "low", "close", "volume"], "adjustment": "adjusted|unadjusted|split_adjusted|total_return|unknown"}, "missing_evidence": "a missing calendar permits diagnostics only; incomplete 52-week coverage or a non-split-adjusted basis blocks the formal probability; OOS support gates production eligibility but never changes the arithmetic"}
     if kind == "gateway-responses":
         return {"request_file": "normalized research request object", "responses_file": {"domains": "map of actual stock-data gateway responses"}, "market_normalization": "caller maps gateway candles into data.bars and preserves the original envelope as gateway_envelope", "provider_calls": "performed by the Skill runtime, never by this script"}
     if kind == "researcher":
-        return {"required": ["researcher_id", "result_role", "ticker", "horizon", "snapshot_id", "direction", "prob_up", "prob_down", "raw_probability", "calibrated_probability", "reportable_probability", "expected_return", "confidence", "probability_source", "evidence", "validation", "data_used", "warnings", "status"], "researcher_ids": ["quant", "factor", "ml", "factor_backtest"], "result_roles": ["forecast", "diagnostic"], "statuses": ["success", "partial", "failed", "insufficient_data", "invalid"], "probability_source_required_when_prob_up_is_numeric": True, "diagnostic_paths_enter_consensus": False}
+        return {"schema_version": "3.0", "required": ["researcher_id", "result_role", "ticker", "horizon", "snapshot_id", "direction", "prob_up", "prob_down", "raw_probability", "calibrated_probability", "reportable_probability", "expected_return", "confidence", "probability_source", "evidence", "validation", "data_used", "warnings", "status"], "researcher_ids": ["quant", "factor", "ml", "factor_backtest"], "result_roles": ["production", "shadow", "diagnostic"], "statuses": ["success", "partial", "failed", "insufficient_data", "invalid"], "production_paths": ["quant"], "shadow_paths": ["factor", "ml"], "diagnostic_paths": ["factor_backtest"], "probability_source_required_when_prob_up_is_numeric": True, "production_probability_requires": ["probability_transform", "recomputable_current", "recomputable_oos", "nonoverlap_oos>=12"], "calibrated_probability": "always null under fixed policy", "confidence": "always null"}
     if kind == "final":
-        return {"schema_version": "1.2", "required": ["analysis_id", "analysis_status", "reporting_status", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "quant_result_freeze", "news_result", "news_result_freeze", "synthesis"], "synthesis_quant": {"required": ["prob_up", "direction", "confidence", "confidence_score", "confidence_score_kind", "predictive_evidence_grade", "agreement", "reporting_status", "raw_probability", "calibrated_probability", "reportable_probability"], "optional": ["diversity"], "source": "quant_result.json.consensus", "missing_probability_display": MISSING_PROBABILITY_LABEL, "news_may_change_prob_up": False}, "formats": ["quant_result.json", "news_result.json", "report.json", "report.md", "agent_summary.json", "final_response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; preserve literal Quant/identity/relationship/reporting-status fields from final_response.md", "artifact_lifecycle": {"owned_pipeline": "pipeline --cleanup-json writes into runtime/runs/<run_id>; cleanup-run validates the actual prepared reply before deleting only registered JSON", "retained": ["report.md", "final_response.md", "cleanup_receipt.txt"], "research_archive": "omit --cleanup-json or use --keep-json; existing shared snapshots/analyses are never included in run cleanup", "orphan_sweep": "cleanup-run and gc delete only crash-leftover scratch names (.<file>.<12hex>.tmp, .<snapshot_id>.<8chars> dirs) before validating the tree; any other unknown file still blocks deletion", "retention": "gc expires a run directory only when its receipt is complete, it holds no JSON, it is older than --retain-days and no pipeline lock is live; runs left in awaiting_cleanup past --pending-days are cleaned first with delivery=unverified because the exact outgoing text is unavailable", "cache": "gc prunes provider cache files older than --cache-days; the pipeline runs the same sweep at most once per 24h unless --no-gc", "schema_change": False}, "probability_blending": "prohibited"}
+        return {"schema_version": "3.0", "required": ["run_id", "snapshot_id", "policy_version", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "news_result", "synthesis"], "stages": ["request", "collection", "data", "quant", "audit", "news", "cross-validation", "risk", "final"], "synthesis_quant": {"required": ["prob_up", "direction", "model_lean", "probability_label", "production_probability_eligible", "directional_edge_supported", "evidence", "reporting_status"], "deprecated": ["confidence", "confidence_score", "predictive_evidence_grade", "agreement"], "source": "analysis.json.consensus", "missing_probability_display": "不可用", "news_may_change_prob_up": False}, "consensus": {"production_path_count": 1, "aggregation_method": "single_path", "production_paths": ["quant"], "shadow_paths": ["factor", "ml"], "diagnostic_paths": ["factor_backtest"], "calibration": "disabled_by_policy", "trading_signal_eligible": False}, "formats": ["analysis.json", "report.md", "agent_summary.json", "final-response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; every fixed line must match literally", "error_codes": ["UNSUPPORTED_FORECAST_HORIZON", "FIXED_WINDOW_CONFLICT", "INSUFFICIENT_HISTORY_COVERAGE", "CALENDAR_UNVERIFIED", "PRICE_BASIS_UNVERIFIED", "POLICY_VERSION_MISMATCH"], "probability_blending": "prohibited"}
     if kind == "news":
         return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["overall_direction", "event_strength", "sentiment", "source_agreement", "market_confirmation", "major_events", "background_records", "catalysts", "risks", "mixed_events", "confidence", "warnings", "ai_lean_candidates", "ai_lean"], "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only",
                 "ai_lean_artifact": {"path": "--news-ai-assessment <json>", "schema_version": "1.0", "required": ["schema_version", "ticker", "asof_timestamp", "items"], "optional": ["basis", "model"], "item_fields": ["news_id", "lean", "reason", "evidence_grade", "headline", "source", "published_at", "url", "relevance_basis"], "lean_values": ["bullish", "bearish", "mixed", "neutral", "unclear"], "score_generation": "aggregator_only_from_quant_gate", "probability_effect": "none; display-only evidence, never enters direction/confidence/cross-validation or Quant P(up)", "rejected_when": ["unknown or repeated news_id", "ticker/as-of mismatch", "unsupported field", "Quant vocabulary in any text field", "non-allow-listed lean label"]}}
@@ -198,20 +198,23 @@ def main(argv: list[str] | None = None) -> int:
                 if ai_assessment is not None and not isinstance(ai_assessment, dict):
                     raise ValueError("news AI assessment file must contain a JSON object")
                 if owned_run is None:
-                    location = run_analysis(snapshot_dir, output_root, policy, news_ai_assessment=ai_assessment)
+                    location = run_analysis(snapshot_dir, output_root, policy, news_ai_assessment=ai_assessment,
+                                            ledger_path=args.ledger)
                 else:
                     location = run_analysis(
                         snapshot_dir, output_root, policy,
                         on_analysis_created=lambda path: update_run_workspace(owned_run, analysis_id=path.name),
                         news_ai_assessment=ai_assessment,
+                        ledger_path=args.ledger,
                     )
                     update_run_workspace(owned_run, state="awaiting_cleanup")
-                summary = json.loads((location / "agent_summary.json").read_text(encoding="utf-8"))
-                result = {"status": "success", "analysis_status": summary["analysis_status"], "may_report_direction": summary["sections"]["final_synthesis"]["may_report_direction"], "report_dir": str(location), "json": str(location / "report.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json"), "final_response": str(location / "final_response.md")}
+                analysis = json.loads((location / "analysis.json").read_text(encoding="utf-8"))
+                consensus = analysis.get("consensus") or {}
+                result = {"status": "success", "analysis_status": consensus.get("status"), "may_report_direction": consensus.get("production_probability_eligible", False), "report_dir": str(location), "json": str(location / "analysis.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json"), "final_response": str(location / "final_response.md")}
                 if getattr(args, "ledger", None):
                     try:
                         result["ledger"] = record_prediction(
-                            json.loads((location / "report.json").read_text(encoding="utf-8")),
+                            json.loads((location / "analysis.json").read_text(encoding="utf-8")),
                             args.ledger, snapshot_dir=snapshot_dir)
                     except Exception as exc:  # noqa: BLE001 - a ledger failure must not discard the analysis
                         result["ledger"] = {"status": "error", "error_type": type(exc).__name__,
@@ -230,7 +233,7 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "validate-response":
             print(json.dumps(validate_final_response(args.analysis_dir, args.response_file), ensure_ascii=False))
         elif args.command == "ledger-record":
-            value = json.loads((args.analysis_dir / "report.json").read_text(encoding="utf-8"))
+            value = json.loads((args.analysis_dir / "analysis.json").read_text(encoding="utf-8"))
             print(json.dumps(record_prediction(
                 value, args.ledger, import_reason=args.import_reason,
                 snapshot_dir=args.snapshot_dir), ensure_ascii=False))
@@ -264,7 +267,10 @@ def main(argv: list[str] | None = None) -> int:
             # Machine-readable schema must survive Windows console code pages.
             print(json.dumps(_schema(args.kind), ensure_ascii=True, indent=2))
     except Exception as exc:  # noqa: BLE001 - 顶层 CLI 守卫：任何失败都转成机器可读的错误输出
-        print(json.dumps({"status": "error", "error_type": type(exc).__name__, "error": bounded_text(exc)}, ensure_ascii=False), file=sys.stderr)
+        payload = {"status": "error", "error_type": type(exc).__name__, "error": bounded_text(exc)}
+        if getattr(exc, "code", None):
+            payload["code"] = exc.code
+        print(json.dumps(payload, ensure_ascii=False), file=sys.stderr)
         return 2
     else:
         return 0

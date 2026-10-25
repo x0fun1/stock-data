@@ -383,6 +383,11 @@ def gc_runtime(
                 if receipt.get("state") != "complete":
                     report["runs_skipped"].append({"run_id": entry.name, "reason": "cleanup_incomplete"})
                     continue
+                if (entry / "snapshots").is_dir() or (entry / "collections").is_dir():
+                    # A frozen snapshot / collection receipt is a long-lived reusable
+                    # object.  Run retention must not delete it with the run directory.
+                    report["runs_skipped"].append({"run_id": entry.name, "reason": "retained_snapshot_or_collection"})
+                    continue
                 outcome = _expire_run(entry, dry_run=dry_run)
                 if outcome == "deleted":
                     report["runs_deleted"].append(entry.name)

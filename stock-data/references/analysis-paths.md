@@ -2,9 +2,9 @@
 
 按用户所需维度选择必要数据。本文补充事实、描述性和综合研究入口；普通个股/ETF 分析、简析、怎么看及方向研究统一转入 `SKILL.md` 的完整流程，方法和输出仍由 [量化路径](quant-paths.md) 定义。不能用 PE、技术信号、新闻、资金流或评级直接造出上涨概率。
 
-方向研究的数据资格由中央 [reliability-gates.md](reliability-gates.md) 强制：复权/日历证据未知仅降级并保留缺口，不一律致命；明确污染、身份冲突、闭合价格冲突等按原 gate 阻断。不得假定收盘已确认。`pipeline` 只处理采集文件，不保证联网更新；实际采集按来源路由完成。
+方向研究由固定策略 `fixed_52w_5d_v1` 强制：decision 必须是已完成的交易所收盘，窗口为 `(decision-364d, decision]`，价格基础必须是拆股调整（不含分红再投资），目标为第 5 个交易日。证据拆成 `computable / current integrity / OOS integrity / production eligible / directional edge / trading signal` 六个独立字段；任一生产条件不满足即 `上涨概率：不可用`，并给出原因码与实际缺口。日历回退只允许诊断，不发布正式概率。`pipeline` 只处理采集文件，不保证联网更新。
 
-Yahoo 结构化数据强制先使用 [yfinance-data.md](yfinance-data.md) 的 `yahoo_*`，失败时自动调用语义兼容的旧接口并保留回退 provenance，不提供用户切换选项；yfinance partial 结果不被覆盖。没有安全映射时明确失败，不改用网页摘要。美股仍优先实际已连接且覆盖字段的 Finnhub，只补缺项。`yahoo_collect.py` 仅生成 market response map；新闻由宿主 Finnhub MCP 单独采集并映射，既有 adapt/freeze/analyze 与 schema 1.2 不变。研究采集精确日期日线与有依据的 adjusted 视图，保留 provider OHLC/Adj Close/行动/变换，repair 默认关闭；用户窗口不足不扩窗。新闻失败记 not_assessed，不能当 neutral 或改 Quant 概率。
+Yahoo 结构化数据强制先使用 [yfinance-data.md](yfinance-data.md) 的 `yahoo_*`，失败时自动调用语义兼容的旧接口并保留回退 provenance，不提供用户切换选项；yfinance partial 结果不被覆盖。没有安全映射时明确失败，不改用网页摘要。美股仍优先实际已连接且覆盖字段的 Finnhub，只补缺项。`yahoo_collect.py` 仅生成 market response map；新闻由宿主 Finnhub MCP 单独采集并映射，adapt/freeze/analyze 使用 snapshot schema 1.3；研究采集精确日期日线与拆股调整的 provider close，保留 provider OHLC/Adj Close/行动/变换，repair 默认关闭；用户显式窗口必须与 policy 边界一致，否则返回 `FIXED_WINDOW_CONFLICT`，用户窗口不足不扩窗。新闻失败记 not_assessed，不能当 neutral 或改 Quant 概率。
 
 ## 事实与描述性分析
 
@@ -28,7 +28,7 @@ Yahoo 新 gateway 执行需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA
 - 区间表现优先 `get-price-summary`；其基线 `period` 仅为 `7d/30d/90d/1y`，默认 `30d`，其中 `1y` 是周线。需要原始 candles 时核验 `full` 实际返回的内容。日线研究不能用一年周线替代；所需日线范围不足时只对缺项走 global K 线路由。
 - MA、MACD、RSI、KDJ、BOLL 使用 [global 来源说明](global-stock-data.md) 中对应本地函数；先用脚本 `--list` 核对签名、必需 OHLCV 字段、时间排序和样本窗口。不足的 warmup 输出不当成熟指标。
 - 核对频率、交易日、复权、币种和算法。当前 RSI 为简单窗口平均，MACD 柱为 DIF−DEA 的两倍；不同平台计算口径可能不同。
-- 只报告计算支持的历史趋势、波动和信号，不把金叉、超买、单一因子 IC 或图形直接换成未来上涨概率。未来方向统一运行 方向研究流程；A/B/C/D 从 raw OHLCV 各自生成特征，不共用这些预计算指标。
+- 只报告计算支持的历史趋势、波动和信号，不把金叉、超买、单一因子 IC 或图形直接换成未来上涨概率。未来方向统一运行 方向研究流程；A 为唯一生产路径，B/C 为影子研究，D 为 5D 描述性诊断；四条路径从 raw OHLCV 各自生成特征，不共用这些预计算指标。
 
 ## 新闻情绪与专项事件
 
@@ -66,7 +66,7 @@ Yahoo 新 gateway 执行需 `--cache-dir runtime/yfinance-cache` 或 `STOCK_DATA
 
 ## ETF
 
-先确认 ETF 上市市场与 ticker。价格、历史走势、技术因子和方向研究以 ETF 自身价格为输入，遵循与股票相同的证据、隔离、时序、审计和降级规则。
+先确认 ETF 上市市场与 ticker。价格、历史走势、技术因子和方向研究以 ETF 自身价格为输入，遵循与股票相同的固定窗口、价格基础、隔离、时序、审计与资格分层规则。
 
 按问题补充有来源和日期的跟踪指数、行业、主要成分股与相关新闻；Yahoo `yahoo_funds` 按需读取基金说明/费用/权重/主要持仓，缺持仓日期明示，不回填历史。代码能取得什么就报告什么。没有 NAV、跟踪误差或杠杆信息来源时写明缺口，不假定公司 profile 或 financials 适用于基金，也不以指数/成分股价格替代 ETF OHLCV。
 

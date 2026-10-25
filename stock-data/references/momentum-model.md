@@ -7,12 +7,11 @@
 
 - 综合动量评分 `Score20` 取值 `-100 ~ +100`，只描述近期价格行为的风险调整强度。
 - `Score20` **不得**解释为未来上涨概率，也不得据此推导概率（`+65 → 65%` 是禁止的）。
-- 概率始终来自 A 条件频率、B 因子验证、C Logistic 等既有路径；本特征不进入
-  `prob_up`、不进入路径权重、不进入共识、不改变置信度。
+- 概率始终来自唯一生产路径 A 的固定收缩估计；B/C 是影子研究，D 是描述性诊断。本特征不进入
+  `prob_up`、不进入路径权重、不进入共识、不改变任何资格字段。
 - 计划明确禁止把 `Score20` 当作新的历史样本筛选条件：要求历史样本与当前得分"完全
   相同"会使有效样本急剧减少，因此基线仍按 20 日 ROC 的**符号**筛选同号样本。
-- 声明基准（benchmark）不会改变任何概率。这一点由 `selfcheck` F25 强制断言：
-  带基准与不带基准两次运行必须得到逐位相同的 `prob_up`。
+- 声明基准（benchmark）不会改变任何概率。运行器只把综合动量作为独立诊断输出，不把它作为生产概率的输入。
 
 ## 2. 数据规范
 
@@ -131,7 +130,7 @@
 
 ## 10. 输出位置
 
-`quant_result.json → researchers.quant.validation.momentum_20d`，主要字段：
+`analysis.json → researchers.quant.validation.momentum_20d`，主要字段：
 
 ```text
 model_version, as_of, symbol, benchmark{symbol,selection,status,alignment,aligned_sessions},

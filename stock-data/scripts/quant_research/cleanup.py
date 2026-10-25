@@ -25,11 +25,10 @@ from .snapshot import DOMAINS
 RUN_MANIFEST = "run_manifest.json"
 CLEANUP_RECEIPT = "cleanup_receipt.txt"
 PIPELINE_LOCK = ".pipeline.lock"
-ANALYSIS_JSON = (
-    "quant_result.json", "quant_result.freeze.json", "news_result.json",
-    "news_result.freeze.json", "report.json", "agent_summary.json",
-)
+ANALYSIS_JSON = ("analysis.json", "agent_summary.json", "news_result.json", "news_result.freeze.json",
+                 "audit.json", "data.json", "request.json", "snapshot.json")
 ANALYSIS_MARKDOWN = ("report.md", "final_response.md")
+RETAINED_PREFIXES = ("snapshots/", "collections/")
 # A hard kill leaves these behind: _atomic_write_text names its scratch file
 # ".<target>.<12 hex>.tmp", and freeze_snapshot builds its directory with
 # tempfile.mkdtemp(prefix=".<snapshot_id>.", ...), whose suffix is 8 chars from
@@ -675,12 +674,12 @@ def _verify_retained_artifacts(analysis_dir: Path) -> None:
     """Verify the artifacts that survive cleanup still reproduce from the frozen report.
 
     This runs before any deletion: a report or response rewritten after the response was
-    validated no longer reproduces from report.json (plus agent_summary.json), so cleanup
+    validated no longer reproduces from analysis.json (plus agent_summary.json), so cleanup
     stops instead of deleting the JSON evidence or blessing the rewrite.
     """
-    report_path = analysis_dir / "report.json"
+    report_path = analysis_dir / "analysis.json"
     if not report_path.is_file():
-        raise CleanupError("report.json is required to verify the retained artifacts")
+        raise CleanupError("analysis.json is required to verify the retained artifacts")
     report = json.loads(report_path.read_text(encoding="utf-8"))
     report_md_path = analysis_dir / "report.md"
     if report_md_path.is_file() and report_md_path.read_text(encoding="utf-8") != render_markdown(report):
@@ -963,7 +962,8 @@ def cleanup_owned_run(
             if directories - allowed_dirs:
                 raise CleanupError("unknown directories prevent resumed cleanup")
             registered = {name for name, _, _ in targets}
-            if (files & expected) - registered:
+            retained = {name for name in expected if name.startswith(RETAINED_PREFIXES)}
+            if (files & expected) - registered - retained:
                 raise CleanupError("unregistered run JSON appeared after cleanup inventory")
             if analysis_id:
                 _verify_retained_hashes(root / "research" / analysis_id, receipt)
@@ -978,7 +978,8 @@ def cleanup_owned_run(
                     raise CleanupError("completed run has no registered analysis directory")
                 _retained_hashes(root / "research" / analysis_id, required=True)
             targets = [(name, _sha256(root / name), (root / name).stat().st_size)
-                       for name in sorted(expected & actual)]
+                       for name in sorted(expected & actual)
+                       if not name.startswith(RETAINED_PREFIXES)]
 
         retained = {}
         retained_paths: list[str] = []
@@ -987,7 +988,10 @@ def cleanup_owned_run(
             retained = _retained_hashes(analysis_dir, required=not force_mode)
             retained_paths = [f"research/{analysis_id}/{name}" for name in ANALYSIS_MARKDOWN
                               if (analysis_dir / name).is_file()]
-        empty_directories = list(allowed_dirs)
+        empty_directories = [
+            name for name in allowed_dirs
+            if name not in {"snapshots", "collections"} and not name.startswith(RETAINED_PREFIXES)
+        ]
         if analysis_id:
             empty_directories = [name for name in empty_directories
                                  if name not in {"research", f"research/{analysis_id}"}]

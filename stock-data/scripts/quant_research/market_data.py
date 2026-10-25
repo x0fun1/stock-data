@@ -3,7 +3,20 @@
 from __future__ import annotations
 
 import math
+from collections.abc import Iterable
+from datetime import date
 from typing import Any
+
+from .forecast_policy import (
+    FORECAST_HORIZON_SESSIONS,
+    PRICE_BASIS,
+    PRICE_BASIS_SOURCE,
+    SAMPLING_ANCHOR_SESSION,
+    SAMPLING_MODULUS,
+    TARGET_VERSION,
+    is_sampled_ordinal,
+    session_ordinal,
+)
 
 
 def market_bars(block: dict[str, Any]) -> list[dict[str, Any]]:
@@ -86,6 +99,129 @@ def adjusted_close_series(block: dict[str, Any]) -> tuple[list[str], list[float]
         "last_date": dates[-1],
     }
     return dates, values, provenance
+
+
+def prediction_price_series(block: dict[str, Any]) -> tuple[list[str], list[float], dict[str, Any]]:
+    """Canonical price series for every production, shadow and audit prediction.
+
+    The policy target is the provider's split-adjusted close without cash-dividend
+    reinvestment.  We therefore use ``close`` directly and refuse to substitute a
+    dividend-adjusted ``adj_close`` column: doing so would silently change the
+    target definition while keeping the same ledger group.
+    """
+
+    data = block.get("data") or {}
+    bars = data.get("bars")
+    if not isinstance(bars, list) or not bars:
+        raise ValueError("market data must contain normalized daily bars")
+    declared = block.get("price_basis")
+    if declared != PRICE_BASIS:
+        raise ValueError(
+            f"price basis {declared!r} is not the policy basis {PRICE_BASIS!r}; "
+            "a dividend-reinvested series cannot serve the 5D price-direction target"
+        )
+    dates: list[str] = []
+    values: list[float] = []
+    for bar in bars:
+        day = str(bar["date"])[:10]
+        close = bar.get("close")
+        if not (isinstance(close, (int, float)) and math.isfinite(float(close)) and float(close) > 0):
+            raise ValueError(f"non-finite or non-positive close on {day}")
+        dates.append(day)
+        values.append(float(close))
+    if len(set(dates)) != len(dates):
+        raise ValueError("duplicate trading dates in market bars")
+    if dates != sorted(dates):
+        raise ValueError("market bars must be sorted ascending by date")
+    provenance = {
+        "price_field": "close",
+        "price_basis": PRICE_BASIS,
+        "price_basis_source": block.get("price_basis_source") or PRICE_BASIS_SOURCE,
+        "dividends_reinvested": False,
+        "target_version": TARGET_VERSION,
+        "horizon_sessions": FORECAST_HORIZON_SESSIONS,
+        "sessions": len(dates),
+        "first_date": dates[0],
+        "last_date": dates[-1],
+    }
+    return dates, values, provenance
+
+
+def calendar_session_list(block: dict[str, Any]) -> list[date] | None:
+    calendar = (block.get("data") or {}).get("session_calendar") or block.get("session_calendar")
+    if not isinstance(calendar, dict) or not isinstance(calendar.get("sessions"), list):
+        return None
+    return [date.fromisoformat(row["date"]) for row in calendar["sessions"]]
+
+
+def fixed_phase_sample(dates: list[str], sessions: list[date], *, modulus: int = SAMPLING_MODULUS) -> tuple[list[str], dict[str, Any]]:
+    """Select the fixed exchange-session phase (anchor 2000-01-03, ordinal % 6 == 0).
+
+    The phase is defined on the exchange calendar, not on the snapshot's left
+    edge, so the same historical date is sampled regardless of where a rolling
+    52-week window starts.  Sampling is a policy, not a claim that every 6th
+    session is an independent draw.
+    """
+
+    ordinal_map = {}
+    for day in dates:
+        try:
+            value = session_ordinal(sessions, date.fromisoformat(day))
+        except ValueError:
+            value = None
+        ordinal_map[day] = value
+    sampled = [day for day in dates if is_sampled_ordinal(ordinal_map.get(day))]
+    provenance = {
+        "method": "fixed_exchange_session_phase",
+        "anchor_session": SAMPLING_ANCHOR_SESSION.isoformat(),
+        "modulus": modulus,
+        "phase": 0,
+        "session_gap": modulus,
+        "sample_size": len(sampled),
+        "dates_without_session_ordinal": sum(1 for value in ordinal_map.values() if value is None),
+        "phase_window_independent": True,
+        "session_gap_is_sampling_policy_not_label_independence": True,
+    }
+    return sampled, provenance
+
+
+def evaluation_sample(predictions: Iterable[dict[str, Any]], sessions: list[date] | None) -> dict[str, Any]:
+    """Report total/matured/non-overlapping counts and coverage for evaluation."""
+
+    rows = list(predictions)
+    matured = [row for row in rows if row.get("status") == "matured" and isinstance(row.get("probability"), (int, float))]
+    if not sessions:
+        return {"sampled_predictions": [], "total_predictions": len(rows), "matured_predictions": len(matured),
+                "nonoverlap_predictions": 0, "coverage_ratio": None, "sampling": {"method": "unavailable"}}
+    ordinals = {day.isoformat(): session_ordinal(sessions, day) for day in sessions}
+    decision_dates = sorted({str(row["decision_session"]) for row in rows if row.get("decision_session") in ordinals})
+    if not decision_dates:
+        return {"sampled_predictions": [], "total_predictions": len(rows), "matured_predictions": len(matured),
+                "nonoverlap_predictions": 0, "coverage_ratio": None, "sampling": {"method": "unavailable"}}
+    first, last = decision_dates[0], decision_dates[-1]
+    expected = [
+        day for day in sessions
+        if first <= day.isoformat() <= last and is_sampled_ordinal(ordinals[day.isoformat()])
+    ]
+    by_date = {str(row["decision_session"]): row for row in matured}
+    sampled_rows = [by_date[day.isoformat()] for day in expected if day.isoformat() in by_date]
+    return {
+        "sampled_predictions": sampled_rows,
+        "total_predictions": len(rows),
+        "matured_predictions": len(matured),
+        "nonoverlap_predictions": len(sampled_rows),
+        "expected_sampled_sessions": len(expected),
+        "coverage_ratio": round(len(sampled_rows) / len(expected), 4) if expected else None,
+        "sampling": {
+            "method": "fixed_exchange_session_phase",
+            "anchor_session": SAMPLING_ANCHOR_SESSION.isoformat(),
+            "modulus": SAMPLING_MODULUS,
+            "phase": 0,
+            "session_gap": SAMPLING_MODULUS,
+            "session_gap_is_sampling_policy_not_label_independence": True,
+            "phase_window_independent": True,
+        },
+    }
 
 
 def forward_returns(closes: list[float], horizon: int) -> list[float | None]:

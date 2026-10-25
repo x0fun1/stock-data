@@ -1,58 +1,88 @@
 # Probability Policy
 
-## Allowed quantitative sources
+Policy version: `fixed_52w_5d_v1`.
 
-- Research A: historical conditional hit frequency among non-overlapping, matured labels matching the predeclared signal condition, replayed as a full-history daily causal walk-forward ledger whose records expose `prediction_days`, a conservative `non_overlapping_prediction_count` and an `effective_sample_size_estimate`. Report `n_raw`, `n_effective`, `n_oos`, history span, and label boundaries. Its current conditional frequency is shrunk toward the causal unconditional up-rate with a fixed 12-observation prior; `n_effective = n_raw` still describes the sample count, not the shrinkage weight. The 12-match floor is unchanged: lowering it raised coverage but worsened non-overlapping Brier in the 30-seed synthetic comparison. A displayed Wilson score interval is a nominal IID approximation; time-series coverage has not been validated and it must not be described as a strict confidence interval.
-- Research B: empirical future-return frequency in a score bucket whose cut points are fixed on the selection segment and whose observations are only labels matured before the decision session (rolling origin), shrunk toward the matured base rate for thin 52-week buckets; selection labels, bucket counts and the shrinkage weight are reported.
-- Research C: the implemented model is deterministic standard-library L2 logistic regression. The live entry and the historical replay share one function: at every decision the model is refitted at an absolute 20-session anchor from labels that had matured at that anchor, with at most the trailing 252 sessions of training decisions. The replay scores only non-overlapping H+1 decisions, so each row is a probability the live entry would have produced with the same input prefix; it is not a daily overlapping pseudo-sample. Platt scaling is fitted only from matured non-overlapping replay logits (at least 40, both classes) and applied only when that capacity exists; a 52-week window supplies roughly 18-21 such rows, so the published probability stays raw and the calibrator is recorded in `shadow_calibration` rather than applied. Each OOS row records the refit anchor, training-label boundary, calibration boundary and coefficients, so the audit can re-check the mapped value. There is no frozen pre-holdout mapping and no final-holdout transfer step in the published path.
-- Consensus: equal-weight arithmetic mean of valid, provenance-bearing path estimates. It is not a majority vote. No ensemble calibrator is applied to the published probability: the retrospective earliest-60% / later-ledger check is recorded in `shadow_calibration` with `applied: false`, and `calibrated_probability` stays null until a frozen calibrator accumulates prospective evidence. The equal-weight mean is retained as `raw_probability` and is the reported number.
+## One production path
 
-`economic_viability` is a separate optional result. If path expected returns are available, the report shows gross expected return and simple 5/10/20 bp assumed round-trip cost scenarios. These are sensitivity assumptions only, not broker fees, slippage, market impact, or a strategy net-return backtest. They never modify `prob_up`, raw/calibrated probabilities, OOS probability metrics, or forecast confidence. Older results without this field are treated as `not_assessed`.
+Only Research A produces the published probability. B and C are shadow research
+candidates: they are reported separately, never vote, never fill in for a missing
+A and cannot change its number. D is a descriptive 5-session diagnostic.
 
-OOS probability-quality diagnostics separately report Brier, Log Loss, 10-bin reliability data, ECE, sample count, coverage and abstain rate. Comparisons include each path's own dated OOS rows, the exact shared date/label intersection for currently eligible paths, the all-candidate intersection, and the same rows where every selected path predicted. OOS rows are independently checked against frozen sessions, the exact horizon, close-derived target, label maturity and the prediction-time training-label boundary; rejected rows are excluded and summarized by reason. Reliability bins expose their counts; insufficient samples are marked and no calibration interval is implied. ECE is auxiliary. A date-by-date historical policy replay uses every path with a validated probability on that date and compares its equal mean to a Jeffreys-smoothed causal expanding base rate on identical dates. It stores an `active_path_mask` for each eligible OOS label date and reports Brier Skill, Log Loss, coverage, a conservative `non_overlapping_predicted_dates` count and a moving-block bootstrap percentile interval for the skill that is reported only when the ledger supplies at least four independent blocks (otherwise the interval is marked not estimable and cannot drive grading); thresholds use the non-overlapping count, and repeated labels are not counted as equal independent samples. An `ensemble_calibration` diagnostic fits a Platt calibrator on the earliest 60% of predicted dates and checks it on later dates after a purge gap. Both blocks are retrospective ledger dates that overlap windows already used by path-level evaluation, so the check is descriptive rather than independent confirmation. It does not change the published probability: the candidate is stored in `shadow_calibration` with the selection effect disclosed, and `calibrated_probability` remains null. Brier Skill weights use a separate early-estimation/later-evaluation split (evaluation starts after the last estimation label) and remain experimental; the current forecast uses equal path weights until independent OOS and runtime acceptance is recorded.
+The production number answers one narrow question: the modelled probability that
+the split-adjusted close five exchange sessions after the decision session is
+above the decision-session close. It is not a calibrated probability, not a
+confidence score and not a trading signal.
 
-XGBoost and LightGBM are not implemented, probed, loaded, installed or retried by the current runtime. The native logistic baseline remains the only ML model. A future optional booster must use nested temporal early-stopping folds and pass independent OOS and runtime acceptance before it can be enabled; use of a model library alone does not establish probability calibration.
+## Eligibility is split into five flags
 
-All sources require [prediction-integrity and reporting checks](reliability-gates.md). Strict mode does not exclude raw probabilities or require a minimum OOS/calibration threshold for prediction eligibility. Insufficient OOS, calibration or strategy audit lowers confidence/reporting status; detected leakage, fatal data conflict or an absent valid prediction still vetoes. `forecast_eligible` means prediction-computable, not full research or strategy validation.
+| Flag | Meaning |
+|---|---|
+| `computable` | A produced a probability or a reasoned abstention |
+| `current_prediction_integrity_pass` | the current probability is reproducible from frozen bars and the fixed transform parameters |
+| `oos_integrity_pass` | every non-abstained OOS record is reproducible and labels matured at its origin |
+| `production_probability_eligible` | policy window/full calendar coverage, price basis, current integrity, OOS integrity and at least 12 valid non-overlapping OOS predictions all hold |
+| `directional_edge_supported` | at least 30 truly prospective, non-overlapping, matured outcomes and the paired improvement interval is positive under three block lengths |
+| `trading_signal_eligible` | always `false` |
 
-## Probability fields
+A failure of any production condition sets `prob_up = null`. The report must then
+show `上涨概率：不可用` with the reason code and the actual gap. A `computable`
+estimate that is not production-eligible is not displayed as a direction.
 
-Keep these separate:
+## Estimator
 
-- `raw_probability`: the model/path estimate before any calibration layer, when available;
-- `calibrated_probability`: an explicitly calibrated path probability, if valid; the consensus ensemble value stays null while the ensemble calibrator is shadow-only, and `shadow_calibrated_probability` carries the candidate without affecting the published number;
-- `reportable_probability`: value passed through the reporting gate; on fatal VETO it is null and hidden from user-facing output;
-- `probability_basis` and `calibration_status`: identify exactly how the displayed number was formed.
+Research A is a causal empirical-shrinkage estimator:
 
-A valid generated raw probability remains available when calibration is missing; report it with low confidence and `DEGRADED` status. Calibration absence is not a numerical failure. An equal-weight path mean must not be called calibrated simply because one contributing path used Platt scaling.
+- state: sign of the 20-session rate of change (`roc20`); zero counts as non-negative;
+- matching origins: same-sign, label matured by the decision close, accepted
+  chronologically at least 6 sessions apart;
+- base rate: every daily 5-session label matured by the decision close, including
+  overlapping labels, because the base rate is a conditional input rather than a
+  sample count;
+- probability: `(wins + 12 * base_rate) / (matches + 12)`, with at least 12
+  matches required;
+- no fitted calibrator, no Platt scaling and no ensemble calibration.
 
-## Mandatory Quant → final-response fields
+The complete `probability_transform` (version, matching origins, matching label
+ends, base-rate label origins and boundary, wins, observations, prior strength,
+gap, horizon and policy/model/target versions) is frozen with every prediction
+and every OOS row. The audit recomputes all of it; a rewritten sample, moved
+label boundary, changed parameter or changed probability is rejected.
 
-For a valid reportable Quant result, Final Synthesis and the user reply retain `prob_up`, `direction`, `confidence`, `agreement`, report status, numerical `confidence_score`, `confidence_score_kind`, `predictive_evidence_grade` and probability basis; include `diversity` where present. The score kind is `heuristic_evidence_support`: the 0–100 score summarizes rule-based evidence support and is not accuracy, probability of correctness or a calibrated confidence interval. The predictive grade reports insufficient OOS evidence, observed skill below the causal expanding base rate (interval entirely below zero), no observed positive skill, exploratory positive point skill (fewer than the horizon-scaled full-support target; e.g. 38 non-overlapping predicted dates at 5D under the one-year default window), or, at that target or more, positive point skill with uncertainty unestimated, estimated interval excluding zero, or estimated interval including zero. A positive point estimate never means verified improvement. These are copied from the same ticker/horizon/as-of `quant_result.json.consensus`, and are preserved in `synthesis.quant` and `agent_summary.sections.final_synthesis.quant`. News cannot change Quant probability; divergence can change integrated conviction/risk, not the numerical estimate.
+## Evidence vocabulary
 
-The default chat response is concise Summary. The standard `report.md` shows validation, factors, OOS/calibration and audit scope. JSON/debug artifacts retain source proofs, reason codes, raw path outputs and manifests; do not expose these details as ordinary prose unless requested.
+- **prefix walk-forward replay**: within one frozen 52-week snapshot, every
+  decision session is predicted using only its own past. These rows are
+  retrospective and overlapping; the fixed 6-session sample is a conservative
+  evaluation policy, not proof of independence.
+- **prospective forward record**: a ledger prediction created before its label
+  could be observed. Only these records can support `directional_edge_supported`.
+  Imported/backfilled history is retrospective and is never counted as forward
+  evidence.
+- **relative skill**: paired squared-error improvement against the causal base
+  rate at the same origin. The interval comes from a moving-block bootstrap and
+  is a descriptive retrospective estimate, not a future coverage guarantee.
 
-The relationship between Quant and News must be described as aligned/mildly aligned/neutral/conflicting/unavailable. Probability stays unchanged. Distinguish Quant confidence from integrated conviction and explain risk offsets.
+## Fixed window
 
-Absent/invalid/vetoed probabilities remain null and the final response must say exactly `上涨概率：不可用`, explain the fatal reason, and mark the analysis incomplete/abstained. Percentage formatting is presentation only: JSON retains unrounded numeric values. No LLM-generated, estimated, smoothed, news-adjusted, or other-ticker probability is allowed.
+The window is `(decision_session - 364 calendar days, decision_session]`. No bar
+outside it may enter features, matching samples, the base rate, factor selection,
+ML training or calibration. A request that supplies a different window is
+rejected with `FIXED_WINDOW_CONFLICT`.
 
-Generic stock/ETF analysis, including brief analysis, uses the full workflow by default even when no probability was explicitly requested. Brevity changes presentation only. Explicit fact/history/specialist-only requests can retain their narrow route. Do not substitute a quote/fundamentals/news digest for generic analysis.
+The forecast horizon is exactly 5 exchange sessions. `1D` and `20D` remain
+available only for descriptive or standalone factor research and can never be
+promoted to a forecast.
 
-The runtime writes `final_response.md` after both stages freeze and synthesis completes. Preserve its literal identity, Quant fields, reporting status, calibration/unavailability, Quant-News relationship and probability note. Before sending the actual prepared text, run `validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>`. It verifies frozen digests, report binding, completed stage receipts and required literal lines; missing/conflicting labeled fields fail. It does not intercept host messages or certify every prose claim. On pre-artifact collection/validation failure, explicitly report unavailable probability and the incomplete stage instead of claiming completed research.
+## Price basis
 
-## Disallowed
+The target uses the provider close that is split-adjusted and excludes cash
+dividend reinvestment. A dividend-adjusted `Adj Close` series is a different
+target and is rejected with `PRICE_BASIS_UNVERIFIED`. The snapshot records the
+basis source and the historical availability/revision disclosure.
 
-- An LLM's subjective percentage, expected return or confidence.
-- A number filled from an unavailable path or missing data.
-- Treating a raw model score as a calibrated probability.
-- Hiding sample size, calibration status, horizon, label rule or holdout behavior in standard/debug reports.
-- Showing precision beyond what the sample/model justifies.
+## Calibration
 
-- Treating a path's `qualification.route` as decoration: an `abstained` route must carry `prob_up = null`, and consensus independently rejects any path that contradicts itself.
-- Reporting an interval from a bootstrap whose block unit does not match the sample's real session spacing.
-- Calling `calibration_slope` (an OLS diagnostic of outcome on `logit(p)`) a logistic calibration slope.
-- Switching a candidate model on a point estimate; a switch needs same-date pairing and an interval that excludes zero on the pre-declared session minimum.
-
-An `indeterminate` verdict is a real result, not a failure: it means the fixed 52-week ledger cannot separate the candidates, so production stays where it is. Reaching the session minimum makes an interval computable; it does not make it sufficient evidence for a switch.
-
-When a probability is unsupported, emit `null`, explain the missing condition and continue with descriptive evidence only. Do not convert a factor score, sentiment label or directional majority into probability without a documented historical mapping.
+Calibration is disabled by policy. `calibrated_probability` is always null and
+`probability_label` is `uncalibrated_model_estimate`. No 0–100 confidence score
+is published; data completeness, OOS support, directional edge and prospective
+evidence are shown separately.

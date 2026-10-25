@@ -7,6 +7,8 @@ import re
 from datetime import date, datetime, timezone
 from typing import Any
 
+from .forecast_policy import PolicyError, policy_metadata, validate_forecast_horizon
+
 HORIZONS = {"1D": 1, "5D": 5, "20D": 20}
 RESEARCHERS = ("quant", "factor", "ml", "factor_backtest")
 RESEARCHER_STATUSES = {"success", "partial", "failed", "insufficient_data", "invalid"}
@@ -19,7 +21,7 @@ MISSING_PROBABILITY_LABEL = "上涨概率：不可用"
 def normalize_request(value: dict[str, Any]) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise ValueError("request must be an object")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
-    allowed = {"ticker", "market", "horizon", "asof", "mode", "intent", "asset_type", "instrument", "history_window", "history_start", "history_end"}
+    allowed = {"ticker", "market", "horizon", "asof", "mode", "intent", "asset_type", "instrument", "history_window", "history_start", "history_end", "policy"}
     if set(value) - allowed:
         raise ValueError("unsupported request fields: " + ", ".join(sorted(set(value) - allowed)))
     if not isinstance(value.get("ticker"), str):
@@ -48,6 +50,19 @@ def normalize_request(value: dict[str, Any]) -> dict[str, Any]:
         if not isinstance(item, str) or item not in choices:
             raise ValueError(f"request.{field} must be one of {sorted(choices)}")
         result[field] = item
+    # Production forecasts are fixed to 5 exchange sessions.  Descriptive and
+    # standalone factor research keep their full range support but can never be
+    # promoted into the production probability path.
+    horizon = validate_forecast_horizon(horizon, intent=result["intent"])
+    result["horizon"] = horizon
+    if result["intent"] == "forecast":
+        supplied_policy = value.get("policy")
+        if supplied_policy is not None:
+            if not isinstance(supplied_policy, dict):
+                raise ValueError("request.policy must be an object")
+            if supplied_policy.get("policy_version") != policy_metadata()["policy_version"]:
+                raise PolicyError("POLICY_VERSION_MISMATCH", "request.policy_version is not the active policy")
+        result["policy"] = policy_metadata()
     window = value.get("history_window", {})
     if not isinstance(window, dict) or set(window) - {"start", "end", "selection"}:
         raise ValueError("request.history_window must contain only start/end/selection")
@@ -127,7 +142,7 @@ def researcher_result(
         raise ValueError(f"unknown researcher_id: {researcher_id}")
     if status not in RESEARCHER_STATUSES:
         raise ValueError(f"unknown researcher status: {status}")
-    if result_role not in {"forecast", "diagnostic"}:
+    if result_role not in {"forecast", "diagnostic", "shadow", "production"}:
         raise ValueError(f"unknown result_role: {result_role}")
     if prob_up is not None and not 0 <= prob_up <= 1:
         raise ValueError("prob_up must be between 0 and 1")

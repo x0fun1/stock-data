@@ -10,6 +10,16 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 from .contracts import parse_timestamp
+from .forecast_policy import (
+    ERROR_CALENDAR_UNVERIFIED,
+    ERROR_FIXED_WINDOW_CONFLICT,
+    ERROR_INSUFFICIENT_COVERAGE,
+    ERROR_POLICY_MISMATCH,
+    ERROR_PRICE_BASIS_UNVERIFIED,
+    POLICY_VERSION,
+    PRICE_BASIS,
+    window_bounds,
+)
 from .gate_policy import classify_reasons
 
 EXCHANGE_TIMEZONES = {"US": "America/New_York", "HK": "Asia/Hong_Kong"}
@@ -280,6 +290,19 @@ def _check_history_window(data: dict[str, Any], request: dict[str, Any], first: 
                           findings: _Findings) -> None:
     """The declared window must describe the bars that were actually normalized."""
     window = data.get("history_window")
+    policy_window = data.get("policy_window")
+    if isinstance(policy_window, dict) and policy_window.get("status") == "resolved":
+        # Under the fixed policy the declared window is the policy boundary, not
+        # the first/last bar labels.  Bars must sit strictly inside it.
+        start = policy_window.get("window_start_exclusive")
+        end = policy_window.get("window_end_inclusive")
+        if not isinstance(window, dict) or window.get("start") != start or window.get("end") != end:
+            findings.fatal("FIXED_WINDOW_CONFLICT", "market history_window must equal the frozen policy boundary")
+        elif not (start < first <= last <= end):
+            findings.fatal("OHLCV_OUT_OF_WINDOW", "market bars fall outside the frozen policy window")
+        if not window.get("selection"):
+            findings.fatal("SOURCE_IDENTITY_UNVERIFIED", "market history_window selection is missing")
+        return
     if not isinstance(window, dict):
         findings.fatal("SOURCE_IDENTITY_UNVERIFIED", "market actual history_window is missing")
     else:
@@ -448,9 +471,85 @@ def _check_price_scale(bars: list[dict[str, Any]], findings: _Findings) -> None:
         findings.fatal("INVALID_PRICE_VALUES", "OHLCV price values cannot be evaluated")
 
 
+def _check_forecast_policy(block: dict[str, Any], request: dict[str, Any], data: dict[str, Any],
+                           bars: list[dict[str, Any]], last: str, calendar_status: str,
+                           findings: _Findings) -> dict[str, Any]:
+    """Validate the fixed 52-week / 5-session contract on the collected market block."""
+
+    if request.get("intent") != "forecast":
+        return {"applicable": False}
+    output: dict[str, Any] = {"applicable": True, "policy_version": POLICY_VERSION}
+    declared = (request.get("policy") or {}).get("policy_version")
+    if declared != POLICY_VERSION:
+        findings.fatal(ERROR_POLICY_MISMATCH, f"request policy_version must be {POLICY_VERSION}")
+        findings.errors.append(f"request policy_version must be {POLICY_VERSION}")
+    window = data.get("policy_window")
+    if not isinstance(window, dict) or window.get("status") != "resolved":
+        findings.fatal("DECISION_SESSION_UNRESOLVED", "no completed decision session could be resolved")
+        findings.errors.append("no completed decision session could be resolved")
+        return output
+    decision = window.get("decision_session")
+    start, end = window_bounds(decision)
+    if window.get("window_start_exclusive") != start or window.get("window_end_inclusive") != end:
+        findings.fatal(ERROR_FIXED_WINDOW_CONFLICT, "snapshot window does not match the policy boundary")
+        findings.errors.append("snapshot window does not match the policy boundary")
+    declared_window = request.get("history_window") or {}
+    if declared_window.get("start") and declared_window["start"] != start:
+        findings.fatal(ERROR_FIXED_WINDOW_CONFLICT, "requested history start conflicts with the policy boundary")
+        findings.errors.append("requested history start conflicts with the policy boundary")
+    if declared_window.get("end") and declared_window["end"] != end:
+        findings.fatal(ERROR_FIXED_WINDOW_CONFLICT, "requested history end conflicts with the policy boundary")
+        findings.errors.append("requested history end conflicts with the policy boundary")
+    if last != decision:
+        findings.fatal("DECISION_SESSION_UNRESOLVED", "last retained bar is not the decision session close")
+        findings.errors.append("last retained bar is not the decision session close")
+    outside = [row for row in bars if not start < str(row.get("date")) <= end]
+    if outside:
+        findings.fatal("OHLCV_OUT_OF_WINDOW", f"{len(outside)} bar(s) fall outside the frozen policy window")
+        findings.errors.append(f"{len(outside)} bar(s) fall outside the frozen policy window")
+    coverage = window.get("coverage_status")
+    verified_calendar = calendar_status in {"source_supplied_schedule", "library_verified"} and bool(window.get("calendar_verified"))
+    if coverage != "complete":
+        findings.fatal(
+            ERROR_INSUFFICIENT_COVERAGE,
+            f"52-week window coverage is {coverage or 'missing'}; expected {window.get('expected_sessions')} sessions, "
+            f"observed {window.get('observed_sessions')}, missing {window.get('missing_session_count')}",
+        )
+    if not verified_calendar:
+        findings.degraded(ERROR_CALENDAR_UNVERIFIED, "exchange calendar is unverified; no formal 5-session probability is publishable")
+    price_basis = block.get("price_basis")
+    if price_basis != PRICE_BASIS:
+        findings.fatal(ERROR_PRICE_BASIS_UNVERIFIED, f"price basis {price_basis!r} is not the required {PRICE_BASIS!r} split-adjusted close")
+        findings.errors.append(f"price basis {price_basis!r} is not the required {PRICE_BASIS!r} split-adjusted close")
+    if any("available_at" not in row for row in bars):
+        findings.degraded("POINT_IN_TIME_UNVERIFIED", "historical bars expose dates but no per-bar available_at; provider revision status is disclosed")
+    output.update({
+        "decision_session": decision,
+        "window_start_exclusive": start,
+        "window_end_inclusive": end,
+        "expected_sessions": window.get("expected_sessions"),
+        "observed_sessions": window.get("observed_sessions"),
+        "missing_sessions": window.get("missing_sessions"),
+        "coverage_status": coverage,
+        "calendar_verified": verified_calendar,
+        "price_basis": price_basis,
+        "price_basis_source": block.get("price_basis_source"),
+        "historical_availability_status": "date_only_no_per_bar_available_at",
+        "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified",
+    })
+    if findings.blockers:
+        output["status"] = "blocked"
+    elif findings.warnings:
+        output["status"] = "degraded"
+    else:
+        output["status"] = "verified"
+    return output
+
+
 def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at: str | None = None,
                 resolved_calendar_evidence: dict[str, Any] | None = None,
-                allow_library_calendar: bool = False) -> dict[str, Any]:
+                allow_library_calendar: bool = False,
+                enforce_policy: bool = True) -> dict[str, Any]:
     """Run the market checks in contract order, then hand the findings to the gate."""
     findings = _Findings()
     _check_provenance_strings(block, findings)
@@ -487,6 +586,8 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
                                        source_time, fetch_time, findings)
     corporate_action_status, adjustment_known = _check_adjustment(block, first, last, findings)
     _check_price_scale(bars, findings)
+    policy = (_check_forecast_policy(block, request, data, bars, last, calendar_status, findings)
+              if enforce_policy else {"applicable": False, "status": "legacy_not_enforced"})
 
     asset_type = request.get("asset_type")
     if not isinstance(asset_type, str) or asset_type in {None, "unknown"}:
@@ -498,4 +599,7 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
                    resolved_calendar_evidence=resolved if calendar_status == "library_verified" else None)
     result["adjustment_status"] = "provider_declared" if adjustment_known else "unknown"
     result["corporate_action_status"] = corporate_action_status
+    result["policy"] = policy
+    if request.get("intent") == "forecast":
+        result["forecast_policy_status"] = policy.get("status")
     return result
