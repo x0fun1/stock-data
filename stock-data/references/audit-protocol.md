@@ -96,8 +96,8 @@ standard error; otherwise the binomial noise is presented as skill.
 
 ## Evidence floors (`R6`)
 
-Any floor (`n` outcomes, "three positive intervals", "12 non-overlapping OOS
-predictions") must be published with its power curve. A floor that no realistic
+Any floor (`n` outcomes, "three positive intervals", the pre-v2 "12
+non-overlapping OOS predictions") must be published with its power curve. A floor that no realistic
 sample can pass does not protect quality; it makes the system unfalsifiable. The
 current design therefore treats the full prefix replay as primary evidence,
 keeps the prospective ledger as corroboration, and publishes the curve.
