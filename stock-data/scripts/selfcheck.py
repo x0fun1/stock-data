@@ -763,7 +763,7 @@ def check_f17_ai_lean_layer() -> None:
     ])
     scored = analyze_news(news_input, None, good)
     lean = scored["ai_lean"]
-    assert lean["status"] == "assessed"
+    assert lean["status"] == "partial"
     assert [item["news_id"] for item in lean["bullish"]] == [bullish_id]
     assert [item["news_id"] for item in lean["bearish"]] == [bearish_id]
     assert lean["bullish"][0]["reason"] == "标题称指引上调"
@@ -3077,13 +3077,13 @@ def check_t25_news_partial_is_assessed_not_unassessed() -> None:
                                    "overall_direction": "mixed",
                                    "expected_volatility_regime": {"regime": "elevated"}})
     line = required_response_lines(partial)["news"]
-    if "已评估" not in line or "3 条警告" not in line:
-        raise AssertionError(f"a partial News stage must be reported as assessed with its warning count: {line}")
-    if "未评估" in line or "未提供" in line:
-        raise AssertionError(f"assessed evidence must never be described as unassessed: {line}")
+    if "已采集" not in line or "3 条警告" not in line or "AI逐条未评估" not in line:
+        raise AssertionError(f"collection and AI assessment must have distinct statuses: {line}")
+    if "未提供" in line:
+        raise AssertionError(f"collected evidence must not be described as absent: {line}")
     text = render_final_response(partial)
-    if "未评估" in text:
-        raise AssertionError("an assessed run must not contain the unassessed sentence anywhere")
+    if "新闻：未提供" in text:
+        raise AssertionError("a collected run must not be described as absent")
     validate_response_text(partial, text)
 
     absent = _fake_delivery_result("not_assessed")
@@ -3171,7 +3171,67 @@ def check_t28_ai_lean_identity_fields_cannot_be_forged() -> None:
         "items": [{"news_id": candidate["news_id"], "lean": "bullish", "reason": "标题上调",
                    "headline": candidate["headline"]}],
     })
-    assert good["ai_lean"]["status"] == "assessed", good["ai_lean"]
+    assert good["ai_lean"]["status"] == "partial", good["ai_lean"]
+
+
+def check_t35_ai_news_counts_and_links() -> None:
+    """Every canonical headline is offered to AI; direct counts and major links are auditable."""
+
+    from quant_research.news import AI_ASSESSMENT_SCHEMA_VERSION, analyze_news
+    from quant_research.delivery import require_ai_news_coverage
+    from quant_research.report import render_final_response, render_markdown, required_response_lines
+
+    bars = synth_bars(60, seed=7)
+    articles = _f17_articles(bars) + [{
+        "article_id": "macro-1", "title": "Fed rate decision this week", "url": "https://example.com/macro",
+        "source": "Wire", "source_type": "news", "record_type": "unknown",
+        "published_at": f"{bars[-1]['date']}T14:00:00Z", "tickers": [], "summary": None,
+    }, {
+        "article_id": "roundup-1", "title": "Weekly market roundup", "url": "https://example.com/roundup",
+        "source": "Wire", "source_type": "news", "record_type": "unknown",
+        "published_at": f"{bars[-1]['date']}T15:00:00Z", "tickers": [], "summary": None,
+    }]
+    news_input = _news_input(bars, articles)
+    baseline = analyze_news(news_input)
+    candidates = baseline["ai_lean_candidates"]
+    assert any(item["record_kind"] == "unclassified" for item in candidates)
+    items = []
+    for candidate in candidates:
+        headline = candidate["headline"]
+        if "raises guidance" in headline:
+            lean, relevance, importance = "bullish", "direct", "major"
+        elif "misses estimates" in headline:
+            lean, relevance, importance = "bearish", "direct", "major"
+        elif "Fed rate" in headline:
+            lean, relevance, importance = "bullish", "indirect", "major"
+        else:
+            lean, relevance, importance = "neutral", "unclear", "routine"
+        items.append({"news_id": candidate["news_id"], "lean": lean, "reason": "标题直接陈述该事项",
+                      "target_relevance": relevance, "importance": importance, "evidence_grade": "headline_only"})
+    assessed = analyze_news(news_input, None, {"schema_version": AI_ASSESSMENT_SCHEMA_VERSION,
+                                                "ticker": "MU", "asof_timestamp": news_input.asof_timestamp,
+                                                "items": items})
+    ai = assessed["ai_lean"]
+    assert ai["status"] == "assessed" and ai["coverage"]["assessed_count"] == len(candidates)
+    counts = ai["coverage"]["direct_label_counts"]
+    assert counts["bullish"] == 1 and counts["bearish"] == 1, counts
+    assert len(ai["major_direct_items"]) == 2
+    require_ai_news_coverage(assessed)
+    try:
+        require_ai_news_coverage(baseline)
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("delivery must reject collected headlines without AI assessment")
+    result = _fake_delivery_result("complete")
+    result["news_result"] = assessed
+    line = required_response_lines(result)["news"]
+    assert "利多1条" in line and "利空1条" in line and "AI逐条已完成" in line, line
+    final = render_final_response(result)
+    report = render_markdown(result)
+    assert "https://example.com/a1" in final and "https://example.com/a2" in final
+    assert "https://example.com/macro" not in final
+    assert "https://example.com/macro" in report
 
 
 def check_t29_mutation_detection() -> None:
@@ -3425,6 +3485,7 @@ CHECKS = [
     ("T32 headline cannot inject report lines", check_t32_headline_newlines_cannot_inject_report_lines),
     ("T33 unresolved target session vetoes publication", check_t33_unresolved_target_session_vetoes_publication),
     ("T34 pipeline runs news by default", check_t34_pipeline_runs_news_by_default),
+    ("T35 AI news counts and links", check_t35_ai_news_counts_and_links),
 ]
 
 if __name__ == "__main__":

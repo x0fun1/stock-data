@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "3.1.0"}
+metadata: {version: "3.2.0"}
 ---
 
 # Stock Data & Quant Research
@@ -56,7 +56,7 @@ metadata: {version: "3.1.0"}
 ## 来源路由
 
 - 美股优先使用实际已连接、覆盖该字段的 Finnhub MCP；仅在需要时读取 [Finnhub schema](references/finnhub-mcp-1.21.3-schema.md)。本包不提供 Finnhub 连接或密钥。
-- 新闻唯一来源是宿主 Finnhub MCP `get-news-pulse`。超过 90 天的事件视为已定价；来源仅覆盖 7 天时披露实际覆盖天数，不把 7 天说成 90 天。未连接时 News 记 `not_assessed`，不二次联网。
+- 新闻唯一来源是宿主 Finnhub MCP `get-news-pulse`。超过 90 天的事件视为已定价；来源仅覆盖 7 天时披露实际覆盖天数，不把 7 天说成 90 天。未连接时 News 记 `not_assessed`，不二次联网。每条用户可见的利多/利空判断由宿主 AI 阅读冻结候选标题后单独作出；标题缺正文时明确标明标题级判断。
 - Yahoo 结构化数据优先 `global_stock_data.py` 的 `yahoo_*` yfinance 路由；失败时强制调用语义兼容的旧接口并保留 provenance，不提供用户开关，不用网页摘要替代。partial 结果不被回退覆盖。
 - 港股及 Finnhub 缺项使用本包 global gateway；调用前按需读取 [global-stock-data.md](references/global-stock-data.md) 与 [source-policies.md](references/source-policies.md)。
 - ETF 使用自身 OHLCV，标明 `asset_type=etf`；成分股/指数只作有明确敞口的背景，不代填基金价格、财务或 NAV。
@@ -67,18 +67,21 @@ metadata: {version: "3.1.0"}
 1. 确认证券身份、资产类型、意图与 as-of。请求契约见 [researcher-contract.md](references/researcher-contract.md)。默认窗口是 decision 前 364 个自然日；用户显式区间必须与 policy 边界一致。
 2. 一次采集并保存市场数据及可用新闻。行情与新闻抓取可并行；来源映射、收盘/freshness 检查、Quant 和最终综合有串行依赖。字段见 [collection-adapter.md](references/collection-adapter.md) 和 [reliability-gates.md](references/reliability-gates.md)。
 3. 将 provider 数据明确映射成 `data.bars/articles`；原始 envelope 独立保留且脱敏。不要从字段名猜复权、发布时间、交易日、来源 symbol 或单位。forecast 必须提供拆股调整的 provider close。
-4. 常规预测使用 `pipeline --cleanup-json`，让 collection、快照和分析文件进入本次独占的 `runtime/runs/<run_id>/`；交付文本校验后再调用 `cleanup-run`。审计、调试或要求复现的研究使用 `--keep-json`。`pipeline` 启动前会执行一次节流的 `gc`。
+4. 常规预测先 `adapt`、`freeze`，然后运行 `news-candidates --snapshot-dir <冻结快照> --output <候选文件>`。宿主 AI 逐条阅读候选，写 `news_ai_assessment.json`，再运行 `analyze --snapshot-dir <同一快照> --news-ai-assessment <文件>`。有新闻时不得跳过 AI 步骤，也不得从规则词典的 `unknown` 充当最终事件判断。每条候选必须有一个判断；无法判断可标 `unclear`，但须写明原因。审计、调试或要求复现的研究保留 JSON。`pipeline` 仅用于已准备好同一快照候选 ID 的评估文件或无新闻运行。
 5. A/B/C/D 只读取同一冻结 snapshot。A 的当前预测与每条回放都由 `predict_at_origin()` 生成；每条记录保存完整 `probability_transform`（版本、基率起源与标签边界、`n_eff`、`k`、`mu`、`σ`、`p_vol`、匹配 origin、wins、observations、gap、horizon、policy/model/feature/target 版本），审计用**独立实现**从行情重算，不调用研究者代码。B 的 bucket 只使用选因子之后成熟的标签；C 每个 origin 日频重拟合；D 只做 5D 描述性 IC。D/E 不投概率票。
-6. Quant 与审计完成并冻结后才解释新闻。NewsInput 只有独立新闻、同快照行情和源日历元数据，不接收 Quant；按 [news-analysis.md](references/news-analysis.md) 做 PIT、相关性、时效、去重、事件/观点分离与行情关联。News 状态三态化：`complete` / `partial`（已评估但有警告，交付行须写出警告条数）/ `not_assessed`（未提供）。`partial` 绝不可写成“未评估”。
-7. 两份结果冻结并校验后综合。mixed/事件与观点冲突必须保留；neutral + 催化剂单列；News 不能改 Quant P(up) 或恢复被 veto 的概率。归因只能作为待验证解释。
+6. 冻结快照后，宿主 AI 可先读取新闻候选并逐条判断；`analyze` 在 Quant 与审计完成后载入这份独立评估。NewsInput 只有独立新闻、同快照行情和源日历元数据，不接收 Quant；按 [news-analysis.md](references/news-analysis.md) 做 PIT、相关性、时效、去重、事件/观点分离与行情关联。宿主 AI 对每条候选给出 `lean`、理由、直接/间接相关性及重大程度；利多/利空数量只统计直接相关条目。重大利多/利空必须附原文 URL，无 URL 不列为重大。News 采集状态与 AI 覆盖状态分别披露，缺少 AI 评估时不得只写“已评估”。
+7. 两份结果冻结并校验后并列展示。News 的逐条判断、数量和重大消息是独立消息面结果，不与 Quant 作方向一致性计算。归因只能作为待验证解释。
 8. 读取程序生成的 `final_response.md`；`agent_summary.json` 提供有界摘要，细节在 `report.md`。不得交付被排除路径概率或自行补数字。资格字段来自 `analysis.json.consensus` 的六个布尔值；不存在 `confidence_score`。
 9. 需要累积独立样本时，用 `--ledger <path>` 在冻结后写前向台账；`ledger-settle` 用后续快照结算第 5 个 session 的标签，`ledger-audit` 报告前向指标。台账 schema 3.0 在 run 目录之外、append-only，`cleanup-run` 不会删除；只有标签成熟前写入才是 `prospective_eligible`，历史补录只进回顾分组。详见 [forward-ledger.md](references/forward-ledger.md)。
 10. 将实际准备发送的完整文本保存为 UTF-8 Markdown，用 `validate-response` 校验。缺固定行、标的/窗口/时间不符、Quant 值被替换、新闻状态与冻结证据相反或缺阶段回执时拒绝交付。通过后再 `cleanup-run`，保留 `report.md`、`final_response.md` 和 `cleanup_receipt.txt`。
 
 ```text
-python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime --cleanup-json
+python stock-data/scripts/quant_research.py adapt --request request.json --responses gateway-responses.json --output collected.json
+python stock-data/scripts/quant_research.py freeze --input collected.json --output-root runtime/snapshots
+python stock-data/scripts/quant_research.py news-candidates --snapshot-dir <实际返回的 snapshot_dir> --output news_candidates.json
+# 宿主 AI 逐条填写 news_ai_assessment.json；与候选文件同 ticker、as-of、news_id
+python stock-data/scripts/quant_research.py analyze --snapshot-dir <同一 snapshot_dir> --news-ai-assessment news_ai_assessment.json --output-root runtime/research
 python stock-data/scripts/quant_research.py validate-response --analysis-dir <实际返回的 report_dir> --response-file <待发送的完整回复.md>
-python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回的 run_dir> --analysis-dir <实际返回的 report_dir> --response-file <同一待发送的完整回复.md>
 ```
 
 ## 最终交付契约
@@ -94,15 +97,15 @@ python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回�
 生产路径：A；B/C为影子研究，D为描述性诊断
 验证：前缀回放N条（其中非重叠K条；有效样本≈E）；真实前向M条；覆盖率X%
 相对因果基率技能：数值；区间：[…]；Brier 模型… vs 基率… vs 常数0.5…；AUC …；有效样本≈E
-新闻：已评估（complete/partial；N 条警告；事件方向…；波动状态…；不改变Quant概率） | 未提供（不影响Quant资格，也不当作中性证据）
+新闻：已采集（complete/partial；N 条警告；AI逐条已完成，覆盖A/B；直接相关利多X条、利空Y条、中性Z条、混合M条、不明U条；波动状态…） | 未提供
 ```
 
 - 不得改写为 `Quant Confidence`、`置信度评分`、`校准概率` 或任何 0–100 分数。
 - `上涨概率` 为 null 时不得展示影子路径概率来填空。
 - `方向优势` 只有 `directional_edge_supported = true`（全量前缀回放区间下界 > 0）时才可称“已支持”；区间上界 < 0 必须写“无（劣于纯基率）”，含零写“证据不足”。前向台账只是佐证。
 - `交易信号` 恒为不可；未建模入场、价差、滑点与费用。
-- 消息面必须给出可追溯到具体新闻的指向；“未提供逐条判断”时写 `未提供`，已评估但存在警告时写 `partial` 并给出警告条数，两者不得混用。
-- 新闻可输出**不含方向**的 `expected_volatility_regime` 与 `already_priced_in`；两者都不进入概率。
+- 消息面必须给出逐条 AI 判断及全部候选覆盖数。每个重大利多/利空列出原文链接、发布时间和具体理由；无链接的新闻不得列为重大。宏观、同业或大盘标题只能列为间接相关，不计入 INTC 等标的的直接利多/利空数量。
+- 新闻可输出不含方向的 `expected_volatility_regime`；价格是否已反映的信息仅在具备成熟的事件后观察窗时作为可选描述，不进入主摘要。
 
 ## 外部 DATA 与运行边界
 

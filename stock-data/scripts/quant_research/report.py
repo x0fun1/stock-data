@@ -14,7 +14,7 @@ from .forecast_policy import (
     dividend_label_disclosure,
 )
 from .news import news_assessed, news_status_label
-from .security import markdown_text
+from .security import markdown_text, safe_url
 
 AGENT_SUMMARY_BUDGET = 9000
 LEAN_LABELS = {"up": "点估计偏上涨", "down": "点估计偏下跌", "flat": "点估计持平", "unavailable": "不可用"}
@@ -104,15 +104,47 @@ def _news_line(result: dict[str, Any]) -> str:
     news = result.get("news_result") or {}
     status = news.get("status")
     if not news_assessed(status):
-        return "新闻：未提供（不影响Quant资格，也不当作中性证据）"
+        return "新闻：未提供"
     state = news_status_label(status)
     warnings = len(news.get("warnings") or [])
-    direction = str(news.get("overall_direction") or "unknown")
+    ai = news.get("ai_lean") or {}
+    coverage = ai.get("coverage") or {}
+    counts = coverage.get("direct_label_counts") or {}
+    if ai.get("status") in {"assessed", "partial"}:
+        ai_label = "已完成" if ai.get("status") == "assessed" else "部分完成"
+        judgement = (f"AI逐条{ai_label}，覆盖{coverage.get('assessed_count', 0)}/"
+                     f"{coverage.get('candidate_count', 0)}；直接相关利多{counts.get('bullish', 0)}条、"
+                     f"利空{counts.get('bearish', 0)}条、中性{counts.get('neutral', 0)}条、"
+                     f"混合{counts.get('mixed', 0)}条、不明{counts.get('unclear', 0)}条")
+    else:
+        judgement = f"AI逐条未评估，候选{coverage.get('candidate_count', 0)}条"
     regime = str((news.get("expected_volatility_regime") or {}).get("regime") or "unknown")
-    return (
-        f"新闻：已评估（{state}；{warnings} 条警告；事件方向 {direction}；"
-        f"波动状态 {regime}；不改变Quant概率）"
-    )
+    return f"新闻：已采集（{state}；{warnings} 条警告；{judgement}；波动状态 {regime}）"
+
+
+def _news_link(item: dict[str, Any]) -> str:
+    title = markdown_text(item.get("headline") or "原文", 200)
+    url = safe_url(item.get("url"))
+    if not url:
+        return title + "（来源链接缺失）"
+    return f"[{title}](<{url.replace('<', '%3C').replace('>', '%3E')}>)"
+
+
+def _major_news_lines(news: dict[str, Any], *, limit: int = 5) -> list[str]:
+    ai = news.get("ai_lean") or {}
+    if ai.get("status") not in {"assessed", "partial"}:
+        return ["- 重大利多/利空：AI 逐条判断尚未完成"]
+    rows = ai.get("major_direct_items") or []
+    lines = []
+    for lean, label in (("bullish", "重大利多"), ("bearish", "重大利空")):
+        selected = [row for row in rows if row.get("lean") == lean]
+        if not selected:
+            lines.append(f"- {label}：本次未识别到有原文链接的条目")
+            continue
+        for row in selected[:limit]:
+            lines.append(f"- {label}：{_news_link(row)}；{row.get('published_at') or '时间未提供'}；"
+                         f"理由：{markdown_text(row.get('reason'), 400)}")
+    return lines
 
 
 def _edge_line(result: dict[str, Any], *, prospective: int) -> str:
@@ -253,9 +285,9 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "state": news_status_label((result.get("news_result") or {}).get("status")),
                 "assessed": news_assessed((result.get("news_result") or {}).get("status")),
                 "warning_count": (result.get("news_result") or {}).get("warning_count"),
-                "direction": (result.get("news_result") or {}).get("overall_direction"),
+                "ai_assessment_status": ((result.get("news_result") or {}).get("ai_lean") or {}).get("status"),
+                "direct_label_counts": (((result.get("news_result") or {}).get("ai_lean") or {}).get("coverage") or {}).get("direct_label_counts"),
                 "volatility_regime": ((result.get("news_result") or {}).get("expected_volatility_regime") or {}).get("regime"),
-                "already_priced_in": ((result.get("news_result") or {}).get("already_priced_in") or {}).get("state"),
                 "independent_of_quant": True,
             },
         },
@@ -315,27 +347,9 @@ def render_final_response(result: dict[str, Any], summary: dict[str, Any] | None
         blocks.append(f"- 原因码：{', '.join(consensus['reason_codes'])}")
     if result.get("adversarial_audit", {}).get("vetoes"):
         blocks.append("- 审计否决：" + "；".join(result["adversarial_audit"]["vetoes"]))
+    blocks.extend(["", "消息面（AI 标题判断，未核验正文）："])
+    blocks.extend(_major_news_lines(result.get("news_result") or {}))
     return "\n".join(blocks)
-
-
-def _news_layers(news: dict[str, Any]) -> list[str]:
-    events = [row for row in news.get("major_events") or [] if isinstance(row, dict) and row.get("eligible_evidence")]
-    recent = [row for row in events if isinstance(row.get("age_sessions"), int) and row["age_sessions"] <= 5]
-    background = [row for row in events if row not in recent]
-    upcoming = [row for row in events if row.get("scheduled_at") and str(row.get("scheduled_at")) > str(news.get("asof") or "")]
-    lines = []
-    # Headlines are provider text: they are escaped before they reach Markdown so a
-    # headline can never inject a heading, list item or link into report.md.
-    lines.append("过去5个交易日新增信息：" + ("；".join(
-        f"{markdown_text(row.get('headline'), 200)}（{row.get('direction')}）" for row in recent[:5]
-    ) or "未发现符合证据门槛的新增事件"))
-    lines.append("较早背景：" + ("；".join(
-        f"{markdown_text(row.get('headline'), 200)}（age={row.get('age_sessions')} sessions）" for row in background[:5]
-    ) or "无"))
-    lines.append("未来5个交易日已公布日程：" + ("；".join(
-        f"{row.get('scheduled_at')} {markdown_text(row.get('headline'), 200)}" for row in upcoming[:5]
-    ) or "not_assessed（未取得可核实的未来事件日程）"))
-    return lines
 
 
 def render_markdown(result: dict[str, Any]) -> str:
@@ -385,17 +399,22 @@ def render_markdown(result: dict[str, Any]) -> str:
         if diagnostic:
             out.append(f"- D 描述性诊断（5D）：IC={_num(diagnostic.get('information_coefficient'))}；留出样本={diagnostic.get('holdout_sample_count')}；descriptive_only=true")
     news = result.get("news_result") or {}
-    out.extend(["", "## 新闻（独立于 Quant）", ""])
+    out.extend(["", "## 消息面", ""])
     out.append(f"- 状态：{news.get('status') or 'not_assessed'}（{news_status_label(news.get('status'))}）；"
                f"已评估：{news_assessed(news.get('status'))}；警告：{news.get('warning_count') if news.get('warning_count') is not None else len(news.get('warnings') or [])} 条")
-    out.append(f"- 事件方向：{news.get('overall_direction') or 'unknown'}；"
-               f"预期波动状态：{(news.get('expected_volatility_regime') or {}).get('regime') or 'unknown'}（不含方向）")
-    out.append(f"- 是否已被价格反映：{(news.get('already_priced_in') or {}).get('state') or 'not_assessable'}（仅展示，不进入概率）")
+    out.append(f"- {lines['news']}")
+    out.append(f"- 预期波动状态：{(news.get('expected_volatility_regime') or {}).get('regime') or 'unknown'}")
     out.append(f"- 发布时段分布：{news.get('event_time_bucket_counts') or {}}")
     out.append(f"- 来源一致度：观点 {(news.get('opinion_source_agreement') or {}).get('state')}；"
                f"事件 {(news.get('event_source_agreement') or {}).get('state')}")
-    out.extend([f"- {line}" for line in _news_layers(news)])
-    out.append("- 新闻证据不接收 Quant 概率，也不影响 Quant 资格或分数。")
+    out.extend(_major_news_lines(news))
+    ai = news.get("ai_lean") or {}
+    if ai.get("status") in {"assessed", "partial"}:
+        out.extend(["", "### 逐条 AI 新闻判断", ""])
+        for item in ai.get("items") or []:
+            out.append(f"- {item.get('published_at') or '时间未提供'}；{item.get('target_relevance') or 'unclear'}；"
+                       f"{item.get('lean') or 'unclear'}；{item.get('importance') or 'routine'}；"
+                       f"{_news_link(item)}；理由：{markdown_text(item.get('reason'), 400)}")
     audit = result.get("adversarial_audit") or {}
     out.extend(["", "## 审计与限制", ""])
     out.append(f"- 审计状态：{audit.get('status')}；may_report_probability={audit.get('may_report_probability')}")

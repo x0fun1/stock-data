@@ -22,6 +22,7 @@ from quant_research.delivery import validate_final_response
 from quant_research.ledger import audit as ledger_audit
 from quant_research.ledger import record_prediction
 from quant_research.ledger import settle as ledger_settle
+from quant_research.news.pipeline import analyze_news, prepare_news_input
 from quant_research.orchestrator import run_analysis
 from quant_research.paths import safe_output_destination
 from quant_research.retention import (
@@ -55,7 +56,7 @@ def _schema(kind: str) -> dict[str, Any]:
         return {"schema_version": "3.1", "required": ["run_id", "snapshot_id", "policy_version", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "news_result", "synthesis"], "stages": ["request", "collection", "data", "quant", "audit", "news", "cross-validation", "risk", "final"], "stage_statuses": ["complete", "partial", "skipped", "not_applicable", "not_assessed", "blocked", "insufficient_data"], "synthesis_quant": {"required": ["prob_up", "direction", "model_lean", "probability_label", "production_probability_eligible", "directional_edge_supported", "directional_edge_state", "evidence", "reporting_status"], "deprecated": ["confidence", "confidence_score", "predictive_evidence_grade", "agreement"], "source": "analysis.json.consensus", "missing_probability_display": "不可用", "news_may_change_prob_up": False}, "consensus": {"production_path_count": 1, "aggregation_method": "single_path", "production_paths": ["quant"], "shadow_paths": ["factor", "ml"], "diagnostic_paths": ["factor_backtest"], "calibration": "disabled_by_policy", "trading_signal_eligible": False, "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero | negative_skill_with_estimated_interval_excluding_zero | insufficient_evidence"}, "formats": ["analysis.json", "report.md", "agent_summary.json", "final-response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; every fixed line must match literally", "error_codes": ["UNSUPPORTED_FORECAST_HORIZON", "FIXED_WINDOW_CONFLICT", "INSUFFICIENT_HISTORY_COVERAGE", "CALENDAR_UNVERIFIED", "PRICE_BASIS_UNVERIFIED", "POLICY_VERSION_MISMATCH", "TARGET_SESSION_UNRESOLVED"], "probability_blending": "prohibited"}
     if kind == "news":
         return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["status", "warning_count", "overall_direction", "event_strength", "sentiment", "opinion_source_agreement", "event_source_agreement", "market_confirmation", "expected_volatility_regime", "already_priced_in", "event_time_bucket_counts", "major_events", "background_records", "catalysts", "risks", "mixed_events", "confidence", "warnings", "ai_lean_candidates", "ai_lean"], "status_values": ["complete", "partial", "not_assessed"], "status_rule": "partial is assessed evidence; only not_assessed may be rendered as 未评估", "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only",
-                "ai_lean_artifact": {"path": "--news-ai-assessment <json>", "schema_version": "1.0", "required": ["schema_version", "ticker", "asof_timestamp", "items"], "optional": ["basis", "model"], "item_fields": ["news_id", "lean", "reason", "evidence_grade", "headline", "source", "published_at", "url", "relevance_basis"], "lean_values": ["bullish", "bearish", "mixed", "neutral", "unclear"], "score_generation": "aggregator_only_from_quant_gate", "probability_effect": "none; display-only evidence, never enters direction/confidence/cross-validation or Quant P(up)", "rejected_when": ["unknown or repeated news_id", "ticker/as-of mismatch", "unsupported field", "Quant vocabulary in any text field", "non-allow-listed lean label"]}}
+                "ai_lean_artifact": {"candidate_export": "news-candidates --snapshot-dir <dir> --output <json>", "path": "--news-ai-assessment <json>", "schema_version": "1.0", "required": ["schema_version", "ticker", "asof_timestamp", "items"], "optional": ["basis", "model"], "item_fields": ["news_id", "lean", "reason", "evidence_grade", "target_relevance", "importance", "headline", "source", "published_at", "url", "relevance_basis"], "lean_values": ["bullish", "bearish", "mixed", "neutral", "unclear"], "target_relevance_values": ["direct", "indirect", "unrelated", "unclear"], "importance_values": ["major", "routine"], "count_basis": "direct canonical headlines only; incomplete coverage is partial", "rejected_when": ["unknown or repeated news_id", "ticker/as-of mismatch", "unsupported field", "Quant vocabulary in any text field", "non-allow-listed lean label"]}}
     raise ValueError(f"unknown schema kind: {kind}")
 
 
@@ -73,11 +74,14 @@ def main(argv: list[str] | None = None) -> int:
     freeze = commands.add_parser("freeze", help="validate and freeze one captured stock-data payload")
     freeze.add_argument("--input", type=Path, required=True)
     freeze.add_argument("--output-root", type=Path, default=Path("runtime/snapshots"))
+    news_candidates = commands.add_parser("news-candidates", help="export every canonical headline for host AI review before analyze")
+    news_candidates.add_argument("--snapshot-dir", type=Path, required=True)
+    news_candidates.add_argument("--output", type=Path, required=True)
     analyze = commands.add_parser("analyze", help="run isolated research paths against one frozen snapshot")
     analyze.add_argument("--snapshot-dir", type=Path, required=True)
     analyze.add_argument("--output-root", type=Path, default=Path("runtime/research"))
     analyze.add_argument("--news-policy", type=Path, help="optional JSON event-type half-life policy for session-based decay")
-    analyze.add_argument("--news-ai-assessment", type=Path, help="optional host-produced headline-level AI lean artifact (display-only evidence)")
+    analyze.add_argument("--news-ai-assessment", type=Path, help="host-produced per-headline AI assessment")
     analyze.add_argument("--ledger", type=Path, help="append this frozen prediction to an append-only forward ledger")
     pipeline = commands.add_parser("pipeline", help="compose request/adapt/freeze/analyze from already collected gateway DATA")
     pipeline.add_argument("--request", type=Path, required=True)
@@ -88,7 +92,7 @@ def main(argv: list[str] | None = None) -> int:
         "--news-policy", type=Path,
         help="optional JSON event-type half-life policy; pipeline runs News with the built-in defaults when omitted",
     )
-    pipeline.add_argument("--news-ai-assessment", type=Path, help="optional host-produced headline-level AI lean artifact (display-only evidence)")
+    pipeline.add_argument("--news-ai-assessment", type=Path, help="host-produced per-headline AI assessment")
     pipeline.add_argument("--ledger", type=Path, help="append this frozen prediction to an append-only forward ledger")
     pipeline_mode = pipeline.add_mutually_exclusive_group()
     pipeline_mode.add_argument("--cleanup-json", action="store_true", help="isolate this pipeline run for explicit post-validation JSON cleanup")
@@ -157,6 +161,19 @@ def main(argv: list[str] | None = None) -> int:
         elif args.command == "freeze":
             location = freeze_snapshot(args.input, args.output_root)
             print(json.dumps({"status": "success", "snapshot_dir": str(location)}, ensure_ascii=False))
+        elif args.command == "news-candidates":
+            news_input = prepare_news_input(args.snapshot_dir)
+            candidates = [
+                {key: row.get(key) for key in ("news_id", "record_kind", "headline", "summary", "source",
+                                               "published_at", "url", "ticker_relevance", "eligible_evidence",
+                                               "exclusion_reasons")}
+                for row in analyze_news(news_input)["ai_lean_candidates"]
+            ]
+            _json_file(args.output, {"schema_version": "1.0", "ticker": news_input.ticker,
+                                     "asof_timestamp": news_input.asof_timestamp,
+                                     "candidate_count": len(candidates), "items": candidates})
+            print(json.dumps({"status": "success", "candidate_count": len(candidates),
+                              "output": str(args.output)}, ensure_ascii=False))
         elif args.command in {"analyze", "pipeline"}:
             owned_run = None
             gc_report: dict[str, Any] | None = None
@@ -197,7 +214,7 @@ def main(argv: list[str] | None = None) -> int:
                 news_policy_path = getattr(args, "news_policy", None)
                 if news_policy_path:
                     policy = json.loads(news_policy_path.read_text(encoding="utf-8-sig"))
-                elif args.command == "pipeline":
+                elif args.command == "pipeline" or getattr(args, "news_ai_assessment", None):
                     # The pipeline claims to run News; before this default it never
                     # did unless the caller passed a policy file, so every pipeline
                     # artifact said "not assessed" while the README said otherwise.

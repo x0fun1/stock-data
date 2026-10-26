@@ -446,17 +446,20 @@ def analyze_news(
     ]
 
     unclassified_records = [{
+        "news_id": cluster["cluster_id"].replace("cluster_", "unclassified_"),
         "published_at": cluster["first_published_at"],
         "article_count": cluster["article_count"],
         "sources": cluster["sources"],
         "headline": cluster["representative"].get("title"),
+        "summary": cluster["representative"].get("summary"),
+        "url": cluster["representative"].get("url"),
         "reason": "no supported event category and no explicit opinion/social record type",
     } for cluster in unclassified_clusters]
 
     all_events, all_opinions = events, opinions
     # The lean stage sees every analyzable record, including pre-gate ones, so a
     # headline excluded from directional bias can still be judged and disclosed.
-    lean_inputs = lean_candidates(all_events, all_opinions)
+    lean_inputs = lean_candidates(all_events, all_opinions, unclassified_records)
     events = [item for item in all_events if item["eligible_evidence"]]
     opinions = [item for item in all_opinions if item["eligible_evidence"]]
     excluded_evidence = [item for item in all_events + all_opinions if not item["eligible_evidence"]]
@@ -651,7 +654,11 @@ def _attach_ai_lean(
             reason=bounded_text(exc, 200),
             warnings=["the deterministic News result is unchanged; no lean evidence is reported"],
         )
-    block = build_ai_lean_block(validated, candidates=candidates, status="assessed")
+    assessed_count = len(validated["items"])
+    block = build_ai_lean_block(validated, candidates=candidates,
+                                status="assessed" if assessed_count == len(candidates) else "partial",
+                                reason=None if assessed_count == len(candidates) else
+                                f"{len(candidates) - assessed_count} canonical headlines were not assessed")
     attach_lean_to_records(result, block)
     return block
 

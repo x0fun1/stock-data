@@ -67,9 +67,9 @@ The News result has exactly three states and they are not interchangeable:
 
 | State | Meaning | Delivery line |
 |---|---|---|
-| `complete` | assessed, no warnings | `新闻：已评估（complete；0 条警告；…）` |
-| `partial` | assessed **with** warnings | `新闻：已评估（partial；N 条警告；…）` |
-| `not_assessed` | no evidence produced | `新闻：未提供（不影响Quant资格，也不当作中性证据）` |
+| `complete` | collected and screened, no warnings | `新闻：已采集（complete；0 条警告；AI逐条…）` |
+| `partial` | collected and screened **with** warnings | `新闻：已采集（partial；N 条警告；AI逐条…）` |
+| `not_assessed` | no evidence produced | `新闻：未提供` |
 
 `partial` is assessed evidence. Writing it as "未评估" contradicts the frozen
 `news_result.json`, and the delivery validator rejects that mismatch. The warning
@@ -96,17 +96,21 @@ Event confidence is at most medium, requiring at least three eligible event clus
 
 ## Synthesis and artifacts
 
-News emits no probability. Synthesis preserves reportable Quant P(up) and compares market-behavior evidence with reported catalysts. Mixed event evidence has priority and cannot be overwritten by opinion/provider tone. Explicit event/opinion conflict remains `MIXED`. Other labels include alignment/divergence (with stronger variants only under disclosed reaction/confidence conditions), `CATALYST_WITH_NEUTRAL_QUANT`, `OPINION_ONLY_CROSS_CHECK`, `NOT_ASSESSED`, and `ABSTAIN`. Conflict is recorded as a warning and retained as mixed evidence; vetoed/invalid Quant cannot be rescued by News.
+News emits no probability. Synthesis preserves reportable Quant P(up) and carries the AI News counts in a separate section. It does not compute alignment, divergence or a combined direction. The former deterministic cross-check fields remain available in the frozen News artifact as diagnostics, not as the user-facing headline judgment.
 
-`news_result.json` and its freeze receipt retain detailed evidence. Default chat Summary is concise; `report.md` is the standard detail and JSON/debug retains source-level traces. News evidence is integrated with the existing Quant probability/status; it cannot alter a number. IC/bias/PBO/DSR/cost scope is reported in the standard/debug artifacts, not represented as completed strategy validation.
+`news_result.json` and its freeze receipt retain detailed evidence. Default chat Summary is concise; `report.md` lists every assessed canonical headline and its source link when available. News and Quant are presented as separate sections. IC/bias/PBO/DSR/cost scope is reported in the standard/debug artifacts, not represented as completed strategy validation.
 
-## Host AI headline lean (display-only)
+## Host AI per-headline assessment
 
 Deterministic keyword screening under-classifies real headlines: hedged, denial or contractual wording collapses to `unknown`, and a mixed-member event is not a one-sided signal. The Skill therefore accepts one additional, clearly separated artifact: a **host-produced, headline-level AI lean**.
 
-Flow. The frozen News stage emits `ai_lean_candidates[]` — every analyzable record (event or opinion, eligible or pre-gate) with its `news_id`, headline, source, publication time, URL, deterministic `direction`, `ticker_relevance` and `exclusion_reasons`. The host model reads only that (never a Quant result) and writes `news_ai_assessment` with `--news-ai-assessment` on `analyze`/`pipeline`. Python validates it and attaches it; it never calls a model, never reads a network, and stays reproducible without the artifact.
+Flow. After `freeze`, run `news-candidates` to export every canonical headline (event, opinion, or unclassified; including pre-gate records). The host AI reads the complete candidate file and writes one assessment for each `news_id`. It must judge the effect on the named ticker as `bullish`, `bearish`, `mixed`, `neutral`, or `unclear`, explain the title-level basis, classify `target_relevance` as `direct`, `indirect`, `unrelated`, or `unclear`, and mark `importance` as `major` or `routine`. Macro and competitor headlines are indirect unless the headline identifies a concrete effect on the named company. The host must not infer body facts absent from a headline. Python validates the artifact passed to `analyze --news-ai-assessment`; it never invokes a model or fetches news itself.
 
-Artifact contract (schema 1.0). Required: `schema_version`, `ticker`, `asof_timestamp`, non-empty `items` (≤40). Optional: `basis` (`headline_level_ai_screen_v1`) and `model` (`id`, `prompt_sha256`, `generated_at_utc`). Each item carries `news_id`, `lean` (`bullish|bearish|mixed|neutral|unclear`), `reason` (the quoted-basis explanation shown to the user) and `evidence_grade` (`reported_event|analyst_opinion|headline_only|rumour|unclear`), plus optional `headline`, `source`, `published_at`, `url`, `relevance_basis`.
+Use `major` only when the supplied text identifies a concrete event with plausible material consequences for the company's revenue, costs, capital structure, legal exposure, or guidance. Earnings results, revised guidance, large named contracts, major regulatory decisions and financings can qualify when the title provides enough detail. Generic market roundups, upcoming earnings previews, promotional product announcements without commercial evidence, and broad macro headlines are `routine` or indirect. A published article URL verifies the cited headline's provenance, not the AI inference or the underlying claim.
+
+Artifact contract (schema 1.0). Required: `schema_version`, `ticker`, `asof_timestamp`, non-empty `items` (≤500). Optional: `basis` (`headline_level_ai_screen_v1`) and `model` (`id`, `prompt_sha256`, `generated_at_utc`). Each item carries `news_id`, `lean` (`bullish|bearish|mixed|neutral|unclear`), `reason`, `evidence_grade` (`reported_event|analyst_opinion|headline_only|rumour|unclear`), `target_relevance` (`direct|indirect|unrelated|unclear`) and `importance` (`major|routine`), plus optional copied identity fields `headline`, `source`, `published_at`, `url`, `relevance_basis`.
+
+The user-facing count is by **canonical headline**, after conservative deduplication. Only `direct` items contribute to the ticker's bullish/bearish/neutral/mixed/unclear totals. `indirect`, `unrelated`, and `unclear` relevance are listed individually but excluded from those totals. The report shows assessed/total coverage; incomplete coverage is `ai_lean.status=partial`, never a complete news assessment. A major bullish or bearish item appears in the summary only when its frozen source record has a safe original URL; the report includes that link, timestamp and AI reason. The report includes every assessed item with its link where available. A missing or rejected artifact is explicitly reported as AI unassessed, even when the deterministic collection state is complete.
 
 Validation. Every `news_id` must exist in this run and must not repeat; `ticker`/as-of must match the snapshot; unknown fields are refused; and any Quant vocabulary or probability (`prob_up`, `probability`, `alignment`, `consensus`, `quant_result`, `confidence_score`, …) inside a text field rejects the whole artifact.
 
@@ -125,6 +129,6 @@ cost is a lost lean item; the benefit is that no Quant vocabulary can be smuggle
 through the News stage. Do not relax the list to admit a phrasing — extend the
 artifact schema instead.
 
-Separation. `ai_lean` is `display_only`: it does not change `direction`, `overall_direction`, `sentiment`, `confidence`, `event_strength`, `effective_event_score`, `market_confirmation` or any cross-validation label, and it cannot change Quant `P(up)`. `risks` lists only deterministically negative events; conflicting ones are reported separately in `mixed_events`. A user-facing reply must cite the specific headline behind each bullish/bearish claim, and must state that the judgement is headline-level and unverified against body text.
+Separation. AI headlines are the user-facing News directional assessment. The deterministic event fields remain internal diagnostics. Synthesis displays Quant and News independently; it computes no alignment score or combined direction. A user-facing reply cites the original link behind every major bullish/bearish claim and states that title-level judgements are unverified against body text.
 
 Price reaction is not independent confirmation. The reaction is computed from the same frozen OHLCV snapshot the Quant paths consume, so `price_reaction` reports `basis: frozen_snapshot_ohlcv`, `independence: not_independent_same_market_data` and the derived `confirmation` label. It is a consistency check on one dataset; it must never be described as a second, independent market agreeing with the news classification, and it never feeds a probability.

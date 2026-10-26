@@ -71,6 +71,18 @@ def _validate_stages(result: dict[str, Any]) -> dict[str, Any]:
     return {"stage_count": len(stages), "order": [row["stage"] for row in stages]}
 
 
+def require_ai_news_coverage(news: dict[str, Any]) -> None:
+    """Refuse delivery when collected canonical headlines lack per-item AI review."""
+    ai = news.get("ai_lean") or {}
+    coverage = ai.get("coverage") or {}
+    candidate_count = len(news.get("ai_lean_candidates") or [])
+    if candidate_count and (ai.get("status") != "assessed"
+                            or coverage.get("candidate_count") != candidate_count
+                            or coverage.get("assessed_count") != candidate_count
+                            or len(ai.get("items") or []) != candidate_count):
+        raise ValueError("Final audit rejected: every canonical news headline needs a host AI assessment")
+
+
 def validate_final_response(analysis_dir: Path, response_file: Path) -> dict[str, Any]:
     result = json.loads((analysis_dir / "analysis.json").read_text(encoding="utf-8"))
     if not isinstance(result, dict):
@@ -79,6 +91,7 @@ def validate_final_response(analysis_dir: Path, response_file: Path) -> dict[str
     frozen_news, _news_receipt = load_frozen_result(analysis_dir / "news_result.json")
     if frozen_news != result.get("news_result"):
         raise ValueError("Final audit rejected: news_result.json does not match the frozen News stage")
+    require_ai_news_coverage(frozen_news)
     consensus = result.get("consensus") or {}
     production = consensus.get("production") or {}
     if consensus.get("prob_up") != production.get("prob_up"):

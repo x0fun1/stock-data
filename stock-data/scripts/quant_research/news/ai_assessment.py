@@ -40,7 +40,7 @@ EVIDENCE_GRADES = (
     "unclear",
 )
 
-_MAX_ITEMS = 40
+_MAX_ITEMS = 500
 _REASON_LIMIT = 400
 _HEADLINE_LIMIT = 300
 
@@ -55,6 +55,8 @@ _ITEM_KEYS = {
     "reason",
     "evidence_grade",
     "relevance_basis",
+    "target_relevance",
+    "importance",
 }
 _MODEL_KEYS = {"id", "prompt_sha256", "generated_at_utc"}
 
@@ -72,6 +74,9 @@ _FORBIDDEN_TOKENS = (
     "报告概率",
     "上涨概率",
 )
+
+TARGET_RELEVANCE = ("direct", "indirect", "unrelated", "unclear")
+IMPORTANCE = ("major", "routine")
 
 
 def _reject(message: str) -> None:
@@ -200,6 +205,12 @@ def validate_ai_assessment(
         evidence_grade = raw.get("evidence_grade", "unclear")
         if evidence_grade not in EVIDENCE_GRADES:
             _reject(f"ai assessment item {position} evidence_grade must be one of {', '.join(EVIDENCE_GRADES)}")
+        target_relevance = raw.get("target_relevance", "unclear")
+        if target_relevance not in TARGET_RELEVANCE:
+            _reject(f"ai assessment item {position} target_relevance must be one of {', '.join(TARGET_RELEVANCE)}")
+        importance = raw.get("importance", "routine")
+        if importance not in IMPORTANCE:
+            _reject(f"ai assessment item {position} importance must be one of {', '.join(IMPORTANCE)}")
         headline = _text(raw.get("headline"), field=f"item {position} headline", limit=_HEADLINE_LIMIT, required=False)
         reason = _text(raw.get("reason"), field=f"item {position} reason", limit=_REASON_LIMIT)
         source = _text(raw.get("source"), field=f"item {position} source", limit=120, required=False)
@@ -243,6 +254,10 @@ def validate_ai_assessment(
             "published_at": record.get("published_at") or record.get("first_published_at"),
             "url": record.get("url"),
             "ticker_relevance": record.get("ticker_relevance"),
+            "record_kind": record.get("record_kind"),
+            "eligible_evidence": record.get("eligible_evidence"),
+            "target_relevance": target_relevance,
+            "importance": importance,
             "relevance_basis": relevance_basis or "source_recorded",
             "display_only": True,
         })
@@ -276,10 +291,14 @@ def build_ai_lean_block(
         "mixed": _bucket(items, ("mixed",)),
         "neutral_or_unclear": _bucket(items, ("neutral", "unclear")),
     }
+    direct = [item for item in items if item.get("target_relevance") == "direct"]
+    direct_counts = {label: sum(item["lean"] == label for item in direct) for label in LEAN_LABELS}
+    major = [item for item in direct if item.get("importance") == "major"
+             and item["lean"] in {"bullish", "bearish"} and item.get("url")]
     limitations = [
         "Lean is a headline-level AI judgement by the host model, not a calibrated sentiment model and not an event fact.",
         "Several provider feeds supply headlines without body text; a lean cannot verify the underlying report.",
-        "Lean is display-only evidence: it does not enter direction aggregation, confidence, event scoring, cross-validation labels or Quant P(up).",
+        "Headline judgements and importance are qualitative; repeated coverage may describe the same underlying event.",
     ]
     if any(item.get("ticker_relevance") == "not_explicitly_matched" for item in items):
         limitations.append("Some judged records did not carry explicit ticker evidence in the headline; relevance rests on the provider query symbol and stays unverified.")
@@ -297,7 +316,11 @@ def build_ai_lean_block(
             "assessed_count": len(items),
             "unassessed_count": max(0, len(candidates) - len(items)),
             "label_counts": {label: len(bucket) for label, bucket in blocks.items()},
+            "direct_count": len(direct),
+            "direct_label_counts": direct_counts,
         },
+        "items": [dict(item) for item in items],
+        "major_direct_items": [dict(item) for item in major],
         "bullish": [dict(item) for item in blocks["bullish"][:10]],
         "bearish": [dict(item) for item in blocks["bearish"][:10]],
         "mixed": [dict(item) for item in blocks["mixed"][:10]],
@@ -312,10 +335,11 @@ def build_ai_lean_block(
 def lean_candidates(
     events: list[dict[str, Any]],
     opinions: list[dict[str, Any]],
+    unclassified: list[dict[str, Any]] | None = None,
     *,
     limit: int = _MAX_ITEMS,
 ) -> list[dict[str, Any]]:
-    """Every analyzable record, including pre-gate ones, as lean-stage input.
+    """Every canonical headline, including unclassified and pre-gate records.
 
     The eligibility gate is a bias gate, not a relevance filter for reading a
     headline: a record excluded for weak ticker evidence is still a record a
@@ -327,6 +351,7 @@ def lean_candidates(
             "news_id": event.get("event_id"),
             "record_kind": "event",
             "headline": event.get("headline"),
+            "summary": event.get("summary"),
             "source": (event.get("sources") or [None])[0],
             "published_at": event.get("first_published_at"),
             "url": event.get("url"),
@@ -341,6 +366,7 @@ def lean_candidates(
             "news_id": opinion.get("opinion_id"),
             "record_kind": "opinion",
             "headline": opinion.get("headline"),
+            "summary": opinion.get("summary"),
             "source": (opinion.get("sources") or [None])[0],
             "published_at": opinion.get("published_at"),
             "url": opinion.get("url"),
@@ -350,6 +376,21 @@ def lean_candidates(
             "eligible_evidence": opinion.get("eligible_evidence"),
             "exclusion_reasons": opinion.get("exclusion_reasons"),
         })
+    for record in unclassified or []:
+        rows.append({
+            "news_id": record.get("news_id"),
+            "record_kind": "unclassified",
+            "headline": record.get("headline"),
+            "summary": record.get("summary"),
+            "source": (record.get("sources") or [None])[0],
+            "published_at": record.get("published_at"),
+            "url": record.get("url"),
+            "direction": "unknown",
+            "event_type": None,
+            "ticker_relevance": record.get("ticker_relevance"),
+            "eligible_evidence": False,
+            "exclusion_reasons": [record.get("reason")],
+        })
     rows = [row for row in rows if isinstance(row.get("news_id"), str) and row["news_id"]]
     rows.sort(key=lambda row: (row.get("published_at") or row.get("first_published_at") or ""), reverse=True)
     return rows[:limit]
@@ -357,10 +398,7 @@ def lean_candidates(
 
 def attach_lean_to_records(result: dict[str, Any], block: dict[str, Any]) -> None:
     """Copy lean fields onto matching cards; leave every aggregate field untouched."""
-    by_id: dict[str, dict[str, Any]] = {}
-    for bucket in ("bullish", "bearish", "mixed", "neutral_or_unclear"):
-        for item in block.get(bucket) or []:
-            by_id.setdefault(str(item.get("news_id")), item)
+    by_id = {str(item.get("news_id")): item for item in block.get("items") or []}
     if not by_id:
         return
     for key in ("major_events", "opinion_records", "background_records"):
