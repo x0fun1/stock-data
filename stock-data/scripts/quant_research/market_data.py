@@ -137,6 +137,11 @@ def prediction_price_series(block: dict[str, Any]) -> tuple[list[str], list[floa
         "price_field": "close",
         "price_basis": PRICE_BASIS,
         "price_basis_source": block.get("price_basis_source") or PRICE_BASIS_SOURCE,
+        # A provider declaration is not independent evidence: the snapshot records
+        # the claim and its source, and the audit reports it as declared, never as
+        # verified against a corporate-action ledger.
+        "price_basis_evidence": "declared_by_provider",
+        "price_basis_evidence_status": "declared_not_independently_verified",
         "dividends_reinvested": False,
         "target_version": TARGET_VERSION,
         "horizon_sessions": FORECAST_HORIZON_SESSIONS,
@@ -170,18 +175,26 @@ def fixed_phase_sample(dates: list[str], sessions: list[date], *, modulus: int =
         except ValueError:
             value = None
         ordinal_map[day] = value
+    anchored = any(value is not None for value in ordinal_map.values())
     sampled = [day for day in dates if is_sampled_ordinal(ordinal_map.get(day))]
     provenance = {
         "method": "fixed_exchange_session_phase",
+        "status": "anchored" if anchored else "unanchored",
         "anchor_session": SAMPLING_ANCHOR_SESSION.isoformat(),
         "modulus": modulus,
         "phase": 0,
         "session_gap": modulus,
         "sample_size": len(sampled),
         "dates_without_session_ordinal": sum(1 for value in ordinal_map.values() if value is None),
-        "phase_window_independent": True,
+        "phase_window_independent": anchored,
+        "role": "throttle_only_not_qualification",
         "session_gap_is_sampling_policy_not_label_independence": True,
     }
+    if not anchored:
+        # A rolling 52-week calendar cannot supply a global session counter.  Use
+        # every row instead of inventing a phase from the window's left edge.
+        provenance["fallback"] = "all_rows_when_phase_unanchored"
+        return list(dates), provenance
     return sampled, provenance
 
 
@@ -199,27 +212,39 @@ def evaluation_sample(predictions: Iterable[dict[str, Any]], sessions: list[date
         return {"sampled_predictions": [], "total_predictions": len(rows), "matured_predictions": len(matured),
                 "nonoverlap_predictions": 0, "coverage_ratio": None, "sampling": {"method": "unavailable"}}
     first, last = decision_dates[0], decision_dates[-1]
+    anchored = any(value is not None for value in ordinals.values())
     expected = [
         day for day in sessions
         if first <= day.isoformat() <= last and is_sampled_ordinal(ordinals[day.isoformat()])
     ]
-    by_date = {str(row["decision_session"]): row for row in matured}
-    sampled_rows = [by_date[day.isoformat()] for day in expected if day.isoformat() in by_date]
+    if anchored:
+        by_date = {str(row["decision_session"]): row for row in matured}
+        sampled_rows = [by_date[day.isoformat()] for day in expected if day.isoformat() in by_date]
+    else:
+        # Phase is a throttle, not a claim: without the anchor every matured row
+        # is evaluated and the provenance says so.
+        sampled_rows = list(matured)
+    nonoverlap = len(non_overlapping(
+        [int(row["decision_index"]) for row in matured if isinstance(row.get("decision_index"), int)],
+        FORECAST_HORIZON_SESSIONS,
+    ))
     return {
         "sampled_predictions": sampled_rows,
         "total_predictions": len(rows),
         "matured_predictions": len(matured),
-        "nonoverlap_predictions": len(sampled_rows),
+        "nonoverlap_predictions": nonoverlap,
         "expected_sampled_sessions": len(expected),
-        "coverage_ratio": round(len(sampled_rows) / len(expected), 4) if expected else None,
+        "coverage_ratio": (round(len(sampled_rows) / len(expected), 4) if expected else None) if anchored else None,
         "sampling": {
             "method": "fixed_exchange_session_phase",
+            "status": "anchored" if anchored else "unanchored",
             "anchor_session": SAMPLING_ANCHOR_SESSION.isoformat(),
             "modulus": SAMPLING_MODULUS,
             "phase": 0,
             "session_gap": SAMPLING_MODULUS,
             "session_gap_is_sampling_policy_not_label_independence": True,
-            "phase_window_independent": True,
+            "phase_window_independent": anchored,
+            "role": "throttle_only_not_qualification",
         },
     }
 

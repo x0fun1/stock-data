@@ -99,6 +99,38 @@ Always attached to every event card:
 - Multiple concurrent events are not separable; any single-event attribution is one candidate explanation.
 - Publisher tier is an editorial label, not authentication.
 
+## Publication timing bucket
+
+Every event card carries `impact.event_time_bucket`:
+
+| Bucket | Derived from | Information path |
+|---|---|---|
+| `pre_market` | publication before `close_at - 6.5h` | pre-open positioning |
+| `intraday` | publication inside the regular session | same-session |
+| `after_close` | publication after `close_at` | overnight gap into the next session |
+| `unknown` | no mapped session or close time | not asserted |
+
+The bucket exists because timing, not direction, is where the measured effect
+lives: on 318 real 8-K Item 2.02 releases the absolute 5-day move was 5.28% for
+after-close releases and 2.57% for pre-market releases. A single magnitude band
+without the bucket hides a two-fold difference. The bucket never carries a
+direction and never enters a probability.
+
+## Priced-in judgement
+
+`already_priced_in` is descriptive and separate from attribution:
+
+- `likely_priced_in` — `|event-session move| >= 1 sigma_5d` and the following
+  5 sessions did not continue in the event's direction;
+- `continued` — the same move threshold, followed by same-direction drift;
+- `move_within_noise` — the move is below one 5-day sigma, so nothing is claimed;
+- `not_assessable` — the reaction is not classifiable or the 5-session window has
+  not matured in the frozen bars.
+
+At the result level the state is `likely_priced_in` when at least three event
+windows are assessable and at least half of them show no continuation. This is
+the honest answer to "was the news already in the price?"; it is not a forecast.
+
 ## Boundaries
 
 These grades are descriptive heuristics inside the News stage. They never produce a probability, never change the frozen Quant result, never restore a vetoed forecast, and never feed back into A/B/C/D. Final Synthesis may describe them as supporting context and must keep the original Quant P(up).

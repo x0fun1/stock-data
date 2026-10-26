@@ -9,7 +9,7 @@ from typing import Any
 
 from .forecast_policy import POLICY_VERSION, REQUIRED_STAGES
 from .news import load_frozen_result
-from .report import required_response_lines
+from .report import reporting_status_for, required_response_lines
 
 _INVISIBLE = re.compile(r"[\u200b-\u200f\u2060\ufeff]")
 _LEADING_MARKER = re.compile(r"^(?:(?:[-•*]|\(?\d{1,3}[.)、]|[①-⑳])\s*)+")
@@ -60,7 +60,7 @@ def _validate_stages(result: dict[str, Any]) -> dict[str, Any]:
     run_id = result.get("run_id")
     snapshot_id = result.get("snapshot_id")
     for row in stages:
-        if row.get("status") not in {"complete", "skipped", "not_applicable", "not_assessed", "blocked", "insufficient_data"}:
+        if row.get("status") not in {"complete", "partial", "skipped", "not_applicable", "not_assessed", "blocked", "insufficient_data"}:
             raise ValueError(f"Final audit rejected: invalid stage status {row.get('status')!r}")
         if row.get("status") != "complete" and not row.get("reason"):
             raise ValueError(f"Final audit rejected: stage {row.get('stage')} has no reason")
@@ -96,7 +96,7 @@ def validate_final_response(analysis_dir: Path, response_file: Path) -> dict[str
         "delivery_status": "validated",
         "analysis_id": result.get("analysis_id") or result.get("run_id"),
         "analysis_status": result.get("analysis_status") or consensus.get("status"),
-        "reporting_status": "reportable" if consensus.get("production_probability_eligible") else "unavailable",
+        "reporting_status": reporting_status_for(result),
         "run_id": result.get("run_id"),
         "snapshot_id": result.get("snapshot_id"),
         "policy_version": result.get("policy_version"),

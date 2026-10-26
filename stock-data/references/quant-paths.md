@@ -21,23 +21,32 @@ Fatal policy/data failures block A. A shadow failure is isolated and never
 blocks A. No path may widen the window, change the horizon or use data outside
 `(decision - 364d, decision]`.
 
-## A — causal empirical shrinkage (production)
+## A — drift-shrunk causal base rate (production)
 
-Version `quant_causal_shrinkage_v1`, feature `roc20_v1`, target
+Version `quant_drift_shrinkage_v2`, feature `roc20_v1` (disclosure only), target
 `split_adjusted_price_direction_5d_v1`.
 
-- Signal: sign of the 20-session return; zero is non-negative.
-- Matching sample: same-sign origins whose 5-session label matured by the
-  decision close, accepted chronologically with at least 6 sessions between
-  starts.
 - Base rate: all daily 5-session labels matured by the decision close.
-- Probability: `(wins + 12 * base_rate) / (matches + 12)`.
-- Report only with at least 12 matches; otherwise abstain with a reason code.
+- Volatility prior: `p_vol = Phi(mu * 5 / (sigma * sqrt(5)))` with `mu = 6%/yr`
+  and `sigma` the sample stdev of daily log returns over at most 250 sessions
+  ending at the decision close.
+- Probability: `(n_eff * base_rate + 50 * p_vol) / (n_eff + 50)`, where
+  `n_eff = matured_labels / 5`.
+- ROC20 sign is still computed and used for the disclosed same-state matching
+  sample (`matching_origins`, `wins`, `observations`), but it no longer enters the
+  probability; the transform records `feature.used_for_probability = false`.
+- The 12-match floor is disclosure only. Publication requires a resolved target
+  session, a verified calendar and at least 12 **effective** replay samples.
 - Current and every replay row are produced by `predict_at_origin`; the complete
-  transform record is frozen with each row.
+  transform record (`k`, `mu`, `sigma`, `p_vol`, `n_eff`, base-rate boundary,
+  matching sample, versions) is frozen with each row and rebuilt by an
+  independent audit implementation.
 
-The prefix replay is retrospective and overlapping. The fixed 6-session phase is
-a sampling policy, not a claim that the records are independent.
+The prefix replay is retrospective and overlapping, so it is the primary
+evidence base but its effective sample size is `rows / 5` and the bootstrap block
+length is at least 6. The fixed 6-session phase is a computation throttle only; it
+does not gate eligibility and is reported as `unanchored` when the calendar does
+not contain 2000-01-03.
 
 ## B — restricted / two-bucket shadow candidate
 

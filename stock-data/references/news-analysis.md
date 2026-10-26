@@ -33,11 +33,19 @@ Each factual candidate cluster contributes one event. Retain all member directio
 
 Explicit opinion/social/analyst-opinion records remain a separate pass. Unknown-role records only become event candidates with a recognized event category; unsupported items stay unclassified. Event taxonomy covers earnings/guidance, analyst revisions, products, M&A, distributions/capital, regulation/legal, management/insiders, supply chain/competition and macro.
 
-`classify.direction_for()` is a deterministic keyword screen. Denial, rumor and uncertainty words suppress confident directional assignment; no match is unknown. Opinion lexicon scores in [-1,+1] are uncalibrated. Opposing source directions remain mixed; different strengths of the same direction are not an opposition. A provider aggregate cannot erase a high source conflict. Opinion confidence is capped at low.
+`classify.direction_for()` is a deterministic keyword screen with three separate signals:
+
+- **hedges** (`may`, `might`, `could`, `reportedly`, `allegedly`, `speculation`, `if`, 可能/或将/如果/据报道) → `unknown`;
+- **unverified-claim nouns** (`rumour`, `unconfirmed`, 传闻/未经证实) → `unknown`, unless a denial verb is present;
+- **negation** (`denies`, `refuted`, `rejects`, `no longer`, `does not`, 否认/驳斥/未能) → a bare negation with no directional phrase is `neutral` (a factual statement, not missing evidence); a negation combined with a directional phrase is `unknown`, because the scope of the denial is not parsed and guessing is how confirmed negative news gets silently read as neutral.
+
+A bare `no` is never a negation marker: `No. 1 vendor` is a positive leadership claim, not uncertainty, and `no comment` is not a denial. `#1`/`number one`/`market leader` count as positive positioning claims.
+
+Opinion lexicon scores in [-1,+1] are uncalibrated. Opposing source directions remain mixed; different strengths of the same direction are not an opposition. A provider aggregate cannot erase a high source conflict. Opinion confidence is capped at low.
 
 ## Decay and frozen price association
 
-`time_decay()` counts observed exchange-local sessions, using the event/announcement time where available. Default half-life is `max(requested horizon, 30 sessions)` so the decay actually spans the 3-month evidence window; a 5-session half-life would silently discard everything older than a month. Optional `analyze --news-policy policy.json` accepts `half_life_sessions_by_event_type` (numeric session counts in (0,366]), `max_age_calendar_days` (integer 1..366) and `minimum_time_decay` (0..1). These are disclosed heuristic settings, not calibrated recommendations.
+`time_decay()` counts observed exchange-local sessions, using the event/announcement time where available. Default half-life is `max(requested horizon, 30 sessions)` so the decay actually spans the 3-month evidence window; a 5-session half-life would silently discard everything older than a month. Optional `--news-policy policy.json` on `pipeline` and `analyze` accepts `half_life_sessions_by_event_type` (numeric session counts in (0,366]), `max_age_calendar_days` (integer 1..366) and `minimum_time_decay` (0..1). `pipeline` runs News with the built-in defaults when the flag is omitted; it no longer skips the stage silently. These are disclosed heuristic settings, not calibrated recommendations.
 
 An effective event score exists only when the source supplied finite [0,1] strength, relevance, novelty and source quality:
 
@@ -49,7 +57,40 @@ strength × relevance × novelty × source_quality × time_decay
 
 Positive event with a negative return is `event_price_divergence_positive`; negative event with a positive return is `event_price_divergence_negative`. Do not infer “priced in”, expectations or causality from that association. Insufficient windows and absent compatible benchmarks remain null/not assessed.
 
-Every eligible event card additionally carries a deterministic `impact` block: magnitude band, pattern comparison against the symbol's own trailing volatility, declared breadth scope, weakest-publisher source tier and fixed attribution caveats. The magnitude band and pattern are withheld as `not_assessed` when the reaction window includes pre-publication trading (intraday publication) or the reaction direction is not classifiable; the raw observed return may still be shown. Thresholds, the deliberately unadopted composite score and the single-ticker observation limit are defined in [news-impact-rubric.md](news-impact-rubric.md). These grades are descriptive heuristics inside this stage: they produce no probability, never change the frozen Quant result, and must not be presented as measured contagion or calibrated impact.
+Every eligible event card additionally carries a deterministic `impact` block: magnitude band, pattern comparison against the symbol's own trailing volatility, declared breadth scope, weakest-publisher source tier, publication-time bucket and fixed attribution caveats. The magnitude band and pattern are withheld as `not_assessed` when the reaction window includes pre-publication trading (intraday publication) or the reaction direction is not classifiable; the raw observed return may still be shown. Thresholds, the deliberately unadopted composite score and the single-ticker observation limit are defined in [news-impact-rubric.md](news-impact-rubric.md). These grades are descriptive heuristics inside this stage: they produce no probability, never change the frozen Quant result, and must not be presented as measured contagion or calibrated impact.
+
+`impact.event_time_bucket` is `pre_market` / `intraday` / `after_close` / `unknown`, derived from the frozen session close time minus a 6.5-hour regular session. It exists because publication timing carries most of the event's information: on 318 real 8-K earnings releases the absolute 5-day move after an after-close release was 5.28%, versus 2.57% for pre-market releases. The bucket is a disclosed timing fact, not a direction.
+
+## Status, disclosure and non-directional outputs
+
+The News result has exactly three states and they are not interchangeable:
+
+| State | Meaning | Delivery line |
+|---|---|---|
+| `complete` | assessed, no warnings | `新闻：已评估（complete；0 条警告；…）` |
+| `partial` | assessed **with** warnings | `新闻：已评估（partial；N 条警告；…）` |
+| `not_assessed` | no evidence produced | `新闻：未提供（不影响Quant资格，也不当作中性证据）` |
+
+`partial` is assessed evidence. Writing it as "未评估" contradicts the frozen
+`news_result.json`, and the delivery validator rejects that mismatch. The warning
+count is part of the line so a reader can distinguish a clean run from one that
+dropped twenty records.
+
+Two non-directional outputs are allowed and must never enter the probability:
+
+- `expected_volatility_regime` (`elevated` / `normal`): the forecast window
+  contains a scheduled information release whose historical 5-day dispersion is
+  elevated. Measured event windows showed ~1.36x the non-event dispersion, while
+  the event session's own move did not predict the following 5 days
+  (`corr = -0.003`). Reporting "wider" without "which way" is the honest output.
+- `already_priced_in` (`likely_priced_in` / `continued` / `move_within_noise` /
+  `not_assessable`): a >=1 sigma_5d event-session move with no same-direction
+  5-session continuation is evidence the information was absorbed immediately. It
+  is descriptive: it does not claim what happens next.
+
+`opinion_source_agreement` and `event_source_agreement` are separate fields. The
+legacy `source_agreement` key only ever described opinions and is retained for
+readers of older artifacts.
 
 Event confidence is at most medium, requiring at least three eligible event clusters, at least two reported independent origins, source quality at least 0.5 for all events, directional price association and a verified calendar (`source_supplied_schedule` or a frozen library-verified schedule; observation fallback does not qualify). These claims remain source supplied and uncalibrated. All other usable evidence has low confidence; no eligible evidence is `not_assessed`.
 
@@ -67,7 +108,22 @@ Flow. The frozen News stage emits `ai_lean_candidates[]` — every analyzable re
 
 Artifact contract (schema 1.0). Required: `schema_version`, `ticker`, `asof_timestamp`, non-empty `items` (≤40). Optional: `basis` (`headline_level_ai_screen_v1`) and `model` (`id`, `prompt_sha256`, `generated_at_utc`). Each item carries `news_id`, `lean` (`bullish|bearish|mixed|neutral|unclear`), `reason` (the quoted-basis explanation shown to the user) and `evidence_grade` (`reported_event|analyst_opinion|headline_only|rumour|unclear`), plus optional `headline`, `source`, `published_at`, `url`, `relevance_basis`.
 
-Validation. Every `news_id` must exist in this run and must not repeat; `ticker`/as-of must match the snapshot; unknown fields are refused; and any Quant vocabulary or probability (`prob_up`, `probability`, `alignment`, `consensus`, `quant_result`, `confidence_score`, …) inside a text field rejects the whole artifact. A rejected or absent artifact leaves the deterministic News result untouched: the run reports `ai_lean.status = invalid` (with the reason and a warning) or `not_assessed`. Never downgrade either state to "neutral".
+Validation. Every `news_id` must exist in this run and must not repeat; `ticker`/as-of must match the snapshot; unknown fields are refused; and any Quant vocabulary or probability (`prob_up`, `probability`, `alignment`, `consensus`, `quant_result`, `confidence_score`, …) inside a text field rejects the whole artifact.
+
+Identity fields are copied, never authored. If an item supplies `headline`, `source`, `published_at` or `url`, the value must equal the analysed record (a truncated headline is accepted only as a prefix of the recorded headline; timestamps are compared as instants). A mismatch rejects the item, and the displayed identity text always comes from the frozen record, not from the artifact. This is what stops a model from inventing a headline that then appears in `report.md`.
+
+A rejected or absent artifact leaves the deterministic News result untouched: the run reports `ai_lean.status = invalid` (with the reason and a warning) or `not_assessed`. Never downgrade either state to "neutral".
+
+Forbidden vocabulary (substring match, case-insensitive, in any text field):
+`prob_up`, `p(up)`, `probability`, `probabilities`, `alignment`, `consensus`,
+`quant_result`, `confidence_score`, `calibrated_probability`, `报告概率`,
+`上涨概率`.
+
+This list is deliberately blunt and has a known false positive: a headline
+containing "analyst consensus" is rejected because it contains `consensus`. The
+cost is a lost lean item; the benefit is that no Quant vocabulary can be smuggled
+through the News stage. Do not relax the list to admit a phrasing — extend the
+artifact schema instead.
 
 Separation. `ai_lean` is `display_only`: it does not change `direction`, `overall_direction`, `sentiment`, `confidence`, `event_strength`, `effective_event_score`, `market_confirmation` or any cross-validation label, and it cannot change Quant `P(up)`. `risks` lists only deterministically negative events; conflicting ones are reported separately in `mixed_events`. A user-facing reply must cite the specific headline behind each bullish/bearish claim, and must state that the judgement is headline-level and unverified against body text.
 

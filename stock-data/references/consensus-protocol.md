@@ -17,20 +17,31 @@ ensemble Platt calibrators and heuristic confidence scores are removed.
 If A fails, abstains or is ineligible, `prob_up` stays null even when B/C have
 numbers. A shadow path can never replace A.
 
-## Five separate flags
+## Separate flags
 
 The consensus publishes `computable`, `current_prediction_integrity_pass`,
 `oos_integrity_pass`, `production_probability_eligible`,
-`directional_edge_supported` and `trading_signal_eligible`. Do not collapse them
-into one score and do not describe a computable estimate as production-ready.
+`directional_edge_supported` (with its three-valued `directional_edge_state`) and
+`trading_signal_eligible`. Do not collapse them into one score and do not
+describe a computable estimate as production-ready.
 
 Thresholds are fixed:
 
-- current matching sample: at least 12 same-sign matured origins, 6 sessions apart;
-- prefix replay: at least 12 valid non-overlapping predictions from the fixed
-  exchange-session phase (anchor 2000-01-03, ordinal mod 6 == 0);
-- prospective evidence: at least 30 truly prospective, non-overlapping, matured
-  outcomes before any directional-edge claim;
+- target session: the 5th session must be resolved from the frozen calendar,
+  otherwise `TARGET_SESSION_UNRESOLVED` vetoes the probability;
+- prefix replay: at least 12 **effective** samples, where effective =
+  valid rows / 5 because 5-session labels overlap. The old phase-sampled count
+  (anchor 2000-01-03, ordinal mod 6 == 0) is a throttle only and never gates
+  eligibility; an unanchored phase evaluates every row;
+- directional edge: at least 30 matured replay decisions and a paired-improvement
+  interval excluding zero on the positive side. `negative_skill_...` is a
+  first-class outcome and must be reported as "无（劣于纯基率）";
+- prospective evidence: 30 truly prospective, non-overlapping, matured outcomes
+  are required for forward corroboration, and the floor's power curve is
+  published with the run;
+- current matching sample: disclosed (12 same-sign matured origins, 6 sessions
+  apart) but **not** an eligibility condition — the matching hit rate carries no
+  probability weight in v2;
 - no sample-size scaling: a shorter listing or incomplete window reports the
   actual gap instead of borrowing a lower relative standard.
 

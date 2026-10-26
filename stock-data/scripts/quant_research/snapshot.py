@@ -318,6 +318,8 @@ def freeze_snapshot(
             "missing_sessions": (market_policy or {}).get("missing_sessions"),
             "coverage_status": (market_policy or {}).get("coverage_status"),
             "calendar_verified": (market_policy or {}).get("calendar_verified"),
+            "calendar_source": (market_policy or {}).get("calendar_source"),
+            "price_basis": (market_policy or {}).get("price_basis"),
         }
     manifest.update(derived)
     manifest["manifest_sha256"] = hashlib.sha256(canonical_bytes(manifest)).hexdigest()

@@ -92,7 +92,10 @@ def normalize_articles(
     eligible_records = []
     for record in records:
         raw_title = record.get("title")
-        title = _optional_text(raw_title) or ""
+        # A headline is a single line of text.  Newlines inside it would let a
+        # provider inject extra rows into report.md and final_response.md, which
+        # are rendered line-by-line.
+        title = (_optional_text(raw_title) or "").replace("\n", " ").replace("\r", " ")
         if not title:
             excluded["missing_title"] += 1
             continue

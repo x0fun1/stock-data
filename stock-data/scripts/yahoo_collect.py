@@ -180,6 +180,9 @@ def _policy_window(
         "window_start_exclusive": start,
         "window_end_inclusive": end,
         "calendar_verified": bool(schedule),
+        # Provenance, not just a boolean: an audit must be able to tell a real
+        # exchange calendar from a weekday approximation.
+        "calendar_source": ((schedule or {}).get("source") or "unverified_no_schedule"),
         "price_basis": PRICE_BASIS,
         "price_basis_source": PRICE_BASIS_SOURCE,
         "price_basis_note": PRICE_BASIS_NOTE,

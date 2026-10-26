@@ -208,6 +208,12 @@ def _trailing_sigma(closes: list[float], index: int, window: int = 20) -> tuple[
     return (math.sqrt(variance) if variance > 0 else None), len(returns)
 
 
+def trailing_sigma(closes: list[float], index: int, window: int = 20) -> tuple[float | None, int]:
+    """Public alias: the volatility baseline is shared with the timing helpers."""
+
+    return _trailing_sigma(closes, index, window)
+
+
 def pattern_comparison(
     *, reaction: dict[str, Any], closes: list[float], session_index: int | None,
 ) -> dict[str, Any]:

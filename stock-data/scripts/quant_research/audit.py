@@ -12,10 +12,11 @@ from typing import Any
 
 from .forecast_policy import (
     MIN_PROSPECTIVE_NONOVERLAP,
-    MIN_VALID_OOS_NONOVERLAP,
+    MIN_REPLAY_EFFECTIVE_SAMPLES,
     POLICY_VERSION,
     PRICE_BASIS,
 )
+from .news import news_assessed, news_status_label
 
 
 def _veto(state: dict[str, Any], code: str, message: str) -> None:
@@ -77,6 +78,12 @@ def audit(
               f"missing {policy.get('missing_sessions')}.")
     if not policy.get("calendar_verified"):
         _veto(state, "CALENDAR_UNVERIFIED", "Exchange calendar is unverified; a formal 5-session probability cannot be published.")
+    if not policy.get("target_session"):
+        _veto(
+            state, "TARGET_SESSION_UNRESOLVED",
+            "The 5th-session target could not be resolved from the frozen calendar; a formal probability "
+            "cannot be published against an undetermined close.",
+        )
     price_basis = (gate.get("policy") or {}).get("price_basis") or policy.get("price_basis")
     checks["price_basis"] = price_basis
     if price_basis != PRICE_BASIS:
@@ -121,11 +128,14 @@ def audit(
                 _veto(state, "LEAKAGE_DETECTED", f"{path} declared features beyond the decision close.")
 
     validation = (next((r for r in researchers if r.get("researcher_id") == "quant"), {}) or {}).get("validation") or {}
+    effective = int((assessment.get("oos_evidence_audit") or {}).get("effective_valid_samples") or 0)
     nonoverlap = int((assessment.get("oos_evidence_audit") or {}).get("nonoverlap_valid_count") or 0)
     checks["oos_nonoverlap"] = nonoverlap
-    if nonoverlap < MIN_VALID_OOS_NONOVERLAP:
+    checks["oos_effective_samples"] = effective
+    if effective < MIN_REPLAY_EFFECTIVE_SAMPLES:
         _warn(state, "OOS_SUPPORT_INSUFFICIENT",
-              f"Only {nonoverlap} valid non-overlapping OOS predictions; {MIN_VALID_OOS_NONOVERLAP} required for publication.")
+              f"Only {effective} effective replay samples ({nonoverlap} non-overlapping rows); "
+              f"{MIN_REPLAY_EFFECTIVE_SAMPLES} effective samples are required for publication.")
     prospective = [row for row in (prospective_records or []) if row.get("sampled") is True and row.get("status") == "matured"]
     checks["prospective_nonoverlap"] = len(prospective)
     if not assessment.get("directional_edge_supported"):
@@ -135,13 +145,12 @@ def audit(
         _warn(state, "PRICE_BASIS_UNVERIFIED", "Price series does not explicitly declare dividends as excluded.")
     if (manifest.get("data_quality") or {}).get("overall") == "partial":
         _warn(state, "DATA_WARNING", "Snapshot has non-fatal data-quality limitations; coverage and price basis are reported separately.")
-    if news is not None and (news.get("status") in {"unavailable", "not_assessed", None}):
-        _warn(state, "NEWS_NOT_ASSESSED", "News evidence is unavailable or not assessed; it neither supports nor blocks the quant probability.")
+    checks["sampling"] = consensus.get("sampling") or {}
 
     eligible = bool(consensus.get("production_probability_eligible")) and not state["vetoes"]
     may_report_probability = eligible and consensus.get("prob_up") is not None
     checks["news_relationship"] = "independent_of_quant_probability"
-    return {
+    result = {
         "status": "approved" if may_report_probability else "vetoed",
         "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
         "vetoes": state["vetoes"],
@@ -170,3 +179,40 @@ def audit(
         "evidence_summary": consensus.get("evidence") or {},
         "policy_ok": policy_ok,
     }
+    if news is not None:
+        attach_news_observation(result, news)
+    return result
+
+
+def attach_news_observation(result: dict[str, Any], news: dict[str, Any] | None) -> dict[str, Any]:
+    """Record the News observation on an already-frozen audit result.
+
+    The audit runs before News interpretation so a Quant veto can never depend on
+    a News artifact.  This function adds the News-only codes afterwards; it never
+    changes ``may_report_probability``.
+    """
+
+    if news is None:
+        return result
+    status = news.get("status")
+    warnings = result.setdefault("warnings", [])
+    codes = set(result.get("reason_codes") or [])
+    checks = result.setdefault("checks", {})
+    if not news_assessed(status):
+        codes.add("NEWS_NOT_ASSESSED")
+        message = "News evidence is unavailable or not assessed; it neither supports nor blocks the quant probability."
+        if message not in warnings:
+            warnings.append(message)
+    elif news_status_label(status) == "partial":
+        count = len(news.get("warnings") or [])
+        codes.add("NEWS_PARTIAL_EVIDENCE")
+        message = (
+            f"News was assessed with {count} disclosed warning(s); the delivered line reports the count "
+            "and must not be described as unassessed."
+        )
+        if message not in warnings:
+            warnings.append(message)
+    checks["news_warning_count"] = len(news.get("warnings") or [])
+    checks["news_state"] = news_status_label(status)
+    result["reason_codes"] = sorted(codes)
+    return result

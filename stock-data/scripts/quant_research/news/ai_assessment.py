@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 from typing import Any
 
+from ..contracts import parse_timestamp
 from ..security import bounded_text, safe_url
 
 AI_ASSESSMENT_SCHEMA_VERSION = "1.0"
@@ -102,6 +103,26 @@ def _lean_identity(assessment: dict[str, Any]) -> str:
         repr(sorted(assessment.items())).encode("utf-8", "replace")
     ).hexdigest()[:12]
     return f"ai_lean_{digest}"
+
+
+def _identity_mismatch(provided: str | None, recorded: Any, *, field: str) -> str | None:
+    """Return a rejection reason when a supplied identity field contradicts the record.
+
+    A headline is truncated to 300 characters, so a value that is a prefix of the
+    recorded headline is accepted as the same text; anything else is a forgery
+    attempt and rejects the item.  This is the difference between "the host
+    repeated the headline" and "the host invented one".
+    """
+
+    if provided is None:
+        return None
+    recorded_text = str(recorded or "").strip()
+    if not recorded_text:
+        return f"ai assessment {field} was supplied but the analysed record has no {field} to verify it against"
+    provided_text = str(provided).strip()
+    if provided_text and (provided_text == recorded_text or recorded_text.startswith(provided_text)):
+        return None
+    return f"ai assessment {field} does not match the analysed record; identity fields must be copied, not authored"
 
 
 def candidate_index(candidates: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
@@ -191,15 +212,36 @@ def validate_ai_assessment(
             if value:
                 _scan_forbidden(value, field=f"item {position} {field}")
         record = known[news_id]
+        if headline is not None:
+            # A headline reaches report.md; newlines would break the fixed block.
+            headline = headline.replace("\n", " ").replace("\r", " ")
+        for field, value, recorded in (
+            ("headline", headline, record.get("headline")),
+            ("source", source, record.get("source")),
+            ("url", url, record.get("url")),
+        ):
+            mismatch = _identity_mismatch(value, recorded, field=f"item {position} {field}")
+            if mismatch:
+                _reject(mismatch)
+        if published_at is not None:
+            recorded_at = record.get("published_at") or record.get("first_published_at")
+            try:
+                same_instant = bool(recorded_at) and parse_timestamp(published_at) == parse_timestamp(recorded_at)
+            except (TypeError, ValueError):
+                same_instant = False
+            if not same_instant:
+                _reject(f"ai assessment item {position} published_at does not match the analysed record")
         items.append({
             "news_id": news_id,
             "lean": lean,
             "reason": reason,
             "evidence_grade": evidence_grade,
-            "headline": headline or record.get("headline"),
-            "source": source or record.get("source"),
-            "published_at": published_at or record.get("published_at") or record.get("first_published_at"),
-            "url": url or record.get("url"),
+            # Display identity is always the analysed record's own text; the
+            # artifact is only allowed to confirm it, never to rewrite it.
+            "headline": record.get("headline"),
+            "source": record.get("source"),
+            "published_at": record.get("published_at") or record.get("first_published_at"),
+            "url": record.get("url"),
             "ticker_relevance": record.get("ticker_relevance"),
             "relevance_basis": relevance_basis or "source_recorded",
             "display_only": True,

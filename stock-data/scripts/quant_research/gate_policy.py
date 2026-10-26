@@ -2,6 +2,16 @@
 
 Data quality and strategy evidence can lower report confidence without erasing a
 numerical forecast. Only explicitly fatal prediction-integrity codes veto it.
+
+Every code also carries a ``failure_mode`` so a reader can tell *what kind* of
+failure it is.  Session-phase accounting and "the probability is computed wrong"
+are not the same severity of problem and must not share a priority tier:
+
+* ``correctness``  - the number or its labels are wrong;
+* ``accounting``   - the bookkeeping cannot be reproduced or compared;
+* ``data``         - the inputs or their provenance are inadequate;
+* ``reporting``    - the delivered text claims more than the evidence;
+* ``presentation`` - display-only integrity.
 """
 
 from __future__ import annotations
@@ -81,6 +91,31 @@ REASON_CATALOG: dict[str, dict[str, Any]] = {
     "SHADOW_PROBABILITY_INVALID": {"severity": "fatal", "scope": "prediction", "can_veto_prediction": True},
     "DIAGNOSTIC_EMITTED_PROBABILITY": {"severity": "fatal", "scope": "prediction", "can_veto_prediction": True},
     "QUALIFICATION_CONTRACT_VIOLATION": {"severity": "fatal", "scope": "prediction", "can_veto_prediction": True},
+    "TARGET_SESSION_UNRESOLVED": {"severity": "fatal", "scope": "prediction", "can_veto_prediction": True,
+                                  "failure_mode": "correctness"},
+    "REPLAY_SUPPORT_INSUFFICIENT": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
+    "INTERVAL_BELOW_ZERO": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
+    "INTERVAL_CROSSES_ZERO": {"severity": "info", "scope": "validation", "can_veto_prediction": False},
+    "INTERVAL_UNESTIMABLE": {"severity": "degraded", "scope": "validation", "can_veto_prediction": False},
+    "SAMPLING_PHASE_UNANCHORED": {"severity": "info", "scope": "validation", "can_veto_prediction": False,
+                                  "failure_mode": "accounting"},
+    "EVIDENCE_FLOOR_POWER_LOW": {"severity": "info", "scope": "validation", "can_veto_prediction": False,
+                                 "failure_mode": "accounting"},
+    "LABEL_BASIS_DIVIDENDS_EXCLUDED": {"severity": "info", "scope": "data", "can_veto_prediction": False,
+                                       "failure_mode": "data"},
+    "NEWS_PARTIAL_EVIDENCE": {"severity": "warning", "scope": "news", "can_veto_prediction": False,
+                              "failure_mode": "reporting"},
+}
+
+# Scope-level defaults; per-code overrides live in the catalog above.
+_FAILURE_MODE_BY_SCOPE = {
+    "prediction": "correctness",
+    "data": "data",
+    "validation": "accounting",
+    "strategy": "accounting",
+    "news": "reporting",
+    "reporting": "reporting",
+    "unknown": "correctness",
 }
 
 PREDICTION_FATAL_CODES = frozenset(
@@ -93,9 +128,13 @@ STRATEGY_ONLY_CODES = frozenset(
 
 def reason_policy(code: str) -> dict[str, Any]:
     """Return policy metadata; unknown codes fail closed as fatal diagnostics."""
-    return REASON_CATALOG.get(code, {
+    policy = REASON_CATALOG.get(code, {
         "severity": "fatal", "scope": "unknown", "can_veto_prediction": True,
     })
+    return {
+        **policy,
+        "failure_mode": policy.get("failure_mode") or _FAILURE_MODE_BY_SCOPE.get(policy["scope"], "correctness"),
+    }
 
 
 def classify_reasons(codes: Iterable[str]) -> dict[str, Any]:

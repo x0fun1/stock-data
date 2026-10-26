@@ -21,3 +21,10 @@ class NewsInput:
     bars: tuple[dict[str, Any], ...]
     warnings: tuple[str, ...] = ()
     coverage: dict[str, Any] = field(default_factory=dict)
+
+    @property
+    def horizon_sessions(self) -> int:
+        """Numeric session count carried by the horizon label (``5D`` -> 5)."""
+
+        digits = "".join(character for character in str(self.horizon) if character.isdigit())
+        return int(digits) if digits else 5

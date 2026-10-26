@@ -33,10 +33,17 @@ FORECAST_HORIZON_LABEL = f"{FORECAST_HORIZON_SESSIONS}D"
 WINDOW_CLOSED = "right"
 
 #: Evaluation sampling keeps the historical 6-session gap.  It is a conservative
-#: sampling policy, not a mathematical upper bound on 5-session labels.
+#: sampling policy, not a mathematical upper bound on 5-session labels, and since
+#: v2 it only throttles computation: qualification reads the full prefix replay.
 NONOVERLAP_GAP_SESSIONS = 6
 MIN_VALID_OOS_NONOVERLAP = 12
 MIN_PROSPECTIVE_NONOVERLAP = 30
+
+#: Minimum effective (non-overlapping) replay observations used by the
+#: qualification gate.  A 5-session label overlaps its four neighbours, so the
+#: effective sample size is ``valid_rows / horizon``; the floor is applied to
+#: that number instead of to a phase-sampled row count.
+MIN_REPLAY_EFFECTIVE_SAMPLES = 12
 
 #: Reference session and modulus for the fixed evaluation phase.  Sessions are
 #: counted on the exchange calendar; the first session on/after the anchor is
@@ -52,7 +59,7 @@ DIAGNOSTIC_PATHS: tuple[str, ...] = ("factor_backtest",)
 #: total return including dividends) must introduce a new target version rather
 #: than silently sharing a ledger group with this one.
 MODEL_VERSIONS: dict[str, str] = {
-    "quant": "quant_causal_shrinkage_v1",
+    "quant": "quant_drift_shrinkage_v2",
     "factor": "factor_restricted_two_honest_v1",
     "ml": "ml_compact_daily_v1",
     "factor_backtest": "factor_backtest_5d_descriptive_v1",
@@ -65,6 +72,13 @@ FEATURE_VERSIONS: dict[str, str] = {
 }
 TARGET_VERSION = "split_adjusted_price_direction_5d_v1"
 
+#: The 5D target is measured on split-adjusted closes and therefore excludes cash
+#: dividends.  A window that spans an ex-dividend date can flip a near-flat label
+#: from 1 to 0; the direction of that bias is systematically negative for
+#: dividend payers.  The basis is declared here and the flip rate is disclosed,
+#: never silently corrected.
+TARGET_DIVIDEND_ADJUSTED = False
+
 #: Price basis required by this policy: provider close that is split-adjusted
 #: but excludes cash-dividend reinvestment.  A provider that only exposes a
 #: total-return style adjusted close cannot satisfy this declaration.
@@ -75,12 +89,31 @@ PRICE_BASIS_NOTE = (
     "fields that include dividend adjustment are not accepted as this basis"
 )
 
-#: Prior strength and matching rules retained from the pre-policy shrinkage
-#: estimator.  They are intentionally not tuned inside the 52-week window.
+#: Legacy (v1) shrinkage constants.  They remain frozen so historical ledger
+#: records can still be audited against the transform they recorded; they no
+#: longer produce a production probability.
 SHRINKAGE_PRIOR_STRENGTH = 12
 SHRINKAGE_MIN_MATCHES = 12
 SHRINKAGE_VERSION = "shrinkage_v1"
 ROC_LOOKBACK_SESSIONS = 20
+
+#: v2 production estimator: shrink the causal base rate toward a volatility-
+#: calibrated drift prior instead of toward a 20-session momentum hit rate.
+#: ``k`` and ``mu`` are policy constants, not fitted parameters; the review that
+#: introduced them measured the 15-series skill as flat in ``mu`` between 0% and
+#: 15%, so the gain does not depend on the drift assumption holding.
+DRIFT_SHRINKAGE_VERSION = "drift_shrinkage_v2"
+DRIFT_SHRINKAGE_K = 50
+DRIFT_MU_ANNUAL = 0.06
+DRIFT_VOL_WINDOW_SESSIONS = 250
+DRIFT_MIN_VOL_SESSIONS = 20
+SESSIONS_PER_YEAR = 252
+
+#: ROC20 is retained as a disclosed state variable (matching-sample context) but
+#: it no longer enters the probability.  Declaring that explicitly stops a reader
+#: from treating the matching count as evidence weight.
+FEATURE_ROLE_IN_PROBABILITY = "disclosure_only"
+
 FACTOR_MIN_BUCKET_OBSERVATIONS = 6
 ML_MIN_TRAIN_ROWS = 60
 ML_WARMUP_SESSIONS = 20
@@ -107,6 +140,7 @@ ERROR_INSUFFICIENT_COVERAGE = "INSUFFICIENT_HISTORY_COVERAGE"
 ERROR_CALENDAR_UNVERIFIED = "CALENDAR_UNVERIFIED"
 ERROR_PRICE_BASIS_UNVERIFIED = "PRICE_BASIS_UNVERIFIED"
 ERROR_POLICY_MISMATCH = "POLICY_VERSION_MISMATCH"
+ERROR_TARGET_SESSION_UNRESOLVED = "TARGET_SESSION_UNRESOLVED"
 
 
 class PolicyError(ValueError):
@@ -140,8 +174,30 @@ def policy_metadata() -> dict[str, Any]:
         "min_prospective_nonoverlap": MIN_PROSPECTIVE_NONOVERLAP,
         "price_basis": PRICE_BASIS,
         "price_basis_source": PRICE_BASIS_SOURCE,
+        "target_price_basis": {
+            "split_adjusted": True,
+            "dividend_adjusted": TARGET_DIVIDEND_ADJUSTED,
+            "evidence_status": "declared_by_provider_not_independently_verified",
+            "dividend_flip_bias": "negative_on_dividend_payers; label_flip_rate_disclosed_not_corrected",
+        },
+        "estimator": {
+            "type": "causal_drift_shrinkage",
+            "version": DRIFT_SHRINKAGE_VERSION,
+            "k": DRIFT_SHRINKAGE_K,
+            "mu_annual": DRIFT_MU_ANNUAL,
+            "vol_window_sessions": DRIFT_VOL_WINDOW_SESSIONS,
+            "max_history_sessions": DRIFT_VOL_WINDOW_SESSIONS,
+            "roc_role": FEATURE_ROLE_IN_PROBABILITY,
+        },
+        "evidence_floors": {
+            "min_replay_effective_samples": MIN_REPLAY_EFFECTIVE_SAMPLES,
+            "min_prospective_nonoverlap": MIN_PROSPECTIVE_NONOVERLAP,
+            "prospective_floor_retained": True,
+            "primary_evidence": "full_prefix_replay_with_block_bootstrap",
+        },
         "sampling_anchor_session": SAMPLING_ANCHOR_SESSION.isoformat(),
         "sampling_modulus": SAMPLING_MODULUS,
+        "sampling_role": "throttle_only_not_qualification",
         "calibration_policy": "disabled_by_policy",
     }
 
@@ -199,10 +255,19 @@ def validate_declared_window(
 
 
 def session_ordinal(sessions: Sequence[date], session: date) -> int | None:
-    """Return the zero-based ordinal of ``session`` on the supplied calendar."""
+    """Return the zero-based ordinal of ``session`` on the supplied calendar.
 
-    anchor_index = next((index for index, item in enumerate(sessions) if item >= SAMPLING_ANCHOR_SESSION), None)
-    if anchor_index is None:
+    The anchor session itself must appear in the supplied calendar.  A rolling
+    52-week snapshot starts long after 2000-01-03, so "the first session at or
+    after the anchor" would always be the window's own left edge and the ordinal
+    would silently degenerate into a list index: the sampling phase would then
+    move whenever the window slides.  Returning ``None`` here lets every caller
+    treat the phase as unavailable instead of mistaking it for "not sampled".
+    """
+
+    try:
+        anchor_index = sessions.index(SAMPLING_ANCHOR_SESSION)
+    except ValueError:
         return None
     try:
         index = next(index for index, item in enumerate(sessions) if item == session)
@@ -272,3 +337,25 @@ def ledger_group_key(*, ticker: str, market: str, path: str) -> str:
 def describe_window(decision_session: str) -> str:
     start, end = window_bounds(decision_session)
     return f"截至{end}的52周（{HISTORY_CALENDAR_DAYS}个自然日，窗口({start}, {end}]）"
+
+
+def dividend_label_disclosure() -> dict[str, Any]:
+    """Disclose the label basis instead of pretending dividends are neutral.
+
+    The provider close excludes cash dividends, so a window that spans an
+    ex-dividend date lowers the measured return relative to a total-return
+    series.  The effect is small and one-sided: a near-flat window can flip from
+    "up" to "down".  Without a frozen dividend history in the snapshot this
+    runtime cannot count the flips, so it reports the bias as unquantified rather
+    than estimating it.
+    """
+
+    return {
+        "target_version": TARGET_VERSION,
+        "price_basis": PRICE_BASIS,
+        "dividend_adjusted": TARGET_DIVIDEND_ADJUSTED,
+        "flip_rate": None,
+        "status": "declared_not_quantified",
+        "direction": "systematically_negative_for_dividend_payers",
+        "reason": "the frozen snapshot carries no dividend history, so label flips cannot be counted from it",
+    }

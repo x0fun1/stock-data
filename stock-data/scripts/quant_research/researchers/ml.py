@@ -380,7 +380,12 @@ def _replay(dataset: _Dataset, horizon: int, fit: _Fitter) -> tuple[list[dict[st
             models[anchor] = model
         raw = model.predict(vector)
         calibration = _calibration_for(records, origin)
-        probability = _platt_apply(calibration.mapping, _logit(raw)) if calibration.mapping else raw
+        # Policy: no fitted calibrator may reach a reported probability.  The
+        # replay used to apply Platt here while the live entry (`_predict_at_origin`)
+        # disabled it, so the same validation block described two different models.
+        # The shadow value is retained as a diagnostic; it is never published.
+        shadow_probability = _platt_apply(calibration.mapping, _logit(raw)) if calibration.mapping else None
+        probability = raw
         target = int(dataset.closes[origin + horizon] > dataset.closes[origin])
         records.append({
             "decision_session": dataset.bars[origin]["date"],
@@ -390,7 +395,10 @@ def _replay(dataset: _Dataset, horizon: int, fit: _Fitter) -> tuple[list[dict[st
             "target": target,
             "probability": probability,
             "raw_probability": raw,
-            "calibration_applied": calibration.mapping is not None,
+            "calibration_applied": False,
+            "calibration_status": "disabled_by_policy",
+            "platt_shadow_probability": shadow_probability,
+            "platt_shadow_applied": shadow_probability is not None,
             "calibration_fit_observations": calibration.observations,
             "calibration_observations": calibration.observations,
             "calibration_required_observations": PLATT_MIN_OBSERVATIONS,

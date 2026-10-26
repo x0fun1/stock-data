@@ -24,6 +24,11 @@ from .gate_policy import classify_reasons
 
 EXCHANGE_TIMEZONES = {"US": "America/New_York", "HK": "Asia/Hong_Kong"}
 ADJUSTMENTS = {"adjusted", "unadjusted", "split_adjusted", "total_return"}
+#: ``provider`` is the collector's spelling for "the provider series is already
+#: split-adjusted and excludes dividend reinvestment".  It is a known convention,
+#: not an unknown one, and mapping it here stops every real run from carrying a
+#: misleading ADJUSTMENT_UNKNOWN degradation.
+ADJUSTMENT_ALIASES = {"provider": "split_adjusted"}
 MIN_OBSERVATION_BARS = 21  # Minimum input for the predeclared 20-observation baseline.
 PRICE_MATCH_TOLERANCE = 0.003
 # A daily bar's source timestamp may label the period start rather than the session close, so the
@@ -426,7 +431,8 @@ def _check_adjustment(block: dict[str, Any], first: str, last: str,
                       findings: _Findings) -> tuple[str, bool]:
     """Adjustment convention and company-action coverage; returns (status, known)."""
     adjustment = block.get("adjustment")
-    adjustment_known = isinstance(adjustment, str) and adjustment in ADJUSTMENTS
+    normalized_adjustment = ADJUSTMENT_ALIASES.get(adjustment, adjustment) if isinstance(adjustment, str) else adjustment
+    adjustment_known = isinstance(normalized_adjustment, str) and normalized_adjustment in ADJUSTMENTS
     evidence = block.get("adjustment_evidence")
     corporate_action_status = "unavailable"
     if not adjustment_known:
@@ -435,7 +441,7 @@ def _check_adjustment(block: dict[str, Any], first: str, last: str,
         findings.degraded("ADJUSTMENT_EVIDENCE_UNAVAILABLE", "source-backed adjustment/company-action coverage is unavailable; unknown does not mean contaminated")
         findings.degraded("CORPORATE_ACTION_UNKNOWN", "recent corporate actions could not be independently assessed")
         return corporate_action_status, adjustment_known
-    if evidence.get("price_basis") != adjustment:
+    if evidence.get("price_basis") != normalized_adjustment:
         findings.degraded("ADJUSTMENT_EVIDENCE_CONFLICT", "adjustment evidence does not establish the OHLCV price basis")
     try:
         checked = date.fromisoformat(evidence["checked_through"]).isoformat()
@@ -532,6 +538,11 @@ def _check_forecast_policy(block: dict[str, Any], request: dict[str, Any], data:
         "missing_sessions": window.get("missing_sessions"),
         "coverage_status": coverage,
         "calendar_verified": verified_calendar,
+        "calendar_source": (
+            window.get("calendar_source")
+            or ((block.get("session_calendar") or {}).get("source"))
+            or "unverified"
+        ),
         "price_basis": price_basis,
         "price_basis_source": block.get("price_basis_source"),
         "historical_availability_status": "date_only_no_per_bar_available_at",
@@ -597,7 +608,10 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
     result = _gate(findings.reason_codes, findings.errors, findings.blockers, findings.warnings, latest_close,
                    calendar_status=calendar_status, horizon_type=horizon_type,
                    resolved_calendar_evidence=resolved if calendar_status == "library_verified" else None)
-    result["adjustment_status"] = "provider_declared" if adjustment_known else "unknown"
+    result["adjustment_status"] = (
+        "provider_declared_split_adjusted" if block.get("adjustment") == "provider"
+        else "provider_declared" if adjustment_known else "unknown"
+    )
     result["corporate_action_status"] = corporate_action_status
     result["policy"] = policy
     if request.get("intent") == "forecast":

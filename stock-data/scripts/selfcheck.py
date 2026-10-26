@@ -1496,70 +1496,25 @@ def check_f25_composite_momentum() -> None:
 
 
 def check_f26_momentum_probability_separation() -> None:
-    """F26: momentum keeps its own section and one contract-bound verdict line."""
+    """F26: momentum is a standalone diagnostic; it has no probability verdict line."""
+
     from quant_research.delivery import validate_response_text
-    from quant_research.report import _momentum_relationship_line as verdict
-    from quant_research.report import render_final_response
+    from quant_research.report import render_final_response, render_markdown
 
     prob, block, report = _momentum_pipeline_run(True)
     if block["score_status"] != "valid":
         raise AssertionError(f"fixture momentum should be valid: {block['status_reasons']}")
     text = render_final_response(report)
     validate_response_text(report, text)
-
-    header = "### 动量特征（独立诊断，不是上涨概率）"
-    if header not in text:
-        raise AssertionError("momentum needs its own labelled section")
-    quant_block = text.split("### Quant", 1)[1].split(header, 1)[0]
-    if "动量" in quant_block:
-        raise AssertionError("momentum must not be mixed into the Quant block")
-    line = verdict(report)
-    if line not in text:
-        raise AssertionError("the momentum-vs-probability verdict must be rendered verbatim")
-    if not line.startswith("- 动量与上涨概率的关系："):
-        raise AssertionError("the verdict line must keep its fixed prefix")
-
-    def probe(momentum_direction: str, prob_up: float, direction: str) -> str:
-        copy = json.loads(json.dumps(report))
-        copy["researchers"]["quant"]["validation"]["momentum_20d"]["momentum_direction"] = momentum_direction
-        copy["consensus"]["prob_up"] = prob_up
-        copy["consensus"]["direction"] = direction
-        return verdict(copy)
-
-    divergent = probe("positive", 0.31, "bearish")
-    if "背离" not in divergent or "下跌更常见" not in divergent:
-        raise AssertionError(f"a positive momentum beside a bearish probability is divergent: {divergent}")
-    aligned = probe("positive", 0.72, "bullish")
-    if "一致（同向）" not in aligned:
-        raise AssertionError(f"same-signed momentum and probability must read as aligned: {aligned}")
-    flat = probe("flat", 0.55, "bullish")
-    if "动量持平" not in flat:
-        raise AssertionError(f"a flat momentum must be named as such: {flat}")
-    unavailable = json.loads(json.dumps(report))
-    unavailable["researchers"]["quant"]["validation"]["momentum_20d"]["score_status"] = "unavailable"
-    if "不可比" not in verdict(unavailable) or "也不做默认替代" not in verdict(unavailable):
-        raise AssertionError("an unavailable feature must not be silently treated as neutral")
-    missing = json.loads(json.dumps(report))
-    missing["researchers"]["quant"]["validation"].pop("momentum_20d", None)
-    if "不可比" not in verdict(missing):
-        raise AssertionError("an absent feature must not be silently treated as neutral")
-
-    # The verdict is contract-bound: a reworded or dropped line must be rejected.
-    def rejected(candidate: str) -> bool:
-        try:
-            validate_response_text(report, candidate)
-        except ValueError:
-            return True
-        return False
-
-    tampered = (text.replace(line, line.replace("背离", "一致")) if "背离" in line
-                else text.replace(line, "- 动量与上涨概率的关系：一致（同向）。"))
-    for bad_text, label in ((tampered, "reworded-verdict"),
-                            (text.replace(line + "\n", ""), "dropped-verdict")):
-        if not rejected(bad_text):
-            raise AssertionError(f"{label} was not rejected")
-
-    # Rendering the verdict must not touch the probability.
+    if "动量" in text:
+        raise AssertionError("the fixed response block must not carry a momentum verdict")
+    markdown = render_markdown(report)
+    if "- 动量诊断：" not in markdown:
+        raise AssertionError("report.md must still disclose the standalone momentum diagnostic")
+    if "不进入概率" not in markdown:
+        raise AssertionError("the diagnostic must state that it does not enter the probability")
+    if "动量与上涨概率的关系" in markdown or "动量与上涨概率的关系" in text:
+        raise AssertionError("the retired v1 cross-check line must not be produced")
     if float(report["consensus"]["prob_up"]) != prob:
         raise AssertionError("rendering must not modify the reported probability")
 
@@ -2490,6 +2445,23 @@ def _policy_calendar(sessions: list[dt.date]) -> dict:
                          for s in sessions]}
 
 
+def _extend_sessions(sessions: list[dt.date], count: int = 10) -> list[dt.date]:
+    """Append future weekdays so the 5th-session target is resolvable.
+
+    A calendar that stops at the decision session cannot name the target session,
+    and publishing a probability against an undetermined close is exactly the
+    defect the target-session gate now blocks.
+    """
+
+    extended = list(sessions)
+    cursor = sessions[-1]
+    while len(extended) < len(sessions) + count:
+        cursor += dt.timedelta(days=1)
+        if cursor.weekday() < 5:
+            extended.append(cursor)
+    return extended
+
+
 def _policy_asof(day: dt.date) -> dt.datetime:
     return dt.datetime(day.year, day.month, day.day, 21, 0, tzinfo=dt.timezone.utc)
 
@@ -2518,7 +2490,7 @@ def _policy_collection(sessions, bars, asof, *, adjustment="provider", calendar=
                        declared=None, ticker="SYN"):
     import yahoo_collect
 
-    calendar_block = _policy_calendar(sessions) if calendar else None
+    calendar_block = _policy_calendar(_extend_sessions(list(sessions))) if calendar else None
     provider = _FakeProvider(bars, calendar_block, asof, adjustment=adjustment, symbol=ticker)
     original = yahoo_collect._library_calendar
     yahoo_collect._library_calendar = lambda *_a, **_k: calendar_block
@@ -2727,7 +2699,6 @@ def check_t08_labels_are_matured_at_each_origin() -> None:
 
 
 def check_t09_oos_support_counts_zero_eleven_twelve() -> None:
-    from quant_research.forecast_policy import is_sampled_ordinal, session_ordinal
     from quant_research.researchers.quant import predict_at_origin
     from quant_research.validation.probability_quality import audit_oos_result
 
@@ -2735,18 +2706,16 @@ def check_t09_oos_support_counts_zero_eleven_twelve() -> None:
     bars = _policy_bars(sessions)
     dates = [bar["date"] for bar in bars]
     closes = [bar["close"] for bar in bars]
-    rows = []
-    for index in range(25, len(bars) - 5):
-        ordinal = session_ordinal(sessions, dt.date.fromisoformat(dates[index]))
-        if not is_sampled_ordinal(ordinal):
-            continue
-        row = predict_at_origin(dates, closes, index)
-        if row["probability"] is None:
-            continue
-        rows.append(row)
-    assert len(rows) >= 12, len(rows)
+    rows = [
+        row for row in (predict_at_origin(dates, closes, index) for index in range(25, len(bars) - 5))
+        if row["probability"] is not None
+    ]
+    assert len(rows) >= 60, len(rows)
     manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": "s"}
-    for count, expected in ((0, "NO_VALID_OOS_PROBABILITY"), (11, "OOS_SUPPORT_INSUFFICIENT"), (12, None)):
+    # Support is an effective-sample floor: 5-session labels overlap, so 55 rows
+    # are 11 independent equivalents and 60 rows are 12.  The old 12-phase
+    # sample was a different quantity that happened to share the number.
+    for count, expected in ((0, "NO_VALID_OOS_PROBABILITY"), (55, "OOS_SUPPORT_INSUFFICIENT"), (60, None)):
         result = {"researcher_id": "quant", "ticker": "SYN", "horizon": "5D", "snapshot_id": "s",
                   "validation": {"oos_forecasts": rows[:count], "sampling": {"coverage_ratio": None}}}
         audit = audit_oos_result(result, manifest, bars, sessions=sessions)
@@ -2754,7 +2723,12 @@ def check_t09_oos_support_counts_zero_eleven_twelve() -> None:
             assert expected in audit["reasons"], (count, audit["reasons"])
         else:
             assert "OOS_SUPPORT_INSUFFICIENT" not in audit["reasons"], audit["reasons"]
-            assert audit["nonoverlap_valid_count"] >= 12
+            assert audit["effective_valid_samples"] >= 12
+    # The sampling phase must not be claimed window-independent when the supplied
+    # calendar does not contain the 2000-01-03 anchor.
+    assert audit_oos_result(result, manifest, bars, sessions=sessions)["sampling"]["status"] in {
+        "unanchored", "unanchored_calendar",
+    }
 
 
 def check_t10_directional_edge_requires_thirty_and_positive_interval() -> None:
@@ -2841,7 +2815,7 @@ def check_t14_parameter_tampering_is_rejected() -> None:
     snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
     audit_bars = _snapshot_bars(snapshot)
     result = _quant_rows(snapshot, audit_bars)
-    for field, value in (("prior_strength", 1), ("minimum_gap_sessions", 1),
+    for field, value in (("k", 1), ("minimum_gap_sessions", 1),
                          ("minimum_matches", 1), ("horizon_sessions", 1)):
         tampered = copy.deepcopy(result)
         tampered["validation"]["probability_transform"][field] = value
@@ -3049,6 +3023,357 @@ def check_t24_missing_production_path_stays_unavailable() -> None:
     assert consensus["status"] == "unavailable"
 
 
+
+# ---------------------------------------------------------------- review items
+def _fake_delivery_result(news_status: str, **overrides) -> dict:
+    result = {
+        "snapshot": {
+            "ticker": "SYN", "market": "US", "horizon": "5D",
+            "asof_timestamp": "2026-01-02T21:00:00Z",
+            "policy": {"decision_session": "2026-01-02", "window_end_inclusive": "2026-01-02",
+                       "policy_version": "fixed_52w_5d_v1"},
+            "target_session": "2026-01-09",
+            "snapshot_id": "SYN_TEST",
+        },
+        "consensus": {
+            "prob_up": 0.53, "model_lean": "up", "production_probability_eligible": True,
+            "directional_edge_supported": False, "computable": True,
+            "current_prediction_integrity_pass": True, "oos_integrity_pass": True,
+            "production": {"probability_transform": {"k": 50}},
+            "evidence": {
+                "replay_type": "prefix_walk_forward", "replay_valid": 230, "replay_nonoverlap": 39,
+                "replay_abstained": 0, "oos_effective_samples": 46, "prospective_nonoverlap": 0,
+                "directional_edge_state": "insufficient_evidence",
+                "directional_edge_primary_evidence": "full_prefix_replay",
+                "relative_baseline_skill": [
+                    {"block_length": 6, "primary": True, "status": "estimated",
+                     "mean": 0.0201, "lower": -0.002, "upper": 0.0517},
+                ],
+                "baseline_comparison": {"brier_model": 0.2553, "brier_causal_base_rate": 0.2754,
+                                        "brier_constant_half": 0.25, "auc": 0.4886,
+                                        "effective_sample_size": 46, "observations": 230},
+            },
+        },
+        "news_result": {"status": news_status},
+        "adversarial_audit": {"may_report_probability": True},
+    }
+    result.update(overrides)
+    return result
+
+
+def check_t25_news_partial_is_assessed_not_unassessed() -> None:
+    """N1/N2/N4: partial is assessed evidence and the warning count must be shown."""
+
+    from quant_research.delivery import validate_response_text
+    from quant_research.news import news_assessed, news_status_label
+    from quant_research.report import render_final_response, required_response_lines
+
+    assert news_assessed("partial") and news_assessed("complete") and news_assessed("valid")
+    assert not news_assessed("not_assessed") and not news_assessed(None) and not news_assessed("corrupted")
+    assert news_status_label("partial") == "partial"
+
+    partial = _fake_delivery_result("partial")
+    partial["news_result"].update({"warning_count": 3, "warnings": ["a", "b", "c"],
+                                   "overall_direction": "mixed",
+                                   "expected_volatility_regime": {"regime": "elevated"}})
+    line = required_response_lines(partial)["news"]
+    if "已评估" not in line or "3 条警告" not in line:
+        raise AssertionError(f"a partial News stage must be reported as assessed with its warning count: {line}")
+    if "未评估" in line or "未提供" in line:
+        raise AssertionError(f"assessed evidence must never be described as unassessed: {line}")
+    text = render_final_response(partial)
+    if "未评估" in text:
+        raise AssertionError("an assessed run must not contain the unassessed sentence anywhere")
+    validate_response_text(partial, text)
+
+    absent = _fake_delivery_result("not_assessed")
+    line = required_response_lines(absent)["news"]
+    if "未提供" not in line:
+        raise AssertionError(f"a genuinely unassessed News stage must say so: {line}")
+    validate_response_text(absent, render_final_response(absent))
+
+
+def check_t26_denial_is_not_unknown_and_no_number_is_not_negation() -> None:
+    """N5: a denial is a fact, not missing evidence; "No. 1" is not a negation."""
+
+    from quant_research.news.classify import direction_for
+
+    if direction_for("Company denies the rumour") != "neutral":
+        raise AssertionError("a denial of a rumour is a factual statement, not unknown")
+    if direction_for("No. 1 vendor in the segment") == "unknown":
+        raise AssertionError("a bare 'No.' must not be read as negation or uncertainty")
+    if direction_for("Company may miss estimates") != "unknown":
+        raise AssertionError("a genuine hedge must stay unknown")
+    if direction_for("Reports unconfirmed bid approach") != "unknown":
+        raise AssertionError("an unconfirmed rumour must stay unknown")
+    if direction_for("MU misses estimates as demand weak") != "negative":
+        raise AssertionError("confirmed negative news must stay negative")
+
+
+def check_t27_event_timing_and_volatility_regime() -> None:
+    """N6/N7/N8: timing bucket, non-directional volatility state, priced-in state."""
+
+    from quant_research.news.timing import (
+        aggregate_priced_in,
+        event_time_bucket,
+        priced_in_assessment,
+    )
+
+    closes_map = {"2026-01-05": "2026-01-05T20:00:00Z"}
+    assert event_time_bucket("2026-01-05T10:00:00Z", "2026-01-05", closes_map)["bucket"] == "pre_market"
+    assert event_time_bucket("2026-01-05T15:00:00Z", "2026-01-05", closes_map)["bucket"] == "intraday"
+    assert event_time_bucket("2026-01-05T22:00:00Z", "2026-01-05", closes_map)["bucket"] == "after_close"
+    assert event_time_bucket(None, "2026-01-05", closes_map)["bucket"] == "unknown"
+
+    # 25 quiet sessions, a +2% event session, then a flat continuation window.
+    closes = [100.0]
+    for index in range(24):
+        closes.append(closes[-1] * (1 + (0.001 if index % 2 else -0.001)))
+    closes.append(closes[-1] * 1.02)
+    closes.extend([closes[-1]] * 6)
+    reaction = {"status": "confirmed_positive", "daily_close_return": 0.02}
+    priced_in = priced_in_assessment(
+        reaction=reaction, closes=closes, session_index=25, event_direction="positive", horizon=5,
+    )
+    assert priced_in["state"] == "likely_priced_in", priced_in
+    assert priced_in["probability_effect"] == "none"
+    early = priced_in_assessment(
+        reaction=reaction, closes=closes[:28], session_index=25, event_direction="positive", horizon=5,
+    )
+    assert early["state"] == "not_assessable", early
+    aggregate = aggregate_priced_in([
+        {"already_priced_in": priced_in} for _ in range(3)
+    ])
+    assert aggregate["state"] == "likely_priced_in", aggregate
+
+
+def check_t28_ai_lean_identity_fields_cannot_be_forged() -> None:
+    """N9: a supplied headline/source/url must match the analysed record."""
+
+    from quant_research.news import AI_ASSESSMENT_SCHEMA_VERSION, analyze_news
+
+    bars = synth_bars(60, seed=7)
+    news_input = _news_input(bars, _f17_articles(bars))
+    baseline = analyze_news(news_input)
+    candidate = baseline["ai_lean_candidates"][0]
+    artifact = {
+        "schema_version": AI_ASSESSMENT_SCHEMA_VERSION, "ticker": "MU",
+        "asof_timestamp": news_input.asof_timestamp,
+        "items": [{
+            "news_id": candidate["news_id"], "lean": "bullish", "reason": "标题上调",
+            "headline": "Forged headline that was never published",
+        }],
+    }
+    rejected = analyze_news(news_input, None, artifact)
+    assert rejected["ai_lean"]["status"] == "invalid", rejected["ai_lean"]
+    good = analyze_news(news_input, None, {
+        **artifact,
+        "items": [{"news_id": candidate["news_id"], "lean": "bullish", "reason": "标题上调",
+                   "headline": candidate["headline"]}],
+    })
+    assert good["ai_lean"]["status"] == "assessed", good["ai_lean"]
+
+
+def check_t29_mutation_detection() -> None:
+    """R3: three deliberate formula mutations must be caught by the audit."""
+
+    import copy
+
+    from quant_research.validation.probability_quality import audit_current_prediction
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
+    audit_bars = _snapshot_bars(snapshot)
+    result = _quant_rows(snapshot, audit_bars)
+    assert audit_current_prediction(result, {}, audit_bars)["pass"] is True
+
+    mutations = {}
+    zero_prior = copy.deepcopy(result)
+    zero_prior["validation"]["probability_transform"]["k"] = 0
+    mutations["prior->0"] = zero_prior
+    sign_flip = copy.deepcopy(result)
+    sign_flip["prob_up"] = 1 - sign_flip["prob_up"]
+    mutations["sign flip"] = sign_flip
+    shifted = copy.deepcopy(result)
+    shifted["validation"]["probability_transform"]["base_rate_label_end_max"] = (
+        audit_bars[-1]["date"] if shifted["validation"]["probability_transform"]["base_rate_label_end_max"] != audit_bars[-1]["date"]
+        else audit_bars[-2]["date"]
+    )
+    mutations["label shift"] = shifted
+    undetected = [name for name, payload in mutations.items() if audit_current_prediction(payload, {}, audit_bars)["pass"]]
+    if undetected:
+        raise AssertionError(f"the audit failed to detect deliberate mutations: {undetected}")
+
+
+def check_t30_baseline_comparison_uses_two_naive_baselines() -> None:
+    """R1: effectiveness is reported against the base rate and against 0.5."""
+
+    from quant_research.statistics import baseline_comparison
+    from quant_research.validation.probability_quality import directional_edge_assessment
+
+    def build(probability: float) -> list[dict]:
+        return [
+            {
+                "decision_session": f"2026-01-{index + 1:02d}", "status": "matured",
+                "probability": probability + (index % 5) * 0.002,
+                # 70% of the labelled windows rise: a constant 0.5 is a weak baseline.
+                "target": 0 if index % 10 < 3 else 1,
+                "probability_transform": {"base_rate_at_origin": 0.5},
+            }
+            for index in range(60)
+        ]
+
+    rows = build(0.20)
+    comparison = baseline_comparison(rows, horizon=5)
+    assert comparison["brier_model"] > comparison["brier_causal_base_rate"], comparison
+    assert comparison["skill"]["vs_causal_base_rate"] < 0, comparison
+    assert comparison["auc"] is not None
+    assert "constant_half" in comparison["baselines"]
+    edge = directional_edge_assessment(replay_records=rows)
+    assert edge["state"] == "negative_skill_with_estimated_interval_excluding_zero", edge
+
+    better = baseline_comparison(build(0.72), horizon=5)
+    assert better["skill"]["vs_causal_base_rate"] > 0, better
+    # With 60 rows the primary 6-session block interval stays wide: positive point
+    # skill is not yet a supported edge, and the block must say so.
+    assert better["verdict"] in {"insufficient_evidence",
+                                 "positive_skill_with_estimated_interval_excluding_zero"}, better
+
+
+def check_t31_reporting_status_is_not_a_stale_flag() -> None:
+    """B9: a veto must not leave the report saying 'reportable'."""
+
+    from quant_research.report import reporting_status_for
+
+    stale = {"consensus": {"prob_up": None, "production_probability_eligible": True},
+             "adversarial_audit": {"may_report_probability": False}}
+    if reporting_status_for(stale) != "unavailable":
+        raise AssertionError("a vetoed run with no probability must not be reportable")
+    live = {"consensus": {"prob_up": 0.53, "production_probability_eligible": True},
+            "adversarial_audit": {"may_report_probability": True}}
+    assert reporting_status_for(live) == "reportable"
+
+
+def check_t32_headline_newlines_cannot_inject_report_lines() -> None:
+    """N10: provider text stays one line and is escaped in Markdown."""
+
+    from quant_research.news.normalize import normalize_articles
+    from quant_research.report import render_markdown
+
+    articles, _excluded, _warnings = normalize_articles(
+        {"articles": [{
+            "title": "MU raises guidance\n## Injected heading\n- injected item",
+            "published_at": "2026-01-05T13:00:00Z", "source": "Reuters",
+            "url": "https://example.com/a", "tickers": ["MU"],
+        }]},
+        asof_timestamp="2026-01-09T00:00:00Z",
+    )
+    assert articles, "the fixture article must survive normalization"
+    assert "\n" not in articles[0]["title"], articles[0]["title"]
+
+    result = _fake_delivery_result("complete")
+    result["news_result"] = {
+        "status": "complete", "warning_count": 0, "overall_direction": "positive",
+        "major_events": [{"headline": "MU raises guidance\n## Injected heading", "direction": "positive",
+                          "eligible_evidence": True, "age_sessions": 1}],
+    }
+    rendered = render_markdown(result)
+    if any(line.strip().startswith("## Injected heading") for line in rendered.splitlines()):
+        raise AssertionError("a headline must not be able to create a new Markdown heading")
+
+
+def check_t33_unresolved_target_session_vetoes_publication() -> None:
+    """A4: a probability against an undetermined 5th-session close is vetoed."""
+
+    from quant_research.audit import audit
+    from quant_research.consensus import _manifest_policy_reasons
+
+    manifest = {
+        "snapshot_id": "SYN_TEST",
+        "source_payload_sha256": "a" * 64,
+        "request": {"intent": "forecast"},
+        "policy": {
+            "policy_version": "fixed_52w_5d_v1",
+            "coverage_status": "complete",
+            "calendar_verified": True,
+            "target_session": None,
+        },
+        "data_validation": {"policy": {"price_basis": "split_adjusted"}},
+        "data_quality": {"overall": "complete"},
+    }
+    assert "TARGET_SESSION_UNRESOLVED" in _manifest_policy_reasons(manifest)
+    consensus = {
+        "prob_up": 0.55, "production_probability_eligible": True, "computable": True,
+        "current_prediction_integrity_pass": True, "oos_integrity_pass": True,
+        "directional_edge_supported": False, "aggregation_method": "single_path",
+        "production_path_count": 1, "confidence_score": None, "assessment": {
+            "current_prediction_integrity_pass": True, "oos_integrity_pass": True,
+            "production_probability_eligible": True, "directional_edge_supported": False,
+        },
+        "shadow_predictions": [], "evidence": {},
+    }
+    result = audit(manifest, [], consensus)
+    assert "TARGET_SESSION_UNRESOLVED" in result["reason_codes"], result["reason_codes"]
+    assert result["may_report_probability"] is False
+    manifest["policy"]["target_session"] = "2026-01-09"
+    assert "TARGET_SESSION_UNRESOLVED" not in _manifest_policy_reasons(manifest)
+
+
+def check_t34_pipeline_runs_news_by_default() -> None:
+    """N3: `pipeline` runs the News stage without an explicit policy file."""
+
+    import contextlib
+    import importlib.util
+    import io
+    import json
+
+    # ``quant_research.py`` (the CLI) and ``quant_research/`` (the package) share a
+    # name; load the script by path instead of relying on import resolution.
+    cli_path = Path(__file__).with_name("quant_research.py")
+    spec = importlib.util.spec_from_file_location("quant_research_cli", cli_path)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+
+    sessions = _policy_sessions()
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    work = Path(tempfile.mkdtemp(prefix="selfcheck_pipeline_news_"))
+    try:
+        responses = _policy_collection(sessions, bars, asof)
+        request_path = work / "request.json"
+        responses_path = work / "responses.json"
+        request_path.write_text(json.dumps({
+            "ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast",
+            "asof": asof.isoformat(),
+        }), encoding="utf-8")
+        responses_path.write_text(json.dumps({"domains": responses}), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()) as captured:
+            code = cli.main([
+                "pipeline", "--request", str(request_path), "--responses", str(responses_path),
+                "--output-root", str(work / "runtime"), "--no-gc",
+            ])
+        if code != 0:
+            raise AssertionError(f"pipeline failed with exit code {code}: {captured.getvalue()[:400]}")
+        if code != 0:
+            raise AssertionError(f"pipeline failed with exit code {code}")
+        analyses = sorted((work / "runtime" / "research").glob("*/analysis.json"))
+        if not analyses:
+            raise AssertionError("pipeline produced no analysis")
+        payload = json.loads(analyses[-1].read_text(encoding="utf-8"))
+        news = payload.get("news_result") or {}
+        if news.get("schema_version") != "1.3":
+            raise AssertionError(f"the News stage did not run by default: {news.get('status')!r} {sorted(news)}")
+        receipt = next(row for row in payload["stages"] if row["stage"] == "news")
+        if receipt["status"] not in {"complete", "partial", "not_assessed"}:
+            raise AssertionError(f"unexpected News stage status: {receipt}")
+        if "warning_count" not in news:
+            raise AssertionError("the News result must disclose its warning count")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
 CHECKS = [
     ("T01 forecast horizon is 5 sessions", check_t01_forecast_horizon_is_five_sessions),
     ("T02 fixed window and coverage", check_t02_fixed_window_and_coverage),
@@ -3090,6 +3415,16 @@ CHECKS = [
     ("F33 holiday collisions", check_f33_holiday_collisions),
     ("F34 capacity and timing", check_f34_capacity_and_timing),
     ("F44 forward eligibility", check_f44_forward_eligibility),
+    ("T25 news partial is assessed", check_t25_news_partial_is_assessed_not_unassessed),
+    ("T26 denial is not unknown", check_t26_denial_is_not_unknown_and_no_number_is_not_negation),
+    ("T27 event timing, volatility regime and priced-in", check_t27_event_timing_and_volatility_regime),
+    ("T28 AI lean identity cannot be forged", check_t28_ai_lean_identity_fields_cannot_be_forged),
+    ("T29 mutation detection", check_t29_mutation_detection),
+    ("T30 baseline comparison", check_t30_baseline_comparison_uses_two_naive_baselines),
+    ("T31 reporting status is not stale", check_t31_reporting_status_is_not_a_stale_flag),
+    ("T32 headline cannot inject report lines", check_t32_headline_newlines_cannot_inject_report_lines),
+    ("T33 unresolved target session vetoes publication", check_t33_unresolved_target_session_vetoes_publication),
+    ("T34 pipeline runs news by default", check_t34_pipeline_runs_news_by_default),
 ]
 
 if __name__ == "__main__":

@@ -11,7 +11,14 @@ Every prediction carries:
 - `group_key` = ticker | market | policy version | model version | feature
   version | target version;
 - `policy_version`, `model_version`, `feature_version`, `target_version`;
-- `probability_transform`, `causal_base_rate` and `decision_sampled`.
+- `probability_transform`, `causal_base_rate` and `decision_sampled`;
+- `sampling` (`status`: `anchored` / `unanchored`, `role`:
+  `throttle_only_not_qualification`). A `decision_sampled = null` means the phase
+  could not be anchored, **not** that the row was rejected.
+
+Because the model version is part of `group_key`, v2 predictions never pool with
+`quant_causal_shrinkage_v1` records; the older rows are reported as a separate
+`legacy_k12` group and are not scored as evidence for the current model.
 
 Only the production path A is recorded. Shadow probabilities are not ledger
 predictions and cannot be scored as if they were.
@@ -45,7 +52,15 @@ directional-edge claim.
 
 ## Minimum evidence
 
-`directional_edge_supported` needs at least 30 prospective non-overlapping
-matured records and a positive paired-improvement interval for block lengths 2,
-1 and 3. The sampled records are correlated; the interval is descriptive, not a
-future coverage guarantee.
+`directional_edge_supported` is decided primarily by the full prefix replay: at
+least 30 matured decisions and a paired-improvement interval whose lower bound is
+above zero, with the primary block length at least `horizon + 1` (6 sessions for
+5D). Shorter blocks treat overlapping labels as independent and understate the
+interval. The interval is descriptive, not a future coverage guarantee.
+
+The 30-record prospective floor is retained as corroboration, but its power is
+published with every run (`evidence_power`): at a true 60% hit rate a 30-outcome
+test passes only 29% of the time. A floor that is very unlikely to be reached is
+not a quality guarantee, so the forward ledger alone is no longer the only
+admissible evidence. `prospective_records()` still excludes retrospective rows
+from every forward claim.

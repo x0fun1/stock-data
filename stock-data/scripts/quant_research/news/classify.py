@@ -27,6 +27,7 @@ POSITIVE_TERMS = (
     "raises guidance", "raised guidance", "guidance raised", "beats estimates", "beat estimates",
     "beats revenue", "revenue beats", "record revenue", "record profit", "approval granted", "wins contract", "contract win",
     "strong demand", "revenue growth", "profit rises", "upgrade", "dividend increase",
+    "no. 1", "number one", "market leader", "top-ranked",
     "positive", "bullish", "增长", "上调", "获批", "超预期", "利好", "增长强劲",
 )
 NEGATIVE_TERMS = (
@@ -37,6 +38,27 @@ NEGATIVE_TERMS = (
 )
 
 TOPIC_TERMS = ("AI", "data center", "demand", "guidance", "earnings", "rates", "regulation", "China", "supply", "product")
+
+#: Genuine uncertainty.  These must stay separate from negation: a hedge says the
+#: claim is unverified, while a denial is a verified statement *about* a claim.
+_HEDGE = re.compile(
+    r"\b(?:reportedly|allegedly|may|might|could|possibly|speculat(?:e|es|ed|ion)|if)\b"
+    r"|据报道|可能|或将|如果"
+)
+#: Unverified-claim nouns.  A denial of a rumour is not itself a rumour, so these
+#: are only treated as uncertainty when no denial verb is present.
+_UNVERIFIED_CLAIM = re.compile(r"\b(?:rumou?rs?|rumou?red|unconfirmed)\b|传闻|未经证实")
+
+#: Explicit negation of a claim.  ``no`` alone is deliberately absent: "No. 1
+#: vendor" and "no comment" are not denials, and treating every bare ``no`` as
+#: uncertainty turned confirmed negative headlines into "unknown" — a systematic
+#: bias that reads bad news as neutral.  A denial with no directional content is
+#: reported as ``neutral`` (a factual statement), not as unknown.
+_NEGATION = re.compile(
+    r"\b(?:denies|denied|deny|refutes|refuted|rebuts|rebutted|dismisses|dismissed|"
+    r"no longer|does not|doesn't|did not|didn't|will not|won't|is not|isn't|are not|aren't|"
+    r"fails? to|failed to|without|rejects|rejected)\b|否认|驳斥|拒绝|没有|未能|不再"
+)
 
 
 def _contains(text: str, phrase: str) -> bool:
@@ -64,16 +86,28 @@ def event_type_for(text: str, hint: str | None = None) -> str:
 
 def direction_for(text: str) -> str:
     normalized = text.casefold()
-    if re.search(r"\b(?:denies?|denied|no|not|rumou?r(?:ed)?|unconfirmed|may|might|could)\b|否认|传闻|未经证实|未发生|没有|可能", normalized):
+    negated = _NEGATION.search(normalized) is not None
+    if _HEDGE.search(normalized):
+        return "unknown"
+    if _UNVERIFIED_CLAIM.search(normalized) and not negated:
         return "unknown"
     positive = any(_contains(normalized, phrase) for phrase in POSITIVE_TERMS)
     negative = any(_contains(normalized, phrase) for phrase in NEGATIVE_TERMS)
+    if negated and (positive or negative):
+        # The scope of a denial is not parsed: "denies the lawsuit" and "denies
+        # the upgrade" have opposite polarity.  Guessing here is how negative
+        # news gets quietly read as neutral, so the honest answer is unknown.
+        return "unknown"
     if positive and negative:
         return "mixed"
     if positive:
         return "positive"
     if negative:
         return "negative"
+    if negated:
+        # An explicit denial/rejection with no directional phrase is a factual
+        # statement, not missing evidence.  Calling it "unknown" would hide it.
+        return "neutral"
     return "unknown"
 
 

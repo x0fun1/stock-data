@@ -8,12 +8,13 @@ from typing import Any
 from .forecast_policy import (
     FACTOR_BACKTEST_HOLDOUT_MIN,
     MIN_PROSPECTIVE_NONOVERLAP,
-    MIN_VALID_OOS_NONOVERLAP,
+    MIN_REPLAY_EFFECTIVE_SAMPLES,
     MODEL_VERSIONS,
     POLICY_VERSION,
     PRICE_BASIS,
     SHADOW_PATHS,
     SHRINKAGE_MIN_MATCHES,
+    dividend_label_disclosure,
     model_identity,
     policy_metadata,
 )
@@ -55,15 +56,17 @@ def _reason_text(codes: list[str]) -> list[str]:
         "PRICE_BASIS_UNVERIFIED": "价格基础不是拆股调整收盘价，目标语义不一致。",
         "NO_CURRENT_PROBABILITY": "当前decision session没有可重算的概率。",
         "CURRENT_MATCHING_SAMPLES_INSUFFICIENT": f"当前匹配样本不足{SHRINKAGE_MIN_MATCHES}条。",
-        "OOS_SUPPORT_INSUFFICIENT": f"同版本有效非重叠OOS预测不足{MIN_VALID_OOS_NONOVERLAP}条。",
+        "OOS_SUPPORT_INSUFFICIENT": f"同版本有效OOS回放样本不足{MIN_REPLAY_EFFECTIVE_SAMPLES}个非重叠等价样本。",
         "NO_VALID_OOS_PROBABILITY": "没有有效的非空OOS概率。",
         "OOS_INTEGRITY_FAILED": "OOS概率存在完整性错误。",
         "PREDICTION_INTEGRITY_FAILED": "当前概率无法从冻结行情和固定参数重算。",
         "PRODUCTION_PATH_UNAVAILABLE": "生产路径A没有产出可用结果。",
         "PROSPECTIVE_SUPPORT_INSUFFICIENT": f"真实前向非重叠记录不足{MIN_PROSPECTIVE_NONOVERLAP}条。",
         "DIRECTIONAL_EDGE_UNPROVEN": "相对因果基率的方向优势尚无充分证据。",
+        "INTERVAL_BELOW_ZERO": "相对因果基率的成对损失改善区间完全在零以下（劣于纯基率）。",
         "INTERVAL_CROSSES_ZERO": "成对损失改善的区间跨零。",
         "INTERVAL_UNESTIMABLE": "区间无法可靠估计。",
+        "TARGET_SESSION_UNRESOLVED": "预测目标交易日未解析，不能发布正式概率。",
     }
     return [messages.get(code, code) for code in codes]
 
@@ -81,13 +84,17 @@ def _manifest_policy_reasons(manifest: dict[str, Any]) -> list[str]:
     declared_basis = (validation.get("policy") or {}).get("price_basis") or policy.get("price_basis")
     if declared_basis != PRICE_BASIS:
         reasons.append("PRICE_BASIS_UNVERIFIED")
+    if not policy.get("target_session"):
+        reasons.append("TARGET_SESSION_UNRESOLVED")
     return reasons
 
 
 def oos_support_sessions(_researchers: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-    """Compatibility shim: support is a fixed policy floor, not a scaled score."""
+    """Compatibility shim: support is an effective-sample floor, not a score."""
 
-    return {"minimum_nonoverlap": MIN_VALID_OOS_NONOVERLAP, "policy_version": POLICY_VERSION, "scaling": "none"}
+    return {"minimum_effective_samples": MIN_REPLAY_EFFECTIVE_SAMPLES,
+            "policy_version": POLICY_VERSION, "scaling": "none",
+            "primary_evidence": "full_prefix_replay"}
 
 
 def forecast_assessment(
@@ -122,14 +129,20 @@ def forecast_assessment(
         reasons.extend(current.get("reasons") or ["PREDICTION_INTEGRITY_FAILED"])
     if not oos.get("integrity_pass"):
         reasons.extend(oos.get("reasons") or ["OOS_INTEGRITY_FAILED"])
-    matching = validation.get("n_raw")
-    if not isinstance(matching, int) or matching < SHRINKAGE_MIN_MATCHES:
-        reasons.append("CURRENT_MATCHING_SAMPLES_INSUFFICIENT")
-    if int(oos.get("nonoverlap_valid_count") or 0) < MIN_VALID_OOS_NONOVERLAP:
+    # The 12-match floor is disclosed context under v2: the matching hit rate no
+    # longer carries probability weight, so it cannot gate publication.
+    effective = int(oos.get("effective_valid_samples") or 0)
+    if effective < MIN_REPLAY_EFFECTIVE_SAMPLES:
         for code in oos.get("reasons") or []:
             if code not in reasons:
                 reasons.append(code)
-    edge = directional_edge_assessment(prospective_records or [])
+    replay_rows = [
+        row for row in ((result.get("validation") or {}).get("oos_forecasts") or [])
+        if isinstance(row, dict) and row.get("probability") is not None and row.get("target") is not None
+    ]
+    edge = directional_edge_assessment(
+        replay_records=replay_rows, prospective_records=prospective_records or [],
+    )
     eligible = not reasons
     return {
         "computable": result.get("prob_up") is not None,
@@ -137,6 +150,7 @@ def forecast_assessment(
         "oos_integrity_pass": bool(oos.get("integrity_pass")),
         "production_probability_eligible": bool(eligible),
         "directional_edge_supported": bool(edge.get("supported")),
+        "directional_edge_state": edge.get("state"),
         "trading_signal_eligible": False,
         "reason_codes": sorted(set(reasons)),
         "reasons": _reason_text(sorted(set(reasons))),
@@ -144,6 +158,9 @@ def forecast_assessment(
         "oos_evidence_audit": oos,
         "current_prediction_audit": current,
         "directional_edge": edge,
+        "matching_floor_role": "disclosure_only_not_an_eligibility_gate",
+        "minimum_matching_samples": SHRINKAGE_MIN_MATCHES,
+        "label_basis": dividend_label_disclosure(),
         "path": path,
         "model_identity": validation.get("model_identity") or model_identity(path if path in MODEL_VERSIONS else "quant"),
     }
@@ -229,14 +246,22 @@ def build_consensus(
         "replay_total": oos.get("record_count"),
         "replay_abstained": oos.get("abstained_count"),
         "replay_coverage_ratio": oos.get("coverage_ratio"),
-        "oos_support_required": MIN_VALID_OOS_NONOVERLAP,
+        "oos_support_required_effective_samples": MIN_REPLAY_EFFECTIVE_SAMPLES,
+        "oos_effective_samples": oos.get("effective_valid_samples"),
+        "oos_nonoverlap": oos.get("nonoverlap_valid_count"),
+        "oos_sampling_status": (oos.get("sampling") or {}).get("status"),
+        "oos_sampling_role": oos.get("sampling_role"),
         "prospective_nonoverlap": len(prospective),
         "prospective_required": MIN_PROSPECTIVE_NONOVERLAP,
         "directional_edge_supported": bool(assessment.get("directional_edge_supported")),
         "directional_edge_reasons": (assessment.get("directional_edge") or {}).get("reasons"),
+        "directional_edge_state": (assessment.get("directional_edge") or {}).get("state"),
+        "directional_edge_primary_evidence": (assessment.get("directional_edge") or {}).get("primary_evidence"),
         "calibration_status": "disabled_by_policy",
         "probability_label": "uncalibrated_model_estimate",
         "relative_baseline_skill": (assessment.get("directional_edge") or {}).get("intervals"),
+        "baseline_comparison": (oos.get("effectiveness") or {}),
+        "label_basis": dividend_label_disclosure(),
     }
 
     reason_codes = list(assessment.get("reason_codes") or [])
