@@ -2329,6 +2329,7 @@ def check_f43_compact_candidate_is_shadow_only() -> None:
 
 
 def check_f44_forward_eligibility() -> None:
+    """F44: prospective means recorded promptly and before the label matured."""
     from quant_research import ledger
 
     work = Path(tempfile.mkdtemp())
@@ -2338,6 +2339,7 @@ def check_f44_forward_eligibility() -> None:
         session = today - dt.timedelta(days=1)
         while session.weekday() >= 5:
             session -= dt.timedelta(days=1)
+        decision_at = dt.datetime.combine(session, dt.time(20, 0), tzinfo=dt.timezone.utc)
         live = {
             "snapshot": {
                 "ticker": "SYN", "market": "US", "horizon": "5D",
@@ -2353,9 +2355,37 @@ def check_f44_forward_eligibility() -> None:
             },
             "engine": {"version": "test"},
         }
-        recorded = ledger.record_prediction(live, path)
+        recorded = ledger.record_prediction(
+            live, path, clock=lambda: decision_at + dt.timedelta(hours=1),
+        )
         if not recorded["prospective_eligible"]:
-            raise AssertionError("a snapshot recorded before its label matures must be prospective")
+            raise AssertionError("a prompt record made before the label matures must be prospective")
+
+        # Same shape, but written after the prompt window: the label has not
+        # matured yet, so only the new recording-time condition can reject it.
+        late_session = session - dt.timedelta(days=1)
+        while late_session.weekday() >= 5:
+            late_session -= dt.timedelta(days=1)
+        late_decision_at = dt.datetime.combine(late_session, dt.time(20, 0), tzinfo=dt.timezone.utc)
+        late = json.loads(json.dumps(live))
+        late["snapshot"]["snapshot_content_sha256"] = "d" * 64
+        late["snapshot"]["asof_timestamp"] = f"{late_session.isoformat()}T20:00:00Z"
+        late["consensus"]["timing"] = {
+            "decision_session": late_session.isoformat(),
+            "decision_at": f"{late_session.isoformat()}T20:00:00Z",
+        }
+        late_record = ledger.record_prediction(
+            late, path, clock=lambda: late_decision_at + dt.timedelta(hours=13),
+        )
+        if late_record["prospective_eligible"]:
+            raise AssertionError("a record written after the prompt window must not be prospective")
+        late_event = next(
+            event for event in ledger.read_events(path)
+            if event["event"] == "prediction" and event["prediction_id"] == ledger._prediction_id(late)
+        )
+        if late_event["forward_eligibility"]["reason"] != "recorded_after_prompt_window":
+            raise AssertionError(late_event["forward_eligibility"])
+
         old = json.loads(json.dumps(live))
         old["snapshot"]["snapshot_content_sha256"] = "c" * 64
         old["snapshot"]["asof_timestamp"] = "2023-01-03T20:00:00Z"
@@ -3786,22 +3816,41 @@ def check_t43_registry_accounts_for_every_check() -> None:
 
 
 def check_t44_documented_versions_match_the_runtime() -> None:
-    """T44: the README, SKILL and package must not advertise different versions."""
+    """T44: SKILL, package and README must not advertise different versions.
+
+    ``README.md`` lives in the repository root and is deliberately not part of the
+    installed Skill, so version binding may not depend on it.  ``SKILL.md``
+    declares both its own version and the runtime version it ships; that binding
+    is checked in every layout.  When a repository checkout is present, the README
+    line is checked as well.
+    """
+
     root = SCRIPTS.parent
     skill = (root / "SKILL.md").read_text(encoding="utf-8")
-    readme = (root.parent / "README.md").read_text(encoding="utf-8")
     import re
 
-    skill_version = re.search(r"metadata:\s*\{version:\s*\"([^\"]+)\"", skill)
+    metadata = re.search(r"metadata:\s*\{(.*?)\}", skill, re.DOTALL)
+    if not metadata:
+        raise AssertionError("SKILL.md has no metadata block")
+    skill_version = re.search(r'(?:^|[\s,{])version:\s*"([^"]+)"', metadata.group(1))
     if not skill_version:
         raise AssertionError("SKILL.md has no metadata version")
-    documented = re.search(r"当前 Skill `([^`]+)`，research runtime `([^`]+)`", readme)
+    runtime_binding = re.search(r'runtime:\s*"([^"]+)"', metadata.group(1))
+    if not runtime_binding:
+        raise AssertionError("SKILL.md does not declare the runtime version it ships")
+    from quant_research import __version__
+
+    if runtime_binding.group(1) != __version__:
+        raise AssertionError(f"SKILL runtime {runtime_binding.group(1)} != package {__version__}")
+
+    readme_path = root.parent / "README.md"
+    if not readme_path.is_file():
+        return
+    documented = re.search(r"当前 Skill `([^`]+)`，research runtime `([^`]+)`", readme_path.read_text(encoding="utf-8"))
     if not documented:
         raise AssertionError("README.md has no version line")
     if documented.group(1) != skill_version.group(1):
         raise AssertionError(f"README Skill {documented.group(1)} != SKILL {skill_version.group(1)}")
-    from quant_research import __version__
-
     if documented.group(2) != __version__:
         raise AssertionError(f"README runtime {documented.group(2)} != package {__version__}")
 
