@@ -37,7 +37,7 @@ Every audit report must contain, in this order:
    probability at the plausible true rates. A 30-outcome floor at a true 60% hit
    rate passes 29% of the time; that number belongs in the report, not in a
    footnote.
-8. **Calendar provenance** (`R4`): `source_supplied_schedule`, `library_verified`,
+8. **Calendar and coverage provenance** (`R4`): `source_supplied_schedule`, `library_verified`,
    `observed_ohlcv`, `synthetic_weekday`, or `not_executed`. A weekday count may
    never be described as a real exchange calendar, and `expected_sessions` may
    never be hardcoded.
@@ -108,6 +108,10 @@ keeps the prospective ledger as corroboration, and publishes the curve.
 - [ ] reproducibility and effectiveness scored separately
 - [ ] version anchor present
 - [ ] calendar provenance named; session count not hardcoded
+- [ ] 52-week coverage recomputed from the calendar and the frozen bars; the declared
+      `coverage_status` treated as a claim, not evidence (`coverage_basis`,
+      `declared_coverage_status`, expected/observed counts and missing dates reported);
+      unverified calendar means `unverified` coverage and no published probability
 - [ ] effective sample size and prior weight disclosed
 - [ ] power curve attached to every floor
 - [ ] failure mode labelled on every finding
@@ -115,3 +119,7 @@ keeps the prospective ledger as corroboration, and publishes the curve.
 - [ ] every limitation mapped to a remediation item
 - [ ] mutation tests executed and reported
 - [ ] package (scripts, data, seeds) attached
+- [ ] sampling phase reported as `anchored` / `unanchored_calendar` with a null
+      `decision_sampled` when unanchored
+- [ ] forward evidence filtered by recording time and full model identity
+- [ ] a veto leaves no publishable probability or direction anywhere in the payload

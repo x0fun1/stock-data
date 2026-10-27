@@ -645,13 +645,14 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "Returns are gross close-to-close observations; this model path does not model execution, spreads, slippage or fees.",
         "The replay scores non-overlapping decisions only; each row uses the absolute refit anchor the live entry would have used.",
     ]
-    status = "partial" if current.calibration.mapping is None else "success"
-    if not current.calibration.mapping:
-        warnings.append(
-            f"The current origin has {current.calibration.observations} matured non-overlapping replay predictions; "
-            f"Platt scaling requires {PLATT_MIN_OBSERVATIONS}. The calibrator is not applied and the reported "
-            "probability is the raw logistic output."
-        )
+    # Calibration is disabled by policy, not blocked by a shortage of history.
+    # The old status/ warning described a sample-floor limitation, which told a
+    # reader the shadow model would be calibrated if only the window were longer.
+    status = "success"
+    warnings.append(
+        "Calibration is disabled by policy for this shadow path; the reported probability is the raw "
+        "logistic output and is not a calibrated frequency."
+    )
     validation = _validation_block(dataset, horizon, fit, records, current, replay_seconds)
     predicted_return = mean([row.forward_return for row in dataset.observations if row.target == 1])
     down_return = mean([row.forward_return for row in dataset.observations if row.target == 0])

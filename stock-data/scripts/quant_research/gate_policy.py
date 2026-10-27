@@ -182,6 +182,10 @@ def analysis_status(*, may_report_direction: bool, reporting_state: str, researc
 
 POSITIVE_SKILL_GRADE = "positive_skill_with_estimated_interval_excluding_zero"
 
+#: ``build_report_eligibility`` and ``aggregate_gate_telemetry`` are compatibility
+#: helpers; the runtime reads ``consensus`` and ``adversarial_audit`` directly.
+LEGACY_UNUSED = ("build_report_eligibility", "aggregate_gate_telemetry")
+
 
 def build_report_eligibility(consensus: dict[str, Any], adversarial: dict[str, Any]) -> dict[str, Any]:
     """Split the three questions a reader actually asks.
@@ -193,7 +197,15 @@ def build_report_eligibility(consensus: dict[str, Any], adversarial: dict[str, A
     probability = consensus.get("reportable_probability", consensus.get("prob_up"))
     probability_ok = isinstance(probability, (int, float)) and not isinstance(probability, bool)
     direction_ok = bool(adversarial.get("may_report_direction")) and probability_ok
-    grade = str(consensus.get("predictive_evidence_grade", "insufficient_oos_evidence"))
+    # ``predictive_evidence_grade`` was removed with the 0-100 confidence
+    # composite; reading it always fell back to "insufficient", so this block
+    # could never describe a supported edge.  The live field is the two-level
+    # edge result: replay state plus independent support.
+    edge_state = str(consensus.get("directional_edge_state") or "insufficient_evidence")
+    independent = bool(consensus.get("directional_edge_supported"))
+    grade = POSITIVE_SKILL_GRADE if independent else (
+        "replay_only_" + edge_state if edge_state != "insufficient_evidence" else "insufficient_oos_evidence"
+    )
     reasons = ["entry_basis_not_modelled", "transaction_costs_not_modelled"]
     if grade != POSITIVE_SKILL_GRADE:
         reasons.append("no_independent_edge_vs_expanding_base_rate")
@@ -207,6 +219,8 @@ def build_report_eligibility(consensus: dict[str, Any], adversarial: dict[str, A
         "trading_signal": False,
         "trading_signal_reasons": reasons,
         "predictive_evidence_grade": grade,
+        "directional_edge_state": edge_state,
+        "independent_edge_supported": independent,
     }
 
 

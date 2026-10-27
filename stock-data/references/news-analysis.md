@@ -2,7 +2,9 @@
 
 ## Order, isolation and trust
 
-`orchestrator.run_analysis()` finishes prediction eligibility, A/B/C/D, consensus and E, then writes and hashes `analysis.json` before News interpretation. A missing production probability produces an abstention result; shadow/diagnostic gaps never restore it. News cannot restore a veto or alter probability. Collection of prices and headlines can be parallel; interpretation remains after Quant. News failure preserves the frozen Quant result and marks the complete analysis degraded.
+`orchestrator.run_analysis()` finishes prediction eligibility, A/B/C/D, consensus and the adversarial audit (E), then runs News interpretation, and only afterwards writes `analysis.json`. The audit result is frozen before News starts, so no News artifact can influence a Quant veto; `analysis.json` is the final bundle that contains both frozen stages, and the delivery validator re-checks the stage order. A missing production probability produces an abstention result; shadow/diagnostic gaps never restore it. News cannot restore a veto or alter probability. Collection of prices and headlines can be parallel; interpretation remains after Quant. News failure preserves the frozen Quant result and marks the complete analysis degraded.
+
+`news-candidates` computes the deterministic News stage once and freezes it as `news_preview.json`. `analyze` reuses that preview when the recomputed `news_input_digest` matches, so the workflow does not run the pipeline twice; a digest mismatch is ignored and the stage is recomputed. `--focus major` exports only direct, major, eligible candidates for a cheaper review and records how many were excluded; the default `all` keeps full audit coverage.
 
 `prepare_news_input(snapshot_dir)` re-verifies the snapshot and builds `NewsInput`: identity/as-of, normalized articles, provider aggregate, frozen OHLCV and bounded coverage metadata. It cannot read the Quant output directory. `analyze_news()` accepts only this contract and optional decay policy. Synthesis alone consumes both hash-verified stage results and checks ticker, market, horizon, snapshot and as-of equality.
 

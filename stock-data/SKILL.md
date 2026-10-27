@@ -1,7 +1,7 @@
 ---
 name: stock-data
 description: Collect and analyze U.S. and Hong Kong stocks and ETFs through the stock-data gateway. Use for prices, fundamentals, valuation, technical and factor analysis, news and sentiment, event impact, screening, comparisons, and validated quantitative direction research.
-metadata: {version: "3.2.0"}
+metadata: {version: "3.3.0"}
 ---
 
 # Stock Data & Quant Research
@@ -12,7 +12,7 @@ metadata: {version: "3.2.0"}
 
 生产概率只有在 `production_probability_eligible = true` 时才可展示。任何政策/数据/证据条件不满足时，输出 **上涨概率：不可用**，并写出原因码与实际缺口（例如 `OOS_SUPPORT_INSUFFICIENT；实际缺口：有效回放样本 7/12`）。不得把可计算但未达生产条件的估计称为“低置信度方向”。
 
-概率可发布与“方向优势已成立”是两件事：`directional_edge_state` 为 `insufficient_evidence` 或 `negative_skill_...` 时仍可展示概率，但必须同时写明“方向优势：证据不足/无”。模型劣于纯基率时必须直说。
+概率可发布与“方向优势已成立”是两件事：`directional_edge_state` 为 `insufficient_evidence` 或 `negative_skill_...` 时仍可展示概率，但必须同时写明“方向优势：证据不足/无”。模型劣于纯基率时必须直说。窗口内前缀回放只是观测，不是独立验证；`directional_edge_supported` 只在 ≥30 条及时录入（决策收盘后 12 小时内）、锚定相位的前向记录且改善区间下界 > 0 时为 true。
 
 ## 固定研究政策 `fixed_52w_5d_v1`
 
@@ -93,7 +93,7 @@ python stock-data/scripts/quant_research.py validate-response --analysis-dir <�
 预测目标：YYYY-MM-DD收盘相对YYYY-MM-DD收盘的拆股调整价格涨跌（5个交易日）
 上涨概率：XX.X%（漂移收缩估计 k=50；未校准，不可作为真实频率） | 不可用（原因码…；实际缺口…）
 模型倾向：点估计偏上涨/偏下跌/持平（仅描述点估计）
-方向优势：已支持（全量前缀回放…） | 无（劣于纯基率…） | 证据不足（区间含0…）
+方向优势：仅回放区间下界大于0（窗口内回放，非独立留出） | 独立前向证据支持（≥30条） | 回放劣于纯基率 | 证据不足
 生产路径：A；B/C为影子研究，D为描述性诊断
 验证：前缀回放N条（其中非重叠K条；有效样本≈E）；真实前向M条；覆盖率X%
 相对因果基率技能：数值；区间：[…]；Brier 模型… vs 基率… vs 常数0.5…；AUC …；有效样本≈E
@@ -102,7 +102,7 @@ python stock-data/scripts/quant_research.py validate-response --analysis-dir <�
 
 - 不得改写为 `Quant Confidence`、`置信度评分`、`校准概率` 或任何 0–100 分数。
 - `上涨概率` 为 null 时不得展示影子路径概率来填空。
-- `方向优势` 只有 `directional_edge_supported = true`（全量前缀回放区间下界 > 0）时才可称“已支持”；区间上界 < 0 必须写“无（劣于纯基率）”，含零写“证据不足”。前向台账只是佐证。
+- `方向优势` 只有 `directional_edge_independent_supported = true` 时才可称“已支持”：需要 ≥30 条按时录入、锚定相位的前向记录，且其改善区间下界 > 0。窗口内回放区间下界 > 0 只能写成“仅回放区间下界大于0（非独立留出）”；回放上界 < 0 必须写“劣于纯基率”；含零或不可估计写“证据不足”。`consensus.evidence.prospective_unanchored` 非零时，前向非重叠数应视为不可用而不是 0。
 - `交易信号` 恒为不可；未建模入场、价差、滑点与费用。
 - 消息面必须给出逐条 AI 判断及全部候选覆盖数。每个重大利多/利空列出原文链接、发布时间和具体理由；无链接的新闻不得列为重大。宏观、同业或大盘标题只能列为间接相关，不计入 INTC 等标的的直接利多/利空数量。
 - 新闻可输出不含方向的 `expected_volatility_regime`；价格是否已反映的信息仅在具备成熟的事件后观察窗时作为可选描述，不进入主摘要。

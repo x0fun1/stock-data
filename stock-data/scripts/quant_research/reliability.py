@@ -23,6 +23,10 @@ from typing import Any
 
 from .market_data import anchored_non_overlapping, non_overlapping
 
+#: ``qualification`` and ``probabilistic_scores`` are kept for external callers
+#: and the self-check; the fixed-policy runtime does not route on them.
+LEGACY_UNUSED = ("qualification", "probabilistic_scores")
+
 ROUTE_LEGACY = "legacy_bucket"
 ROUTE_ABSTAINED = "abstained"
 

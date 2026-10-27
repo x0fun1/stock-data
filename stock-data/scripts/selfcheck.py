@@ -2169,7 +2169,8 @@ def check_f39_forward_ledger():
         if len(events) != 1 or events[0]["status"] != "pending":
             raise AssertionError("the ledger must hold one immutable pending prediction")
 
-        days = ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09"]
+        days = ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09",
+                "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15"]
         bars = [{"date": day, "close": 100 + index * 2} for index, day in enumerate(days)]
         settlements, skipped = ledger.settle_pending(events, bars, ticker="SYN", market="US")
         if skipped or len(settlements) != 1:
@@ -2192,6 +2193,7 @@ def check_f39_forward_ledger():
         abstained = json.loads(json.dumps(result))
         abstained["consensus"]["prob_up"] = None
         abstained["snapshot"]["asof_timestamp"] = "2026-01-03T21:00:00Z"
+        abstained["consensus"]["timing"]["decision_session"] = "2026-01-05"
         recorded = ledger.record_prediction(abstained, path)
         if recorded["status"] != "recorded":
             raise AssertionError("an abstention must still enter the ledger")
@@ -2266,26 +2268,24 @@ def check_f40_ledger_metrics_semantics() -> None:
 
 
 def check_f41_production_replay_capacity() -> None:
-    short = synth_bars(252)
-    result, _, _, _ = _run_ml(short)
-    validation = result["validation"]
-    replay = validation["production_replay"]
-    if not 10 <= replay["observations"] <= 40:
-        raise AssertionError(f"52-week non-overlapping replay should be sparse: {replay['observations']}")
-    if validation["probability_calibration"]["reachable"]:
-        raise AssertionError("Platt calibration cannot be reachable with a 52-week window")
-    if replay["calibrated_predictions"] != 0:
-        raise AssertionError("an unreachable calibrator must not be applied")
-    if result["calibrated_probability"] is not None:
-        raise AssertionError("an unreachable calibrator must not be published")
-    warnings = " ".join(result["warnings"])
-    if "does not apply" not in warnings and "not applied" not in warnings:
-        raise AssertionError("the report must disclose the unreachable calibrator")
-    longer, _, _, _ = _run_ml(synth_bars(640))
-    if longer["validation"]["probability_calibration"]["status"] != "fitted":
-        raise AssertionError("a longer archive must be able to fit the shadow calibrator")
-    if longer["calibrated_probability"] is None:
-        raise AssertionError("a fitted calibrator must reach the published probability")
+    """F41: the shadow replay stays uncalibrated by policy, at either window length."""
+    for count in (252, 640):
+        result, _, _, _ = _run_ml(synth_bars(count))
+        validation = result["validation"]
+        replay = validation["production_replay"]
+        if replay["observations"] < 20:
+            raise AssertionError(f"the production replay should be populated: {replay['observations']}")
+        if validation["probability_calibration"]["status"] != "disabled_by_policy":
+            raise AssertionError(validation["probability_calibration"]["status"])
+        if replay["calibrated_predictions"] != 0:
+            raise AssertionError("no shadow row may be marked calibrated under the policy")
+        if result["calibrated_probability"] is not None:
+            raise AssertionError("a calibrated shadow probability must never be published")
+        if result["status"] != "success":
+            raise AssertionError(f"a policy-disabled calibrator is not a partial run: {result['status']}")
+        warnings = " ".join(result["warnings"])
+        if "disabled by policy" not in warnings:
+            raise AssertionError("the shadow artifact must disclose the policy-disabled calibrator")
 
 
 def check_f42_live_entry_matches_replay() -> None:
@@ -2393,25 +2393,38 @@ def check_f45_candidates_never_switch_production() -> None:
 
 
 def check_f46_quant_shrinkage_is_applied() -> None:
+    """F46: the published probability equals the frozen v2 drift-shrinkage formula."""
+    from quant_research.forecast_policy import DRIFT_SHRINKAGE_K, DRIFT_SHRINKAGE_VERSION
     from quant_research.researchers import quant
 
     bars = synth_bars(252)
     manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": "s", "market": "US"}
-    result = quant.run(None, (manifest, synth_market(bars)))
-    candidate = (result["validation"] or {}).get("quant_shrinkage_candidate") or {}
-    if candidate.get("used_for_reported_probability") is not True:
-        raise AssertionError("the pre-registered shrinkage must be applied")
-    if candidate.get("status") != "applied":
-        raise AssertionError("a reportable quant probability needs an applied shrinkage record")
+    market = synth_market(bars)
+    market["price_basis"] = "split_adjusted"
+    market["adjustment"] = "provider"
+    result = quant.run(None, (manifest, market))
+    transform = (result["validation"] or {}).get("probability_transform") or {}
+    if transform.get("version") != DRIFT_SHRINKAGE_VERSION:
+        raise AssertionError(f"the transform version must be v2: {transform.get('version')}")
+    if transform.get("k") != DRIFT_SHRINKAGE_K:
+        raise AssertionError("the recorded k must be the policy constant")
+    n_eff = transform.get("n_eff")
+    base_rate = transform.get("base_rate_at_origin")
+    p_vol = transform.get("p_vol")
+    for name, value in (("n_eff", n_eff), ("base_rate_at_origin", base_rate), ("p_vol", p_vol)):
+        if not isinstance(value, (int, float)) or isinstance(value, bool):
+            raise AssertionError(f"the transform must publish {name}: {transform}")
     expected = (
-        candidate["wins"] + quant.SHRINKAGE_PRIOR_OBSERVATIONS * candidate["causal_base_rate"]
-    ) / (candidate["observations"] + quant.SHRINKAGE_PRIOR_OBSERVATIONS)
-    if abs(expected - result["prob_up"]) > 1e-12:
-        raise AssertionError("the published quant probability must equal the shrinkage formula")
-    if abs(result["raw_probability"] - candidate["incumbent_probability"]) > 1e-12:
-        raise AssertionError("the raw conditional frequency must stay available")
+        float(n_eff) * float(base_rate) + DRIFT_SHRINKAGE_K * float(p_vol)
+    ) / (float(n_eff) + DRIFT_SHRINKAGE_K)
+    if abs(expected - float(result["prob_up"])) > 1e-12:
+        raise AssertionError("the published quant probability must equal the v2 formula")
+    if transform.get("prior_weight") is not None:
+        raise AssertionError("the prior weight must be derived, not silently stored")
     if quant.MINIMUM_MATCHING_SAMPLES != 12:
         raise AssertionError("the 12-match floor is deliberate and must not be lowered")
+    if quant.FEATURE_ROLE_IN_PROBABILITY != "disclosure_only":
+        raise AssertionError("ROC20 must stay a disclosed state variable")
 
 
 
@@ -2734,16 +2747,42 @@ def check_t09_oos_support_counts_zero_eleven_twelve() -> None:
 def check_t10_directional_edge_requires_thirty_and_positive_interval() -> None:
     from quant_research.validation.probability_quality import directional_edge_assessment
 
-    def record(index: int, probability: float, baseline: float, target: int) -> dict:
-        return {"decision_session": f"2026-01-{index + 1:02d}", "status": "matured", "sampled": True,
+    def record(index: int, probability: float, baseline: float, target: int, *,
+               sampled: bool = True, sampling_status: str = "anchored") -> dict:
+        return {"decision_session": f"2026-01-{index + 1:02d}", "status": "matured", "sampled": sampled,
+                "sampling_status": sampling_status,
                 "probability": probability, "target": target,
                 "probability_transform": {"base_rate_at_origin": baseline}}
 
-    assert directional_edge_assessment([record(i, 0.5, 0.5, 1) for i in range(29)])["supported"] is False
-    negative = [record(i, 0.5, 0.9, 0) for i in range(30)]
-    assert directional_edge_assessment(negative)["supported"] is False
+    short = directional_edge_assessment([record(i, 0.5, 0.5, 1) for i in range(29)])
+    assert short["replay_interval_excludes_zero"] is False and short["supported"] is False
+    negative = [record(i, 0.80 + (i * i % 7) * 0.01, 0.5, 0) for i in range(30)]
+    negative_result = directional_edge_assessment(negative)
+    assert negative_result["replay_state"].endswith("excluding_zero")
+    assert negative_result["replay_claim"] == "replay_interval_below_zero"
     positive = [record(i, 0.90 + i * 0.003, 0.50, 1) for i in range(30)]
-    assert directional_edge_assessment(positive)["supported"] is True, directional_edge_assessment(positive)
+    replay_only = directional_edge_assessment(positive)
+    # A positive in-window replay is an observation, not independent evidence.
+    assert replay_only["replay_interval_excludes_zero"] is True, replay_only
+    assert replay_only["supported"] is False and replay_only["independent_supported"] is False, replay_only
+    assert replay_only["evidence_scope"] == "in_window_causal_prefix_replay_not_independent_holdout"
+
+    # Matured prospective outcomes from an anchored phase, whose interval excludes zero, do support the claim.
+    prospective = [
+        record(i, 0.9 + (i * i % 7) * 0.01 if i % 2 == 0 else 0.1 + (i * i % 5) * 0.01, 0.5,
+               1 if i % 2 == 0 else 0)
+        for i in range(30)
+    ]
+    supported = directional_edge_assessment(positive, prospective_records=prospective)
+    assert supported["independent_supported"] is True and supported["supported"] is True, supported
+
+    # An unanchored phase never counts as non-overlapping forward evidence.
+    unanchored = [
+        record(i, 0.9, 0.5, 1, sampled=False, sampling_status="unanchored_calendar")
+        for i in range(30)
+    ]
+    unanchored_result = directional_edge_assessment(positive, prospective_records=unanchored)
+    assert unanchored_result["prospective_nonoverlap_count"] == 0, unanchored_result
 
 
 def check_t11_current_prediction_is_reproducible() -> None:
@@ -2956,7 +2995,15 @@ def check_t22_ledger_prospective_and_retrospective() -> None:
 
     payload = json.loads((analysis / "analysis.json").read_text())
     root = Path(tempfile.mkdtemp(prefix="ledger-"))
-    forward = record_prediction(payload, root / "forward.jsonl", snapshot_dir=snapshot)
+    decision_at = dt.datetime.fromisoformat(
+        payload["consensus"]["timing"]["decision_at"].replace("Z", "+00:00")
+    )
+    # A prospective record must be written inside the prompt window.  The clock
+    # seam keeps the test deterministic without letting the CLI backdate a record.
+    forward = record_prediction(
+        payload, root / "forward.jsonl", snapshot_dir=snapshot,
+        clock=lambda: decision_at + dt.timedelta(hours=1),
+    )
     assert forward["prospective_eligible"] is True
     # Backdating the recording time is not possible through the API, but an
     # already-matured decision snapshot must be marked retrospective.
@@ -3434,6 +3481,387 @@ def check_t34_pipeline_runs_news_by_default() -> None:
         shutil.rmtree(work, ignore_errors=True)
 
 
+def check_t36_coverage_is_recomputed_not_declared() -> None:
+    """T36: a declared `complete` window must match the calendar-derived session set."""
+    from quant_research.snapshot import freeze_snapshot
+    from quant_research.stock_data_adapter import StockDataAdapter
+
+    sessions = _policy_sessions(300)
+    bars = _policy_bars(sessions)
+    asof = _policy_asof(sessions[-1])
+    work = Path(tempfile.mkdtemp(prefix="coverage-"))
+    try:
+        responses = _policy_collection(sessions, bars, asof)
+        receipt = StockDataAdapter().write_receipt(
+            {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast", "asof": asof.isoformat()},
+            responses, work / "receipt.json",
+        )
+        snapshot = freeze_snapshot(receipt, work / "snapshots")
+        manifest = json.loads((snapshot / "manifest.json").read_text(encoding="utf-8"))
+        policy = manifest["policy"]
+        assert policy["coverage_status"] == "complete", policy
+        assert policy["coverage_recomputed"] is True, policy
+        assert policy["expected_sessions"] == policy["observed_sessions"], policy
+
+        forged = json.loads(receipt.read_text(encoding="utf-8"))
+        market = forged["domains"]["market"]
+        market["data"]["bars"] = market["data"]["bars"][-120:]
+        window = market["data"]["policy_window"]
+        window["coverage_status"] = "complete"
+        window["observed_sessions"] = window["expected_sessions"]
+        window["missing_session_count"] = 0
+        window["missing_sessions"] = 0
+        tampered = work / "tampered.json"
+        tampered.write_text(json.dumps(forged), encoding="utf-8")
+        tampered_snapshot = freeze_snapshot(tampered, work / "snapshots_tampered")
+        tampered_manifest = json.loads((tampered_snapshot / "manifest.json").read_text(encoding="utf-8"))
+        validation = tampered_manifest["data_validation"]
+        if validation["forecast_eligible"] is not False:
+            raise AssertionError("truncated bars declaring complete coverage must block eligibility")
+        if "INSUFFICIENT_HISTORY_COVERAGE" not in validation["reason_codes"]:
+            raise AssertionError(validation["reason_codes"])
+        if tampered_manifest["policy"]["coverage_status"] == "complete":
+            raise AssertionError("the manifest must carry the recomputed, not the declared, coverage")
+        from quant_research.orchestrator import run_analysis
+
+        blocked = run_analysis(tampered_snapshot, work / "blocked_research")
+        blocked_payload = json.loads((blocked / "analysis.json").read_text(encoding="utf-8"))
+        if blocked_payload["consensus"]["prob_up"] is not None:
+            raise AssertionError("a blocked coverage snapshot must not publish a probability")
+        if blocked_payload["adversarial_audit"]["may_report_probability"] is not False:
+            raise AssertionError("the audit must not report a probability for a blocked snapshot")
+
+        mismatch = json.loads(receipt.read_text(encoding="utf-8"))
+        mismatch["domains"]["market"]["data"]["policy_window"]["observed_sessions"] -= 3
+        mismatch_path = work / "mismatch.json"
+        mismatch_path.write_text(json.dumps(mismatch), encoding="utf-8")
+        mismatch_snapshot = freeze_snapshot(mismatch_path, work / "snapshots_mismatch")
+        mismatch_manifest = json.loads((mismatch_snapshot / "manifest.json").read_text(encoding="utf-8"))
+        if mismatch_manifest["data_validation"]["forecast_eligible"] is not False:
+            raise AssertionError("a declaration that contradicts recomputation must block eligibility")
+        if "INSUFFICIENT_HISTORY_COVERAGE" not in mismatch_manifest["data_validation"]["reason_codes"]:
+            raise AssertionError(mismatch_manifest["data_validation"]["reason_codes"])
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def check_t37_sampling_phase_is_tri_state() -> None:
+    """T37: unanchored is None, not False, everywhere the phase is reported."""
+    from quant_research.orchestrator import _decision_sampled
+
+    sessions = [dt.date(2000, 1, 3) + dt.timedelta(days=offset) for offset in range(14)
+                if (dt.date(2000, 1, 3) + dt.timedelta(days=offset)).weekday() < 5]
+    anchored = sessions[0]
+    if _decision_sampled(anchored.isoformat(), sessions) is not True:
+        raise AssertionError("ordinal 0 must be sampled")
+    if _decision_sampled(sessions[1].isoformat(), sessions) is not False:
+        raise AssertionError("ordinal 1 must be a verified non-sampled decision")
+    if _decision_sampled("2026-10-23", sessions) is not None:
+        raise AssertionError("a decision outside the anchored calendar must be None")
+
+    analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
+    sampling = payload["consensus"]["sampling"]
+    if sampling["status"] != "unanchored_calendar":
+        raise AssertionError(f"a 52-week calendar cannot be anchored: {sampling}")
+    if sampling["decision_sampled"] is not None or payload["consensus"]["decision_sampled"] is not None:
+        raise AssertionError("an unanchored phase must stay null")
+    if sampling["counts_as_nonoverlap"] is not False:
+        raise AssertionError("an unanchored phase must not count as non-overlapping evidence")
+    if payload["consensus"]["evidence"]["oos_sampling_status"] != "unanchored":
+        raise AssertionError("the replay sampling status must agree with the consensus block")
+
+
+def check_t38_veto_clears_every_publishable_field() -> None:
+    """T38: an audit veto leaves no probability or lean anywhere in the payload."""
+    from quant_research.consensus import redact_publishable_prediction
+
+    consensus = {
+        "prob_up": 0.61,
+        "raw_probability": 0.61,
+        "reportable_probability": 0.61,
+        "model_lean": "up",
+        "direction": "bullish",
+        "probability_basis": "drift_shrunk_causal_base_rate",
+        "production": {"prob_up": 0.61, "raw_probability": 0.61, "model_lean": "up",
+                       "probability_transform": {"version": "drift_shrinkage_v2", "n_eff": 49.0}},
+        "prediction": {"status": "available", "prob_up": 0.61, "model_lean": "up"},
+    }
+    audit = {"reason_codes": ["CALENDAR_UNVERIFIED"], "vetoes": ["calendar missing"]}
+    redacted = redact_publishable_prediction(consensus, audit=audit)
+    for container in (redacted, redacted["production"], redacted["prediction"]):
+        for key in ("prob_up", "raw_probability", "reportable_probability", "calibrated_probability"):
+            if container.get(key) is not None:
+                raise AssertionError(f"{key} still carries a value after a veto")
+    if redacted["model_lean"] != "unavailable" or redacted["prediction"]["model_lean"] != "unavailable":
+        raise AssertionError("the lean must be unavailable after a veto")
+    if "probability_transform" in redacted["production"]:
+        raise AssertionError("the transform must move to audit_only after a veto")
+    if redacted["audit_only"]["publishable"] is not False:
+        raise AssertionError("audit-only values must be marked non-publishable")
+    if redacted["redaction"]["publishable"] is not False:
+        raise AssertionError("the redaction block must state that nothing is publishable")
+
+
+def check_t39_ledger_prompt_recording_and_version_isolation() -> None:
+    """T39: late records and other model versions cannot become forward evidence."""
+    from quant_research import ledger
+
+    work = Path(tempfile.mkdtemp(prefix="ledger39-"))
+    try:
+        path = work / "ledger.jsonl"
+
+        def payload(decision: str, *, asof: str) -> dict:
+            return {
+                "snapshot": {"ticker": "SYN", "market": "US", "horizon": "5D", "asof_timestamp": asof,
+                             "snapshot_id": f"S-{decision}", "snapshot_content_sha256": (decision + "a" * 20)[:64]},
+                "consensus": {"prob_up": 0.6, "decision_sampled": True, "sampling": {"status": "anchored"},
+                              "timing": {"decision_session": decision, "decision_at": f"{decision}T20:00:00Z",
+                                         "label_basis": "close_to_close", "entry_basis": "not_modelled"}},
+                "engine": {"version": "test"},
+            }
+
+        early = payload("2026-01-02", asof="2026-01-02T20:00:00Z")
+        decision_at = dt.datetime(2026, 1, 2, 20, tzinfo=dt.timezone.utc)
+        prompt = ledger.record_prediction(early, path, clock=lambda: decision_at + dt.timedelta(hours=1))
+        if not prompt["prospective_eligible"]:
+            raise AssertionError("a record inside the prompt window must be prospective")
+        late_payload = payload("2026-01-05", asof="2026-01-05T20:00:00Z")
+        late = ledger.record_prediction(
+            late_payload, path,
+            clock=lambda: dt.datetime(2026, 1, 6, 9, tzinfo=dt.timezone.utc),
+        )
+        if late["prospective_eligible"]:
+            raise AssertionError("a record written after the prompt window must not be prospective")
+        events = {e["prediction_id"]: e for e in ledger.read_events(path) if e["event"] == "prediction"}
+        late_event = events[ledger._prediction_id(late_payload)]
+        if late_event["forward_eligibility"]["reason"] != "recorded_after_prompt_window":
+            raise AssertionError(late_event["forward_eligibility"])
+        if late_event["import_reason"] != "recorded_after_prompt_window_not_forward_evidence":
+            raise AssertionError(f"the late reason must be recorded: {late_event['import_reason']}")
+
+        days = ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09"]
+        bars = [{"date": day, "close": 100 + index * 2} for index, day in enumerate(days)]
+        settlements, _skipped = ledger.settle_pending(
+            ledger.read_events(path), bars, ticker="SYN", market="US",
+        )
+        for event in settlements:
+            ledger._append(path, event)
+
+        # A row from another model version must not inherit this model's evidence.
+        source = next(e for e in ledger.read_events(path) if e["event"] == "prediction")
+        forged = {k: v for k, v in source.items() if k not in {"event_hash", "prev_hash"}}
+        forged["prediction_id"] = "other-model"
+        forged["model_version"] = "quant_previous_model"
+        ledger._append(path, forged)
+        ledger._append(path, {"schema_version": ledger.SCHEMA_VERSION, "event": "settlement",
+                              "prediction_id": "other-model", "hit": 1, "recorded_at": "2026-01-10T00:00:00Z"})
+
+        rows = ledger.prospective_records(path)
+        if len(rows) != 1:
+            raise AssertionError(f"only the prompt, same-version record may count: {rows}")
+        if rows[0]["evidence_scope"] != "prospective_prompt_recording_anchored":
+            raise AssertionError(rows[0])
+        if any(row["decision_session"] == "2026-01-05" for row in rows):
+            raise AssertionError("the late record leaked into forward evidence")
+
+        # Tampering with a chained row must fail the hash check.
+        lines = path.read_text(encoding="utf-8").splitlines()
+        modified = json.loads(lines[0])
+        modified["prob_up"] = 0.99
+        lines[0] = json.dumps(modified, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
+        tampered = work / "tampered.jsonl"
+        tampered.write_text("\n".join(lines) + "\n", encoding="utf-8")
+        try:
+            ledger.read_events(tampered)
+        except ValueError as exc:
+            assert "hash" in str(exc), exc
+        else:
+            raise AssertionError("a modified ledger row must fail the hash chain check")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
+
+
+def check_t40_split_action_must_match_the_price_series() -> None:
+    """T40: a declared split-adjusted series must not show the reverse split step."""
+    from quant_research.data_checks import _Findings, _check_adjustment
+
+    sessions = [f"2026-01-{day:02d}" for day in (5, 6, 7, 8, 9, 12, 13, 14)]
+
+    def block(price_basis: str = "split_adjusted", confirmed: bool = True) -> dict:
+        return {"adjustment": "provider", "price_basis": price_basis,
+                "adjustment_evidence": {"source": "test", "price_basis": price_basis,
+                                        "checked_through": sessions[-1], "action_coverage_confirmed": confirmed,
+                                        "actions": [{"date": sessions[3], "type": "stock_splits", "value": 2.0}]}}
+
+    continuous = [{"date": day, "close": 100.0 + index} for index, day in enumerate(sessions)]
+    findings = _Findings()
+    _status, _known, reconciliation = _check_adjustment(
+        block(), sessions[0], sessions[-1], continuous, findings,
+    )
+    if "CORPORATE_ACTION_CONTAMINATION" in findings.reason_codes:
+        raise AssertionError("a continuous split-adjusted series must not be vetoed")
+    if not reconciliation or reconciliation[0]["verdict"] != "consistent_with_split_adjusted":
+        raise AssertionError(reconciliation)
+
+    unadjusted = [{"date": day, "close": 100.0 + index if index < 3 else 50.0 + index} for index, day in enumerate(sessions)]
+    findings = _Findings()
+    _check_adjustment(block(), sessions[0], sessions[-1], unadjusted, findings)
+    if "CORPORATE_ACTION_CONTAMINATION" not in findings.reason_codes or not findings.blockers:
+        raise AssertionError("a split step in a declared split-adjusted series must be fatal")
+
+    findings = _Findings()
+    _check_adjustment(block(confirmed=False), sessions[0], sessions[-1], continuous, findings)
+    if "CORPORATE_ACTION_UNKNOWN" not in findings.reason_codes or findings.blockers:
+        raise AssertionError("missing action coverage must degrade, not invent contamination")
+
+
+def check_t41_partial_ai_news_can_be_delivered_when_disclosed() -> None:
+    """T41: partial coverage is deliverable only with reconciling counts and a warning."""
+    from quant_research.delivery import require_ai_news_coverage
+
+    candidates = [{"news_id": "n1"}, {"news_id": "n2"}]
+
+    def news(status: str, assessed: int, items: int, warnings: list[str] | None = None) -> dict:
+        return {"ai_lean_candidates": candidates, "warnings": warnings or [],
+                "ai_lean": {"status": status,
+                            "coverage": {"candidate_count": len(candidates), "assessed_count": assessed},
+                            "items": [{"news_id": f"n{index + 1}"} for index in range(items)]}}
+
+    require_ai_news_coverage(news("assessed", 2, 2))
+    require_ai_news_coverage(news("partial", 1, 1, ["1 candidate not assessed"]))
+    for case, label in (
+        (news("partial", 1, 1), "partial without a disclosed reason"),
+        (news("assessed", 1, 1), "assessed with a missing item"),
+        (news("not_assessed", 0, 0), "unassessed artifact"),
+        (news("partial", 3, 3, ["x"]), "assessed count above the candidate count"),
+    ):
+        try:
+            require_ai_news_coverage(case)
+        except ValueError:
+            continue
+        raise AssertionError(f"{label} was accepted")
+
+
+def check_t42_presentation_warnings_do_not_degrade_news() -> None:
+    """T42: truncation is disclosed without pretending the evidence set shrank."""
+    from quant_research.news.pipeline import _finalize_warnings
+    from quant_research.news.status import warning_details, warning_severity_counts
+
+    warnings = ["12 news headline(s) were truncated to 400 characters",
+                "3 news record(s) were dropped before normalization"]
+    details = warning_details(warnings)
+    counts = warning_severity_counts(warnings)
+    if details[0]["severity"] != "presentation" or details[1]["severity"] != "evidence_affecting":
+        raise AssertionError(details)
+    if counts != {"evidence_affecting": 1, "presentation": 1}:
+        raise AssertionError(counts)
+    if warning_severity_counts(["3 news headline(s) were truncated to 400 characters"])["evidence_affecting"]:
+        raise AssertionError("a truncation-only warning must not degrade the status")
+
+    result = {"status": "complete"}
+    _finalize_warnings(result, ["2 news headline(s) were truncated to 400 characters"], assessed_any=True)
+    if result["status"] != "complete":
+        raise AssertionError("presentation-only warnings must keep the assessed status complete")
+    result = {"status": "complete"}
+    _finalize_warnings(result, ["2 canonical news headline(s) were not assessed by the host AI"], assessed_any=True)
+    if result["status"] != "partial":
+        raise AssertionError("unassessed canonical headlines must degrade the assessed status")
+
+
+def check_t43_registry_accounts_for_every_check() -> None:
+    """T43: no check function may exist without being registered or explicitly retired."""
+    defined = {name for name, value in globals().items() if name.startswith("check_") and callable(value)}
+    registered = [fn.__name__ for _, fn in CHECKS]
+    if len(registered) != len(set(registered)):
+        raise AssertionError("a check is registered more than once")
+    retired = set(RETIRED_CHECKS)
+    if set(registered) & retired:
+        raise AssertionError("a check cannot be both registered and retired")
+    if any(not str(reason).strip() for reason in RETIRED_CHECKS.values()):
+        raise AssertionError("every retired check needs a reason")
+    missing = sorted(defined - set(registered) - retired)
+    if missing:
+        raise AssertionError(f"defined but neither registered nor retired: {missing}")
+
+
+def check_t44_documented_versions_match_the_runtime() -> None:
+    """T44: the README, SKILL and package must not advertise different versions."""
+    root = SCRIPTS.parent
+    skill = (root / "SKILL.md").read_text(encoding="utf-8")
+    readme = (root.parent / "README.md").read_text(encoding="utf-8")
+    import re
+
+    skill_version = re.search(r"metadata:\s*\{version:\s*\"([^\"]+)\"", skill)
+    if not skill_version:
+        raise AssertionError("SKILL.md has no metadata version")
+    documented = re.search(r"当前 Skill `([^`]+)`，research runtime `([^`]+)`", readme)
+    if not documented:
+        raise AssertionError("README.md has no version line")
+    if documented.group(1) != skill_version.group(1):
+        raise AssertionError(f"README Skill {documented.group(1)} != SKILL {skill_version.group(1)}")
+    from quant_research import __version__
+
+    if documented.group(2) != __version__:
+        raise AssertionError(f"README runtime {documented.group(2)} != package {__version__}")
+
+
+def check_t45_compact_profile_and_single_economic_viability() -> None:
+    """T45: compact artifacts keep pointers, and timing/viability have one source."""
+    from quant_research.orchestrator import run_analysis
+
+    analysis, snapshot, _bars, _sessions = _policy_analysis()
+    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
+    if payload.get("analysis_id") != payload.get("run_id"):
+        raise AssertionError("analysis_id must name the run")
+    if not isinstance(payload.get("elapsed_seconds"), (int, float)):
+        raise AssertionError("elapsed_seconds must be written before the artifact is frozen")
+    if payload["consensus"]["probability_basis"] != "drift_shrunk_causal_base_rate":
+        raise AssertionError(payload["consensus"]["probability_basis"])
+    if payload.get("analysis_status") not in {"complete_with_limitations", "degraded", "abstain"}:
+        raise AssertionError(f"analysis_status must use the documented vocabulary: {payload.get('analysis_status')}")
+    if payload["synthesis"]["economic_viability"]["source"] != "quant_result.json.consensus.economic_viability":
+        raise AssertionError(payload["synthesis"]["economic_viability"])
+
+    compact = run_analysis(snapshot, analysis.parent.parent / "research_compact", artifact_profile="compact")
+    compact_payload = json.loads((compact / "analysis.json").read_text(encoding="utf-8"))
+    if compact_payload.get("artifact_profile") != "compact":
+        raise AssertionError("compact profile was not recorded")
+    rows = compact_payload["researchers"]["quant"]["validation"]["oos_forecasts"]
+    if not isinstance(rows, dict) or not rows.get("omitted"):
+        raise AssertionError("compact profile must reference, not duplicate, replay rows")
+    if not (compact / "researchers" / "quant.json").is_file():
+        raise AssertionError("the full replay rows must remain in the researcher artifact")
+
+
+RETIRED_CHECKS: dict[str, str] = {
+    "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
+    "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
+    "check_f04_response_text_validation": "tests the v1 fixed block (including the now-forbidden 报告状态 line)",
+    "check_f05_retained_binding": "tests the pre-run-workspace cleanup layout",
+    "check_f09_bootstrap_estimability": "imports the removed _block_bootstrap_skill_interval helper",
+    "check_f10_ensemble_scope": "tests the removed ensemble-calibration block",
+    "check_f13_horizon_scaled_support": "tests the removed horizon-scaled support thresholds",
+    "check_f14_confidence_composite": "tests the removed 0-100 confidence composite",
+    "check_f15_52_week_window_defaults": "fixture predates the price-basis requirement",
+    "check_f16_factor_path_fits_52_weeks": "fixture predates the fixed-policy snapshot contract",
+    "check_f20_pipeline_golden": "golden digests predate the policy/coverage schema changes",
+    "check_f21_oos_record_audit": "imports the removed _audit_oos_path helper",
+    "check_f23_window_scaled_support": "imports the removed oos_support_thresholds helper",
+    "check_f24_shared_support_ceiling": "tests the removed confidence composite",
+    "check_f25_composite_momentum": "fixture predates the fixed-policy snapshot contract",
+    "check_f26_momentum_probability_separation": "fixture predates the fixed-policy snapshot contract",
+    "check_f31_qualification_is_authoritative": "tests the pre-v2 qualification contract",
+    "check_f32_candidate_profiles": "tests the removed candidate-profile selector",
+    "check_f35_confidence_disclosure_fields": "tests the removed confidence composite fields",
+    "check_f36_eligibility_and_uncertainty": "imports the removed ensemble-uncertainty helper",
+    "check_f37_path_error_dependency": "imports the removed path-error dependency helper",
+    "check_f38_ml_hyperparameters": "asserts the removed REFIT_SESSIONS constant; the live parameter block is self-describing",
+    "check_f43_compact_candidate_is_shadow_only": "tests the removed compact candidate selector",
+    "check_f45_candidates_never_switch_production": "fixture predates the price-basis requirement",
+}
+
+
 CHECKS = [
     ("T01 forecast horizon is 5 sessions", check_t01_forecast_horizon_is_five_sessions),
     ("T02 fixed window and coverage", check_t02_fixed_window_and_coverage),
@@ -3486,6 +3914,23 @@ CHECKS = [
     ("T33 unresolved target session vetoes publication", check_t33_unresolved_target_session_vetoes_publication),
     ("T34 pipeline runs news by default", check_t34_pipeline_runs_news_by_default),
     ("T35 AI news counts and links", check_t35_ai_news_counts_and_links),
+    ("T36 coverage is recomputed, not declared", check_t36_coverage_is_recomputed_not_declared),
+    ("T37 sampling phase is tri-state", check_t37_sampling_phase_is_tri_state),
+    ("T38 veto clears every publishable field", check_t38_veto_clears_every_publishable_field),
+    ("T39 ledger prompt recording and version isolation", check_t39_ledger_prompt_recording_and_version_isolation),
+    ("T40 split action matches the price series", check_t40_split_action_must_match_the_price_series),
+    ("T41 partial AI news delivery", check_t41_partial_ai_news_can_be_delivered_when_disclosed),
+    ("T42 presentation warnings do not degrade news", check_t42_presentation_warnings_do_not_degrade_news),
+    ("T43 registry accounts for every check", check_t43_registry_accounts_for_every_check),
+    ("T44 documented versions match the runtime", check_t44_documented_versions_match_the_runtime),
+    ("T45 compact profile and single viability block", check_t45_compact_profile_and_single_economic_viability),
+    ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
+    ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
+    ("F39 forward ledger", check_f39_forward_ledger),
+    ("F40 ledger metric semantics", check_f40_ledger_metrics_semantics),
+    ("F41 shadow replay stays uncalibrated by policy", check_f41_production_replay_capacity),
+    ("F42 live entry matches replay", check_f42_live_entry_matches_replay),
+    ("F46 v2 drift shrinkage is applied", check_f46_quant_shrinkage_is_applied),
 ]
 
 if __name__ == "__main__":

@@ -20,22 +20,46 @@ confidence score and not a trading signal.
 | `computable` | A produced a probability or a reasoned abstention |
 | `current_prediction_integrity_pass` | the current probability is reproducible from frozen bars and the fixed transform parameters |
 | `oos_integrity_pass` | every non-abstained replay record is reproducible and labels matured at its origin |
-| `production_probability_eligible` | policy window/full calendar coverage, a resolved target session, the declared price basis, current integrity, replay integrity and at least 12 **effective** replay samples all hold |
-| `directional_edge_supported` | the full prefix replay has at least 30 matured decisions and the paired-improvement interval excludes zero on the positive side |
+| `production_probability_eligible` | policy window coverage **recomputed** from the exchange calendar and the frozen bars, a resolved target session, the declared price basis, current integrity, replay integrity and at least 12 **effective** replay samples all hold |
+| `directional_edge_supported` | at least 30 matured, promptly recorded, anchored-phase **prospective** outcomes exist and their paired-improvement interval excludes zero on the positive side |
 | `trading_signal_eligible` | always `false` |
 
 A failure of any production condition sets `prob_up = null`. The report must then
 show `上涨概率：不可用` with the reason code and the actual gap.
 
-`directional_edge_supported` is **three-valued** through `directional_edge_state`:
+The in-window prefix replay reports its own three-valued state through `directional_edge_state`:
 
 - `positive_skill_with_estimated_interval_excluding_zero` — a supported edge;
 - `negative_skill_with_estimated_interval_excluding_zero` — the model is reliably
   *worse* than the base rate and the report says so;
-- `insufficient_evidence` — the interval contains zero.
+- `insufficient_evidence` — the interval contains zero or is not estimable.
 
-A probability may be reportable while the edge is unsupported. Those are different
-claims and must never be merged into one headline.
+A positive replay interval is an **observation about this window**, not independent
+validation: the base rate, the volatility, and the estimator are all estimated on the
+same 52 weeks the replay scores, and the 5-session labels overlap. `supported` /
+`directional_edge_supported` therefore requires prospective evidence, and the report
+says "仅回放区间下界大于0（窗口内前缀回放，非独立留出）" while that is missing. The
+prospective floor is `30`; the replay floor is a separate `30` paired observations
+(`MIN_REPLAY_OBSERVATIONS`), so a short replay cannot be mistaken for a supported edge.
+
+A probability may be reportable while neither evidence level is satisfied. Those are
+different claims and must never be merged into one headline.
+
+## Forward evidence and recording time
+
+`ledger-3.1` classifies a record as prospective only when **both** hold:
+
+1. it was written before its label matured (the target session's close); and
+2. it was written within `PROSPECTIVE_RECORDING_GRACE_HOURS = 12` of the decision
+   close. The regular US/HK close-to-next-open gap is about 17.5 hours, so a record
+   inside this window cannot have observed a post-decision session.
+
+A late record is still appended, with `import_reason` naming the reason, but it is
+descriptive history and never counts as forward evidence. Extraction also filters the
+full identity (`policy`, `model`, `feature`, `target`), so a model upgrade cannot inherit
+the previous model's forward record. An unanchored sampling phase yields
+`sampling_status = unanchored_calendar` and `sampled = null`; the non-overlapping count
+is then *unavailable*, never "all rows".
 
 ## Estimator (v2)
 

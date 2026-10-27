@@ -63,7 +63,9 @@ python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回�
 python stock-data/scripts/quant_research.py gc --output-root runtime --dry-run
 ```
 
-`pipeline` 完成 request → adapt → freeze → analyze。A 是唯一生产路径，B/C 影子研究，D 做 5D 单证券诊断，E 审计；Quant 冻结后才运行独立 News，再冻结并综合。`pipeline` 默认用内置半衰期运行 News（`--news-policy` 可覆盖），不再默认跳过。News 不修改 Quant 概率。优先读取生成的 `final_response.md`，实际待发送文本必须通过校验；CLI `status: success` 仅表示产物写出，还需检查 `consensus.production_probability_eligible`、`consensus.evidence.directional_edge_state` 和阶段回执。
+`pipeline` 完成 request → adapt → freeze → analyze。A 是唯一生产路径，B/C 影子研究，D 做 5D 单证券诊断，E 审计；Quant 与 E 冻结后才运行独立 News，再冻结并综合。`pipeline` 默认用内置半衰期运行 News（`--news-policy` 可覆盖），不再默认跳过。News 不修改 Quant 概率。优先读取生成的 `final_response.md`，实际待发送文本必须通过校验；CLI `status: success` 仅表示产物写出，还需检查 `consensus.production_probability_eligible`、`consensus.evidence.directional_edge_state`、`consensus.evidence.directional_edge_independent_supported` 和阶段回执。`--artifact-profile compact` 只把 `analysis.json` 的逐条回放行改为引用 `researchers/<path>.json`，完整行仍保留在研究者产物中。
+
+`news-candidates` 会同时冻结 `news_preview.json`；`analyze` 在 `news_input_digest` 一致时直接复用，避免同一次工作流重复运行确定性 News 管线。`--focus major` 只导出 direct 且 major 的候选并记录排除数，默认 `all` 保持全量覆盖。
 
 `--cleanup-json` 将本次运行隔离到 `runtime/runs/<run_id>/`。宿主读取/复制已校验回复后，`cleanup-run` 再次校验并仅删除本次登记的 JSON，保留 `report.md`、`final_response.md`、`cleanup_receipt.txt`。可先加 `--dry-run` 预览。外部输入、其他运行和 provider 缓存都不在 run 清理范围内；失败/中断运行默认保留。需要复现或审计时使用 `--keep-json`；清理后不能再进行依赖原 JSON 的交付校验。
 
@@ -82,7 +84,7 @@ python -B stock-data/scripts/quant_research.py schema --kind request
 python -B stock-data/scripts/selfcheck.py
 ```
 
-前五步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验（T01–T24 覆盖固定 5 日 horizon、52 周窗口与覆盖、窗口冲突、越界 K 线、价格基础、目标 session、日历不可验证、标签成熟、有效样本 0/11/12、30 条优势门槛、当前概率可重算、transform/参数/版本篡改、同 decision 去重、窗口滑动、单生产路径、影子隔离、B 选因子边界、C 日频重拟合、台账前向/回顾、阶段与交付契约；T25–T34 覆盖新闻三态与警告条数、否定/不确定词、发布时段与波动状态与已定价判定、AI lean 身份字段防伪、变异检测、双基线对照、reporting_status 过期标志、标题注入、未解析目标日 veto、pipeline 默认运行 News；另保留脱敏、清理、保留过期、Yahoo 预检等回归），不访问网络。合成数据只验证流程，不构成效能证据；效能结论必须来自真实数据并附有效样本量与区间。本仓库仅保留运行 Skill、必需参考和安装说明，不附带独立测试套件、历史审计或上游源码档案；离线回归校验以 `selfcheck.py` 为唯一入口。
+前五步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验，且**登记表、退役表和已定义函数必须互相覆盖**（未登记或未退役的检查会直接失败）。T01–T35 覆盖固定 5 日 horizon、52 周窗口、窗口冲突、越界 K 线、价格基础、目标 session、日历、标签成熟、有效样本、当前概率重算、transform/参数/版本篡改、台账、单生产路径、影子隔离、因子/ML 边界、新闻三态与注入防护；T36–T45 覆盖覆盖重算与伪造申报、抽样三态、veto 全字段清除、前向录入时限与模型版本隔离、拆股与价格序列对账、partial AI 新闻交付、警告分级、登记完整性、版本一致性与 compact 产物；F01/F02/F39–F42/F46 覆盖 ML 前缀不变性、台账语义、影子校准禁用、实时=回放与 v2 收缩公式。仓库内历史检查若测试已被移除的功能，列在 `RETIRED_CHECKS` 并写明原因，不执行也不隐藏。合成数据只验证流程，不构成效能证据；效能结论必须来自真实数据并附有效样本量与区间。
 
 ## 代码质量
 
@@ -104,4 +106,4 @@ JSON 序列化集中在 `quant_research/jsonio.py`：快照 manifest、冻结阶
 - [快照契约](stock-data/references/snapshot-schema.md)：冻结输入、完整性和输出路径边界。
 - [来源限制](stock-data/references/source-policies.md)、[来源与许可记录](stock-data/references/upstream-provenance.md)：网络授权、来源声明及集成边界。
 
-当前 Skill `3.1.0`，research runtime `0.22.0`，snapshot schema `1.3`，analysis schema `analysis-3.0`，forward ledger schema `ledger-3.0`。生产估计器为 `quant_drift_shrinkage_v2`（因果基率 + 波动率标定漂移先验收缩，`k=50`、`μ=6%/年`）；ROC20 仅作披露状态。审计规则见 [audit-protocol.md](stock-data/references/audit-protocol.md)。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。
+当前 Skill `3.3.0`，research runtime `0.23.0`，snapshot schema `1.3`，analysis schema `analysis-3.0`，forward ledger schema `ledger-3.1`。生产估计器为 `quant_drift_shrinkage_v2`（因果基率 + 波动率标定漂移先验收缩，`k=50`、`μ=6%/年`）；ROC20 仅作披露状态。52 周覆盖由冻结时的交易日历逐日重算，申报值只作对照；方向优势区分“窗口内回放”与“独立前向证据”，回放区间下界大于 0 不再等同于已支持。审计规则见 [audit-protocol.md](stock-data/references/audit-protocol.md)。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。

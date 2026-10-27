@@ -6,6 +6,7 @@ import hashlib
 import json
 import time
 from collections.abc import Callable
+from copy import deepcopy
 from datetime import date, datetime, timezone
 from pathlib import Path
 from typing import Any
@@ -13,7 +14,7 @@ from typing import Any
 from . import __version__
 from .audit import audit
 from .audit import attach_news_observation
-from .consensus import build_consensus, forecast_assessment
+from .consensus import build_consensus, forecast_assessment, redact_publishable_prediction
 from .contracts import researcher_result
 from .delivery import validate_response_text
 from .feasibility import build_timing
@@ -84,12 +85,71 @@ def _validate_stages(stages: list[dict[str, Any]]) -> None:
             raise ValueError(f"stage {item['stage']} must explain a non-complete status")
 
 
+def _compact_payload(final: dict[str, Any]) -> dict[str, Any]:
+    """Shrink ``analysis.json`` without losing the audit trail.
+
+    The per-origin replay rows are repeated in full inside ``analysis.json`` even
+    though each researcher already has its own JSON file.  The compact profile
+    replaces those lists with a count and a pointer; the full rows remain in
+    ``researchers/<path>.json`` and every frozen digest still covers them.
+    """
+
+    payload = deepcopy(final)
+    for name, result in (payload.get("researchers") or {}).items():
+        validation = result.get("validation") if isinstance(result, dict) else None
+        if not isinstance(validation, dict):
+            continue
+        rows = validation.get("oos_forecasts")
+        if isinstance(rows, list):
+            validation["oos_forecast_count"] = len(rows)
+            validation["oos_forecasts_ref"] = f"researchers/{name}.json"
+            validation["oos_forecasts"] = {
+                "omitted": len(rows),
+                "reason": "compact artifact profile; the full rows are retained in the researcher artifact",
+            }
+    payload["artifact_profile"] = "compact"
+    payload["artifact_profile_note"] = (
+        "per-origin replay rows are referenced, not duplicated; use researchers/<path>.json for the full ledger"
+    )
+    return payload
+
+
+def _analysis_status(
+    *, adversarial: dict[str, Any], researchers: dict[str, dict[str, Any]], news_status: str,
+) -> str:
+    """The documented analysis vocabulary, not the consensus availability flag.
+
+    ``analysis_status`` used to be ``consensus.status`` ("available"/"unavailable"),
+    which is a different question and made every delivered run look "available"
+    even when the audit had vetoed it.
+    """
+
+    if adversarial.get("may_report_probability") is not True:
+        return "abstain"
+    degraded = (
+        bool(adversarial.get("warnings"))
+        or any(item.get("status") not in {"success", "partial"} for item in researchers.values())
+        or news_status != "complete"
+    )
+    return "degraded" if degraded else "complete_with_limitations"
+
+
 def _decision_sampled(decision_session: str | None, sessions: list[date] | None) -> bool | None:
+    """Tri-state sampling phase.
+
+    ``None`` means the phase could not be anchored (the calendar does not reach
+    the 2000-01-03 anchor).  It must never be flattened to ``False``: ``False``
+    is a verified "not in phase" and a reader — or the ledger — would otherwise
+    treat an unavailable phase as a decision to skip the record.
+    """
+
     if not decision_session or not sessions:
         return None
     try:
         ordinal = session_ordinal(sessions, date.fromisoformat(decision_session))
     except ValueError:
+        return None
+    if ordinal is None:
         return None
     return is_sampled_ordinal(ordinal)
 
@@ -99,7 +159,10 @@ def run_analysis(
     *, on_analysis_created: Callable[[Path], None] | None = None,
     news_ai_assessment: dict[str, Any] | None = None,
     ledger_path: Path | None = None,
+    artifact_profile: str = "audit",
 ) -> Path:
+    if artifact_profile not in {"audit", "compact"}:
+        raise ValueError("artifact_profile must be audit or compact")
     started = time.perf_counter()
     manifest, market = load_snapshot(snapshot_dir)
     snapshot_id = manifest["snapshot_id"]
@@ -150,10 +213,17 @@ def run_analysis(
         "policy": policy,
     })
 
-    raw_bars = (market.get("data") or {}).get("bars") or []
-    bars = market_bars(market) if data_status == "complete" else [
-        {"date": str(row.get("date"))[:10], "close": row.get("close")} for row in raw_bars if isinstance(row, dict)
-    ]
+    # A blocked snapshot may still be inspected by read-only diagnostics; the
+    # diagnostic flag never travels into a path that publishes a probability
+    # (all researchers are skipped when ``data_status`` is blocked).  An empty or
+    # malformed blocked payload degrades to an empty diagnostic axis.
+    if data_status == "complete":
+        bars = market_bars(market)
+    else:
+        try:
+            bars = market_bars(market, diagnostic=True)
+        except ValueError:
+            bars = []
     sessions = calendar_session_list(market)
     results: dict[str, dict[str, Any]] = {}
     if data_status == "complete":
@@ -199,8 +269,14 @@ def run_analysis(
     consensus["sampling"] = {
         "status": "unanchored_calendar" if session_ordinal is None else "anchored",
         "decision_sampled": session_ordinal,
+        "decision_session": decision_session,
+        "phase_available": session_ordinal is not None,
+        "counts_as_nonoverlap": session_ordinal is True,
         "role": "throttle_only_not_qualification",
-        "note": "qualification reads the full prefix replay; the phase never gates eligibility",
+        "note": (
+            "the phase never gates eligibility; it decides whether a forward record may count as "
+            "non-overlapping evidence. An unanchored phase is reported as unavailable, not as 'not sampled'"
+        ),
     }
     consensus["timing"] = build_timing(manifest, bars)
     consensus["timing"]["target_session"] = policy.get("target_session")
@@ -219,19 +295,21 @@ def run_analysis(
             news_result = None
     if news_result is None and news_policy is not None:
         payload = prepare_news_input(snapshot_dir)
-        news_result = run_news(payload, news_policy, news_ai_assessment)
+        preview = None
+        preview_path = snapshot_dir / "news_preview.json"
+        if preview_path.is_file():
+            try:
+                preview, _receipt = load_frozen_result(preview_path)
+            except ValueError:
+                preview = None
+        news_result = run_news(payload, news_policy, news_ai_assessment, base_result=preview)
         freeze_result(frozen_path, news_result, result_name="news_result.json")
     news_result = news_result or {"status": "not_assessed", "snapshot_id": snapshot_id,
                                   "ticker": ticker, "market": market_name, "horizon": manifest.get("horizon"),
                                   "asof_timestamp": manifest.get("asof_timestamp")}
     attach_news_observation(adversarial, news_result)
     if not adversarial["may_report_probability"]:
-        consensus["prob_up"] = None
-        consensus["reportable_probability"] = None
-        consensus["direction"] = "unavailable"
-        consensus["status"] = "unavailable"
-        consensus["production"]["prob_up"] = None
-        consensus["production"]["model_lean"] = "unavailable"
+        redact_publishable_prediction(consensus, audit=adversarial)
         consensus["reason_codes"] = sorted(set(consensus.get("reason_codes", []) + adversarial.get("reason_codes", [])))
     _stage(stages, "audit", "complete", payload=adversarial, run_id=run_id, snapshot_id=snapshot_id)
     write_json(destination / "audit.json", adversarial)
@@ -242,11 +320,17 @@ def run_analysis(
 
     news_status = news_result.get("status") or "not_assessed"
     assessed = news_assessed(news_status)
+    severity_counts = news_result.get("warning_severity_counts") or {}
+    evidence_warnings = int(severity_counts.get("evidence_affecting") or 0)
+    presentation_warnings = int(severity_counts.get("presentation") or 0)
     stage_status = "partial" if assessed and news_status_label(news_status) == "partial" else "complete" if assessed else "not_assessed"
     _stage(stages, "news", stage_status,
-           payload={"status": news_status, "warning_count": len(news_result.get("warnings") or [])},
+           payload={"status": news_status, "warning_count": len(news_result.get("warnings") or []),
+                    "warning_severity": {"evidence_affecting": evidence_warnings,
+                                         "presentation": presentation_warnings}},
            reason=None if stage_status == "complete" else (
-               f"news assessed with {len(news_result.get('warnings') or [])} disclosed warning(s)"
+               f"news assessed with {evidence_warnings} evidence-affecting and "
+               f"{presentation_warnings} presentation warning(s)"
                if stage_status == "partial" else "news evidence unavailable or not assessed"
            ),
            run_id=run_id, snapshot_id=snapshot_id)
@@ -257,15 +341,20 @@ def run_analysis(
 
     synthesis = build_synthesis({**run, "snapshot": report_manifest, "consensus": consensus,
                                  "adversarial_audit": adversarial, "researchers": results}, news_result)
+    elapsed_seconds = round(time.perf_counter() - started, 3)
     final = {
         **run,
+        "analysis_id": run_id,
+        "elapsed_seconds": elapsed_seconds,
         "snapshot": report_manifest,
         "researchers": results,
         "consensus": consensus,
         "adversarial_audit": adversarial,
         "news_result": news_result,
         "synthesis": synthesis,
-        "analysis_status": consensus.get("status"),
+        "analysis_status": _analysis_status(
+            adversarial=adversarial, researchers=results, news_status=news_status,
+        ),
         "reporting_status": reporting_status_for({
             "consensus": consensus, "adversarial_audit": adversarial,
         }),
@@ -282,7 +371,8 @@ def run_analysis(
     write_json(destination / "agent_summary.json", agent_summary)
     _markdown_path = destination / "report.md"
     _markdown_path.write_text(markdown, encoding="utf-8")
-    write_json(destination / "analysis.json", final)
+    serialized = _compact_payload(final) if artifact_profile == "compact" else final
+    write_json(destination / "analysis.json", serialized)
     (destination / "final_response.md").write_text(response, encoding="utf-8")
     final["artifacts"] = {
         "analysis": str(destination / "analysis.json"),
@@ -290,9 +380,9 @@ def run_analysis(
         "agent_summary": str(destination / "agent_summary.json"),
         "final_response": str(destination / "final_response.md"),
     }
-    write_json(destination / "analysis.json", final)
+    serialized = _compact_payload(final) if artifact_profile == "compact" else final
+    write_json(destination / "analysis.json", serialized)
     run["stages"] = stages
-    run["elapsed_seconds"] = round(time.perf_counter() - started, 3)
     if on_analysis_created is not None:
         on_analysis_created(destination)
     return destination

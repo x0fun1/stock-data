@@ -54,3 +54,36 @@ def news_status_label(status: Any) -> str:
     if not news_assessed(value):
         return NEWS_STATUS_NOT_ASSESSED
     return NEWS_STATUS_COMPLETE if value in {"complete", "valid"} else NEWS_STATUS_PARTIAL
+
+
+EVIDENCE_AFFECTING = "evidence_affecting"
+PRESENTATION = "presentation"
+
+#: Warnings that only describe how a retained record was rendered.  They must
+#: not downgrade ``complete`` to ``partial``: doing so made every run with a long
+#: headline look like a degraded evidence set, which removed the signal from the
+#: state a reader actually relies on.  Anything not listed here is treated as
+#: evidence-affecting, so an unclassified new warning fails conservative.
+_PRESENTATION_MARKERS = (
+    "truncated to 400 characters",
+    "truncated to 1,800 characters",
+    "could not be parsed and was dropped; the record is retained",
+    "treated as unknown",
+)
+
+
+def warning_severity(message: Any) -> str:
+    text = str(message or "")
+    return PRESENTATION if any(marker in text for marker in _PRESENTATION_MARKERS) else EVIDENCE_AFFECTING
+
+
+def warning_details(warnings: Any) -> list[dict[str, str]]:
+    rows = warnings if isinstance(warnings, list) else []
+    return [{"message": str(message), "severity": warning_severity(message)} for message in rows]
+
+
+def warning_severity_counts(warnings: Any) -> dict[str, int]:
+    counts = {EVIDENCE_AFFECTING: 0, PRESENTATION: 0}
+    for row in warning_details(warnings):
+        counts[row["severity"]] += 1
+    return counts

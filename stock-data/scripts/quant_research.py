@@ -22,7 +22,7 @@ from quant_research.delivery import validate_final_response
 from quant_research.ledger import audit as ledger_audit
 from quant_research.ledger import record_prediction
 from quant_research.ledger import settle as ledger_settle
-from quant_research.news.pipeline import analyze_news, prepare_news_input
+from quant_research.news.pipeline import analyze_news, freeze_result, prepare_news_input
 from quant_research.orchestrator import run_analysis
 from quant_research.paths import safe_output_destination
 from quant_research.retention import (
@@ -77,12 +77,20 @@ def main(argv: list[str] | None = None) -> int:
     news_candidates = commands.add_parser("news-candidates", help="export every canonical headline for host AI review before analyze")
     news_candidates.add_argument("--snapshot-dir", type=Path, required=True)
     news_candidates.add_argument("--output", type=Path, required=True)
+    news_candidates.add_argument(
+        "--focus",
+        choices=("all", "major"),
+        default="all",
+        help="all keeps every candidate (default, full audit); major only exports direct, major, eligible items",
+    )
     analyze = commands.add_parser("analyze", help="run isolated research paths against one frozen snapshot")
     analyze.add_argument("--snapshot-dir", type=Path, required=True)
     analyze.add_argument("--output-root", type=Path, default=Path("runtime/research"))
     analyze.add_argument("--news-policy", type=Path, help="optional JSON event-type half-life policy for session-based decay")
     analyze.add_argument("--news-ai-assessment", type=Path, help="host-produced per-headline AI assessment")
     analyze.add_argument("--ledger", type=Path, help="append this frozen prediction to an append-only forward ledger")
+    analyze.add_argument("--artifact-profile", choices=("audit", "compact"), default="audit",
+                         help="audit keeps every replay row in analysis.json; compact references researchers/<path>.json")
     pipeline = commands.add_parser("pipeline", help="compose request/adapt/freeze/analyze from already collected gateway DATA")
     pipeline.add_argument("--request", type=Path, required=True)
     pipeline.add_argument("--responses", type=Path, required=True)
@@ -94,6 +102,8 @@ def main(argv: list[str] | None = None) -> int:
     )
     pipeline.add_argument("--news-ai-assessment", type=Path, help="host-produced per-headline AI assessment")
     pipeline.add_argument("--ledger", type=Path, help="append this frozen prediction to an append-only forward ledger")
+    pipeline.add_argument("--artifact-profile", choices=("audit", "compact"), default="audit",
+                          help="audit keeps every replay row in analysis.json; compact references researchers/<path>.json")
     pipeline_mode = pipeline.add_mutually_exclusive_group()
     pipeline_mode.add_argument("--cleanup-json", action="store_true", help="isolate this pipeline run for explicit post-validation JSON cleanup")
     pipeline_mode.add_argument("--keep-json", action="store_true", help="retain JSON in the legacy shared output layout (default)")
@@ -163,16 +173,33 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps({"status": "success", "snapshot_dir": str(location)}, ensure_ascii=False))
         elif args.command == "news-candidates":
             news_input = prepare_news_input(args.snapshot_dir)
-            candidates = [
+            result = analyze_news(news_input)
+            # Persist the expensive deterministic result once; ``analyze`` reuses it when the
+            # input digest matches, so the workflow no longer runs the pipeline twice.
+            freeze_result(args.snapshot_dir / "news_preview.json", result, result_name="news_preview.json")
+            rows = result["ai_lean_candidates"]
+            exported = [
                 {key: row.get(key) for key in ("news_id", "record_kind", "headline", "summary", "source",
                                                "published_at", "url", "ticker_relevance", "eligible_evidence",
                                                "exclusion_reasons")}
-                for row in analyze_news(news_input)["ai_lean_candidates"]
+                for row in rows
             ]
-            _json_file(args.output, {"schema_version": "1.0", "ticker": news_input.ticker,
-                                     "asof_timestamp": news_input.asof_timestamp,
-                                     "candidate_count": len(candidates), "items": candidates})
-            print(json.dumps({"status": "success", "candidate_count": len(candidates),
+            if args.focus == "major":
+                exported = [
+                    row for row in exported
+                    if row.get("eligible_evidence") is True and row.get("ticker_relevance") == "direct"
+                ]
+            _json_file(args.output, {
+                "schema_version": "1.1", "ticker": news_input.ticker,
+                "asof_timestamp": news_input.asof_timestamp,
+                "news_input_digest": result.get("news_input_digest"),
+                "focus": args.focus,
+                "candidate_count": len(exported),
+                "excluded_by_focus": len(rows) - len(exported),
+                "items": exported,
+            })
+            print(json.dumps({"status": "success", "candidate_count": len(exported),
+                              "excluded_by_focus": len(rows) - len(exported),
                               "output": str(args.output)}, ensure_ascii=False))
         elif args.command in {"analyze", "pipeline"}:
             owned_run = None
@@ -229,18 +256,34 @@ def main(argv: list[str] | None = None) -> int:
                     raise ValueError("news AI assessment file must contain a JSON object")
                 if owned_run is None:
                     location = run_analysis(snapshot_dir, output_root, policy, news_ai_assessment=ai_assessment,
-                                            ledger_path=args.ledger)
+                                            ledger_path=args.ledger, artifact_profile=args.artifact_profile)
                 else:
                     location = run_analysis(
                         snapshot_dir, output_root, policy,
                         on_analysis_created=lambda path: update_run_workspace(owned_run, analysis_id=path.name),
                         news_ai_assessment=ai_assessment,
                         ledger_path=args.ledger,
+                        artifact_profile=args.artifact_profile,
                     )
                     update_run_workspace(owned_run, state="awaiting_cleanup")
                 analysis = json.loads((location / "analysis.json").read_text(encoding="utf-8"))
                 consensus = analysis.get("consensus") or {}
-                result = {"status": "success", "analysis_status": consensus.get("status"), "may_report_direction": consensus.get("production_probability_eligible", False), "report_dir": str(location), "json": str(location / "analysis.json"), "markdown": str(location / "report.md"), "agent_summary": str(location / "agent_summary.json"), "final_response": str(location / "final_response.md")}
+                adversarial = analysis.get("adversarial_audit") or {}
+                result = {
+                    "status": "success",
+                    # Both values come from the frozen final artifact, not from a
+                    # pre-veto consensus flag: a veto clears prob_up but leaves
+                    # production_probability_eligible True, so reading the flag
+                    # here reported "direction reportable" for a vetoed run.
+                    "analysis_status": analysis.get("analysis_status"),
+                    "reporting_status": analysis.get("reporting_status"),
+                    "may_report_direction": adversarial.get("may_report_direction", False),
+                    "report_dir": str(location),
+                    "json": str(location / "analysis.json"),
+                    "markdown": str(location / "report.md"),
+                    "agent_summary": str(location / "agent_summary.json"),
+                    "final_response": str(location / "final_response.md"),
+                }
                 if getattr(args, "ledger", None):
                     try:
                         result["ledger"] = record_prediction(

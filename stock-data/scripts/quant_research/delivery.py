@@ -72,15 +72,36 @@ def _validate_stages(result: dict[str, Any]) -> dict[str, Any]:
 
 
 def require_ai_news_coverage(news: dict[str, Any]) -> None:
-    """Refuse delivery when collected canonical headlines lack per-item AI review."""
+    """Require a consistent per-headline AI review, and disclose partial coverage.
+
+    ``partial`` used to render in the report and then fail every delivery, which
+    made the two contracts contradict each other.  A partial assessment may now
+    be delivered **only** when the counts reconcile and the uncovered remainder
+    is disclosed; a fully unassessed artifact still cannot be delivered as if it
+    had been reviewed.
+    """
+
     ai = news.get("ai_lean") or {}
     coverage = ai.get("coverage") or {}
     candidate_count = len(news.get("ai_lean_candidates") or [])
-    if candidate_count and (ai.get("status") != "assessed"
-                            or coverage.get("candidate_count") != candidate_count
-                            or coverage.get("assessed_count") != candidate_count
-                            or len(ai.get("items") or []) != candidate_count):
+    if not candidate_count:
+        return
+    status = ai.get("status")
+    assessed_count = coverage.get("assessed_count")
+    if status not in {"assessed", "partial"}:
         raise ValueError("Final audit rejected: every canonical news headline needs a host AI assessment")
+    if coverage.get("candidate_count") != candidate_count:
+        raise ValueError("Final audit rejected: AI coverage counts do not match the canonical candidates")
+    if not isinstance(assessed_count, int) or isinstance(assessed_count, bool):
+        raise ValueError("Final audit rejected: AI coverage has no assessed count")
+    if len(ai.get("items") or []) != assessed_count:
+        raise ValueError("Final audit rejected: AI items do not match the assessed count")
+    if assessed_count > candidate_count:
+        raise ValueError("Final audit rejected: AI assessed count exceeds the candidate count")
+    if status == "assessed" and assessed_count != candidate_count:
+        raise ValueError("Final audit rejected: an assessed AI review must cover every canonical headline")
+    if status == "partial" and not (news.get("warnings") or []):
+        raise ValueError("Final audit rejected: a partial AI review must disclose why it is partial")
 
 
 def validate_final_response(analysis_dir: Path, response_file: Path) -> dict[str, Any]:

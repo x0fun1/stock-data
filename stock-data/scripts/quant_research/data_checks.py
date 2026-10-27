@@ -428,19 +428,28 @@ def _check_latest_close(block: dict[str, Any], bars: list[dict[str, Any]], sessi
 
 
 def _check_adjustment(block: dict[str, Any], first: str, last: str,
-                      findings: _Findings) -> tuple[str, bool]:
-    """Adjustment convention and company-action coverage; returns (status, known)."""
+                      bars: list[dict[str, Any]], findings: _Findings) -> tuple[str, bool, list[dict[str, Any]]]:
+    """Adjustment convention and company-action coverage; returns (status, known).
+
+    A provider declaration is not evidence.  The check now also reconciles every
+    in-window split action with the close-to-close step of the frozen series: a
+    split-adjusted series shows no step over the split date, while an unadjusted
+    one shows the reverse ratio.  A contradiction between the declared basis and
+    the observed step blocks the probability; missing evidence stays a disclosed
+    degradation because an empty action list proves nothing either way.
+    """
     adjustment = block.get("adjustment")
     normalized_adjustment = ADJUSTMENT_ALIASES.get(adjustment, adjustment) if isinstance(adjustment, str) else adjustment
     adjustment_known = isinstance(normalized_adjustment, str) and normalized_adjustment in ADJUSTMENTS
     evidence = block.get("adjustment_evidence")
     corporate_action_status = "unavailable"
+    reconciliation: list[dict[str, Any]] = []
     if not adjustment_known:
         findings.degraded("ADJUSTMENT_UNKNOWN", "OHLCV adjustment convention is unknown; short-horizon direction remains computable with lower confidence")
     if not isinstance(evidence, dict) or not evidence.get("source") or not isinstance(evidence.get("actions"), list):
         findings.degraded("ADJUSTMENT_EVIDENCE_UNAVAILABLE", "source-backed adjustment/company-action coverage is unavailable; unknown does not mean contaminated")
         findings.degraded("CORPORATE_ACTION_UNKNOWN", "recent corporate actions could not be independently assessed")
-        return corporate_action_status, adjustment_known
+        return corporate_action_status, adjustment_known, reconciliation
     if evidence.get("price_basis") != normalized_adjustment:
         findings.degraded("ADJUSTMENT_EVIDENCE_CONFLICT", "adjustment evidence does not establish the OHLCV price basis")
     try:
@@ -453,19 +462,99 @@ def _check_adjustment(block: dict[str, Any], first: str, last: str,
             findings.degraded("CORPORATE_ACTION_UNKNOWN", "company-action evidence does not confirm complete action coverage; an empty actions list does not establish that there were no actions")
         else:
             corporate_action_status = "clear"
+        closes = {str(bar.get("date"))[:10]: bar.get("close") for bar in bars}
+        ordered = [str(bar.get("date"))[:10] for bar in bars]
         for action in evidence["actions"]:
             action_day = date.fromisoformat(action["date"]).isoformat()
-            if first <= action_day <= last:
+            in_window = first <= action_day <= last
+            if in_window:
                 corporate_action_status = "recent_action_detected"
-            action_type = str(action.get("type", "")).lower().replace("-", "_")
-            contaminating_type = action_type in {"split", "reverse_split", "reverse split", "spinoff", "spin_off", "spin off", "major_adjustment_discontinuity", "adjustment_discontinuity"}
+            action_type = _action_type(action)
+            contaminating_type = action_type in {"split", "reverse_split", "spinoff", "major_adjustment_discontinuity"}
             prices_unadjusted = adjustment == "unadjusted" or evidence.get("price_basis") == "unadjusted"
-            if contaminating_type and first <= action_day <= last and prices_unadjusted:
+            if contaminating_type and in_window and prices_unadjusted:
                 findings.fatal("CORPORATE_ACTION_CONTAMINATION", "confirmed corporate action falls in the selected window while OHLCV is evidenced as unadjusted")
+                continue
+            if not in_window or action_type != "split":
+                continue
+            ratio = _positive_number(action.get("value", action.get("ratio")))
+            if ratio is None or ratio == 1 or action_day not in closes:
+                continue
+            position = ordered.index(action_day)
+            if position == 0:
+                continue
+            before, after = _positive_number(closes[ordered[position - 1]]), _positive_number(closes[action_day])
+            if before is None or after is None:
+                continue
+            step = after / before
+            adjusted_step = 1.0 / ratio
+            # A split-adjusted history stays continuous (step ~= 1); an unadjusted
+            # history shows the reverse split factor.  Anything else is ambiguous.
+            if abs(math.log(step)) <= 0.10:
+                verdict = "consistent_with_split_adjusted"
+            elif abs(math.log(step / adjusted_step)) <= 0.10:
+                verdict = "contradicts_split_adjusted"
+            else:
+                verdict = "unreconciled"
+            reconciliation.append({"action_date": action_day, "declared_ratio": ratio,
+                                   "observed_close_step": round(step, 6), "verdict": verdict})
+            if verdict == "contradicts_split_adjusted" and normalized_adjustment == "split_adjusted":
+                findings.fatal(
+                    "CORPORATE_ACTION_CONTAMINATION",
+                    f"a {ratio:g}:1 split on {action_day} produced a close step of {step:.4f}; "
+                    "the series behaves as unadjusted although the basis is declared split-adjusted",
+                )
+            elif verdict == "unreconciled":
+                findings.degraded(
+                    "ADJUSTMENT_EVIDENCE_CONFLICT",
+                    f"a {ratio:g}:1 split on {action_day} could not be reconciled with the price series",
+                )
     except (KeyError, TypeError, ValueError):
         corporate_action_status = "unavailable"
         findings.degraded("CORPORATE_ACTION_UNKNOWN", "adjustment/company-action evidence is malformed and was not relied on")
-    return corporate_action_status, adjustment_known
+    return corporate_action_status, adjustment_known, reconciliation
+
+
+def _positive_number(value: Any) -> float | None:
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number if math.isfinite(number) and number > 0 else None
+
+
+_ACTION_TYPE_ALIASES = {
+    "stock_splits": "split",
+    "stock_split": "split",
+    "splits": "split",
+    "split": "split",
+    "reverse_split": "reverse_split",
+    "reverse_split_action": "reverse_split",
+    "dividends": "dividend",
+    "dividend": "dividend",
+    "capital_gains": "capital_gain",
+    "capital_gain": "capital_gain",
+}
+
+
+def _action_type(action: dict[str, Any]) -> str:
+    """Normalize ``type`` and the collector's ``kind`` spelling.
+
+    The Yahoo normalizer wrote ``kind: stock_splits`` while this gate looked for
+    ``type: split``, so a real split action could never reach the contamination
+    branch.  Both spellings now resolve to one vocabulary.
+    """
+
+    for key in ("type", "kind", "action_type"):
+        value = action.get(key)
+        if not isinstance(value, str):
+            continue
+        normalized = value.strip().lower().replace("-", "_").replace(" ", "_")
+        if normalized in _ACTION_TYPE_ALIASES:
+            return _ACTION_TYPE_ALIASES[normalized]
+        if normalized:
+            return normalized
+    return ""
 
 
 def _check_price_scale(bars: list[dict[str, Any]], findings: _Findings) -> None:
@@ -477,9 +566,63 @@ def _check_price_scale(bars: list[dict[str, Any]], findings: _Findings) -> None:
         findings.fatal("INVALID_PRICE_VALUES", "OHLCV price values cannot be evaluated")
 
 
+def _recompute_window_coverage(
+    window: dict[str, Any], sessions: list[dict[str, Any]], bars: list[dict[str, Any]],
+    start: str, end: str,
+) -> dict[str, Any]:
+    """Recompute expected/observed sessions from the calendar and the frozen bars.
+
+    The declared ``coverage_status`` is a producer claim.  A receipt whose bars
+    start months after the policy boundary can still declare ``complete``; only a
+    set comparison against the resolved exchange calendar proves the window was
+    actually observed.
+    """
+
+    expected = [row["date"] for row in sessions if start < row["date"] <= end]
+    observed = [str(bar.get("date"))[:10] for bar in bars]
+    observed_set = set(observed)
+    expected_set = set(expected)
+    duplicates = sorted({day for day in observed if observed.count(day) > 1})
+    missing = [day for day in expected if day not in observed_set]
+    unexpected = [day for day in observed if day not in expected_set]
+    calendar_covers = bool(sessions) and sessions[0]["date"] <= start and sessions[-1]["date"] >= end
+    ordered = observed == expected
+    complete = (
+        calendar_covers
+        and bool(expected)
+        and not missing
+        and not unexpected
+        and not duplicates
+        and ordered
+    )
+    declared_expected = window.get("expected_sessions")
+    declared_observed = window.get("observed_sessions")
+    declared_missing = window.get("missing_session_count")
+    mismatches: list[str] = []
+    for label, declared, actual in (
+        ("expected_sessions", declared_expected, len(expected)),
+        ("observed_sessions", declared_observed, len(observed)),
+        ("missing_session_count", declared_missing, len(missing)),
+    ):
+        if declared is not None and declared != actual:
+            mismatches.append(f"{label}: declared {declared}, recomputed {actual}")
+    return {
+        "expected_sessions": len(expected),
+        "observed_sessions": len(observed),
+        "missing_sessions": missing,
+        "missing_session_count": len(missing),
+        "unexpected_sessions": unexpected,
+        "duplicate_sessions": duplicates,
+        "calendar_covers_window": calendar_covers,
+        "axis_matches_calendar": ordered,
+        "complete": complete,
+        "declaration_mismatches": mismatches,
+    }
+
+
 def _check_forecast_policy(block: dict[str, Any], request: dict[str, Any], data: dict[str, Any],
                            bars: list[dict[str, Any]], last: str, calendar_status: str,
-                           findings: _Findings) -> dict[str, Any]:
+                           sessions: list[dict[str, Any]], findings: _Findings) -> dict[str, Any]:
     """Validate the fixed 52-week / 5-session contract on the collected market block."""
 
     if request.get("intent") != "forecast":
@@ -513,14 +656,34 @@ def _check_forecast_policy(block: dict[str, Any], request: dict[str, Any], data:
     if outside:
         findings.fatal("OHLCV_OUT_OF_WINDOW", f"{len(outside)} bar(s) fall outside the frozen policy window")
         findings.errors.append(f"{len(outside)} bar(s) fall outside the frozen policy window")
-    coverage = window.get("coverage_status")
+    declared_coverage = window.get("coverage_status")
     verified_calendar = calendar_status in {"source_supplied_schedule", "library_verified"} and bool(window.get("calendar_verified"))
-    if coverage != "complete":
-        findings.fatal(
-            ERROR_INSUFFICIENT_COVERAGE,
-            f"52-week window coverage is {coverage or 'missing'}; expected {window.get('expected_sessions')} sessions, "
-            f"observed {window.get('observed_sessions')}, missing {window.get('missing_session_count')}",
-        )
+    recomputed: dict[str, Any] | None = None
+    coverage_basis = "declared_only"
+    coverage = "unverified"
+    if verified_calendar:
+        recomputed = _recompute_window_coverage(window, sessions, bars, start, end)
+        coverage_basis = "recomputed_from_calendar_and_bars"
+        if not recomputed["calendar_covers_window"]:
+            findings.fatal(
+                ERROR_INSUFFICIENT_COVERAGE,
+                "the resolved exchange calendar does not span the whole 52-week policy window",
+            )
+        elif not recomputed["complete"]:
+            findings.fatal(
+                ERROR_INSUFFICIENT_COVERAGE,
+                f"52-week window coverage is incomplete: expected {recomputed['expected_sessions']} sessions, "
+                f"observed {recomputed['observed_sessions']}, missing {recomputed['missing_session_count']}, "
+                f"unexpected {len(recomputed['unexpected_sessions'])}, duplicates {len(recomputed['duplicate_sessions'])}",
+            )
+        elif declared_coverage != "complete" or recomputed["declaration_mismatches"]:
+            findings.fatal(
+                ERROR_INSUFFICIENT_COVERAGE,
+                "declared coverage contradicts the recomputation: "
+                + ("; ".join(recomputed["declaration_mismatches"]) or f"status {declared_coverage!r}"),
+            )
+        else:
+            coverage = "complete"
     if not verified_calendar:
         findings.degraded(ERROR_CALENDAR_UNVERIFIED, "exchange calendar is unverified; no formal 5-session probability is publishable")
     price_basis = block.get("price_basis")
@@ -533,10 +696,14 @@ def _check_forecast_policy(block: dict[str, Any], request: dict[str, Any], data:
         "decision_session": decision,
         "window_start_exclusive": start,
         "window_end_inclusive": end,
-        "expected_sessions": window.get("expected_sessions"),
-        "observed_sessions": window.get("observed_sessions"),
-        "missing_sessions": window.get("missing_sessions"),
+        "expected_sessions": (recomputed or {}).get("expected_sessions", window.get("expected_sessions")),
+        "observed_sessions": (recomputed or {}).get("observed_sessions", window.get("observed_sessions")),
+        "missing_sessions": (recomputed or {}).get("missing_session_count", window.get("missing_session_count")),
+        "missing_session_dates": (recomputed or {}).get("missing_sessions", window.get("missing_sessions")),
+        "declared_coverage_status": declared_coverage,
         "coverage_status": coverage,
+        "coverage_basis": coverage_basis,
+        "coverage_recomputed": recomputed is not None,
         "calendar_verified": verified_calendar,
         "calendar_source": (
             window.get("calendar_source")
@@ -595,9 +762,11 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
 
     latest_close = _check_latest_close(block, bars, sessions, last, asof, calendar_status,
                                        source_time, fetch_time, findings)
-    corporate_action_status, adjustment_known = _check_adjustment(block, first, last, findings)
+    corporate_action_status, adjustment_known, action_reconciliation = _check_adjustment(
+        block, first, last, bars, findings,
+    )
     _check_price_scale(bars, findings)
-    policy = (_check_forecast_policy(block, request, data, bars, last, calendar_status, findings)
+    policy = (_check_forecast_policy(block, request, data, bars, last, calendar_status, sessions, findings)
               if enforce_policy else {"applicable": False, "status": "legacy_not_enforced"})
 
     asset_type = request.get("asset_type")
@@ -613,6 +782,7 @@ def check_market(block: dict[str, Any], request: dict[str, Any], *, captured_at:
         else "provider_declared" if adjustment_known else "unknown"
     )
     result["corporate_action_status"] = corporate_action_status
+    result["corporate_action_reconciliation"] = action_reconciliation
     result["policy"] = policy
     if request.get("intent") == "forecast":
         result["forecast_policy_status"] = policy.get("status")

@@ -11,6 +11,10 @@ from __future__ import annotations
 
 from typing import Any
 
+#: Retained for external callers and the self-check only; no runtime entry point
+#: calls it after v2.  ``build_timing`` in this module is live.
+LEGACY_UNUSED = ("build_forecast_feasibility",)
+
 QUANT_MIN_MATCHES = 12
 FACTOR_MIN_MATURED = 18
 FACTOR_MIN_SELECTION_LABELS = 10

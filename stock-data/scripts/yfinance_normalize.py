@@ -89,6 +89,7 @@ def _rows(frame):
 
 _PRICE_FIELDS = {"open": "Open", "high": "High", "low": "Low", "close": "Close"}
 _ACTION_FIELDS = {"dividends": "Dividends", "stock_splits": "Stock Splits", "capital_gains": "Capital Gains"}
+_ACTION_TYPES = {"dividends": "dividend", "stock_splits": "split", "capital_gains": "capital_gain"}
 
 
 def normalize_history(frame, metadata, *, price_basis="provider", symbol=None, interval="1d"):
@@ -147,7 +148,11 @@ def normalize_history(frame, metadata, *, price_basis="provider", symbol=None, i
         if stamp.tzinfo is None:
             warnings.append("bar_timezone_unconfirmed")
         ratios.append({"date": bar["date"], "timestamp_utc": bar["timestamp_utc"], "ratio": ratio})
-        actions.extend({"date": bar["date"], "kind": key, "value": bar[key]}
+        # Emit both spellings: ``type`` is the gate's canonical field and
+        # ``kind`` preserves the provider column name.  The gate used to look for
+        # ``type: split`` while this normalizer wrote ``kind: stock_splits``, so a
+        # real split could never reach the contamination branch.
+        actions.extend({"date": bar["date"], "type": _ACTION_TYPES[key], "kind": key, "value": bar[key]}
                        for key in _ACTION_FIELDS if bar[key] is not None and bar[key] != 0)
         bars.append(bar)
     if price_basis == "adjusted" and any(bar.get("adjustment_gap") for bar in bars):
@@ -158,8 +163,14 @@ def normalize_history(frame, metadata, *, price_basis="provider", symbol=None, i
               "selection_rule": "actual_returned_bars; closure not asserted"}
     evidence = {"source": "Yahoo Finance", "price_basis": price_basis,
                 "checked_through": max(dates, default=None), "actions": actions,
+                "action_schema_version": "yahoo_actions_v2",
                 "action_coverage_confirmed": False,
-                "coverage_note": "observed actions only; empty list does not prove complete action coverage",
+                "coverage_scope": "returned_bars_only",
+                "coverage_note": (
+                    "observed actions only, scoped to the returned bars; an empty list does not prove that "
+                    "no action occurred, and a provider omission is undetectable here. The freeze gate "
+                    "reconciles any listed split against the close-to-close step of the series"
+                ),
                 "transformation": "Adj Close / Close applied to OHLC; volume unchanged" if price_basis == "adjusted" else "none",
                 "ratios": ratios}
     # Selected chart metadata `symbol` or a caller-supplied, source-confirmed

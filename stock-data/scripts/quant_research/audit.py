@@ -64,6 +64,9 @@ def audit(
     checks["policy"] = {
         "policy_version": policy.get("policy_version"),
         "coverage_status": policy.get("coverage_status"),
+        "declared_coverage_status": policy.get("declared_coverage_status"),
+        "coverage_basis": policy.get("coverage_basis"),
+        "coverage_recomputed": policy.get("coverage_recomputed"),
         "calendar_verified": policy.get("calendar_verified"),
         "expected_sessions": policy.get("expected_sessions"),
         "observed_sessions": policy.get("observed_sessions"),
@@ -73,7 +76,8 @@ def audit(
         _veto(state, "POLICY_VERSION_MISMATCH", "Snapshot policy version does not match the active fixed-window policy.")
     if policy.get("coverage_status") != "complete":
         _veto(state, "INSUFFICIENT_HISTORY_COVERAGE",
-              f"52-week coverage is {policy.get('coverage_status') or 'missing'}; expected "
+              f"52-week coverage is {policy.get('coverage_status') or 'missing'} "
+              f"(basis {policy.get('coverage_basis') or 'declared_only'}); expected "
               f"{policy.get('expected_sessions')} sessions, observed {policy.get('observed_sessions')}, "
               f"missing {policy.get('missing_sessions')}.")
     if not policy.get("calendar_verified"):
@@ -137,7 +141,16 @@ def audit(
               f"Only {effective} effective replay samples ({nonoverlap} non-overlapping rows); "
               f"{MIN_REPLAY_EFFECTIVE_SAMPLES} effective samples are required for publication.")
     prospective = [row for row in (prospective_records or []) if row.get("sampled") is True and row.get("status") == "matured"]
+    unanchored = [
+        row for row in (prospective_records or [])
+        if row.get("status") == "matured" and row.get("sampling_status") == "unanchored_calendar"
+    ]
     checks["prospective_nonoverlap"] = len(prospective)
+    checks["prospective_matured_unanchored"] = len(unanchored)
+    checks["prospective_counting_rule"] = (
+        "only records written within the prompt-recording window on an anchored fixed phase count as "
+        "non-overlapping forward evidence; unanchored or late records are reported separately"
+    )
     if not assessment.get("directional_edge_supported"):
         _warn(state, "DIRECTIONAL_EDGE_UNPROVEN",
               f"No supported directional edge; {len(prospective)}/{MIN_PROSPECTIVE_NONOVERLAP} prospective non-overlapping outcomes.")

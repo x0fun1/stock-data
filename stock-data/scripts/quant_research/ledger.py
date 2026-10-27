@@ -33,14 +33,18 @@ from pathlib import Path
 from typing import Any
 
 from .forecast_policy import (
+    FEATURE_VERSIONS,
+    MODEL_VERSIONS,
     POLICY_VERSION,
+    PROSPECTIVE_RECORDING_GRACE_HOURS,
+    PROSPECTIVE_RECORDING_RULE,
     TARGET_VERSION,
     ledger_group_key,
     model_identity,
 )
 
-SCHEMA_VERSION = "ledger-3.0"
-READABLE_SCHEMAS = frozenset({SCHEMA_VERSION, "ledger-2.0", "ledger-1.0"})
+SCHEMA_VERSION = "ledger-3.1"
+READABLE_SCHEMAS = frozenset({SCHEMA_VERSION, "ledger-3.0", "ledger-2.0", "ledger-1.0"})
 PREDICTION = "prediction"
 SETTLEMENT = "settlement"
 SETTLEMENT_RULE = "close_to_close_horizon_sessions"
@@ -101,6 +105,16 @@ def _prediction_id(result: dict[str, Any]) -> str:
     return hashlib.sha256(identity.encode("utf-8")).hexdigest()[:32]
 
 
+def _session_schedule(market: dict[str, Any]) -> list[dict[str, Any]]:
+    """Frozen exchange schedule with per-session close instants, when present."""
+
+    data = market.get("data") or {}
+    calendar = market.get("session_calendar") or data.get("session_calendar")
+    if isinstance(calendar, dict) and isinstance(calendar.get("sessions"), list):
+        return [row for row in calendar["sessions"] if isinstance(row, dict)]
+    return []
+
+
 def _canonical_sha256(payload: Any) -> str:
     text = json.dumps(payload, ensure_ascii=False, sort_keys=True, separators=(",", ":"), default=str)
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
@@ -110,6 +124,7 @@ def read_events(path: Path) -> list[dict[str, Any]]:
     if not path.is_file():
         return []
     events: list[dict[str, Any]] = []
+    previous_hash: str | None = None
     for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
         if not line.strip():
             continue
@@ -123,12 +138,30 @@ def read_events(path: Path) -> list[dict[str, Any]]:
             raise ValueError(f"ledger line {number} has unsupported schema {event.get('schema_version')!r}")
         if event.get("event") not in {PREDICTION, SETTLEMENT}:
             raise ValueError(f"ledger line {number} has unknown event {event.get('event')!r}")
+        recorded_hash = event.get("event_hash")
+        if recorded_hash is not None:
+            if event.get("prev_hash") != previous_hash:
+                raise ValueError(
+                    f"ledger line {number} breaks the hash chain: prev_hash does not match the previous event"
+                )
+            expected = _canonical_sha256({key: value for key, value in event.items() if key != "event_hash"})
+            if expected != recorded_hash:
+                raise ValueError(f"ledger line {number} failed its own hash check: the event was modified")
+            previous_hash = recorded_hash
+        else:
+            # Legacy rows predate the chain.  The next chained row still anchors on
+            # the last chained hash, so an unchained suffix cannot be claimed as
+            # part of an intact chain.
+            previous_hash = None
         events.append(event)
     return events
 
 
 def _append(path: Path, event: dict[str, Any]) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
+    previous_hash = _last_chain_hash(path)
+    chained = {**event, "prev_hash": previous_hash}
+    chained["event_hash"] = _canonical_sha256(chained)
     prefix = ""
     if path.is_file() and path.stat().st_size:
         with path.open("rb") as handle:
@@ -136,9 +169,40 @@ def _append(path: Path, event: dict[str, Any]) -> None:
             if handle.read(1) != b"\n":
                 prefix = "\n"
     with path.open("a", encoding="utf-8") as handle:
-        handle.write(prefix + json.dumps(event, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
+        handle.write(prefix + json.dumps(chained, ensure_ascii=False, sort_keys=True, separators=(",", ":")) + "\n")
         handle.flush()
         os.fsync(handle.fileno())
+
+
+def _last_chain_hash(path: Path) -> str | None:
+    """Read only the tail of the ledger to continue the hash chain.
+
+    Reading and parsing the whole file on every append would make the append cost
+    grow quadratically with the ledger, which matters once a daily run has
+    accumulated a year of records.
+    """
+
+    if not path.is_file():
+        return None
+    with path.open("rb") as handle:
+        handle.seek(0, os.SEEK_END)
+        size = handle.tell()
+        if size == 0:
+            return None
+        block = min(size, 65536)
+        handle.seek(size - block)
+        tail = handle.read().decode("utf-8", "ignore")
+    lines = tail.splitlines()
+    if block < size and lines:
+        # The first line of a partial tail is very likely truncated mid-record.
+        lines = lines[1:]
+    for line in reversed(lines):
+        if line.strip():
+            try:
+                return json.loads(line).get("event_hash")
+            except (json.JSONDecodeError, AttributeError):
+                return None
+    return None
 
 
 def _researcher_rows(result: dict[str, Any]) -> dict[str, dict[str, Any]]:
@@ -225,29 +289,76 @@ def _forward_eligibility(
     decision_at: datetime | None,
     decision_session: Any,
     horizon_sessions: int,
+    sessions: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
+    """Classify a record as forward evidence, late, or backfilled.
+
+    Two independent conditions are required, and they answer different questions:
+
+    * ``recorded_before_label_maturity`` — the outcome was not yet observable;
+    * ``recorded_promptly`` — the record was written before the next session could
+      open, so no post-decision price could have informed it.
+
+    The second condition is new in ledger-3.1.  Without it a prediction written
+    several sessions later still passed the maturity check and was counted as
+    forward evidence even though the market had already moved.
+    """
+
     maturity: datetime | None = None
-    if decision_at is not None:
+    maturity_basis = "unavailable"
+    ordered = [str(row.get("date"))[:10] for row in (sessions or []) if isinstance(row, dict)]
+    if isinstance(decision_session, str) and decision_session in ordered:
+        index = ordered.index(decision_session) + horizon_sessions
+        if index < len(sessions or []):
+            close_at = _parse_time((sessions or [])[index].get("close_at"))
+            if close_at is not None:
+                maturity = close_at
+                maturity_basis = "exchange_calendar_target_session_close"
+    if maturity is None and decision_at is not None:
         maturity = decision_at + timedelta(days=_horizon_calendar_days(horizon_sessions))
-    elif isinstance(decision_session, str):
+        maturity_basis = "calendar_day_approximation"
+    elif maturity is None and isinstance(decision_session, str):
         session_date = _parse_time(f"{decision_session}T23:59:59Z")
         if session_date is not None:
             maturity = session_date + timedelta(days=_horizon_calendar_days(horizon_sessions) + 2)
+            maturity_basis = "calendar_day_approximation"
     if maturity is None:
         return {
             "prospective_eligible": False,
             "reason": "decision_time_unavailable",
             "label_maturity_at_utc": None,
+            "maturity_basis": maturity_basis,
             "recorded_at_utc": _iso(recorded_at),
+            "recorded_before_label_maturity": False,
+            "recorded_promptly": False,
+            "prompt_deadline_at_utc": None,
+            "rule": PROSPECTIVE_RECORDING_RULE,
         }
+    deadline = (
+        decision_at + timedelta(hours=PROSPECTIVE_RECORDING_GRACE_HOURS)
+        if decision_at is not None else None
+    )
+    before_maturity = recorded_at < maturity
+    prompt = deadline is not None and recorded_at <= deadline
+    if not before_maturity:
+        reason = "recorded_after_label_maturity"
+    elif not prompt:
+        reason = "recorded_after_prompt_window"
+    else:
+        reason = "recorded_before_label_maturity_within_prompt_window"
     return {
-        "prospective_eligible": recorded_at < maturity,
-        "reason": "recorded_before_label_maturity" if recorded_at < maturity else "recorded_after_label_maturity",
+        "prospective_eligible": bool(before_maturity and prompt),
+        "reason": reason,
         "label_maturity_at_utc": _iso(maturity),
+        "maturity_basis": maturity_basis,
         "recorded_at_utc": _iso(recorded_at),
+        "recorded_before_label_maturity": before_maturity,
+        "recorded_promptly": prompt,
+        "prompt_deadline_at_utc": _iso(deadline) if deadline is not None else None,
+        "recording_grace_hours": PROSPECTIVE_RECORDING_GRACE_HOURS,
         "recording_lag_hours": round((recorded_at - (decision_at or maturity)).total_seconds() / 3600, 3)
         if decision_at is not None else None,
-        "rule": "recorded_at < decision_at + ceil(horizon_sessions * 7 / 5) calendar days",
+        "rule": PROSPECTIVE_RECORDING_RULE,
     }
 
 
@@ -258,8 +369,14 @@ def record_prediction(
     import_reason: str | None = None,
     snapshot_dir: Path | None = None,
     bars: list[dict[str, Any]] | None = None,
+    sessions: list[dict[str, Any]] | None = None,
+    clock: Any = None,
 ) -> dict[str, Any]:
-    """Append one frozen prediction; the same identity is recorded only once."""
+    """Append one frozen prediction; the same identity is recorded only once.
+
+    ``clock`` exists so tests can place the recording instant deterministically.
+    The CLI never supplies it: a caller must not be able to backdate a record.
+    """
     snapshot = result.get("snapshot") or {}
     consensus = result.get("consensus") or {}
     if not isinstance(snapshot, dict) or not snapshot.get("ticker") or not snapshot.get("horizon"):
@@ -288,7 +405,7 @@ def record_prediction(
         for event in events
     ):
         return {"status": "duplicate", "reason": "same_group_and_decision_session", "ledger": str(ledger_path)}
-    recorded_at = _parse_time(_now())
+    recorded_at = _parse_time(_iso(clock())) if callable(clock) else _parse_time(_now())
     if recorded_at is None:
         raise ValueError("system clock could not be parsed")
     decision_at = _parse_time(timing.get("decision_at")) or _parse_time(snapshot.get("asof_timestamp"))
@@ -299,6 +416,8 @@ def record_prediction(
 
         _manifest, market = load_snapshot(snapshot_dir)
         bars = market_bars(market)
+        if sessions is None:
+            sessions = _session_schedule(market)
     decision_session = timing.get("decision_session")
     baseline_probability = None
     baseline_history_labels = 0
@@ -315,13 +434,15 @@ def record_prediction(
         decision_at=decision_at,
         decision_session=timing.get("decision_session"),
         horizon_sessions=horizon_sessions,
+        sessions=sessions,
     )
     if not forward["prospective_eligible"] and not import_reason:
-        import_reason = (
-            "historical_snapshot_recorded_after_label_maturity"
-            if forward["reason"] == "recorded_after_label_maturity"
-            else "decision_time_unavailable"
-        )
+        import_reason = {
+            "recorded_after_label_maturity": "historical_snapshot_recorded_after_label_maturity",
+            "recorded_after_prompt_window": "recorded_after_prompt_window_not_forward_evidence",
+            "decision_time_unavailable": "decision_time_unavailable",
+        }.get(forward["reason"], "not_prospective")
+    sampling = consensus.get("sampling") or {}
     record = {
         "schema_version": SCHEMA_VERSION,
         "event": PREDICTION,
@@ -358,6 +479,9 @@ def record_prediction(
         "probability_transform": (consensus.get("production") or {}).get("probability_transform"),
         "causal_base_rate": (consensus.get("production") or {}).get("causal_base_rate"),
         "decision_sampled": consensus.get("decision_sampled"),
+        "sampling_status": sampling.get("status") or (
+            "anchored" if consensus.get("decision_sampled") is not None else "unanchored_calendar"
+        ),
         "production_probability_eligible": consensus.get("production_probability_eligible"),
         "engine_version": (result.get("engine") or {}).get("version"),
         "forward_eligibility": forward,
@@ -664,6 +788,10 @@ def audit(ledger_path: Path) -> dict[str, Any]:
         row for row in realized
         if row[0].get("schema_version") == SCHEMA_VERSION and row[0].get("prospective_eligible") is True
     ]
+    prompt_proven = [
+        row for row in prospective
+        if (row[0].get("forward_eligibility") or {}).get("recorded_promptly") is True
+    ]
     retrospective = [
         row for row in realized
         if row[0].get("schema_version") == SCHEMA_VERSION and row[0].get("prospective_eligible") is not True
@@ -707,6 +835,7 @@ def audit(ledger_path: Path) -> dict[str, Any]:
         "unique_predictions": len(predictions),
         "settled_predictions": len(realized),
         "prospective_settled_predictions": settled_forward,
+        "prospective_prompt_recording_verified": len(prompt_proven),
         "retrospective_settled_predictions": len(retrospective),
         "legacy_schema_settled_predictions": len(legacy),
         "pending_predictions": len(pending),
@@ -733,7 +862,9 @@ def audit(ledger_path: Path) -> dict[str, Any]:
             "observed_up_rate is the realised label base rate, not a model hit rate",
             "ex_post_climatology is descriptive and must not be used as a deployable baseline",
             "only prospective_eligible predictions enter the forward score",
-            "legacy ledger-1.0 rows cannot be proven prospective and are reported separately",
+            "prospective also requires a provable prompt recording timestamp (ledger-3.1); "
+            "earlier rows are reported separately",
+            "legacy ledger-1.0/2.0/3.0 rows cannot prove prompt recording and are reported separately",
         ],
     }
 
@@ -741,10 +872,19 @@ def audit(ledger_path: Path) -> dict[str, Any]:
 def prospective_records(
     ledger_path: str | Path, *, ticker: str | None = None, market: str | None = None,
 ) -> list[dict[str, Any]]:
-    """Matured, prospective, same-version records for the directional-edge check.
+    """Matured, prospective, same-identity records for the directional-edge check.
 
-    Only predictions recorded before their label matured are returned.  Imported
-    history and retrospective backfills can never become prospective evidence.
+    The filter is deliberately narrow and identical to the group key:
+
+    * policy, model, feature and target versions must all match the active policy,
+      so a model upgrade cannot inherit the previous model's forward evidence;
+    * the record must be prospective *and* provably written inside the prompt
+      window.  Rows written before ledger-3.1 have no such proof, so they are
+      returned with ``evidence_scope="legacy_unverified_recording_time"`` and
+      ``sampled=False`` instead of being silently counted;
+    * an unanchored sampling phase yields ``sampling_status="unanchored_calendar"``
+      with ``sampled=None``: the count of non-overlapping forward outcomes is
+      unavailable, not zero and certainly not "every row is independent".
     """
 
     events = read_events(Path(ledger_path))
@@ -760,22 +900,41 @@ def prospective_records(
         prediction = predictions.get(prediction_id)
         if not prediction or prediction.get("prospective_eligible") is not True:
             continue
-        if prediction.get("policy_version") != POLICY_VERSION or prediction.get("target_version") != TARGET_VERSION:
+        if (
+            prediction.get("policy_version") != POLICY_VERSION
+            or prediction.get("target_version") != TARGET_VERSION
+            or prediction.get("model_version") != MODEL_VERSIONS["quant"]
+            or prediction.get("feature_version") != FEATURE_VERSIONS["quant"]
+        ):
             continue
         if ticker and str(prediction.get("ticker")).upper() != ticker.upper():
             continue
         if market and str(prediction.get("market")).upper() != market.upper():
             continue
         transform = prediction.get("probability_transform") or {}
+        forward = prediction.get("forward_eligibility") or {}
+        recording_prompt_proven = forward.get("recorded_promptly") is True
+        sampling_status = prediction.get("sampling_status")
+        if sampling_status is None:
+            sampled_value = prediction.get("decision_sampled")
+            sampling_status = "anchored" if sampled_value is not None else "unknown_legacy"
+        sampled = prediction.get("decision_sampled") is True
+        evidence_scope = (
+            "prospective_prompt_recording_anchored" if recording_prompt_proven and sampled
+            else "prospective_prompt_recording_unanchored" if recording_prompt_proven
+            else "legacy_unverified_recording_time"
+        )
         rows.append({
             "decision_session": prediction.get("decision_session"),
             "probability": prediction.get("prob_up"),
             "target": settlement.get("hit"),
             "probability_transform": transform,
             "causal_base_rate": transform.get("base_rate_at_origin", prediction.get("causal_base_rate")),
-            "sampled": prediction.get("decision_sampled") is True,
+            "sampled": sampled if recording_prompt_proven else False,
+            "sampling_status": sampling_status,
+            "recording_prompt_proven": recording_prompt_proven,
             "status": "matured",
-            "evidence_scope": "prospective_fixed_52w",
+            "evidence_scope": evidence_scope,
             "settled_at": settlement.get("recorded_at"),
         })
     return rows

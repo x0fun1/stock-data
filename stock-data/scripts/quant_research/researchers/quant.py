@@ -119,6 +119,30 @@ def _drift_shrunk_probability(base_rate: float | None, n_eff: float, p_vol: floa
     return (n_eff * base_rate + k * p_vol) / (n_eff + k)
 
 
+def _no_probability_warning(row: dict[str, Any]) -> str:
+    """Describe the actual abstention reason.
+
+    The v1 warning blamed the matching-sample floor even after v2 stopped using
+    the matching sample as evidence weight, which pointed readers at the wrong
+    cause.  Each reason code now names its own gap; the matching count is
+    disclosed only as context.
+    """
+
+    code = str(row.get("reason_code") or "PROBABILITY_UNAVAILABLE")
+    matches = row.get("matching_observations", (row.get("probability_transform") or {}).get("observations", 0))
+    if code == "BASE_RATE_UNAVAILABLE":
+        return (
+            "No reportable probability: BASE_RATE_UNAVAILABLE (no matured 5-session label exists before the "
+            f"decision close; {matches} same-state matching origins are disclosure only)."
+        )
+    if code == "VOLATILITY_UNAVAILABLE":
+        return (
+            "No reportable probability: VOLATILITY_UNAVAILABLE (fewer than "
+            f"{DRIFT_MIN_VOL_SESSIONS} positive finite daily returns are available for the volatility prior)."
+        )
+    return f"No reportable probability: {code}."
+
+
 def _matching_indices(
     closes: list[float], forward: list[float | None], decision: int, horizon: int,
     *, window: int = ROC_WINDOW, gap: int = NONOVERLAP_GAP_SESSIONS,
@@ -156,6 +180,8 @@ def predict_at_origin(
     *,
     horizon: int = FORECAST_HORIZON_SESSIONS,
     window_start_exclusive: str | None = None,
+    expected_window_sessions: int | None = None,
+    coverage_verified: bool = False,
     gap: int = NONOVERLAP_GAP_SESSIONS,
 ) -> dict[str, Any]:
     """Produce the frozen-policy prediction for one decision session.
@@ -269,8 +295,19 @@ def predict_at_origin(
         if window_start_exclusive else None
     )
     row["available_history_sessions"] = decision + 1
+    # ``available_history_days`` measures the calendar span from the window's left
+    # edge to the decision date, which a truncated series also satisfies when the
+    # left edge is derived from the first bar.  The flag therefore also requires
+    # the recomputed coverage from the freeze gate: the session count must reach
+    # the calendar's expected count for the whole policy window.
     row["full_52w_input"] = bool(
-        window_start_exclusive and row["available_history_days"] is not None and row["available_history_days"] >= 364
+        coverage_verified
+        and isinstance(expected_window_sessions, int)
+        and expected_window_sessions > 0
+        and row["available_history_sessions"] >= expected_window_sessions
+        and window_start_exclusive
+        and row["available_history_days"] is not None
+        and row["available_history_days"] >= 364
     )
     row["evidence_scope"] = "prefix_walk_forward"
     row["target_definition"] = f"close[t+{horizon}] / close[t] - 1 > 0"
@@ -306,7 +343,14 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     dates, closes, price_provenance = prediction_price_series(market)
     momentum_dates, momentum_closes, momentum_provenance = adjusted_close_series(market)
     benchmark_closes, benchmark_meta = _benchmark_series(market)
-    window_start = ((market.get("data") or {}).get("policy_window") or {}).get("window_start_exclusive")
+    policy_window = (market.get("data") or {}).get("policy_window") or {}
+    window_start = policy_window.get("window_start_exclusive")
+    expected_window_sessions = policy_window.get("expected_sessions")
+    coverage_verified = (
+        policy_window.get("coverage_status") == "complete"
+        and bool(policy_window.get("coverage_recomputed"))
+        and bool(policy_window.get("calendar_verified"))
+    )
     sessions = calendar_session_list(market)
     current = len(bars) - 1
     current_signal = momentum_roc(closes, current, ROC_WINDOW)
@@ -316,7 +360,10 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
             warnings=["At least 21 daily closes are required for the predeclared 20-session momentum hypothesis."],
         )
 
-    current_row = predict_at_origin(dates, closes, current, horizon=horizon, window_start_exclusive=window_start)
+    current_row = predict_at_origin(
+        dates, closes, current, horizon=horizon, window_start_exclusive=window_start,
+        expected_window_sessions=expected_window_sessions, coverage_verified=coverage_verified,
+    )
     probability = current_row["probability"]
     transform = current_row["probability_transform"]
     forward = forward_returns(closes, horizon)
@@ -328,7 +375,10 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
     oos_forecasts: list[dict[str, Any]] = []
     predicted_decisions: list[int] = []
     for decision in ledger_decisions:
-        row = predict_at_origin(dates, closes, decision, horizon=horizon, window_start_exclusive=window_start)
+        row = predict_at_origin(
+            dates, closes, decision, horizon=horizon, window_start_exclusive=window_start,
+            expected_window_sessions=expected_window_sessions, coverage_verified=coverage_verified,
+        )
         row["label_available_at"] = dates[decision + horizon]
         if row["probability"] is not None:
             predicted_decisions.append(decision)
@@ -345,11 +395,7 @@ def run(snapshot_dir: Path, loaded_snapshot: tuple[dict[str, Any], dict[str, Any
         "The 5D target excludes cash dividends; a window spanning an ex-dividend date can flip a near-flat label downward.",
     ]
     if probability is None:
-        warnings.append(
-            f"No reportable probability: {current_row.get('reason_code')} "
-            f"({current_row.get('matching_observations', transform.get('observations', 0))} matches, "
-            f"{MINIMUM_MATCHING_SAMPLES} required)."
-        )
+        warnings.append(_no_probability_warning(current_row))
     if not matured_oos:
         warnings.append("No matured walk-forward prediction was available on this prefix.")
     if current_row.get("full_52w_input") is False:

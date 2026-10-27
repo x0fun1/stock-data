@@ -33,6 +33,7 @@ from ..forecast_policy import (
     FORECAST_HORIZON_SESSIONS,
     MIN_PROSPECTIVE_NONOVERLAP,
     MIN_REPLAY_EFFECTIVE_SAMPLES,
+    MIN_REPLAY_OBSERVATIONS,
     NONOVERLAP_GAP_SESSIONS,
     POLICY_VERSION,
     SESSIONS_PER_YEAR,
@@ -40,6 +41,7 @@ from ..forecast_policy import (
     SHRINKAGE_PRIOR_STRENGTH,
     SHRINKAGE_VERSION,
 )
+
 from ..market_data import fixed_phase_sample
 from ..statistics import (
     BOOTSTRAP_REPLICATES,
@@ -52,6 +54,10 @@ from ..statistics import (
     paired_improvement_rows,
     paired_rows,
 )
+
+#: ``build_probability_validation`` is a compatibility shim for older hosts; the
+#: runtime calls ``audit_current_prediction``/``audit_oos_result`` directly.
+LEGACY_UNUSED = ("build_probability_validation",)
 
 PROBABILITY_TOLERANCE = 1e-10
 DEFAULT_BRIER_SKILL_EPSILON = 1e-9
@@ -558,15 +564,19 @@ def directional_edge_assessment(
     replay_records: Sequence[dict[str, Any]] | None = None,
     prospective_records: Sequence[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Three-state edge verdict from the full prefix replay.
+    """Describe the in-window replay, and keep "supported" for independent data.
 
-    ``supported`` requires the paired-improvement interval to exclude zero on the
-    positive side; ``negative`` means it excludes zero on the negative side
-    (the model is reliably *worse* than the base rate, which must be said out
-    loud); anything else is ``insufficient_evidence``.  The prospective ledger is
-    reported separately and is no longer the only admissible evidence, because a
-    30-outcome floor has a power of only 0.29 at a true 60% hit rate and would
-    therefore reject a genuinely useful model most of the time.
+    The replay re-estimates the base rate and volatility on the very window it
+    scores, with overlapping 5-session labels and an in-sample bootstrap.  It is
+    a useful audit of arithmetic and of relative loss, but it is not an
+    independent validation of the model, so it can never set ``supported``.
+
+    ``replay_state`` keeps the three-way verdict for the replay itself.
+    ``supported`` (and therefore ``directional_edge_supported``) requires the
+    forward ledger to supply at least ``MIN_PROSPECTIVE_NONOVERLAP`` matured,
+    promptly recorded, anchored-phase outcomes whose paired-improvement interval
+    excludes zero.  When that is unavailable the answer is "unproven", not "no
+    edge": the two are reported separately.
     """
 
     primary = list(replay_records if replay_records is not None else (records or []))
@@ -586,7 +596,7 @@ def directional_edge_assessment(
     primary_interval = intervals[0]
     state = EFFECTIVENESS_VERDICT_INCONCLUSIVE
     reasons: list[str] = []
-    if len(paired) < MIN_PROSPECTIVE_NONOVERLAP:
+    if len(paired) < MIN_REPLAY_OBSERVATIONS:
         reasons.append("REPLAY_SUPPORT_INSUFFICIENT")
     elif primary_interval.get("status") != "estimated":
         reasons.append("INTERVAL_UNESTIMABLE")
@@ -601,7 +611,7 @@ def directional_edge_assessment(
     prospective = [
         row for row in (prospective_records or [])
         if row.get("status") == "matured" and row.get("probability") is not None
-        and row.get("sampled") is True
+        and row.get("sampled") is True and row.get("sampling_status") == "anchored"
     ]
     prospective_paired = paired_rows(prospective)
     prospective_intervals = [
@@ -610,21 +620,47 @@ def directional_edge_assessment(
     ] if len(prospective_paired) >= MIN_PROSPECTIVE_NONOVERLAP else []
     if len(prospective_paired) < MIN_PROSPECTIVE_NONOVERLAP:
         reasons.append("PROSPECTIVE_SUPPORT_INSUFFICIENT")
+    independent_supported = False
+    prospective_primary = next((row for row in prospective_intervals if row.get("primary")), None)
+    if prospective_primary is None and prospective_intervals:
+        prospective_primary = prospective_intervals[0]
+    if (
+        len(prospective_paired) >= MIN_PROSPECTIVE_NONOVERLAP
+        and prospective_primary is not None
+        and prospective_primary.get("status") == "estimated"
+        and float(prospective_primary.get("lower", 0.0)) > 0
+    ):
+        independent_supported = True
+    replay_claim = {
+        EFFECTIVENESS_VERDICT_POSITIVE: "replay_interval_excludes_zero",
+        EFFECTIVENESS_VERDICT_NEGATIVE: "replay_interval_below_zero",
+    }.get(state, "replay_interval_inconclusive")
     return {
         "state": state,
-        "supported": state == EFFECTIVENESS_VERDICT_POSITIVE,
+        "replay_state": state,
+        "supported": independent_supported,
+        "independent_supported": independent_supported,
+        "evidence_scope": "in_window_causal_prefix_replay_not_independent_holdout",
+        "replay_interval_excludes_zero": state == EFFECTIVENESS_VERDICT_POSITIVE,
+        "replay_claim": replay_claim,
+        "selection_risk": (
+            "base rate, volatility and the estimator itself are estimated on the same 52-week window "
+            "that the replay scores; parameters were frozen in advance, but the window is not an "
+            "independent holdout"
+        ),
         "reasons": reasons or ["DIRECTIONAL_EDGE_UNPROVEN"],
-        "primary_evidence": "full_prefix_replay",
+        "primary_evidence": "in_window_causal_prefix_replay",
         "replay_observations": len(paired),
         "replay_effective_samples": len(paired) // FORECAST_HORIZON_SESSIONS,
         "prospective_nonoverlap_count": len(prospective_paired),
         "minimum_required": MIN_PROSPECTIVE_NONOVERLAP,
-        "minimum_effective_samples": MIN_REPLAY_EFFECTIVE_SAMPLES,
+		"minimum_effective_samples": MIN_REPLAY_EFFECTIVE_SAMPLES,
+        "minimum_replay_observations": MIN_REPLAY_OBSERVATIONS,
         "paired_records": len(paired),
         "intervals": intervals,
         "prospective_intervals": prospective_intervals,
         "definition": "baseline_squared_error - model_squared_error vs the causal base rate at each origin",
-        "prospective_role": "corroboration; the forward ledger is no longer the only admissible evidence",
+        "prospective_role": "the only admissible independent evidence; the replay is an in-window diagnostic",
         "trading_signal_eligible": False,
     }
 

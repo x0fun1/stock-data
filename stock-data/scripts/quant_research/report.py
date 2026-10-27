@@ -152,21 +152,28 @@ def _edge_line(result: dict[str, Any], *, prospective: int) -> str:
     evidence = _evidence(result)
     state = str(evidence.get("directional_edge_state") or "")
     replay = int(evidence.get("replay_valid") or 0)
+    independent = bool(evidence.get("directional_edge_independent_supported"))
+    scope = "窗口内因果前缀回放，非独立留出"
     if consensus.get("prob_up") is None:
         return "方向优势：不可用（没有可发布的生产概率）"
     if state == "positive_skill_with_estimated_interval_excluding_zero":
+        if independent:
+            return (
+                f"方向优势：独立前向证据支持（{prospective}/{MIN_PROSPECTIVE_NONOVERLAP}条成熟前向记录，"
+                f"改善区间下界大于0）；窗口内回放 {replay} 条为佐证"
+            )
         return (
-            f"方向优势：已支持（全量前缀回放 {replay} 条，成对损失改善区间下界大于0；"
-            f"真实前向 {prospective}/{MIN_PROSPECTIVE_NONOVERLAP}条）"
+            f"方向优势：仅回放区间下界大于0（{scope}，{replay} 条）；"
+            f"独立前向证据 {prospective}/{MIN_PROSPECTIVE_NONOVERLAP} 条，尚不足以支持方向优势"
         )
     if state == "negative_skill_with_estimated_interval_excluding_zero":
         return (
-            f"方向优势：无（全量前缀回放 {replay} 条，改善区间上界小于0，劣于纯基率；"
-            f"真实前向 {prospective}/{MIN_PROSPECTIVE_NONOVERLAP}条）"
+            f"方向优势：回放劣于纯基率（{scope}，{replay} 条，改善区间上界小于0）；"
+            f"独立前向 {prospective}/{MIN_PROSPECTIVE_NONOVERLAP} 条"
         )
     return (
-        f"方向优势：证据不足（全量前缀回放 {replay} 条，改善区间含0；"
-        f"真实前向 {prospective}/{MIN_PROSPECTIVE_NONOVERLAP}条）"
+        f"方向优势：证据不足（{scope}，{replay} 条，改善区间含0或不可估计；"
+        f"独立前向 {prospective}/{MIN_PROSPECTIVE_NONOVERLAP} 条）"
     )
 
 
@@ -184,8 +191,15 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
     transform = ((_production(result).get("probability_transform")) or {})
     k = transform.get("k") if isinstance(transform.get("k"), int) else DRIFT_SHRINKAGE_K
     if isinstance(probability, (int, float)) and not isinstance(probability, bool):
+        n_eff = transform.get("n_eff")
+        prior_weight = (
+            k / (float(n_eff) + k)
+            if isinstance(n_eff, (int, float)) and not isinstance(n_eff, bool) and float(n_eff) + k > 0
+            else None
+        )
+        prior_text = f"；先验权重≈{_pct(prior_weight)}" if prior_weight is not None else ""
         probability_line = (
-            f"上涨概率：{_pct(probability)}（漂移收缩估计 k={k}；未校准，不可作为真实频率）"
+            f"上涨概率：{_pct(probability)}（漂移收缩估计 k={k}{prior_text}；未校准，不可作为真实频率）"
         )
     else:
         probability_line = f"上涨概率：不可用（{_unavailable_reason(result)}）"
@@ -213,8 +227,14 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
     else:
         coverage_text = "不可估计"
     effective = evidence.get("oos_effective_samples")
+    coverage_ok = window.get("coverage_status") == "complete" and bool(window.get("coverage_recomputed"))
+    window_note = (
+        "覆盖已按交易日历逐日重算"
+        if coverage_ok
+        else f"覆盖未通过独立重算（{window.get('coverage_status') or '未知'}）"
+    )
     lines = {
-        "research_window": f"研究窗口：截至{end}的52周（{HISTORY_CALENDAR_DAYS}个自然日）",
+        "research_window": f"研究窗口：截至{end}的52周（{HISTORY_CALENDAR_DAYS}个自然日；{window_note}）",
         "forecast_target": f"预测目标：{target}收盘相对{decision}收盘的拆股调整价格涨跌（{FORECAST_HORIZON_SESSIONS}个交易日）",
         "probability": probability_line,
         "model_lean": f"模型倾向：{LEAN_LABELS.get(str(consensus.get('model_lean')), '不可用')}（仅描述点估计）",
@@ -223,7 +243,7 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
         "validation": (
             f"验证：前缀回放{evidence.get('replay_valid') if evidence.get('replay_valid') is not None else 0}条"
             f"（其中非重叠{replay if replay is not None else 0}条；有效样本≈{effective if effective is not None else '不可估计'}）；"
-            f"真实前向{prospective}条；覆盖率{coverage_text}"
+            f"真实前向{prospective}条；覆盖率{coverage_text}；抽样状态{evidence.get('oos_sampling_status') or '未知'}"
         ),
         "relative_skill": skill_line,
         "news": _news_line(result),
@@ -334,10 +354,12 @@ def render_final_response(result: dict[str, Any], summary: dict[str, Any] | None
         f"oos_integrity={consensus.get('oos_integrity_pass')}；production_eligible={consensus.get('production_probability_eligible')}；"
         f"directional_edge={consensus.get('directional_edge_supported')}；trading_signal=false",
         f"- 优势证据状态：{evidence.get('directional_edge_state') or 'insufficient_evidence'}；"
-        f"主要证据=全量前缀回放（{evidence.get('replay_valid') or 0}条，有效样本≈{evidence.get('oos_effective_samples') or 0}）；"
-        f"前向账本为佐证（{evidence.get('prospective_nonoverlap') or 0}条）",
+        f"回放范围={evidence.get('directional_edge_evidence_scope') or 'in_window_causal_prefix_replay_not_independent_holdout'}"
+        f"（{evidence.get('replay_valid') or 0}条，有效样本≈{evidence.get('oos_effective_samples') or 0}）；"
+        f"独立方向优势={evidence.get('directional_edge_independent_supported')}；"
+        f"成熟前向（{evidence.get('prospective_nonoverlap') or 0}条）",
         f"- 回放类型：{evidence.get('replay_type')}；前缀回放成熟{evidence.get('replay_valid') or 0}条，其中非重叠{evidence.get('replay_nonoverlap') or 0}条；"
-        f"真实前向{evidence.get('prospective_nonoverlap') or 0}条",
+        f"真实前向{evidence.get('prospective_nonoverlap') or 0}条；抽样状态{evidence.get('oos_sampling_status') or '未知'}",
         f"- 校准状态：disabled_by_policy；影子路径：{', '.join(row.get('path', '') for row in consensus.get('shadow_predictions') or []) or '无'}",
         f"- 标签口径：拆股调整=True；分红调整={dividend_label_disclosure()['dividend_adjusted']}；"
         f"股息翻转率未量化（快照无分红历史）",
@@ -385,12 +407,21 @@ def render_markdown(result: dict[str, Any]) -> str:
     out.append(f"- 真实前向：非重叠 {evidence.get('prospective_nonoverlap')}；校准状态 disabled_by_policy")
     edge_state = str(evidence.get("directional_edge_state") or "insufficient_evidence")
     edge_text = {
-        "positive_skill_with_estimated_interval_excluding_zero": "已支持（区间下界>0）",
-        "negative_skill_with_estimated_interval_excluding_zero": "无（区间上界<0，劣于纯基率）",
-    }.get(edge_state, "证据不足（区间含0）")
-    out.append(f"- 方向优势：{edge_text}")
+        "positive_skill_with_estimated_interval_excluding_zero": "回放区间下界>0（窗口内回放，非独立留出）",
+        "negative_skill_with_estimated_interval_excluding_zero": "回放区间上界<0，劣于纯基率",
+    }.get(edge_state, "证据不足（区间含0或不可估计）")
+    out.append(f"- 方向优势（回放）：{edge_text}")
+    out.append(
+        f"- 独立方向优势：{'有' if evidence.get('directional_edge_independent_supported') else '证据不足'}"
+        f"（成熟前向 {evidence.get('prospective_nonoverlap') or 0}/{MIN_PROSPECTIVE_NONOVERLAP} 条；"
+        f"抽样状态 {evidence.get('oos_sampling_status') or '未知'}）"
+    )
     if consensus.get("shadow_predictions"):
-        out.extend(["", "## 影子与诊断（不进入生产概率）", ""])
+        out.extend(["", "## 影子与诊断（非生产、不可引用、不进入生产概率）", ""])
+        out.append(
+            "- 本节仅是影子研究/描述性诊断输出：不得作为生产概率、方向结论或交付文本引用；"
+            "对外只使用 `final_response.md` 的固定九行。"
+        )
         out.extend([
             f"- {row.get('path')}：{_pct(row.get('probability'))}；状态 {row.get('status')}"
             for row in consensus["shadow_predictions"]
@@ -426,15 +457,3 @@ def render_markdown(result: dict[str, Any]) -> str:
                f"股息翻转率={label_basis['flip_rate']}（{label_basis['status']}）")
     out.append(f"- 快照：{snapshot.get('snapshot_id')}；政策：{_window(result).get('policy_version')}")
     return "\n".join(out)
-
-
-def _momentum_relationship_line(result: dict[str, Any]) -> str:
-    """Retired helper kept only so old callers fail loudly instead of silently.
-
-    v1 promised a fixed "momentum vs probability" verdict line but never rendered
-    one, and v2 removed ROC20 from the probability entirely.  Comparing the two
-    now would present a non-input as evidence, so the line is gone.
-    """
-    raise NotImplementedError(
-        "the momentum-vs-probability verdict was retired in v2; report the diagnostic only"
-    )

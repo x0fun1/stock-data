@@ -23,6 +23,9 @@ from .ai_assessment import (
     validate_ai_assessment,
 )
 from .classify import (
+    COVERAGE_NOTE,
+    LEXICON_VERSION,
+    SUPPORTED_LANGUAGES,
     direction_for,
     event_text,
     event_type_for,
@@ -32,9 +35,10 @@ from .classify import (
 from .contracts import NewsInput
 from .decay import NEWS_MAX_AGE_CALENDAR_DAYS, time_decay
 from .deduplicate import deduplicate_articles
-from .impact import assess as assess_impact
+from .impact import SOURCE_TIER_RULE_VERSION, assess as assess_impact
 from .normalize import normalize_articles, normalize_source_sentiment
 from .reaction import validate_reaction
+from .status import EVIDENCE_AFFECTING, warning_details, warning_severity_counts
 from .timing import aggregate_priced_in, event_time_bucket, priced_in_assessment
 
 
@@ -372,6 +376,26 @@ def _build_opinion_card(
     }
 
 
+def news_input_digest(news_input: NewsInput) -> str:
+    """Stable digest of the exact News input a candidate export was built from."""
+
+    payload = {
+        "ticker": news_input.ticker,
+        "market": news_input.market,
+        "horizon": news_input.horizon,
+        "asof_timestamp": news_input.asof_timestamp,
+        "snapshot_id": news_input.snapshot_id,
+        "articles": [
+            {"id": row.get("id") or row.get("url") or row.get("title"), "published_at": row.get("published_at"),
+             "title": row.get("title"), "url": row.get("url")}
+            for row in (news_input.articles or []) if isinstance(row, dict)
+        ],
+        "bars": [{"date": row.get("date"), "close": row.get("close")} for row in (news_input.bars or [])
+                 if isinstance(row, dict)],
+    }
+    return hashlib.sha256(canonical_bytes(payload)).hexdigest()
+
+
 def analyze_news(
     news_input: NewsInput,
     policy: dict[str, Any] | None = None,
@@ -532,9 +556,17 @@ def analyze_news(
     ]
     if not events and not opinion_scores and provider_direction == "unknown":
         confidence = "unavailable" if not articles else "low"
-    # Three states, one meaning each.  ``partial`` is a first-class assessed
-    # state: warnings disclose what was dropped, they do not erase the analysis.
-    status = "not_assessed" if not events and not opinions and not provider_for_bias else "partial" if warnings else "complete"
+    # Three states, one meaning each.  Only evidence-affecting warnings move an
+    # assessed run to ``partial``; a truncated headline is disclosed but does not
+    # pretend the evidence set shrank.
+    details = warning_details(warnings)
+    severity_counts = warning_severity_counts(warnings)
+    assessed_any = bool(events or opinions or provider_for_bias)
+    status = (
+        "not_assessed" if not assessed_any
+        else "partial" if severity_counts[EVIDENCE_AFFECTING]
+        else "complete"
+    )
     volatility_regime = _volatility_regime(events, news_input.horizon_sessions)
     priced_in = aggregate_priced_in(events)
     bucket_counts: dict[str, int] = {}
@@ -544,6 +576,7 @@ def analyze_news(
     result = {
         "schema_version": "1.3",
         "status": status,
+        "news_input_digest": news_input_digest(news_input),
         "warning_count": len(warnings),
         "ticker": news_input.ticker,
         "market": news_input.market,
@@ -553,6 +586,10 @@ def analyze_news(
         "method": {
             "event_analyst": "deterministic_keyword_screen_v1",
             "sentiment_analyst": "separate_opinion_lexicon_v1",
+            "event_lexicon_version": LEXICON_VERSION,
+            "supported_languages": list(SUPPORTED_LANGUAGES),
+            "lexicon_coverage_note": COVERAGE_NOTE,
+            "source_tier_rule_version": SOURCE_TIER_RULE_VERSION,
             "event_opinion_separation": True,
             "news_probability": "not_emitted",
             "ai_lean_layer": AI_LEAN_LAYER,
@@ -620,11 +657,28 @@ def analyze_news(
         "unclassified_records": unclassified_records[:20],
         "confidence": confidence,
         "warnings": warnings,
+        "warning_details": details,
+        "warning_severity_counts": severity_counts,
         "limitations": limitations,
         "ai_lean_candidates": lean_inputs,
     }
     result["ai_lean"] = _attach_ai_lean(result, news_input, lean_inputs, ai_assessment, warnings)
+    # Attaching the host AI review can add a disclosure (partial coverage or a
+    # rejected artifact).  Recompute the derived fields so the frozen status and
+    # the warning counters describe the final artifact, not the pre-AI state.
+    _finalize_warnings(result, warnings, assessed_any=assessed_any)
     return result
+
+
+def _finalize_warnings(result: dict[str, Any], warnings: list[str], *, assessed_any: bool) -> dict[str, int]:
+    result["warnings"] = warnings
+    result["warning_count"] = len(warnings)
+    result["warning_details"] = warning_details(warnings)
+    counts = warning_severity_counts(warnings)
+    result["warning_severity_counts"] = counts
+    if assessed_any:
+        result["status"] = "partial" if counts[EVIDENCE_AFFECTING] else "complete"
+    return counts
 
 
 def _attach_ai_lean(
@@ -655,6 +709,10 @@ def _attach_ai_lean(
             warnings=["the deterministic News result is unchanged; no lean evidence is reported"],
         )
     assessed_count = len(validated["items"])
+    if assessed_count != len(candidates):
+        warnings.append(
+            f"{len(candidates) - assessed_count} canonical news headline(s) were not assessed by the host AI"
+        )
     block = build_ai_lean_block(validated, candidates=candidates,
                                 status="assessed" if assessed_count == len(candidates) else "partial",
                                 reason=None if assessed_count == len(candidates) else
@@ -692,6 +750,25 @@ def run_news(
     news_input: NewsInput,
     policy: dict[str, Any] | None = None,
     ai_assessment: dict[str, Any] | None = None,
+    base_result: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Run News on the restricted in-memory contract; this entrypoint has no filesystem path."""
+    """Run News on the restricted in-memory contract; this entrypoint has no filesystem path.
+
+    ``base_result`` lets a previously computed, frozen News result be reused when
+    its ``news_input_digest`` matches the current input.  Only the cheap host AI
+    attachment is redone, so the candidate export and the analysis no longer run
+    the full deterministic pipeline twice.
+    """
+
+    if isinstance(base_result, dict) and base_result.get("news_input_digest") == news_input_digest(news_input):
+        reused = dict(base_result)
+        candidates = list(reused.get("ai_lean_candidates") or [])
+        warnings = list(reused.get("warnings") or [])
+        reused["ai_lean"] = _attach_ai_lean(reused, news_input, candidates, ai_assessment, warnings)
+        # ``_attach_ai_lean`` may append an audit-trail warning; write the list and
+        # its derived counters back so the frozen result describes what happened.
+        assessed_any = reused.get("status") != "not_assessed"
+        _finalize_warnings(reused, warnings, assessed_any=assessed_any)
+        reused["reused_from_preview"] = True
+        return reused
     return analyze_news(news_input, policy, ai_assessment)

@@ -39,6 +39,24 @@ NONOVERLAP_GAP_SESSIONS = 6
 MIN_VALID_OOS_NONOVERLAP = 12
 MIN_PROSPECTIVE_NONOVERLAP = 30
 
+#: Minimum paired replay observations before a bootstrap interval is reported for
+#: the in-window prefix replay.  This is a *replay* floor and is not the same
+#: quantity as the forward-ledger floor above; the two used to share one name.
+MIN_REPLAY_OBSERVATIONS = 30
+
+#: A prospective ledger record only earns forward-evidence status when it was
+#: written promptly after the decision close.  For both supported markets the
+#: regular close-to-next-open gap is about 17.5 hours (US 16:00 -> 09:30,
+#: HK 16:00 -> 09:30) and half days are longer, so a 12-hour window cannot
+#: contain any post-decision session.  It also covers the ordinary workflow of
+#: recording the same evening or the next morning before the next open.  A later
+#: record is still stored, but as descriptive/backfilled history.
+PROSPECTIVE_RECORDING_GRACE_HOURS = 12
+PROSPECTIVE_RECORDING_RULE = (
+    "recorded_at <= decision_close + 12h, which is inside the regular US/HK "
+    "close-to-next-open gap; label maturity is checked separately"
+)
+
 #: Minimum effective (non-overlapping) replay observations used by the
 #: qualification gate.  A 5-session label overlaps its four neighbours, so the
 #: effective sample size is ``valid_rows / horizon``; the floor is applied to
@@ -191,9 +209,18 @@ def policy_metadata() -> dict[str, Any]:
         },
         "evidence_floors": {
             "min_replay_effective_samples": MIN_REPLAY_EFFECTIVE_SAMPLES,
+            "min_replay_observations": MIN_REPLAY_OBSERVATIONS,
             "min_prospective_nonoverlap": MIN_PROSPECTIVE_NONOVERLAP,
             "prospective_floor_retained": True,
-            "primary_evidence": "full_prefix_replay_with_block_bootstrap",
+            "primary_evidence": "in_window_causal_prefix_replay_with_block_bootstrap",
+            "independent_holdout": "not_available_inside_a_single_52_week_window",
+            "prospective_recording_grace_hours": PROSPECTIVE_RECORDING_GRACE_HOURS,
+        },
+        "coverage_rule": {
+            "expected_sessions_source": "resolved_exchange_calendar",
+            "observed_sessions_source": "frozen_bars",
+            "declaration_is_not_evidence": True,
+            "unverified_calendar_cannot_claim_complete": True,
         },
         "sampling_anchor_session": SAMPLING_ANCHOR_SESSION.isoformat(),
         "sampling_modulus": SAMPLING_MODULUS,

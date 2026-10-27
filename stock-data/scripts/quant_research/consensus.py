@@ -6,6 +6,7 @@ import math
 from typing import Any
 
 from .forecast_policy import (
+    DRIFT_SHRINKAGE_VERSION,
     FACTOR_BACKTEST_HOLDOUT_MIN,
     MIN_PROSPECTIVE_NONOVERLAP,
     MIN_REPLAY_EFFECTIVE_SAMPLES,
@@ -20,6 +21,10 @@ from .forecast_policy import (
 )
 
 ROUND_TRIP_COST_SCENARIOS_BPS = (5, 10, 20)
+
+#: Compatibility shims retained for older hosts.  The live path uses
+#: ``forecast_assessment`` and the ``evidence`` block instead.
+LEGACY_UNUSED = ("oos_support_sessions",)
 
 
 def _economic_viability(researchers: list[dict[str, Any]]) -> dict[str, Any]:
@@ -38,6 +43,10 @@ def _economic_viability(researchers: list[dict[str, Any]]) -> dict[str, Any]:
     return {
         "status": "scenario_sensitivity_only",
         "gross_expected_return": gross,
+        "expected_return_definition": (
+            "mean realised forward return of the matching-sample origins; not the probability-weighted "
+            "expected return of the production estimator and not a tradable forecast"
+        ),
         "scenarios": [
             {"round_trip_cost_bps": cost, "net_expected_return": gross - cost / 10000.0,
              "expected_return_below_cost": gross < cost / 10000.0}
@@ -252,8 +261,18 @@ def build_consensus(
         "oos_sampling_status": (oos.get("sampling") or {}).get("status"),
         "oos_sampling_role": oos.get("sampling_role"),
         "prospective_nonoverlap": len(prospective),
+        "prospective_unanchored": sum(
+            1 for row in (prospective_records or [])
+            if row.get("status") == "matured" and row.get("sampling_status") == "unanchored_calendar"
+        ),
+        "prospective_counting_rule": (
+            "anchored phase + prompt recording only; unanchored or late records are descriptive"
+        ),
         "prospective_required": MIN_PROSPECTIVE_NONOVERLAP,
         "directional_edge_supported": bool(assessment.get("directional_edge_supported")),
+        "directional_edge_evidence_scope": (assessment.get("directional_edge") or {}).get("evidence_scope"),
+        "directional_edge_replay_interval_excludes_zero": (assessment.get("directional_edge") or {}).get("replay_interval_excludes_zero"),
+        "directional_edge_independent_supported": bool((assessment.get("directional_edge") or {}).get("independent_supported")),
         "directional_edge_reasons": (assessment.get("directional_edge") or {}).get("reasons"),
         "directional_edge_state": (assessment.get("directional_edge") or {}).get("state"),
         "directional_edge_primary_evidence": (assessment.get("directional_edge") or {}).get("primary_evidence"),
@@ -305,7 +324,8 @@ def build_consensus(
         "raw_probability": raw,
         "reportable_probability": probability,
         "calibrated_probability": None,
-        "probability_basis": "causal_empirical_shrinkage",
+        "probability_basis": "drift_shrunk_causal_base_rate",
+        "probability_basis_version": transform.get("version") or DRIFT_SHRINKAGE_VERSION,
         "calibration_status": "disabled_by_policy",
         "confidence": None,
         "available_paths": 1 if probability is not None else 0,
@@ -336,3 +356,62 @@ def build_consensus(
         "prediction": prediction,
         "economic_viability": _economic_viability([production] if production else []),
     }
+
+
+_PUBLISHABLE_KEYS = (
+    "prob_up",
+    "reportable_probability",
+    "raw_probability",
+    "calibrated_probability",
+    "probability_range",
+    "model_lean",
+    "direction",
+)
+
+
+def redact_publishable_prediction(consensus: dict[str, Any], *, audit: dict[str, Any]) -> dict[str, Any]:
+    """Remove every publishable probability and direction after an audit veto.
+
+    Clearing only the top-level fields left ``consensus.prediction.prob_up``,
+    ``consensus.model_lean`` and ``production.probability_transform`` readable by
+    any consumer that looked one level deeper.  The transform is preserved for
+    audit under ``audit_only`` with an explicit non-publishable marker; every
+    field a renderer or downstream tool may treat as a forecast is set to
+    unavailable.
+    """
+
+    production = consensus.get("production") if isinstance(consensus.get("production"), dict) else {}
+    transform = production.get("probability_transform")
+    if transform is not None:
+        consensus.setdefault("audit_only", {})["probability_transform"] = transform
+        consensus["audit_only"]["publishable"] = False
+        consensus["audit_only"]["note"] = (
+            "frozen estimator inputs retained for audit only; the audit vetoed publication, "
+            "so no probability derived from them may be shown or reused"
+        )
+    production.pop("probability_transform", None)
+    prediction = consensus.get("prediction")
+    for container in (consensus, production, prediction):
+        if not isinstance(container, dict):
+            continue
+        for key in _PUBLISHABLE_KEYS:
+            if key in container:
+                container[key] = None
+    consensus["model_lean"] = "unavailable"
+    consensus["direction"] = "unavailable"
+    consensus["status"] = "unavailable"
+    consensus["available_paths"] = 0
+    if isinstance(prediction, dict):
+        prediction["status"] = "unavailable"
+        prediction["probability_label"] = "unavailable_after_audit_veto"
+        prediction["model_lean"] = "unavailable"
+    production["prob_up"] = None
+    production["raw_probability"] = None
+    production["model_lean"] = "unavailable"
+    consensus["redaction"] = {
+        "publishable": False,
+        "cleared_fields": list(_PUBLISHABLE_KEYS),
+        "reason_codes": list(audit.get("reason_codes") or []),
+        "rule": "an audit veto leaves no publishable probability or direction anywhere in the payload",
+    }
+    return consensus

@@ -149,6 +149,19 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
                         resolved_calendar_evidence=resolved_calendar_evidence,
                         allow_library_calendar=allow_library_calendar,
                         enforce_policy=not legacy)
+    # The gate recomputes 52-week coverage from the calendar and the frozen bars.
+    # Downstream readers (quant, ledger, report) must see the recomputed block, not
+    # the producer's declaration; otherwise a forged `complete` would survive into
+    # the manifest even though the gate rejected it.
+    policy_block = gate.get("policy") if isinstance(gate, dict) else None
+    if isinstance(policy_block, dict) and policy_block.get("applicable"):
+        market_data = domains["market"].setdefault("data", {})
+        window = market_data.setdefault("policy_window", {})
+        for key in ("expected_sessions", "observed_sessions", "missing_sessions", "missing_session_dates",
+                    "coverage_status", "coverage_basis", "coverage_recomputed", "calendar_verified",
+                    "declared_coverage_status", "calendar_source"):
+            if key in policy_block:
+                window[key] = policy_block[key]
     if errors or gate["errors"]:
         raise ValueError("snapshot rejected: " + "; ".join(sorted(set(errors + gate["errors"]))))
     if legacy:
@@ -316,7 +329,11 @@ def freeze_snapshot(
             "expected_sessions": (market_policy or {}).get("expected_sessions"),
             "observed_sessions": (market_policy or {}).get("observed_sessions"),
             "missing_sessions": (market_policy or {}).get("missing_sessions"),
+            "missing_session_dates": (market_policy or {}).get("missing_session_dates"),
+            "declared_coverage_status": (market_policy or {}).get("declared_coverage_status"),
             "coverage_status": (market_policy or {}).get("coverage_status"),
+            "coverage_basis": (market_policy or {}).get("coverage_basis"),
+            "coverage_recomputed": (market_policy or {}).get("coverage_recomputed"),
             "calendar_verified": (market_policy or {}).get("calendar_verified"),
             "calendar_source": (market_policy or {}).get("calendar_source"),
             "price_basis": (market_policy or {}).get("price_basis"),

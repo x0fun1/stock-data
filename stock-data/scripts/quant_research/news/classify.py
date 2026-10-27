@@ -5,6 +5,17 @@ from __future__ import annotations
 import re
 from typing import Any
 
+#: Version of the deterministic keyword vocabulary below.  The lists are still
+#: compiled in (so an offline install cannot fail), but every News artifact
+#: records this version and the supported languages, and an unknown language is
+#: disclosed instead of being treated as "no event".
+LEXICON_VERSION = "news_keyword_en_zh_v1"
+SUPPORTED_LANGUAGES: tuple[str, ...] = ("en", "zh")
+COVERAGE_NOTE = (
+    "deterministic English/Chinese keyword screening; other languages and paraphrases are "
+    "under-classified and surface as unclassified records"
+)
+
 EVENT_PATTERNS: tuple[tuple[str, tuple[str, ...]], ...] = (
     ("EARNINGS", ("earnings", "quarterly results", "quarter results", "eps", "revenue beat", "revenue miss")),
     ("GUIDANCE", ("guidance", "outlook", "forecast raised", "forecast cut")),

@@ -19,9 +19,20 @@ from .forecast_policy import (
 )
 
 
-def market_bars(block: dict[str, Any]) -> list[dict[str, Any]]:
-    if not block.get("_data_validation", {}).get("forecast_eligible", False):
-        raise ValueError("prediction eligibility is blocked by fatal data gates; non-fatal calendar/adjustment/audit gaps are reported as degraded")
+def market_bars(block: dict[str, Any], *, diagnostic: bool = False) -> list[dict[str, Any]]:
+    """Normalize OHLCV, refusing a blocked snapshot unless it is read for diagnosis.
+
+    ``blocked`` means no probability may be produced, not that the frozen bars are
+    unreadable.  A diagnostic reader that has already decided not to compute a
+    forecast can pass ``diagnostic=True`` and still inspect the series; the
+    flag is never used on a path that publishes a probability.
+    """
+
+    if not block.get("_data_validation", {}).get("forecast_eligible", False) and not diagnostic:
+        raise ValueError(
+            "prediction eligibility is blocked by fatal data gates; pass diagnostic=True only for "
+            "read-only diagnostics that will not produce a probability"
+        )
     bars = block.get("data", {}).get("bars")
     if not isinstance(bars, list):
         raise ValueError("market data must contain normalized daily bars")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError

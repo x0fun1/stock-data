@@ -46,6 +46,8 @@ SOURCE_TIERS: dict[str, str] = {
 # rule promotes "Security Finance Blog" to tier1 because it contains "sec" and
 # "Capital.com" to tier2 because it contains "ap". Anything absent from this
 # table stays unclassified rather than being silently promoted.
+SOURCE_TIER_RULE_VERSION = "publisher_tier_exact_alias_v1"
+
 _TIER1_ALIASES = frozenset({
     "federal reserve", "federal reserve board", "federalreserve.gov", "u.s. federal reserve",
     "sec", "sec.gov", "u.s. securities and exchange commission", "edgar", "sec edgar",
@@ -290,12 +292,16 @@ def source_tier(publishers: list[str] | tuple[str, ...]) -> dict[str, Any]:
     if not names:
         return {"tier": "unclassified_publisher", "tier_meaning": SOURCE_TIERS["unclassified_publisher"],
                 "publishers": [], "per_publisher": {}, "selection_rule": "weakest_publisher_in_cluster",
-                "match_rule": "exact_normalized_alias_only", "calibration_status": "heuristic_uncalibrated"}
+                "match_rule": "exact_normalized_alias_only", "calibration_status": "heuristic_uncalibrated",
+                "rule_version": SOURCE_TIER_RULE_VERSION, "unrecognized_ratio": None}
     per_publisher = {name: _classify_publisher(name) for name in names}
     weakest = max(per_publisher.values(), key=_TIER_ORDER.index)
+    unrecognized = sum(1 for tier in per_publisher.values() if tier == "unclassified_publisher")
     return {"tier": weakest, "tier_meaning": SOURCE_TIERS[weakest], "publishers": names,
             "per_publisher": per_publisher, "selection_rule": "weakest_publisher_in_cluster",
-            "match_rule": "exact_normalized_alias_only", "calibration_status": "heuristic_uncalibrated"}
+            "match_rule": "exact_normalized_alias_only", "calibration_status": "heuristic_uncalibrated",
+            "rule_version": SOURCE_TIER_RULE_VERSION,
+            "unrecognized_ratio": round(unrecognized / len(names), 4)}
 
 
 ATTRIBUTION_CAVEATS: tuple[str, ...] = (
