@@ -1,0 +1,77 @@
+[
+  {
+    "case": "is-error",
+    "input": {
+      "isError": true
+    },
+    "failed": true
+  },
+  {
+    "case": "is-success-false",
+    "input": {
+      "is_success": false
+    },
+    "failed": true
+  },
+  {
+    "case": "status-error",
+    "input": {
+      "status": "Error"
+    },
+    "failed": true
+  },
+  {
+    "case": "error-string",
+    "input": {
+      "error": "boom"
+    },
+    "failed": true
+  },
+  {
+    "case": "error-empty",
+    "input": {
+      "error": ""
+    },
+    "failed": false
+  },
+  {
+    "case": "error-false",
+    "input": {
+      "error": false
+    },
+    "failed": false
+  },
+  {
+    "case": "error-zero",
+    "input": {
+      "error": 0
+    },
+    "failed": false
+  },
+  {
+    "case": "error-null",
+    "input": {
+      "error": null
+    },
+    "failed": false
+  },
+  {
+    "case": "nested-envelope",
+    "input": {
+      "gateway_envelope": {
+        "status": "failed"
+      }
+    },
+    "failed": true
+  },
+  {
+    "case": "ok-envelope",
+    "input": {
+      "status": "success",
+      "data": {
+        "x": 1
+      }
+    },
+    "failed": false
+  }
+]

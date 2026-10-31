@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "calendar": "XNYS",
+  "timezone": "America/New_York",
+  "generator": {
+    "library": "exchange_calendars",
+    "version": "4.13.2"
+  },
+  "requested_range": {
+    "start": "2028-02-24",
+    "end": "2028-03-03"
+  },
+  "sessions": [
+    {
+      "date": "2028-02-24",
+      "close_at": "2028-02-24T21:00:00Z"
+    },
+    {
+      "date": "2028-02-25",
+      "close_at": "2028-02-25T21:00:00Z"
+    },
+    {
+      "date": "2028-02-28",
+      "close_at": "2028-02-28T21:00:00Z"
+    },
+    {
+      "date": "2028-02-29",
+      "close_at": "2028-02-29T21:00:00Z"
+    },
+    {
+      "date": "2028-03-01",
+      "close_at": "2028-03-01T21:00:00Z"
+    },
+    {
+      "date": "2028-03-02",
+      "close_at": "2028-03-02T21:00:00Z"
+    },
+    {
+      "date": "2028-03-03",
+      "close_at": "2028-03-03T21:00:00Z"
+    }
+  ],
+  "note": "leap day 2028-02-29"
+}

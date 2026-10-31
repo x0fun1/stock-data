@@ -1,0 +1,10 @@
+[
+  {
+    "ticker": "MU",
+    "prob_up": 0.6123456789
+  },
+  {
+    "ticker": "INTC",
+    "prob_up": null
+  }
+]

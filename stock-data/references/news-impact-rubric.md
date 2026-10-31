@@ -1,6 +1,6 @@
 # News Impact Rubric
 
-Deterministic grading applied by `scripts/quant_research/news/impact.py` to every eligible event card. Results land in `news_result.json` under `events[].impact` and never leave the News layer.
+Deterministic grading applied by the native `sd-news` implementation to every eligible event card. Results land in `news_result.json` under `events[].impact` and never leave the News layer.
 
 The taxonomy is adapted from the MIT-licensed `market-news-analyst` skill (<https://github.com/tradermonty/claude-trading-skills>, Copyright (c) 2026 TraderMonty). Only the deterministic, frozen-bar computable parts were reused. Attribution and licence notes are recorded in [upstream-provenance.md](upstream-provenance.md).
 

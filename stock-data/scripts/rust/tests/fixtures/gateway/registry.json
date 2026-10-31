@@ -1,0 +1,1361 @@
+[
+  {
+    "function": "analyst_estimates",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1026,
+    "python_signature": "symbol: str",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "calc_boll",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 856,
+    "python_signature": "klines: list[dict], period: int=20, num_std: float=2.0",
+    "legacy_parameters": [
+      {
+        "name": "klines",
+        "required": true,
+        "type": "list[dict]"
+      },
+      {
+        "name": "period",
+        "required": false,
+        "type": "int",
+        "default": 20
+      },
+      {
+        "name": "num_std",
+        "required": false,
+        "type": "float",
+        "default": 2.0
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "calc_kdj",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 812,
+    "python_signature": "klines: list[dict], n: int=9, m1: int=3, m2: int=3",
+    "legacy_parameters": [
+      {
+        "name": "klines",
+        "required": true,
+        "type": "list[dict]"
+      },
+      {
+        "name": "n",
+        "required": false,
+        "type": "int",
+        "default": 9
+      },
+      {
+        "name": "m1",
+        "required": false,
+        "type": "int",
+        "default": 3
+      },
+      {
+        "name": "m2",
+        "required": false,
+        "type": "int",
+        "default": 3
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "calc_ma",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 703,
+    "python_signature": "klines: list[dict], periods: list[int] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "klines",
+        "required": true,
+        "type": "list[dict]"
+      },
+      {
+        "name": "periods",
+        "required": false,
+        "type": "list[int] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "calc_macd",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 736,
+    "python_signature": "klines: list[dict], fast: int=12, slow: int=26, signal: int=9",
+    "legacy_parameters": [
+      {
+        "name": "klines",
+        "required": true,
+        "type": "list[dict]"
+      },
+      {
+        "name": "fast",
+        "required": false,
+        "type": "int",
+        "default": 12
+      },
+      {
+        "name": "slow",
+        "required": false,
+        "type": "int",
+        "default": 26
+      },
+      {
+        "name": "signal",
+        "required": false,
+        "type": "int",
+        "default": 9
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "calc_rsi",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 772,
+    "python_signature": "klines: list[dict], periods: list[int] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "klines",
+        "required": true,
+        "type": "list[dict]"
+      },
+      {
+        "name": "periods",
+        "required": false,
+        "type": "list[int] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "cboe_quote",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1359,
+    "python_signature": "ticker: str",
+    "legacy_parameters": [
+      {
+        "name": "ticker",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "CBOE"
+  },
+  {
+    "function": "cftc_cot",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1896,
+    "python_signature": "limit: int=20, market_contains: str | None=None",
+    "legacy_parameters": [
+      {
+        "name": "limit",
+        "required": false,
+        "type": "int",
+        "default": 20
+      },
+      {
+        "name": "market_contains",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      }
+    ],
+    "registry_source": "CFTC"
+  },
+  {
+    "function": "chain_summary",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1317,
+    "python_signature": "contracts: list[dict]",
+    "legacy_parameters": [
+      {
+        "name": "contracts",
+        "required": true,
+        "type": "list[dict]"
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "daily_filings",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1714,
+    "python_signature": "date: str | None=None, forms: list[str] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "date",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "forms",
+        "required": false,
+        "type": "list[str] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "SEC EDGAR"
+  },
+  {
+    "function": "earnings_calendar",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1906,
+    "python_signature": "date: str | None=None",
+    "legacy_parameters": [
+      {
+        "name": "date",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Nasdaq"
+  },
+  {
+    "function": "filter_expiry",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1277,
+    "python_signature": "chain: dict, expiry: str | None=None, dte_max: int | None=None",
+    "legacy_parameters": [
+      {
+        "name": "chain",
+        "required": true,
+        "type": "dict"
+      },
+      {
+        "name": "expiry",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "dte_max",
+        "required": false,
+        "type": "int | None",
+        "default": null
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "financial_statements_eastmoney",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 898,
+    "python_signature": "secucode: str, statement: str='balance', page_size: int=200",
+    "legacy_parameters": [
+      {
+        "name": "secucode",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "statement",
+        "required": false,
+        "type": "str",
+        "default": "balance"
+      },
+      {
+        "name": "page_size",
+        "required": false,
+        "type": "int",
+        "default": 200
+      }
+    ],
+    "registry_source": "Eastmoney datacenter"
+  },
+  {
+    "function": "financial_statements_yahoo",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1109,
+    "python_signature": "symbol: str, quarterly: bool=False",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "quarterly",
+        "required": false,
+        "type": "bool",
+        "default": false
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "frame_ranking",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1868,
+    "python_signature": "frame: dict, top: int=20, ascending: bool=False",
+    "legacy_parameters": [
+      {
+        "name": "frame",
+        "required": true,
+        "type": "dict"
+      },
+      {
+        "name": "top",
+        "required": false,
+        "type": "int",
+        "default": 20
+      },
+      {
+        "name": "ascending",
+        "required": false,
+        "type": "bool",
+        "default": false
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "frame_screen",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1872,
+    "python_signature": "frame: dict, min_value: float | None=None, max_value: float | None=None",
+    "legacy_parameters": [
+      {
+        "name": "frame",
+        "required": true,
+        "type": "dict"
+      },
+      {
+        "name": "min_value",
+        "required": false,
+        "type": "float | None",
+        "default": null
+      },
+      {
+        "name": "max_value",
+        "required": false,
+        "type": "float | None",
+        "default": null
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "fulltext_search",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1762,
+    "python_signature": "query: str, forms: str | None=None, date_from: str | None=None, date_to: str | None=None, limit: int=20",
+    "legacy_parameters": [
+      {
+        "name": "query",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "forms",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "date_from",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "date_to",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "int",
+        "default": 20
+      }
+    ],
+    "registry_source": "SEC EDGAR"
+  },
+  {
+    "function": "fund_flow_daily",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1149,
+    "python_signature": "ticker_or_code: str, secid_prefix: int=105, limit: int=100",
+    "legacy_parameters": [
+      {
+        "name": "ticker_or_code",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "secid_prefix",
+        "required": false,
+        "type": "int",
+        "default": 105
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "int",
+        "default": 100
+      }
+    ],
+    "registry_source": "Eastmoney push2his"
+  },
+  {
+    "function": "hk_stock_quote_sina",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 522,
+    "python_signature": "code: str",
+    "legacy_parameters": [
+      {
+        "name": "code",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "Sina"
+  },
+  {
+    "function": "hk_stock_quote_tencent",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 475,
+    "python_signature": "code: str",
+    "legacy_parameters": [
+      {
+        "name": "code",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "Tencent"
+  },
+  {
+    "function": "institutional_holders",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1076,
+    "python_signature": "symbol: str",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "key_indicators_eastmoney",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 937,
+    "python_signature": "secucode: str, page_size: int=4",
+    "legacy_parameters": [
+      {
+        "name": "secucode",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "page_size",
+        "required": false,
+        "type": "int",
+        "default": 4
+      }
+    ],
+    "registry_source": "Eastmoney datacenter"
+  },
+  {
+    "function": "key_statistics",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 966,
+    "python_signature": "symbol: str",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "market_frame",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1829,
+    "python_signature": "tag: str, year: int, quarter: int | None=None, unit: str='USD', instant=None",
+    "legacy_parameters": [
+      {
+        "name": "tag",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "year",
+        "required": true,
+        "type": "int"
+      },
+      {
+        "name": "quarter",
+        "required": false,
+        "type": "int | None",
+        "default": null
+      },
+      {
+        "name": "unit",
+        "required": false,
+        "type": "str",
+        "default": "USD"
+      },
+      {
+        "name": "instant",
+        "required": false,
+        "default": null
+      }
+    ],
+    "registry_source": "SEC EDGAR"
+  },
+  {
+    "function": "market_stock_list",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1563,
+    "python_signature": "market: str='us_nasdaq', sort_field: str='f3', sort_desc: bool=True, page: int=1, page_size: int=20",
+    "legacy_parameters": [
+      {
+        "name": "market",
+        "required": false,
+        "type": "str",
+        "default": "us_nasdaq"
+      },
+      {
+        "name": "sort_field",
+        "required": false,
+        "type": "str",
+        "default": "f3"
+      },
+      {
+        "name": "sort_desc",
+        "required": false,
+        "type": "bool",
+        "default": true
+      },
+      {
+        "name": "page",
+        "required": false,
+        "type": "int",
+        "default": 1
+      },
+      {
+        "name": "page_size",
+        "required": false,
+        "type": "int",
+        "default": 20
+      }
+    ],
+    "registry_source": "Eastmoney push2"
+  },
+  {
+    "function": "options_chain",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1365,
+    "python_signature": "symbol: str, expiration: int | None=None",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "expiration",
+        "required": false,
+        "type": "int | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "options_chain_cboe",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1214,
+    "python_signature": "ticker: str",
+    "legacy_parameters": [
+      {
+        "name": "ticker",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "CBOE"
+  },
+  {
+    "function": "parse_osi",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1203,
+    "python_signature": "symbol: str",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "sec_filings",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1421,
+    "python_signature": "cik: str, form_type: str | None=None",
+    "legacy_parameters": [
+      {
+        "name": "cik",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "form_type",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      }
+    ],
+    "registry_source": "SEC EDGAR"
+  },
+  {
+    "function": "sec_xbrl_facts",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1461,
+    "python_signature": "cik: str, metrics: list[str] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "cik",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "metrics",
+        "required": false,
+        "type": "list[str] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "SEC EDGAR"
+  },
+  {
+    "function": "short_volume_all",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1645,
+    "python_signature": "date: str | None=None, market: str='CNMS'",
+    "legacy_parameters": [
+      {
+        "name": "date",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "market",
+        "required": false,
+        "type": "str",
+        "default": "CNMS"
+      }
+    ],
+    "registry_source": "FINRA Reg SHO"
+  },
+  {
+    "function": "short_volume_ranking",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1700,
+    "python_signature": "snapshot: dict, min_total: float=1000000, top: int=20",
+    "legacy_parameters": [
+      {
+        "name": "snapshot",
+        "required": true,
+        "type": "dict"
+      },
+      {
+        "name": "min_total",
+        "required": false,
+        "type": "float",
+        "default": 1000000
+      },
+      {
+        "name": "top",
+        "required": false,
+        "type": "int",
+        "default": 20
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "short_volume_symbol",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1682,
+    "python_signature": "symbol: str, days: int=5, market: str='CNMS'",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "days",
+        "required": false,
+        "type": "int",
+        "default": 5
+      },
+      {
+        "name": "market",
+        "required": false,
+        "type": "str",
+        "default": "CNMS"
+      }
+    ],
+    "registry_source": "FINRA Reg SHO"
+  },
+  {
+    "function": "stock_kline_yahoo",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 646,
+    "python_signature": "symbol: str, interval: str='1d', range_: str='6mo', include_metadata: bool=False",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "interval",
+        "required": false,
+        "type": "str",
+        "default": "1d"
+      },
+      {
+        "name": "range_",
+        "required": false,
+        "type": "str",
+        "default": "6mo"
+      },
+      {
+        "name": "include_metadata",
+        "required": false,
+        "type": "bool",
+        "default": false
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "stock_quote_eastmoney",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 563,
+    "python_signature": "ticker_or_code: str, secid_prefix: int=105",
+    "legacy_parameters": [
+      {
+        "name": "ticker_or_code",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "secid_prefix",
+        "required": false,
+        "type": "int",
+        "default": 105
+      }
+    ],
+    "registry_source": "Eastmoney push2"
+  },
+  {
+    "function": "stock_search",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1495,
+    "python_signature": "keyword: str, count: int=10",
+    "legacy_parameters": [
+      {
+        "name": "keyword",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "count",
+        "required": false,
+        "type": "int",
+        "default": 10
+      }
+    ],
+    "registry_source": "Eastmoney search"
+  },
+  {
+    "function": "ticker_to_cik",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1538,
+    "python_signature": "ticker: str",
+    "legacy_parameters": [
+      {
+        "name": "ticker",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "SEC EDGAR"
+  },
+  {
+    "function": "treasury_yield_curve",
+    "task": "R14",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1885,
+    "python_signature": "year: int | None=None",
+    "legacy_parameters": [
+      {
+        "name": "year",
+        "required": false,
+        "type": "int | None",
+        "default": null
+      }
+    ],
+    "registry_source": "US Treasury"
+  },
+  {
+    "function": "unusual_activity",
+    "task": "R12",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1295,
+    "python_signature": "contracts: list[dict], min_volume: int=500, vol_oi_min: float=1.0",
+    "legacy_parameters": [
+      {
+        "name": "contracts",
+        "required": true,
+        "type": "list[dict]"
+      },
+      {
+        "name": "min_volume",
+        "required": false,
+        "type": "int",
+        "default": 500
+      },
+      {
+        "name": "vol_oi_min",
+        "required": false,
+        "type": "float",
+        "default": 1.0
+      }
+    ],
+    "registry_source": "local"
+  },
+  {
+    "function": "us_stock_kline_sina",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 615,
+    "python_signature": "ticker: str, num: int=120",
+    "legacy_parameters": [
+      {
+        "name": "ticker",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "num",
+        "required": false,
+        "type": "int",
+        "default": 120
+      }
+    ],
+    "registry_source": "Sina"
+  },
+  {
+    "function": "us_stock_quote_sina",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 391,
+    "python_signature": "ticker: str",
+    "legacy_parameters": [
+      {
+        "name": "ticker",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "Sina"
+  },
+  {
+    "function": "us_stock_quote_tencent",
+    "task": "R13",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 432,
+    "python_signature": "ticker: str",
+    "legacy_parameters": [
+      {
+        "name": "ticker",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "Tencent"
+  },
+  {
+    "function": "yahoo_analysis",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1970,
+    "python_signature": "symbol: str, modules: list[str] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "modules",
+        "required": false,
+        "type": "list[str] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_earnings",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1982,
+    "python_signature": "symbol: str, modules: list[str] | None=None, limit: int=12",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "modules",
+        "required": false,
+        "type": "list[str] | None",
+        "default": null
+      },
+      {
+        "name": "limit",
+        "required": false,
+        "type": "int",
+        "default": 12
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_financials",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1957,
+    "python_signature": "symbol: str, frequency: str='yearly', statements: list[str] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "frequency",
+        "required": false,
+        "type": "str",
+        "default": "yearly"
+      },
+      {
+        "name": "statements",
+        "required": false,
+        "type": "list[str] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_funds",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1986,
+    "python_signature": "symbol: str, modules: list[str] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "modules",
+        "required": false,
+        "type": "list[str] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_history",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1934,
+    "python_signature": "symbol: str, start: str | None=None, end: str | None=None, period: str | None=None, interval: str='1d', price_basis: str='provider', prepost: bool=False, repair: bool=False, timeout: float=15",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "start",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "end",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "period",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "interval",
+        "required": false,
+        "type": "str",
+        "default": "1d"
+      },
+      {
+        "name": "price_basis",
+        "required": false,
+        "type": "str",
+        "default": "provider"
+      },
+      {
+        "name": "prepost",
+        "required": false,
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "repair",
+        "required": false,
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "timeout",
+        "required": false,
+        "type": "float",
+        "default": 15
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_history_batch",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1941,
+    "python_signature": "symbols: list[str], start: str | None=None, end: str | None=None, period: str | None=None, interval: str='1d', price_basis: str='provider', prepost: bool=False, repair: bool=False, timeout: float=15, concurrency: int=1",
+    "legacy_parameters": [
+      {
+        "name": "symbols",
+        "required": true,
+        "type": "list[str]"
+      },
+      {
+        "name": "start",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "end",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "period",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      },
+      {
+        "name": "interval",
+        "required": false,
+        "type": "str",
+        "default": "1d"
+      },
+      {
+        "name": "price_basis",
+        "required": false,
+        "type": "str",
+        "default": "provider"
+      },
+      {
+        "name": "prepost",
+        "required": false,
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "repair",
+        "required": false,
+        "type": "bool",
+        "default": false
+      },
+      {
+        "name": "timeout",
+        "required": false,
+        "type": "float",
+        "default": 15
+      },
+      {
+        "name": "concurrency",
+        "required": false,
+        "type": "int",
+        "default": 1
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_holders",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1974,
+    "python_signature": "symbol: str, modules: list[str] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "modules",
+        "required": false,
+        "type": "list[str] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_options",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1978,
+    "python_signature": "symbol: str, expiration: str | None=None",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "expiration",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_profile",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1953,
+    "python_signature": "symbol: str",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_quote",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1949,
+    "python_signature": "symbol: str, fields: list[str] | None=None",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "fields",
+        "required": false,
+        "type": "list[str] | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_quote_summary",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 222,
+    "python_signature": "symbol: str, modules: list[str]",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "modules",
+        "required": true,
+        "type": "list[str]"
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_screen",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1990,
+    "python_signature": "query: dict, query_type: str='equity', size: int=25, max_pages: int=1, max_results: int=250",
+    "legacy_parameters": [
+      {
+        "name": "query",
+        "required": true,
+        "type": "dict"
+      },
+      {
+        "name": "query_type",
+        "required": false,
+        "type": "str",
+        "default": "equity"
+      },
+      {
+        "name": "size",
+        "required": false,
+        "type": "int",
+        "default": 25
+      },
+      {
+        "name": "max_pages",
+        "required": false,
+        "type": "int",
+        "default": 1
+      },
+      {
+        "name": "max_results",
+        "required": false,
+        "type": "int",
+        "default": 250
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_search",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1962,
+    "python_signature": "query: str, count: int=8, lookup_type: str | None=None",
+    "legacy_parameters": [
+      {
+        "name": "query",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "count",
+        "required": false,
+        "type": "int",
+        "default": 8
+      },
+      {
+        "name": "lookup_type",
+        "required": false,
+        "type": "str | None",
+        "default": null
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  },
+  {
+    "function": "yahoo_statistics",
+    "task": "R15",
+    "source": "stock-data/scripts/global_stock_data.py",
+    "line": 1966,
+    "python_signature": "symbol: str, valuation: bool=False",
+    "legacy_parameters": [
+      {
+        "name": "symbol",
+        "required": true,
+        "type": "str"
+      },
+      {
+        "name": "valuation",
+        "required": false,
+        "type": "bool",
+        "default": false
+      }
+    ],
+    "registry_source": "Yahoo Finance"
+  }
+]

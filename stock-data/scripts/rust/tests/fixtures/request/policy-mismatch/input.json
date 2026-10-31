@@ -1,0 +1,6 @@
+{
+  "ticker": "MU",
+  "policy": {
+    "policy_version": "fixed_52w_5d_v0"
+  }
+}

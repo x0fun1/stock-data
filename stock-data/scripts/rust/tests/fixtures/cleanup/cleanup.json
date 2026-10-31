@@ -1,0 +1,444 @@
+{
+  "receipt": {
+    "text": "format=stock-data-cleanup-v1\nmode=run\nrun_id=run_20260101T000000000000Z_abcdef12\nanalysis_id=analysis_x\nsnapshot_id=snap_x\ncollection_name=collection_x.json\nstate=complete\ndelivery=verified\nresponse_sha256=cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc\nreport_sha256=\nfinal_response_sha256=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd\nanalysis_status=success\nreporting_status=reportable\ntarget_file_count=2\ntarget_json_bytes=184\nremoved_file_count=2\nremoved_json_bytes=184\nupdated_at_utc=2026-01-05T00:00:00Z\ntarget=analysis.json\taaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\t120\ntarget=researchers/quant.json\tbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb\t64\n",
+    "read": {
+      "format": "stock-data-cleanup-v1",
+      "mode": "run",
+      "run_id": "run_20260101T000000000000Z_abcdef12",
+      "analysis_id": "analysis_x",
+      "snapshot_id": "snap_x",
+      "collection_name": "collection_x.json",
+      "state": "complete",
+      "delivery": "verified",
+      "response_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "report_sha256": "",
+      "final_response_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+      "analysis_status": "success",
+      "reporting_status": "reportable",
+      "target_file_count": "2",
+      "target_json_bytes": "184",
+      "removed_file_count": "2",
+      "removed_json_bytes": "184",
+      "updated_at_utc": "2026-01-05T00:00:00Z",
+      "targets": [
+        [
+          "analysis.json",
+          "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+          120
+        ],
+        [
+          "researchers/quant.json",
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+          64
+        ]
+      ],
+      "errors": []
+    }
+  },
+  "receipt_errors": {
+    "bad_format": "cleanup receipt format or target list is invalid",
+    "bad_state": "cleanup receipt state is invalid",
+    "bad_delivery": "cleanup receipt delivery mode is invalid",
+    "bad_digest": "cleanup receipt contains an invalid file digest",
+    "bad_totals": "cleanup receipt file/byte totals do not match its inventory",
+    "complete_missing": "complete cleanup receipt does not account for its full inventory",
+    "target_path": "cleanup target must be a safe relative JSON filename",
+    "duplicate": "cleanup receipt contains duplicate targets"
+  },
+  "orphan": {
+    "dry_run": {
+      "orphan_files": [
+        ".report.md.abcdef123456.tmp"
+      ],
+      "orphan_directories": [
+        ".snap.abcdefgh"
+      ],
+      "orphan_bytes": 11,
+      "removed": false
+    },
+    "removed": {
+      "orphan_files": [
+        ".report.md.abcdef123456.tmp"
+      ],
+      "orphan_directories": [
+        ".snap.abcdefgh"
+      ],
+      "orphan_bytes": 11,
+      "removed": true
+    },
+    "remaining": [
+      ".bad.tmp",
+      "analysis.json",
+      "report.md"
+    ]
+  },
+  "analysis": {
+    "dry_run": {
+      "cleanup_status": "dry_run",
+      "mode": "analysis",
+      "json_file_count": 12,
+      "json_bytes": 218,
+      "files": [
+        "agent_summary.json",
+        "analysis.json",
+        "audit.json",
+        "data.json",
+        "news_result.freeze.json",
+        "news_result.json",
+        "request.json",
+        "researchers/factor.json",
+        "researchers/factor_backtest.json",
+        "researchers/ml.json",
+        "researchers/quant.json",
+        "snapshot.json"
+      ],
+      "receipt_file": "<TREE>/cleanup_receipt.txt",
+      "orphans_removed": 0,
+      "orphans_detected": 0
+    },
+    "clean": {
+      "cleanup_status": "complete",
+      "mode": "analysis",
+      "analysis_id": "analysis_work",
+      "run_id": "",
+      "analysis_status": null,
+      "reporting_status": null,
+      "json_file_count": 12,
+      "json_bytes": 218,
+      "planned_json_bytes": 218,
+      "remaining_json_files": [],
+      "errors": [],
+      "retained_files": [
+        "<TREE>/report.md",
+        "<TREE>/final_response.md"
+      ],
+      "orphans_removed": 0,
+      "orphans_detected": 0,
+      "receipt_file": "<TREE>/cleanup_receipt.txt"
+    },
+    "already_cleaned": {
+      "cleanup_status": "already_cleaned",
+      "mode": "analysis",
+      "analysis_id": "analysis_work",
+      "analysis_status": null,
+      "reporting_status": null,
+      "json_file_count": 12,
+      "json_bytes": 218,
+      "orphans_detected": 0,
+      "orphans_removed": 0,
+      "retained_files": [
+        "<TREE>/report.md",
+        "<TREE>/final_response.md"
+      ],
+      "errors": [],
+      "receipt_file": "<TREE>/cleanup_receipt.txt"
+    },
+    "receipt": "format=stock-data-cleanup-v1\nmode=analysis\nrun_id=\nanalysis_id=analysis_work\nsnapshot_id=\ncollection_name=\nstate=complete\ndelivery=\nresponse_sha256=\nreport_sha256=9629e259cf97419df75f2523d811d6dc4f813aaca1f53a0f82678689c664ca75\nfinal_response_sha256=8e33c0fb19723f4df77c8a9c58e81b3d10bddf001d113a9f29966a3e6ed5565d\nanalysis_status=\nreporting_status=\ntarget_file_count=12\ntarget_json_bytes=218\nremoved_file_count=12\nremoved_json_bytes=218\nupdated_at_utc=2026-01-05T00:00:00Z\ntarget=agent_summary.json\tbf7ae55dc12aec68bb3e184490e06b18ac669d2cbe747e4c470e431463a60c75\t30\ntarget=analysis.json\t6cd41dbcdf0358882673b562fb932dc4afb8eca6c15ed58d5f927370edf4b52e\t25\ntarget=audit.json\t4b215075891b5b32e01cf7f629e3a0565e75af05a1cb34fe27a3f65c43fe5519\t22\ntarget=data.json\tbe29905e3d26e34962b9b63e19371338748fb48e2e55d1197ef06f83f495fbb7\t21\ntarget=news_result.freeze.json\taff4e5569b745400238e0940661c1303e83545f950dbc381cc6ceac41416e66a\t35\ntarget=news_result.json\taf4e68e04337d63aedc48937e8b817b0b1ddad49be034a64c4d80ff39d30fe6b\t28\ntarget=request.json\tde7da99716944083595b1aa22ad2cbac3da1c174979e7ef677c614547b895f98\t24\ntarget=researchers/factor.json\t44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\t2\ntarget=researchers/factor_backtest.json\t44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\t2\ntarget=researchers/ml.json\t44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\t2\ntarget=researchers/quant.json\t44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\t2\ntarget=snapshot.json\t14dd7a9480926fe0d8f64a7c92fa4fd7247a3cabc13b57974244711a727e7391\t25\n",
+    "remaining": [
+      "cleanup_receipt.txt",
+      "final_response.md",
+      "report.md"
+    ],
+    "unknown_error": "unknown files or directories prevent cleanup: mystery.json",
+    "missing_response_error": "response_file is required unless --force-incomplete or --assume-delivered is explicit"
+  },
+  "owned_run": {
+    "retained_dry_run": {
+      "cleanup_status": "dry_run",
+      "mode": "run",
+      "json_file_count": 4,
+      "json_bytes": 311,
+      "files": [
+        "research/analysis_x/agent_summary.json",
+        "research/analysis_x/analysis.json",
+        "research/analysis_x/researchers/quant.json",
+        "run_manifest.json"
+      ],
+      "receipt_file": "<TREE>/cleanup_receipt.txt",
+      "orphans_removed": 0,
+      "orphans_detected": 0
+    },
+    "dry_run": {
+      "cleanup_status": "dry_run",
+      "mode": "run",
+      "json_file_count": 4,
+      "json_bytes": 292,
+      "files": [
+        "research/analysis_x/agent_summary.json",
+        "research/analysis_x/analysis.json",
+        "research/analysis_x/researchers/quant.json",
+        "run_manifest.json"
+      ],
+      "receipt_file": "<TREE>/cleanup_receipt.txt",
+      "orphans_removed": 0,
+      "orphans_detected": 0
+    },
+    "clean": {
+      "cleanup_status": "complete",
+      "mode": "run",
+      "analysis_id": "analysis_x",
+      "run_id": "run_20260101T000000000000Z_abcdef12",
+      "analysis_status": null,
+      "reporting_status": null,
+      "json_file_count": 4,
+      "json_bytes": 292,
+      "planned_json_bytes": 292,
+      "remaining_json_files": [],
+      "errors": [],
+      "retained_files": [
+        "<TREE>/research/analysis_x/report.md",
+        "<TREE>/research/analysis_x/final_response.md"
+      ],
+      "orphans_removed": 0,
+      "orphans_detected": 0,
+      "receipt_file": "<TREE>/cleanup_receipt.txt"
+    },
+    "already_cleaned": {
+      "cleanup_status": "already_cleaned",
+      "mode": "run",
+      "run_id": "run_20260101T000000000000Z_abcdef12",
+      "analysis_id": "analysis_x",
+      "analysis_status": null,
+      "reporting_status": null,
+      "json_file_count": 4,
+      "json_bytes": 292,
+      "orphans_detected": 0,
+      "orphans_removed": 0,
+      "retained_files": [
+        "<TREE>/research/analysis_x/final_response.md",
+        "<TREE>/research/analysis_x/report.md"
+      ],
+      "errors": [],
+      "receipt_file": "<TREE>/cleanup_receipt.txt"
+    },
+    "receipt": "format=stock-data-cleanup-v1\nmode=run\nrun_id=run_20260101T000000000000Z_abcdef12\nanalysis_id=analysis_x\nsnapshot_id=\ncollection_name=\nstate=complete\ndelivery=\nresponse_sha256=\nreport_sha256=d2f56516fd6c35644826ae6f1876a47870b7fa19acedac3e52fb6f2a94aa2624\nfinal_response_sha256=44b4f7e293a9c2b8419b6f408836be53f32bf834c5bc3c15cb52a5a608993c80\nanalysis_status=\nreporting_status=\ntarget_file_count=4\ntarget_json_bytes=292\nremoved_file_count=4\nremoved_json_bytes=292\nupdated_at_utc=2026-01-05T00:00:00Z\ntarget=research/analysis_x/agent_summary.json\t44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\t2\ntarget=research/analysis_x/analysis.json\t44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\t2\ntarget=research/analysis_x/researchers/quant.json\t44136fa355b3678a1146ad16f7e8649e94fb4fc21fe77e8310c060f61caaff8a\t2\ntarget=run_manifest.json\t21936647ea71b25e8ec358fe48889b403647f75235ed8f64259b31ca4d9f64ac\t286\n",
+    "remaining": [
+      "cleanup_receipt.txt",
+      "research/analysis_x/final_response.md",
+      "research/analysis_x/report.md"
+    ],
+    "unknown_error": "unknown files or directories prevent cleanup: data.json",
+    "not_complete_error": "run is not complete; failed/incomplete runs require --force-incomplete"
+  },
+  "gc": {
+    "old": {
+      "status": "success",
+      "dry_run": false,
+      "runs_scanned": 5,
+      "orphans_removed": 0,
+      "orphans_detected": 0,
+      "orphan_bytes": 0,
+      "pending_cleaned": [],
+      "runs_deleted": [
+        "run_20250101T000000000000Z_aaaaaaaa",
+        "run_20250101T000000000000Z_bbbbbbbb"
+      ],
+      "runs_would_delete": [],
+      "runs_skipped": [
+        {
+          "run_id": "run_20250101T000000000000Z_cccccccc",
+          "reason": "retained_snapshot_or_collection"
+        },
+        {
+          "run_id": "run_20250101T000000000000Z_dddddddd",
+          "reason": "CleanupError: run directory still holds a non-retained file: data.json"
+        },
+        {
+          "run_id": "run_20250101T000000000000Z_eeeeeeee",
+          "reason": "no_cleanup_receipt"
+        }
+      ],
+      "errors": [],
+      "legacy_snapshots": {
+        "status": "success",
+        "removed": [
+          ".snap.abcdefgh",
+          ".snap.zzzzzzzz"
+        ],
+        "orphan_bytes": 4
+      },
+      "cache": {
+        "status": "success",
+        "files_removed": 1,
+        "bytes_removed": 2,
+        "errors": []
+      },
+      "generated_at_utc": "FIXED"
+    },
+    "epoch": {
+      "status": "success",
+      "dry_run": false,
+      "runs_scanned": 5,
+      "orphans_removed": 0,
+      "orphans_detected": 0,
+      "orphan_bytes": 0,
+      "pending_cleaned": [],
+      "runs_deleted": [],
+      "runs_would_delete": [],
+      "runs_skipped": [],
+      "errors": [],
+      "legacy_snapshots": {
+        "status": "success",
+        "removed": [],
+        "orphan_bytes": 0
+      },
+      "cache": {
+        "status": "success",
+        "files_removed": 0,
+        "bytes_removed": 0,
+        "errors": []
+      },
+      "generated_at_utc": "FIXED"
+    },
+    "throttled": {
+      "status": "throttled",
+      "dry_run": false,
+      "last_run_utc": "2029-12-31T23:00:00Z",
+      "throttle_hours": 24.0
+    },
+    "unthrottled": {
+      "status": "success",
+      "dry_run": false,
+      "runs_scanned": 5,
+      "orphans_removed": 0,
+      "orphans_detected": 0,
+      "orphan_bytes": 0,
+      "pending_cleaned": [],
+      "runs_deleted": [
+        "run_20250101T000000000000Z_aaaaaaaa",
+        "run_20250101T000000000000Z_bbbbbbbb"
+      ],
+      "runs_would_delete": [],
+      "runs_skipped": [
+        {
+          "run_id": "run_20250101T000000000000Z_cccccccc",
+          "reason": "retained_snapshot_or_collection"
+        },
+        {
+          "run_id": "run_20250101T000000000000Z_dddddddd",
+          "reason": "CleanupError: run directory still holds a non-retained file: data.json"
+        },
+        {
+          "run_id": "run_20250101T000000000000Z_eeeeeeee",
+          "reason": "no_cleanup_receipt"
+        }
+      ],
+      "errors": [],
+      "legacy_snapshots": {
+        "status": "success",
+        "removed": [
+          ".snap.abcdefgh",
+          ".snap.zzzzzzzz"
+        ],
+        "orphan_bytes": 4
+      },
+      "cache": {
+        "status": "success",
+        "files_removed": 1,
+        "bytes_removed": 2,
+        "errors": []
+      },
+      "generated_at_utc": "FIXED"
+    },
+    "dry_run": {
+      "status": "success",
+      "dry_run": true,
+      "runs_scanned": 5,
+      "orphans_removed": 0,
+      "orphans_detected": 0,
+      "orphan_bytes": 0,
+      "pending_cleaned": [],
+      "runs_deleted": [],
+      "runs_would_delete": [
+        "run_20250101T000000000000Z_aaaaaaaa",
+        "run_20250101T000000000000Z_bbbbbbbb"
+      ],
+      "runs_skipped": [
+        {
+          "run_id": "run_20250101T000000000000Z_cccccccc",
+          "reason": "retained_snapshot_or_collection"
+        },
+        {
+          "run_id": "run_20250101T000000000000Z_dddddddd",
+          "reason": "CleanupError: run directory still holds a non-retained file: data.json"
+        },
+        {
+          "run_id": "run_20250101T000000000000Z_eeeeeeee",
+          "reason": "no_cleanup_receipt"
+        }
+      ],
+      "errors": [],
+      "legacy_snapshots": {
+        "status": "success",
+        "removed": [
+          ".snap.abcdefgh",
+          ".snap.zzzzzzzz"
+        ],
+        "orphan_bytes": 0
+      },
+      "cache": {
+        "status": "success",
+        "files_removed": 1,
+        "bytes_removed": 2,
+        "errors": []
+      },
+      "generated_at_utc": "FIXED"
+    }
+  },
+  "gc_files": {
+    "files": {
+      ".gc_state.json": "{\"format\": \"stock-data-gc-v1\", \"last_run_utc\": \"2029-12-31T23:00:00Z\"}",
+      "runs/run_20250101T000000000000Z_aaaaaaaa/cleanup_receipt.txt": "format=stock-data-cleanup-v1\nmode=run\nrun_id=run_20250101T000000000000Z_aaaaaaaa\nanalysis_id=analysis_x\nsnapshot_id=\ncollection_name=\nstate=complete\ndelivery=\nresponse_sha256=\nreport_sha256=\nfinal_response_sha256=\nanalysis_status=\nreporting_status=\ntarget_file_count=1\ntarget_json_bytes=10\nremoved_file_count=1\nremoved_json_bytes=10\nupdated_at_utc=2026-01-05T00:00:00Z\ntarget=run_manifest.json\tffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\t10\n",
+      "runs/run_20250101T000000000000Z_aaaaaaaa/research/analysis_x/final_response.md": "response\n",
+      "runs/run_20250101T000000000000Z_aaaaaaaa/research/analysis_x/report.md": "# report\n",
+      "runs/run_20250101T000000000000Z_aaaaaaaa/run_manifest.json": "{\n  \"manifest_version\": 1,\n  \"mode\": \"owned_pipeline\",\n  \"run_id\": \"run_20250101T000000000000Z_aaaaaaaa\",\n  \"state\": \"complete\",\n  \"created_at_utc\": \"2025-01-01T00:00:00Z\",\n  \"collection_name\": null,\n  \"snapshot_id\": \"snap_x\",\n  \"analysis_id\": \"analysis_x\"\n}",
+      "runs/run_20250101T000000000000Z_bbbbbbbb/cleanup_receipt.txt": "format=stock-data-cleanup-v1\nmode=run\nrun_id=run_20250101T000000000000Z_bbbbbbbb\nanalysis_id=analysis_x\nsnapshot_id=\ncollection_name=\nstate=complete\ndelivery=\nresponse_sha256=\nreport_sha256=\nfinal_response_sha256=\nanalysis_status=\nreporting_status=\ntarget_file_count=1\ntarget_json_bytes=10\nremoved_file_count=1\nremoved_json_bytes=10\nupdated_at_utc=2026-01-05T00:00:00Z\ntarget=run_manifest.json\tffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\t10\n",
+      "runs/run_20250101T000000000000Z_bbbbbbbb/research/analysis_x/final_response.md": "response\n",
+      "runs/run_20250101T000000000000Z_bbbbbbbb/research/analysis_x/report.md": "# report\n",
+      "runs/run_20250101T000000000000Z_bbbbbbbb/run_manifest.json": "{\n  \"manifest_version\": 1,\n  \"mode\": \"owned_pipeline\",\n  \"run_id\": \"run_20250101T000000000000Z_bbbbbbbb\",\n  \"state\": \"complete\",\n  \"created_at_utc\": \"2029-12-01T00:00:00Z\",\n  \"collection_name\": null,\n  \"snapshot_id\": \"snap_x\",\n  \"analysis_id\": \"analysis_x\"\n}",
+      "runs/run_20250101T000000000000Z_cccccccc/cleanup_receipt.txt": "format=stock-data-cleanup-v1\nmode=run\nrun_id=run_20250101T000000000000Z_cccccccc\nanalysis_id=analysis_x\nsnapshot_id=\ncollection_name=\nstate=complete\ndelivery=\nresponse_sha256=\nreport_sha256=\nfinal_response_sha256=\nanalysis_status=\nreporting_status=\ntarget_file_count=1\ntarget_json_bytes=10\nremoved_file_count=1\nremoved_json_bytes=10\nupdated_at_utc=2026-01-05T00:00:00Z\ntarget=run_manifest.json\tffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\t10\n",
+      "runs/run_20250101T000000000000Z_cccccccc/research/analysis_x/final_response.md": "response\n",
+      "runs/run_20250101T000000000000Z_cccccccc/research/analysis_x/report.md": "# report\n",
+      "runs/run_20250101T000000000000Z_cccccccc/run_manifest.json": "{\n  \"manifest_version\": 1,\n  \"mode\": \"owned_pipeline\",\n  \"run_id\": \"run_20250101T000000000000Z_cccccccc\",\n  \"state\": \"complete\",\n  \"created_at_utc\": \"2025-01-01T00:00:00Z\",\n  \"collection_name\": null,\n  \"snapshot_id\": \"snap_x\",\n  \"analysis_id\": \"analysis_x\"\n}",
+      "runs/run_20250101T000000000000Z_cccccccc/snapshots/snap_x/manifest.json": "{}",
+      "runs/run_20250101T000000000000Z_dddddddd/cleanup_receipt.txt": "format=stock-data-cleanup-v1\nmode=run\nrun_id=run_20250101T000000000000Z_dddddddd\nanalysis_id=analysis_x\nsnapshot_id=\ncollection_name=\nstate=complete\ndelivery=\nresponse_sha256=\nreport_sha256=\nfinal_response_sha256=\nanalysis_status=\nreporting_status=\ntarget_file_count=1\ntarget_json_bytes=10\nremoved_file_count=1\nremoved_json_bytes=10\nupdated_at_utc=2026-01-05T00:00:00Z\ntarget=run_manifest.json\tffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff\t10\n",
+      "runs/run_20250101T000000000000Z_dddddddd/data.json": "{}",
+      "runs/run_20250101T000000000000Z_dddddddd/research/analysis_x/final_response.md": "response\n",
+      "runs/run_20250101T000000000000Z_dddddddd/research/analysis_x/report.md": "# report\n",
+      "runs/run_20250101T000000000000Z_dddddddd/run_manifest.json": "{\n  \"manifest_version\": 1,\n  \"mode\": \"owned_pipeline\",\n  \"run_id\": \"run_20250101T000000000000Z_dddddddd\",\n  \"state\": \"complete\",\n  \"created_at_utc\": \"2025-01-01T00:00:00Z\",\n  \"collection_name\": null,\n  \"snapshot_id\": \"snap_x\",\n  \"analysis_id\": \"analysis_x\"\n}",
+      "runs/run_20250101T000000000000Z_eeeeeeee/research/analysis_x/final_response.md": "response\n",
+      "runs/run_20250101T000000000000Z_eeeeeeee/research/analysis_x/report.md": "# report\n",
+      "runs/run_20250101T000000000000Z_eeeeeeee/run_manifest.json": "{\n  \"manifest_version\": 1,\n  \"mode\": \"owned_pipeline\",\n  \"run_id\": \"run_20250101T000000000000Z_eeeeeeee\",\n  \"state\": \"awaiting_cleanup\",\n  \"created_at_utc\": \"2025-01-01T00:00:00Z\",\n  \"collection_name\": null,\n  \"snapshot_id\": \"snap_x\",\n  \"analysis_id\": \"analysis_x\"\n}",
+      "snapshots/.snap.abcdefgh/inner.json": "{}",
+      "snapshots/.snap.zzzzzzzz/inner.json": "{}",
+      "yfinance-cache/nested/old.json": "{}"
+    },
+    "directories": [
+      "runs",
+      "runs/not_a_run",
+      "runs/run_20250101T000000000000Z_aaaaaaaa",
+      "runs/run_20250101T000000000000Z_aaaaaaaa/research",
+      "runs/run_20250101T000000000000Z_aaaaaaaa/research/analysis_x",
+      "runs/run_20250101T000000000000Z_bbbbbbbb",
+      "runs/run_20250101T000000000000Z_bbbbbbbb/research",
+      "runs/run_20250101T000000000000Z_bbbbbbbb/research/analysis_x",
+      "runs/run_20250101T000000000000Z_cccccccc",
+      "runs/run_20250101T000000000000Z_cccccccc/research",
+      "runs/run_20250101T000000000000Z_cccccccc/research/analysis_x",
+      "runs/run_20250101T000000000000Z_cccccccc/snapshots",
+      "runs/run_20250101T000000000000Z_cccccccc/snapshots/snap_x",
+      "runs/run_20250101T000000000000Z_dddddddd",
+      "runs/run_20250101T000000000000Z_dddddddd/research",
+      "runs/run_20250101T000000000000Z_dddddddd/research/analysis_x",
+      "runs/run_20250101T000000000000Z_eeeeeeee",
+      "runs/run_20250101T000000000000Z_eeeeeeee/research",
+      "runs/run_20250101T000000000000Z_eeeeeeee/research/analysis_x",
+      "snapshots",
+      "snapshots/.snap.abcdefgh",
+      "snapshots/.snap.zzzzzzzz",
+      "snapshots/regular",
+      "yfinance-cache",
+      "yfinance-cache/nested"
+    ]
+  }
+}

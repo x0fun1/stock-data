@@ -1,0 +1,16 @@
+[package]
+name = "sd-news"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Point-in-time news pipeline and host AI assessment validation. Never sees Quant results."
+
+[dependencies]
+sd-core = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+regex = { workspace = true }
+sha2 = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }

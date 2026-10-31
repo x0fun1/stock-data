@@ -1,0 +1,731 @@
+[
+  {
+    "code": "ADJUSTMENT_EVIDENCE_CONFLICT",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "ADJUSTMENT_UNKNOWN",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "AGGREGATION_CONTRACT",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "ASSET_TYPE_UNVERIFIED",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "CALENDAR_FALLBACK_USED",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "CALENDAR_OFFICIAL_MISSING",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "CALENDAR_SOURCE_INVALID",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "CALENDAR_UNVERIFIED",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "CALIBRATION_DISABLED_BY_POLICY",
+    "policy": {
+      "severity": "info",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "CALIBRATION_MISSING",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "CONFIDENCE_SCORE_PRESENT",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "CORPORATE_ACTION_CONTAMINATION",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "CORPORATE_ACTION_UNKNOWN",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "DATA_QUALITY_LOW",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "DATA_WARNING",
+    "policy": {
+      "severity": "warning",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "DECISION_SESSION_UNRESOLVED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "DESCRIPTIVE_REQUEST",
+    "policy": {
+      "severity": "fatal",
+      "scope": "reporting",
+      "can_veto_prediction": true,
+      "failure_mode": "reporting"
+    }
+  },
+  {
+    "code": "DIAGNOSTIC_EMITTED_PROBABILITY",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "DIRECTIONAL_EDGE_UNPROVEN",
+    "policy": {
+      "severity": "info",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "DSR_NOT_ASSESSED",
+    "policy": {
+      "severity": "warning",
+      "scope": "strategy",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "EVIDENCE_FLOOR_POWER_LOW",
+    "policy": {
+      "severity": "info",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "EXTREME_PRICE_MOVE_UNRECONCILED",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "FACTOR_BACKTEST_INSUFFICIENT",
+    "policy": {
+      "severity": "warning",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "FIXED_WINDOW_CONFLICT",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "FREQUENCY_UNVERIFIED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "data",
+      "can_veto_prediction": true,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "INSUFFICIENT_HISTORY_COVERAGE",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "INSUFFICIENT_OHLCV",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "INTERVAL_BELOW_ZERO",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "INTERVAL_CROSSES_ZERO",
+    "policy": {
+      "severity": "info",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "INTERVAL_UNESTIMABLE",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "INVALID_PRICE_VALUES",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "INVALID_TIME_ORDER",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "LABEL_BASIS_DIVIDENDS_EXCLUDED",
+    "policy": {
+      "severity": "info",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "LATEST_CLOSE_CROSS_VERIFIED",
+    "policy": {
+      "severity": "info",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "LATEST_CLOSE_SINGLE_PROVIDER",
+    "policy": {
+      "severity": "warning",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "LATEST_OBSERVATION_UNRESOLVED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "LATEST_PRICE_CONFLICT",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "LEAKAGE_AUDIT_INCOMPLETE",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "LEAKAGE_DETECTED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "LOW_FACTOR_AGREEMENT",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "MARKET_UNITS_CONFLICT",
+    "policy": {
+      "severity": "fatal",
+      "scope": "data",
+      "can_veto_prediction": true,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "MARKET_UNITS_UNVERIFIED",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "NEWS_NOT_ASSESSED",
+    "policy": {
+      "severity": "warning",
+      "scope": "news",
+      "can_veto_prediction": false,
+      "failure_mode": "reporting"
+    }
+  },
+  {
+    "code": "NEWS_PARTIAL_EVIDENCE",
+    "policy": {
+      "severity": "warning",
+      "scope": "news",
+      "can_veto_prediction": false,
+      "failure_mode": "reporting"
+    }
+  },
+  {
+    "code": "NO_VALID_OOS_PROBABILITY",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "OHLCV_OUT_OF_WINDOW",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "OOS_EVIDENCE_INVALID",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "OOS_INSUFFICIENT",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "OOS_INTEGRITY_FAILED",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "OOS_MARKER_MISSING",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "OOS_SELF_REPORT_MISMATCH",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "OOS_SUPPORT_INSUFFICIENT",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "PATH_FAILED",
+    "policy": {
+      "severity": "warning",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "PATH_WARNING",
+    "policy": {
+      "severity": "warning",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "PBO_NOT_ASSESSED",
+    "policy": {
+      "severity": "warning",
+      "scope": "strategy",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "POINT_IN_TIME_UNVERIFIED",
+    "policy": {
+      "severity": "degraded",
+      "scope": "data",
+      "can_veto_prediction": false,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "POLICY_VERSION_MISMATCH",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "PORTFOLIO_BACKTEST_MISSING",
+    "policy": {
+      "severity": "warning",
+      "scope": "strategy",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "PREDICTION_FAILED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "PREDICTION_INTEGRITY_FAILED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "PRICE_BASIS_UNVERIFIED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "PRODUCTION_PATH_UNAVAILABLE",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "PRODUCTION_PROBABILITY_LEAKED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "PROSPECTIVE_SUPPORT_INSUFFICIENT",
+    "policy": {
+      "severity": "warning",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "QUALIFICATION_CONTRACT_VIOLATION",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "REPLAY_SUPPORT_INSUFFICIENT",
+    "policy": {
+      "severity": "degraded",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "SAMPLING_PHASE_UNANCHORED",
+    "policy": {
+      "severity": "info",
+      "scope": "validation",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "SEVERE_MISSING_BARS",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "SHADOW_PATH_PROMOTED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "SHADOW_PROBABILITY_INVALID",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "SNAPSHOT_IDENTITY_INVALID",
+    "policy": {
+      "severity": "fatal",
+      "scope": "data",
+      "can_veto_prediction": true,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "SOURCE_IDENTITY_CONFLICT",
+    "policy": {
+      "severity": "fatal",
+      "scope": "data",
+      "can_veto_prediction": true,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "SOURCE_IDENTITY_UNVERIFIED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "data",
+      "can_veto_prediction": true,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "STALE_MARKET_DATA",
+    "policy": {
+      "severity": "fatal",
+      "scope": "data",
+      "can_veto_prediction": true,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "SURVIVORSHIP_NOT_ASSESSED",
+    "policy": {
+      "severity": "warning",
+      "scope": "strategy",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "TARGET_SESSION_UNRESOLVED",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "TEMPORAL_PROVENANCE_MISSING",
+    "policy": {
+      "severity": "fatal",
+      "scope": "data",
+      "can_veto_prediction": true,
+      "failure_mode": "data"
+    }
+  },
+  {
+    "code": "TRANSACTION_COST_NOT_ASSESSED",
+    "policy": {
+      "severity": "warning",
+      "scope": "strategy",
+      "can_veto_prediction": false,
+      "failure_mode": "accounting"
+    }
+  },
+  {
+    "code": "UNRECOVERABLE_DUPLICATE_BARS",
+    "policy": {
+      "severity": "fatal",
+      "scope": "prediction",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  },
+  {
+    "code": "NOT_A_CATALOG_CODE",
+    "policy": {
+      "severity": "fatal",
+      "scope": "unknown",
+      "can_veto_prediction": true,
+      "failure_mode": "correctness"
+    }
+  }
+]

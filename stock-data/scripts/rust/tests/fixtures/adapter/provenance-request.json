@@ -1,0 +1,6 @@
+{
+  "ticker": "SYN",
+  "market": "US",
+  "horizon": "5D",
+  "intent": "forecast"
+}

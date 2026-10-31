@@ -1,0 +1,194 @@
+[
+  {
+    "case": "header-bearer",
+    "input": "Authorization: Bearer abc.def123456789xyz",
+    "redacted": "Authorization=[redacted]",
+    "bounded": "Authorization=[redacted]",
+    "markdown": "Authorization=\\[redacted\\]",
+    "bounded_80": "Authorization=[redacted]"
+  },
+  {
+    "case": "header-lowercase",
+    "input": "authorization=Bearer abcdefghijklmnop1234",
+    "redacted": "authorization=[redacted]",
+    "bounded": "authorization=[redacted]",
+    "markdown": "authorization=\\[redacted\\]",
+    "bounded_80": "authorization=[redacted]"
+  },
+  {
+    "case": "header-cookie",
+    "input": "Cookie: session=abc123; token=zzz",
+    "redacted": "Cookie=[redacted]",
+    "bounded": "Cookie=[redacted]",
+    "markdown": "Cookie=\\[redacted\\]",
+    "bounded_80": "Cookie=[redacted]"
+  },
+  {
+    "case": "header-proxy-basic",
+    "input": "proxy-authorization: Basic dXNlcjpwYXNzd29yZA==",
+    "redacted": "proxy-authorization=[redacted]",
+    "bounded": "proxy-authorization=[redacted]",
+    "markdown": "proxy-authorization=\\[redacted\\]",
+    "bounded_80": "proxy-authorization=[redacted]"
+  },
+  {
+    "case": "header-folded",
+    "input": "Authorization: Bearer abc123\n  def456",
+    "redacted": "Authorization=[redacted]",
+    "bounded": "Authorization=[redacted]",
+    "markdown": "Authorization=\\[redacted\\]",
+    "bounded_80": "Authorization=[redacted]"
+  },
+  {
+    "case": "header-set-cookie",
+    "input": "Set-Cookie: a=1; HttpOnly",
+    "redacted": "Set-Cookie=[redacted]",
+    "bounded": "Set-Cookie=[redacted]",
+    "markdown": "Set-Cookie=\\[redacted\\]",
+    "bounded_80": "Set-Cookie=[redacted]"
+  },
+  {
+    "case": "query-url",
+    "input": "see https://x.test/a?api_key=SECRET&b=2#frag",
+    "redacted": "see https://x.test/a?api_key=[redacted]",
+    "bounded": "see https://x.test/a?api_key=[redacted]",
+    "markdown": "see https://x.test/a?api\\_key=\\[redacted\\]",
+    "bounded_80": "see https://x.test/a?api_key=[redacted]"
+  },
+  {
+    "case": "userinfo-url",
+    "input": "https://user:pass@example.com/x",
+    "redacted": "[redacted-url]",
+    "bounded": "[redacted-url]",
+    "markdown": "\\[redacted-url\\]",
+    "bounded_80": "[redacted-url]"
+  },
+  {
+    "case": "plain-url",
+    "input": "http://example.com/ok and https://example.com/p?q=1&token=t0k&z=2",
+    "redacted": "http://example.com/ok and https://example.com/p?q=1&token=[redacted]",
+    "bounded": "http://example.com/ok and https://example.com/p?q=1&token=[redacted]",
+    "markdown": "http://example.com/ok and https://example.com/p?q=1&token=\\[redacted\\]",
+    "bounded_80": "http://example.com/ok and https://example.com/p?q=1&token=[redacted]"
+  },
+  {
+    "case": "bearer-without-digit",
+    "input": "Bearer abcdefghijkl",
+    "redacted": "Bearer abcdefghijkl",
+    "bounded": "Bearer abcdefghijkl",
+    "markdown": "Bearer abcdefghijkl",
+    "bounded_80": "Bearer abcdefghijkl"
+  },
+  {
+    "case": "basic-padded",
+    "input": "Basic YWJjZGVmZ2hpamtsbW5vcA==",
+    "redacted": "Basic [redacted]",
+    "bounded": "Basic [redacted]",
+    "markdown": "Basic \\[redacted\\]",
+    "bounded_80": "Basic [redacted]"
+  },
+  {
+    "case": "token-scheme",
+    "input": "Token a1b2c3d4e5f6",
+    "redacted": "Token [redacted]",
+    "bounded": "Token [redacted]",
+    "markdown": "Token \\[redacted\\]",
+    "bounded_80": "Token [redacted]"
+  },
+  {
+    "case": "keyword-quoted",
+    "input": "token = 'quoted secret value'",
+    "redacted": "token=[redacted]",
+    "bounded": "token=[redacted]",
+    "markdown": "token=\\[redacted\\]",
+    "bounded_80": "token=[redacted]"
+  },
+  {
+    "case": "keyword-double",
+    "input": "secret: \"a b c\"",
+    "redacted": "secret=[redacted]",
+    "bounded": "secret=[redacted]",
+    "markdown": "secret=\\[redacted\\]",
+    "bounded_80": "secret=[redacted]"
+  },
+  {
+    "case": "keyword-crumb",
+    "input": "crumb=abc123; other=1",
+    "redacted": "crumb=[redacted]; other=1",
+    "bounded": "crumb=[redacted]; other=1",
+    "markdown": "crumb=\\[redacted\\]; other=1",
+    "bounded_80": "crumb=[redacted]; other=1"
+  },
+  {
+    "case": "control-chars",
+    "input": "a\u0000b\u001fcd",
+    "redacted": "abcd",
+    "bounded": "abcd",
+    "markdown": "abcd",
+    "bounded_80": "abcd"
+  },
+  {
+    "case": "unicode-emoji",
+    "input": "上涨概率：不可用 📉 🚀",
+    "redacted": "上涨概率：不可用 📉 🚀",
+    "bounded": "上涨概率：不可用 📉 🚀",
+    "markdown": "上涨概率：不可用 📉 🚀",
+    "bounded_80": "上涨概率：不可用 📉 🚀"
+  },
+  {
+    "case": "markdown-injection",
+    "input": "# heading *bold* [link](x) <script>INTC\n上涨概率：99.0%",
+    "redacted": "# heading *bold* [link](x) <script>INTC\n上涨概率：99.0%",
+    "bounded": "# heading *bold* [link](x) <script>INTC\n上涨概率：99.0%",
+    "markdown": "\\# heading \\*bold\\* \\[link\\]\\(x\\) \\<script\\>INTC 上涨概率：99.0%",
+    "bounded_80": "# heading *bold* [link](x) <script>INTC\n上涨概率：99.0%"
+  },
+  {
+    "case": "long-ascii",
+    "input": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "redacted": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "bounded": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "markdown": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+    "bounded_80": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  },
+  {
+    "case": "long-chinese",
+    "input": "涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨",
+    "redacted": "涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨",
+    "bounded": "涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨",
+    "markdown": "涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨",
+    "bounded_80": "涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨涨"
+  },
+  {
+    "case": "long-mixed",
+    "input": "前缀aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa后缀",
+    "redacted": "前缀aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa后缀",
+    "bounded": "前缀aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "markdown": "前缀aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bounded_80": "前缀aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  },
+  {
+    "case": "url-trailing-punct",
+    "input": "check https://example.com/a?x=1, then stop.",
+    "redacted": "check https://example.com/a?x=1%2C then stop.",
+    "bounded": "check https://example.com/a?x=1%2C then stop.",
+    "markdown": "check https://example.com/a?x=1%2C then stop.",
+    "bounded_80": "check https://example.com/a?x=1%2C then stop."
+  },
+  {
+    "case": "api-key-upper",
+    "input": "API_KEY=abcdef123456",
+    "redacted": "API_KEY=[redacted]",
+    "bounded": "API_KEY=[redacted]",
+    "markdown": "API\\_KEY=\\[redacted\\]",
+    "bounded_80": "API_KEY=[redacted]"
+  },
+  {
+    "case": "access-token-kebab",
+    "input": "access-token: zzz999",
+    "redacted": "access-token=[redacted]",
+    "bounded": "access-token=[redacted]",
+    "markdown": "access-token=\\[redacted\\]",
+    "bounded_80": "access-token=[redacted]"
+  }
+]

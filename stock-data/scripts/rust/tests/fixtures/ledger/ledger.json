@@ -1,0 +1,2393 @@
+{
+  "fixed_now": "2026-01-05T21:00:00Z",
+  "fixed_today": "2026-02-01",
+  "late_clock": "2026-03-01T00:00:00Z",
+  "prompt_clock": "2026-01-02T22:00:00Z",
+  "bars": [
+    {
+      "date": "2026-01-02",
+      "close": 100.0
+    },
+    {
+      "date": "2026-01-05",
+      "close": 102.0
+    },
+    {
+      "date": "2026-01-06",
+      "close": 104.0
+    },
+    {
+      "date": "2026-01-07",
+      "close": 106.0
+    },
+    {
+      "date": "2026-01-08",
+      "close": 108.0
+    },
+    {
+      "date": "2026-01-09",
+      "close": 110.0
+    },
+    {
+      "date": "2026-01-12",
+      "close": 112.0
+    },
+    {
+      "date": "2026-01-13",
+      "close": 114.0
+    },
+    {
+      "date": "2026-01-14",
+      "close": 116.0
+    },
+    {
+      "date": "2026-01-15",
+      "close": 118.0
+    }
+  ],
+  "basic": {
+    "inputs": {
+      "result": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-02T21:00:00Z",
+          "snapshot_id": "SYN_TEST",
+          "snapshot_content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-02",
+            "decision_at": "2026-01-02T21:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      },
+      "abstained": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-03T21:00:00Z",
+          "snapshot_id": "SYN_TEST",
+          "snapshot_content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc"
+        },
+        "consensus": {
+          "prob_up": null,
+          "raw_probability": null,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "unavailable",
+          "timing": {
+            "decision_session": "2026-01-05",
+            "decision_at": "2026-01-05T21:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      },
+      "other": {
+        "snapshot": {
+          "ticker": "OTHER",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-04T21:00:00Z",
+          "snapshot_id": "SYN_TEST",
+          "snapshot_content_sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-06",
+            "decision_at": "2026-01-06T21:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      },
+      "same_decision": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-02T21:00:00Z",
+          "snapshot_id": "SYN_TEST",
+          "snapshot_content_sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-02",
+            "decision_at": "2026-01-02T21:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      }
+    },
+    "first": {
+      "status": "recorded",
+      "prediction_id": "df5a798d758c8173eab81118f38751d7",
+      "prospective_eligible": false,
+      "ledger": "<ledger>"
+    },
+    "second": {
+      "status": "duplicate",
+      "prediction_id": "df5a798d758c8173eab81118f38751d7",
+      "ledger": "<ledger>"
+    },
+    "same_decision": {
+      "status": "duplicate",
+      "reason": "same_group_and_decision_session",
+      "ledger": "<ledger>"
+    },
+    "events": [
+      {
+        "asof_timestamp": "2026-01-02T21:00:00Z",
+        "baseline_frozen_at": null,
+        "baseline_history_labels": 0,
+        "baseline_method": null,
+        "baseline_probability": null,
+        "calibrated_probability": null,
+        "calibration_status": "disabled_by_policy",
+        "causal_base_rate": null,
+        "confidence": null,
+        "confidence_score": null,
+        "confidence_score_deprecated": true,
+        "decision_at": "2026-01-02T21:00:00Z",
+        "decision_sampled": null,
+        "decision_session": "2026-01-02",
+        "direction": "bullish",
+        "eligibility": null,
+        "engine_version": "test",
+        "entry_basis": "not_modelled",
+        "event": "prediction",
+        "event_hash": "9ff47083fe5306b757b3bc93e239575ae423cef0ab67eb5658afc1e6715d3f44",
+        "feature_version": "roc20_v1",
+        "forward_eligibility": {
+          "label_maturity_at_utc": "2026-01-09T21:00:00Z",
+          "maturity_basis": "calendar_day_approximation",
+          "prompt_deadline_at_utc": "2026-01-03T09:00:00Z",
+          "prospective_eligible": false,
+          "reason": "recorded_after_label_maturity",
+          "recorded_at_utc": "2026-03-01T00:00:00Z",
+          "recorded_before_label_maturity": false,
+          "recorded_promptly": false,
+          "recording_grace_hours": 12,
+          "recording_lag_hours": 1371.0,
+          "rule": "recorded_at <= decision_close + 12h, which is inside the regular US/HK close-to-next-open gap; label maturity is checked separately"
+        },
+        "group_key": "SYN|US|fixed_52w_5d_v1|quant_drift_shrinkage_v2|roc20_v1|split_adjusted_price_direction_5d_v1",
+        "horizon": "5D",
+        "horizon_sessions": 5,
+        "import_reason": "historical_snapshot_recorded_after_label_maturity",
+        "label_basis": "close_to_close",
+        "market": "US",
+        "model_provenance": {
+          "calibration_states": {},
+          "feature_sets": {},
+          "model_versions": {},
+          "path_probabilities": {},
+          "path_probability_sources": {},
+          "path_statuses": {},
+          "path_weights": {},
+          "prediction_config_sha256": "8f6717de5243313bf139caac52cca439170fdfe6c7fdff5ceb327812d2724c7e",
+          "training_boundaries": {},
+          "validation_sha256": {}
+        },
+        "model_version": "quant_drift_shrinkage_v2",
+        "policy_version": "fixed_52w_5d_v1",
+        "prediction_id": "df5a798d758c8173eab81118f38751d7",
+        "predictive_evidence_grade": null,
+        "prev_hash": null,
+        "prob_up": 0.6,
+        "probability_basis": "uncalibrated_model_estimate",
+        "probability_transform": null,
+        "production_probability_eligible": null,
+        "prospective_eligible": false,
+        "raw_probability": 0.6,
+        "recorded_at_utc": "2026-03-01T00:00:00Z",
+        "sampling_status": "unanchored_calendar",
+        "schema_version": "ledger-3.1",
+        "snapshot_content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "snapshot_id": "SYN_TEST",
+        "status": "pending",
+        "target_version": "split_adjusted_price_direction_5d_v1",
+        "ticker": "SYN"
+      }
+    ],
+    "settlements": [
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "df5a798d758c8173eab81118f38751d7",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-01-15",
+        "bars_session_count": 10,
+        "decision_session": "2026-01-02",
+        "label_session": "2026-01-09",
+        "entry_close": 100.0,
+        "exit_close": 110.0,
+        "realized_return": 0.10000000000000009,
+        "hit": 1,
+        "brier": 0.16000000000000003,
+        "baseline_probability": null,
+        "baseline_brier": null,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 0,
+        "baseline_frozen_at": "settlement",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      }
+    ],
+    "skipped": [],
+    "settled_again": [],
+    "skipped_again": [],
+    "report_after_settle": {
+      "schema_version": "ledger-3.1",
+      "ledger": "<ledger>",
+      "unique_predictions": 1,
+      "settled_predictions": 1,
+      "prospective_settled_predictions": 0,
+      "prospective_prompt_recording_verified": 0,
+      "retrospective_settled_predictions": 1,
+      "legacy_schema_settled_predictions": 0,
+      "pending_predictions": 0,
+      "pending_prospective_predictions": 0,
+      "abstained_predictions": 0,
+      "settlement_coverage_prospective": null,
+      "duplicate_settlements": [],
+      "identity_conflicts": [],
+      "duplicate_prediction_dates": [],
+      "metrics_basis": "prospective_eligible_predictions_only",
+      "evaluation_window_days": 364,
+      "evaluation_window_start": "2025-02-02",
+      "recent_prospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "overall": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "prospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "retrospective": {
+        "samples": 1,
+        "brier": 0.16,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": 1.0,
+        "ex_post_climatology": 1.0,
+        "ex_post_climatology_brier": 0.0,
+        "direction_accuracy": 1.0,
+        "direction_samples": 1,
+        "direction_ties": 0,
+        "always_up_accuracy": 1.0,
+        "direction_accuracy_delta_vs_always_up": 0.0,
+        "balanced_accuracy": null,
+        "mean_probability": 0.6,
+        "mean_realized_return": 0.1,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 1
+      },
+      "legacy_schema": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "all_settled_descriptive": {
+        "samples": 1,
+        "brier": 0.16,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": 1.0,
+        "ex_post_climatology": 1.0,
+        "ex_post_climatology_brier": 0.0,
+        "direction_accuracy": 1.0,
+        "direction_samples": 1,
+        "direction_ties": 0,
+        "always_up_accuracy": 1.0,
+        "direction_accuracy_delta_vs_always_up": 0.0,
+        "balanced_accuracy": null,
+        "mean_probability": 0.6,
+        "mean_realized_return": 0.1,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 1
+      },
+      "by_horizon": {},
+      "by_engine_version": {},
+      "caveats": [
+        "observed_up_rate is the realised label base rate, not a model hit rate",
+        "ex_post_climatology is descriptive and must not be used as a deployable baseline",
+        "only prospective_eligible predictions enter the forward score",
+        "prospective also requires a provable prompt recording timestamp (ledger-3.1); earlier rows are reported separately",
+        "legacy ledger-1.0/2.0/3.0 rows cannot prove prompt recording and are reported separately"
+      ]
+    },
+    "abstained_outcome": {
+      "status": "recorded",
+      "prediction_id": "d9a079edb95567312333085b08849cf1",
+      "prospective_eligible": false,
+      "ledger": "<ledger>"
+    },
+    "abstained_event": {
+      "asof_timestamp": "2026-01-03T21:00:00Z",
+      "baseline_frozen_at": null,
+      "baseline_history_labels": 0,
+      "baseline_method": null,
+      "baseline_probability": null,
+      "calibrated_probability": null,
+      "calibration_status": "disabled_by_policy",
+      "causal_base_rate": null,
+      "confidence": null,
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "decision_at": "2026-01-05T21:00:00Z",
+      "decision_sampled": null,
+      "decision_session": "2026-01-05",
+      "direction": "unavailable",
+      "eligibility": null,
+      "engine_version": "test",
+      "entry_basis": "not_modelled",
+      "event": "prediction",
+      "event_hash": "f5d24e7902ade794cb5c7f95041357d047d4fc2c6f2490efddf5aecb06138842",
+      "feature_version": "roc20_v1",
+      "forward_eligibility": {
+        "label_maturity_at_utc": "2026-01-12T21:00:00Z",
+        "maturity_basis": "calendar_day_approximation",
+        "prompt_deadline_at_utc": "2026-01-06T09:00:00Z",
+        "prospective_eligible": false,
+        "reason": "recorded_after_label_maturity",
+        "recorded_at_utc": "2026-03-01T00:00:00Z",
+        "recorded_before_label_maturity": false,
+        "recorded_promptly": false,
+        "recording_grace_hours": 12,
+        "recording_lag_hours": 1299.0,
+        "rule": "recorded_at <= decision_close + 12h, which is inside the regular US/HK close-to-next-open gap; label maturity is checked separately"
+      },
+      "group_key": "SYN|US|fixed_52w_5d_v1|quant_drift_shrinkage_v2|roc20_v1|split_adjusted_price_direction_5d_v1",
+      "horizon": "5D",
+      "horizon_sessions": 5,
+      "import_reason": "historical_snapshot_recorded_after_label_maturity",
+      "label_basis": "close_to_close",
+      "market": "US",
+      "model_provenance": {
+        "calibration_states": {},
+        "feature_sets": {},
+        "model_versions": {},
+        "path_probabilities": {},
+        "path_probability_sources": {},
+        "path_statuses": {},
+        "path_weights": {},
+        "prediction_config_sha256": "8f6717de5243313bf139caac52cca439170fdfe6c7fdff5ceb327812d2724c7e",
+        "training_boundaries": {},
+        "validation_sha256": {}
+      },
+      "model_version": "quant_drift_shrinkage_v2",
+      "policy_version": "fixed_52w_5d_v1",
+      "prediction_id": "d9a079edb95567312333085b08849cf1",
+      "predictive_evidence_grade": null,
+      "prev_hash": "b35b502ea4cc1019db56e6c8d3b1bdc736afc0ef3d1966b1fb2b6d8d8d5c33c3",
+      "prob_up": null,
+      "probability_basis": "uncalibrated_model_estimate",
+      "probability_transform": null,
+      "production_probability_eligible": null,
+      "prospective_eligible": false,
+      "raw_probability": null,
+      "recorded_at_utc": "2026-03-01T00:00:00Z",
+      "sampling_status": "unanchored_calendar",
+      "schema_version": "ledger-3.1",
+      "snapshot_content_sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+      "snapshot_id": "SYN_TEST",
+      "status": "abstained",
+      "target_version": "split_adjusted_price_direction_5d_v1",
+      "ticker": "SYN"
+    },
+    "abstained_skips": [
+      {
+        "prediction_id": "d9a079edb95567312333085b08849cf1",
+        "reason": "prediction_abstained"
+      }
+    ],
+    "other_outcome": {
+      "status": "recorded",
+      "prediction_id": "670aea9bd3a41599d634d51e0b371899",
+      "prospective_eligible": false,
+      "ledger": "<ledger>"
+    },
+    "mixed_skips": [
+      {
+        "prediction_id": "d9a079edb95567312333085b08849cf1",
+        "reason": "prediction_abstained"
+      },
+      {
+        "prediction_id": "670aea9bd3a41599d634d51e0b371899",
+        "reason": "ticker_mismatch",
+        "prediction_ticker": "OTHER",
+        "bars_ticker": "SYN"
+      }
+    ],
+    "audit": {
+      "schema_version": "ledger-3.1",
+      "ledger": "<ledger>",
+      "unique_predictions": 3,
+      "settled_predictions": 1,
+      "prospective_settled_predictions": 0,
+      "prospective_prompt_recording_verified": 0,
+      "retrospective_settled_predictions": 1,
+      "legacy_schema_settled_predictions": 0,
+      "pending_predictions": 1,
+      "pending_prospective_predictions": 0,
+      "abstained_predictions": 1,
+      "settlement_coverage_prospective": null,
+      "duplicate_settlements": [],
+      "identity_conflicts": [],
+      "duplicate_prediction_dates": [],
+      "metrics_basis": "prospective_eligible_predictions_only",
+      "evaluation_window_days": 364,
+      "evaluation_window_start": "2025-02-02",
+      "recent_prospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "overall": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "prospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "retrospective": {
+        "samples": 1,
+        "brier": 0.16,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": 1.0,
+        "ex_post_climatology": 1.0,
+        "ex_post_climatology_brier": 0.0,
+        "direction_accuracy": 1.0,
+        "direction_samples": 1,
+        "direction_ties": 0,
+        "always_up_accuracy": 1.0,
+        "direction_accuracy_delta_vs_always_up": 0.0,
+        "balanced_accuracy": null,
+        "mean_probability": 0.6,
+        "mean_realized_return": 0.1,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 1
+      },
+      "legacy_schema": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "all_settled_descriptive": {
+        "samples": 1,
+        "brier": 0.16,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": 1.0,
+        "ex_post_climatology": 1.0,
+        "ex_post_climatology_brier": 0.0,
+        "direction_accuracy": 1.0,
+        "direction_samples": 1,
+        "direction_ties": 0,
+        "always_up_accuracy": 1.0,
+        "direction_accuracy_delta_vs_always_up": 0.0,
+        "balanced_accuracy": null,
+        "mean_probability": 0.6,
+        "mean_realized_return": 0.1,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 1
+      },
+      "by_horizon": {},
+      "by_engine_version": {},
+      "caveats": [
+        "observed_up_rate is the realised label base rate, not a model hit rate",
+        "ex_post_climatology is descriptive and must not be used as a deployable baseline",
+        "only prospective_eligible predictions enter the forward score",
+        "prospective also requires a provable prompt recording timestamp (ledger-3.1); earlier rows are reported separately",
+        "legacy ledger-1.0/2.0/3.0 rows cannot prove prompt recording and are reported separately"
+      ]
+    }
+  },
+  "metrics": {
+    "inputs": {
+      "results": [
+        {
+          "snapshot": {
+            "ticker": "SYN",
+            "market": "US",
+            "horizon": "5D",
+            "asof_timestamp": "2026-01-30T21:00:00Z",
+            "snapshot_id": "S0",
+            "snapshot_content_sha256": "0000000000000000000000000000000000000000000000000000000000000000"
+          },
+          "consensus": {
+            "prob_up": 0.1,
+            "raw_probability": 0.1,
+            "probability_label": "uncalibrated_model_estimate",
+            "direction": "bullish",
+            "timing": {
+              "decision_session": "2026-01-30",
+              "decision_at": "2026-01-30T21:00:00Z",
+              "label_basis": "close_to_close",
+              "entry_basis": "not_modelled"
+            }
+          },
+          "engine": {
+            "version": "test"
+          }
+        },
+        {
+          "snapshot": {
+            "ticker": "SYN",
+            "market": "US",
+            "horizon": "5D",
+            "asof_timestamp": "2026-02-02T21:00:00Z",
+            "snapshot_id": "S1",
+            "snapshot_content_sha256": "0000000000000000000000000000000000000000000000000000000000000001"
+          },
+          "consensus": {
+            "prob_up": 0.1,
+            "raw_probability": 0.1,
+            "probability_label": "uncalibrated_model_estimate",
+            "direction": "bullish",
+            "timing": {
+              "decision_session": "2026-02-02",
+              "decision_at": "2026-02-02T21:00:00Z",
+              "label_basis": "close_to_close",
+              "entry_basis": "not_modelled"
+            }
+          },
+          "engine": {
+            "version": "test"
+          }
+        },
+        {
+          "snapshot": {
+            "ticker": "SYN",
+            "market": "US",
+            "horizon": "5D",
+            "asof_timestamp": "2026-02-03T21:00:00Z",
+            "snapshot_id": "S2",
+            "snapshot_content_sha256": "0000000000000000000000000000000000000000000000000000000000000002"
+          },
+          "consensus": {
+            "prob_up": 0.1,
+            "raw_probability": 0.1,
+            "probability_label": "uncalibrated_model_estimate",
+            "direction": "bullish",
+            "timing": {
+              "decision_session": "2026-02-03",
+              "decision_at": "2026-02-03T21:00:00Z",
+              "label_basis": "close_to_close",
+              "entry_basis": "not_modelled"
+            }
+          },
+          "engine": {
+            "version": "test"
+          }
+        },
+        {
+          "snapshot": {
+            "ticker": "SYN",
+            "market": "US",
+            "horizon": "5D",
+            "asof_timestamp": "2026-02-04T21:00:00Z",
+            "snapshot_id": "S3",
+            "snapshot_content_sha256": "0000000000000000000000000000000000000000000000000000000000000003"
+          },
+          "consensus": {
+            "prob_up": 0.1,
+            "raw_probability": 0.1,
+            "probability_label": "uncalibrated_model_estimate",
+            "direction": "bullish",
+            "timing": {
+              "decision_session": "2026-02-04",
+              "decision_at": "2026-02-04T21:00:00Z",
+              "label_basis": "close_to_close",
+              "entry_basis": "not_modelled"
+            }
+          },
+          "engine": {
+            "version": "test"
+          }
+        }
+      ],
+      "bars": [
+        {
+          "date": "2026-01-02",
+          "close": 101
+        },
+        {
+          "date": "2026-01-05",
+          "close": 104
+        },
+        {
+          "date": "2026-01-06",
+          "close": 105
+        },
+        {
+          "date": "2026-01-07",
+          "close": 106
+        },
+        {
+          "date": "2026-01-08",
+          "close": 107
+        },
+        {
+          "date": "2026-01-09",
+          "close": 108
+        },
+        {
+          "date": "2026-01-12",
+          "close": 111
+        },
+        {
+          "date": "2026-01-13",
+          "close": 112
+        },
+        {
+          "date": "2026-01-14",
+          "close": 113
+        },
+        {
+          "date": "2026-01-15",
+          "close": 114
+        },
+        {
+          "date": "2026-01-16",
+          "close": 115
+        },
+        {
+          "date": "2026-01-19",
+          "close": 118
+        },
+        {
+          "date": "2026-01-20",
+          "close": 119
+        },
+        {
+          "date": "2026-01-21",
+          "close": 120
+        },
+        {
+          "date": "2026-01-22",
+          "close": 121
+        },
+        {
+          "date": "2026-01-23",
+          "close": 122
+        },
+        {
+          "date": "2026-01-26",
+          "close": 125
+        },
+        {
+          "date": "2026-01-27",
+          "close": 126
+        },
+        {
+          "date": "2026-01-28",
+          "close": 127
+        },
+        {
+          "date": "2026-01-29",
+          "close": 128
+        },
+        {
+          "date": "2026-01-30",
+          "close": 129
+        },
+        {
+          "date": "2026-02-02",
+          "close": 132
+        },
+        {
+          "date": "2026-02-03",
+          "close": 133
+        },
+        {
+          "date": "2026-02-04",
+          "close": 134
+        },
+        {
+          "date": "2026-02-05",
+          "close": 135
+        },
+        {
+          "date": "2026-02-06",
+          "close": 136
+        },
+        {
+          "date": "2026-02-09",
+          "close": 139
+        },
+        {
+          "date": "2026-02-10",
+          "close": 140
+        },
+        {
+          "date": "2026-02-11",
+          "close": 141
+        },
+        {
+          "date": "2026-02-12",
+          "close": 142
+        },
+        {
+          "date": "2026-02-13",
+          "close": 143
+        },
+        {
+          "date": "2026-02-16",
+          "close": 146
+        },
+        {
+          "date": "2026-02-17",
+          "close": 147
+        },
+        {
+          "date": "2026-02-18",
+          "close": 148
+        },
+        {
+          "date": "2026-02-19",
+          "close": 149
+        },
+        {
+          "date": "2026-02-20",
+          "close": 150
+        },
+        {
+          "date": "2026-02-23",
+          "close": 153
+        },
+        {
+          "date": "2026-02-24",
+          "close": 154
+        },
+        {
+          "date": "2026-02-25",
+          "close": 155
+        },
+        {
+          "date": "2026-02-26",
+          "close": 156
+        },
+        {
+          "date": "2026-02-27",
+          "close": 157
+        }
+      ]
+    },
+    "settlements": [
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "e352f5ff831026bc9a6ea0dfacc64657",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-02-27",
+        "bars_session_count": 41,
+        "decision_session": "2026-01-30",
+        "label_session": "2026-02-06",
+        "entry_close": 129.0,
+        "exit_close": 136.0,
+        "realized_return": 0.054263565891472965,
+        "hit": 1,
+        "brier": 0.81,
+        "baseline_probability": 1.0,
+        "baseline_brier": 0.0,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 16,
+        "baseline_frozen_at": "prediction",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      },
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "de8344348beb9f368920fee647c4ef04",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-02-27",
+        "bars_session_count": 41,
+        "decision_session": "2026-02-02",
+        "label_session": "2026-02-09",
+        "entry_close": 132.0,
+        "exit_close": 139.0,
+        "realized_return": 0.05303030303030298,
+        "hit": 1,
+        "brier": 0.81,
+        "baseline_probability": 1.0,
+        "baseline_brier": 0.0,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 17,
+        "baseline_frozen_at": "prediction",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      },
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "76ee715bc9b0ce60fc395a9e0f6f4cdf",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-02-27",
+        "bars_session_count": 41,
+        "decision_session": "2026-02-03",
+        "label_session": "2026-02-10",
+        "entry_close": 133.0,
+        "exit_close": 140.0,
+        "realized_return": 0.05263157894736836,
+        "hit": 1,
+        "brier": 0.81,
+        "baseline_probability": 1.0,
+        "baseline_brier": 0.0,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 18,
+        "baseline_frozen_at": "prediction",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      },
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "8c5ad5b288bd20d25b5ebe0398b2354c",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-02-27",
+        "bars_session_count": 41,
+        "decision_session": "2026-02-04",
+        "label_session": "2026-02-11",
+        "entry_close": 134.0,
+        "exit_close": 141.0,
+        "realized_return": 0.052238805970149294,
+        "hit": 1,
+        "brier": 0.81,
+        "baseline_probability": 1.0,
+        "baseline_brier": 0.0,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 19,
+        "baseline_frozen_at": "prediction",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      }
+    ],
+    "audit": {
+      "schema_version": "ledger-3.1",
+      "ledger": "<ledger>",
+      "unique_predictions": 4,
+      "settled_predictions": 4,
+      "prospective_settled_predictions": 0,
+      "prospective_prompt_recording_verified": 0,
+      "retrospective_settled_predictions": 4,
+      "legacy_schema_settled_predictions": 0,
+      "pending_predictions": 0,
+      "pending_prospective_predictions": 0,
+      "abstained_predictions": 0,
+      "settlement_coverage_prospective": null,
+      "duplicate_settlements": [],
+      "identity_conflicts": [],
+      "duplicate_prediction_dates": [],
+      "metrics_basis": "prospective_eligible_predictions_only",
+      "evaluation_window_days": 364,
+      "evaluation_window_start": "2025-02-02",
+      "recent_prospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "overall": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "prospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "retrospective": {
+        "samples": 4,
+        "brier": 0.81,
+        "causal_baseline_brier": 0.0,
+        "causal_baseline_samples": 4,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": 1.0,
+        "ex_post_climatology": 1.0,
+        "ex_post_climatology_brier": 0.0,
+        "direction_accuracy": 0.0,
+        "direction_samples": 4,
+        "direction_ties": 0,
+        "always_up_accuracy": 1.0,
+        "direction_accuracy_delta_vs_always_up": -1.0,
+        "balanced_accuracy": null,
+        "mean_probability": 0.1,
+        "mean_realized_return": 0.053041,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 4
+      },
+      "legacy_schema": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "all_settled_descriptive": {
+        "samples": 4,
+        "brier": 0.81,
+        "causal_baseline_brier": 0.0,
+        "causal_baseline_samples": 4,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": 1.0,
+        "ex_post_climatology": 1.0,
+        "ex_post_climatology_brier": 0.0,
+        "direction_accuracy": 0.0,
+        "direction_samples": 4,
+        "direction_ties": 0,
+        "always_up_accuracy": 1.0,
+        "direction_accuracy_delta_vs_always_up": -1.0,
+        "balanced_accuracy": null,
+        "mean_probability": 0.1,
+        "mean_realized_return": 0.053041,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 4
+      },
+      "by_horizon": {},
+      "by_engine_version": {},
+      "caveats": [
+        "observed_up_rate is the realised label base rate, not a model hit rate",
+        "ex_post_climatology is descriptive and must not be used as a deployable baseline",
+        "only prospective_eligible predictions enter the forward score",
+        "prospective also requires a provable prompt recording timestamp (ledger-3.1); earlier rows are reported separately",
+        "legacy ledger-1.0/2.0/3.0 rows cannot prove prompt recording and are reported separately"
+      ]
+    }
+  },
+  "forward": {
+    "inputs": {
+      "live": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-02T21:00:00Z",
+          "snapshot_id": "SYN_TEST",
+          "snapshot_content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-02",
+            "decision_at": "2026-01-02T21:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      },
+      "late": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-05T21:00:00Z",
+          "snapshot_id": "SYN_TEST",
+          "snapshot_content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-05",
+            "decision_at": "2026-01-05T21:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      },
+      "historical": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-03T21:00:00Z",
+          "snapshot_id": "SYN_TEST",
+          "snapshot_content_sha256": "eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-05",
+            "decision_at": "2026-01-05T21:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      },
+      "backfill": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-10T21:00:00Z",
+          "snapshot_id": "SYN_TEST",
+          "snapshot_content_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-12",
+            "decision_at": "2026-01-12T21:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      }
+    },
+    "prompt": {
+      "status": "recorded",
+      "prediction_id": "df5a798d758c8173eab81118f38751d7",
+      "prospective_eligible": true,
+      "ledger": "<ledger>"
+    },
+    "late": {
+      "status": "recorded",
+      "prediction_id": "27962619720a50585c0651fa9616d508",
+      "prospective_eligible": true,
+      "ledger": "<ledger>"
+    },
+    "historical": {
+      "status": "duplicate",
+      "reason": "same_group_and_decision_session",
+      "ledger": "<ledger>"
+    },
+    "backfill": {
+      "status": "recorded",
+      "prediction_id": "ef55341aae12f3b4fcfc7cf999e7cbb5",
+      "prospective_eligible": false,
+      "ledger": "<ledger>"
+    },
+    "events": [
+      {
+        "asof_timestamp": "2026-01-02T21:00:00Z",
+        "baseline_frozen_at": null,
+        "baseline_history_labels": 0,
+        "baseline_method": null,
+        "baseline_probability": null,
+        "calibrated_probability": null,
+        "calibration_status": "disabled_by_policy",
+        "causal_base_rate": null,
+        "confidence": null,
+        "confidence_score": null,
+        "confidence_score_deprecated": true,
+        "decision_at": "2026-01-02T21:00:00Z",
+        "decision_sampled": null,
+        "decision_session": "2026-01-02",
+        "direction": "bullish",
+        "eligibility": null,
+        "engine_version": "test",
+        "entry_basis": "not_modelled",
+        "event": "prediction",
+        "event_hash": "82b4673334f55b99ef4c0d9253d53af36fc51f46b2f991bdcfd3a022ff1f7ddf",
+        "feature_version": "roc20_v1",
+        "forward_eligibility": {
+          "label_maturity_at_utc": "2026-01-09T21:00:00Z",
+          "maturity_basis": "calendar_day_approximation",
+          "prompt_deadline_at_utc": "2026-01-03T09:00:00Z",
+          "prospective_eligible": true,
+          "reason": "recorded_before_label_maturity_within_prompt_window",
+          "recorded_at_utc": "2026-01-02T22:00:00Z",
+          "recorded_before_label_maturity": true,
+          "recorded_promptly": true,
+          "recording_grace_hours": 12,
+          "recording_lag_hours": 1.0,
+          "rule": "recorded_at <= decision_close + 12h, which is inside the regular US/HK close-to-next-open gap; label maturity is checked separately"
+        },
+        "group_key": "SYN|US|fixed_52w_5d_v1|quant_drift_shrinkage_v2|roc20_v1|split_adjusted_price_direction_5d_v1",
+        "horizon": "5D",
+        "horizon_sessions": 5,
+        "import_reason": null,
+        "label_basis": "close_to_close",
+        "market": "US",
+        "model_provenance": {
+          "calibration_states": {},
+          "feature_sets": {},
+          "model_versions": {},
+          "path_probabilities": {},
+          "path_probability_sources": {},
+          "path_statuses": {},
+          "path_weights": {},
+          "prediction_config_sha256": "8f6717de5243313bf139caac52cca439170fdfe6c7fdff5ceb327812d2724c7e",
+          "training_boundaries": {},
+          "validation_sha256": {}
+        },
+        "model_version": "quant_drift_shrinkage_v2",
+        "policy_version": "fixed_52w_5d_v1",
+        "prediction_id": "df5a798d758c8173eab81118f38751d7",
+        "predictive_evidence_grade": null,
+        "prev_hash": null,
+        "prob_up": 0.6,
+        "probability_basis": "uncalibrated_model_estimate",
+        "probability_transform": null,
+        "production_probability_eligible": null,
+        "prospective_eligible": true,
+        "raw_probability": 0.6,
+        "recorded_at_utc": "2026-01-02T22:00:00Z",
+        "sampling_status": "unanchored_calendar",
+        "schema_version": "ledger-3.1",
+        "snapshot_content_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "snapshot_id": "SYN_TEST",
+        "status": "pending",
+        "target_version": "split_adjusted_price_direction_5d_v1",
+        "ticker": "SYN"
+      },
+      {
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "baseline_frozen_at": null,
+        "baseline_history_labels": 0,
+        "baseline_method": null,
+        "baseline_probability": null,
+        "calibrated_probability": null,
+        "calibration_status": "disabled_by_policy",
+        "causal_base_rate": null,
+        "confidence": null,
+        "confidence_score": null,
+        "confidence_score_deprecated": true,
+        "decision_at": "2026-01-05T21:00:00Z",
+        "decision_sampled": null,
+        "decision_session": "2026-01-05",
+        "direction": "bullish",
+        "eligibility": null,
+        "engine_version": "test",
+        "entry_basis": "not_modelled",
+        "event": "prediction",
+        "event_hash": "7f90769c0f392b1156e412a479d45460ec971d0f5a2ce155a4a4478c3d64ede5",
+        "feature_version": "roc20_v1",
+        "forward_eligibility": {
+          "label_maturity_at_utc": "2026-01-12T21:00:00Z",
+          "maturity_basis": "calendar_day_approximation",
+          "prompt_deadline_at_utc": "2026-01-06T09:00:00Z",
+          "prospective_eligible": true,
+          "reason": "recorded_before_label_maturity_within_prompt_window",
+          "recorded_at_utc": "2026-01-06T09:00:00Z",
+          "recorded_before_label_maturity": true,
+          "recorded_promptly": true,
+          "recording_grace_hours": 12,
+          "recording_lag_hours": 12.0,
+          "rule": "recorded_at <= decision_close + 12h, which is inside the regular US/HK close-to-next-open gap; label maturity is checked separately"
+        },
+        "group_key": "SYN|US|fixed_52w_5d_v1|quant_drift_shrinkage_v2|roc20_v1|split_adjusted_price_direction_5d_v1",
+        "horizon": "5D",
+        "horizon_sessions": 5,
+        "import_reason": null,
+        "label_basis": "close_to_close",
+        "market": "US",
+        "model_provenance": {
+          "calibration_states": {},
+          "feature_sets": {},
+          "model_versions": {},
+          "path_probabilities": {},
+          "path_probability_sources": {},
+          "path_statuses": {},
+          "path_weights": {},
+          "prediction_config_sha256": "8f6717de5243313bf139caac52cca439170fdfe6c7fdff5ceb327812d2724c7e",
+          "training_boundaries": {},
+          "validation_sha256": {}
+        },
+        "model_version": "quant_drift_shrinkage_v2",
+        "policy_version": "fixed_52w_5d_v1",
+        "prediction_id": "27962619720a50585c0651fa9616d508",
+        "predictive_evidence_grade": null,
+        "prev_hash": "82b4673334f55b99ef4c0d9253d53af36fc51f46b2f991bdcfd3a022ff1f7ddf",
+        "prob_up": 0.6,
+        "probability_basis": "uncalibrated_model_estimate",
+        "probability_transform": null,
+        "production_probability_eligible": null,
+        "prospective_eligible": true,
+        "raw_probability": 0.6,
+        "recorded_at_utc": "2026-01-06T09:00:00Z",
+        "sampling_status": "unanchored_calendar",
+        "schema_version": "ledger-3.1",
+        "snapshot_content_sha256": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd",
+        "snapshot_id": "SYN_TEST",
+        "status": "pending",
+        "target_version": "split_adjusted_price_direction_5d_v1",
+        "ticker": "SYN"
+      },
+      {
+        "asof_timestamp": "2026-01-10T21:00:00Z",
+        "baseline_frozen_at": null,
+        "baseline_history_labels": 0,
+        "baseline_method": null,
+        "baseline_probability": null,
+        "calibrated_probability": null,
+        "calibration_status": "disabled_by_policy",
+        "causal_base_rate": null,
+        "confidence": null,
+        "confidence_score": null,
+        "confidence_score_deprecated": true,
+        "decision_at": "2026-01-12T21:00:00Z",
+        "decision_sampled": null,
+        "decision_session": "2026-01-12",
+        "direction": "bullish",
+        "eligibility": null,
+        "engine_version": "test",
+        "entry_basis": "not_modelled",
+        "event": "prediction",
+        "event_hash": "3821fdb23ff182fe5467f4034155e4ad62973447fedbfe5e5616a212ed1f264b",
+        "feature_version": "roc20_v1",
+        "forward_eligibility": {
+          "label_maturity_at_utc": "2026-01-19T21:00:00Z",
+          "maturity_basis": "calendar_day_approximation",
+          "prompt_deadline_at_utc": "2026-01-13T09:00:00Z",
+          "prospective_eligible": false,
+          "reason": "recorded_after_label_maturity",
+          "recorded_at_utc": "2026-01-20T21:00:00Z",
+          "recorded_before_label_maturity": false,
+          "recorded_promptly": false,
+          "recording_grace_hours": 12,
+          "recording_lag_hours": 192.0,
+          "rule": "recorded_at <= decision_close + 12h, which is inside the regular US/HK close-to-next-open gap; label maturity is checked separately"
+        },
+        "group_key": "SYN|US|fixed_52w_5d_v1|quant_drift_shrinkage_v2|roc20_v1|split_adjusted_price_direction_5d_v1",
+        "horizon": "5D",
+        "horizon_sessions": 5,
+        "import_reason": "backfill",
+        "label_basis": "close_to_close",
+        "market": "US",
+        "model_provenance": {
+          "calibration_states": {},
+          "feature_sets": {},
+          "model_versions": {},
+          "path_probabilities": {},
+          "path_probability_sources": {},
+          "path_statuses": {},
+          "path_weights": {},
+          "prediction_config_sha256": "8f6717de5243313bf139caac52cca439170fdfe6c7fdff5ceb327812d2724c7e",
+          "training_boundaries": {},
+          "validation_sha256": {}
+        },
+        "model_version": "quant_drift_shrinkage_v2",
+        "policy_version": "fixed_52w_5d_v1",
+        "prediction_id": "ef55341aae12f3b4fcfc7cf999e7cbb5",
+        "predictive_evidence_grade": null,
+        "prev_hash": "7f90769c0f392b1156e412a479d45460ec971d0f5a2ce155a4a4478c3d64ede5",
+        "prob_up": 0.6,
+        "probability_basis": "uncalibrated_model_estimate",
+        "probability_transform": null,
+        "production_probability_eligible": null,
+        "prospective_eligible": false,
+        "raw_probability": 0.6,
+        "recorded_at_utc": "2026-01-20T21:00:00Z",
+        "sampling_status": "unanchored_calendar",
+        "schema_version": "ledger-3.1",
+        "snapshot_content_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+        "snapshot_id": "SYN_TEST",
+        "status": "pending",
+        "target_version": "split_adjusted_price_direction_5d_v1",
+        "ticker": "SYN"
+      }
+    ],
+    "prospective": []
+  },
+  "version_isolation": {
+    "inputs": {
+      "early": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-02T20:00:00Z",
+          "snapshot_id": "S-2026-01-02",
+          "snapshot_content_sha256": "earlyaaaaaaaaaaaaaaaaaaaa"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-02",
+            "decision_at": "2026-01-02T20:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          },
+          "decision_sampled": true,
+          "sampling": {
+            "status": "anchored"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      },
+      "late": {
+        "snapshot": {
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D",
+          "asof_timestamp": "2026-01-05T20:00:00Z",
+          "snapshot_id": "S-2026-01-05",
+          "snapshot_content_sha256": "lateaaaaaaaaaaaaaaaaaaaa"
+        },
+        "consensus": {
+          "prob_up": 0.6,
+          "raw_probability": 0.6,
+          "probability_label": "uncalibrated_model_estimate",
+          "direction": "bullish",
+          "timing": {
+            "decision_session": "2026-01-05",
+            "decision_at": "2026-01-05T20:00:00Z",
+            "label_basis": "close_to_close",
+            "entry_basis": "not_modelled"
+          },
+          "decision_sampled": true,
+          "sampling": {
+            "status": "anchored"
+          }
+        },
+        "engine": {
+          "version": "test"
+        }
+      }
+    },
+    "prompt": {
+      "status": "recorded",
+      "prediction_id": "fb81476b714000f76d2d188365566b53",
+      "prospective_eligible": true,
+      "ledger": "<ledger>"
+    },
+    "late": {
+      "status": "recorded",
+      "prediction_id": "508aaa6204099e53b34644c3547051bb",
+      "prospective_eligible": false,
+      "ledger": "<ledger>"
+    },
+    "settlements": [
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "fb81476b714000f76d2d188365566b53",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-01-15",
+        "bars_session_count": 10,
+        "decision_session": "2026-01-02",
+        "label_session": "2026-01-09",
+        "entry_close": 100.0,
+        "exit_close": 110.0,
+        "realized_return": 0.10000000000000009,
+        "hit": 1,
+        "brier": 0.16000000000000003,
+        "baseline_probability": null,
+        "baseline_brier": null,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 0,
+        "baseline_frozen_at": "settlement",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      },
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "508aaa6204099e53b34644c3547051bb",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-01-15",
+        "bars_session_count": 10,
+        "decision_session": "2026-01-05",
+        "label_session": "2026-01-12",
+        "entry_close": 102.0,
+        "exit_close": 112.0,
+        "realized_return": 0.0980392156862746,
+        "hit": 1,
+        "brier": 0.16000000000000003,
+        "baseline_probability": null,
+        "baseline_brier": null,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 0,
+        "baseline_frozen_at": "settlement",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      }
+    ],
+    "forged": {
+      "asof_timestamp": "2026-01-02T20:00:00Z",
+      "baseline_frozen_at": null,
+      "baseline_history_labels": 0,
+      "baseline_method": null,
+      "baseline_probability": null,
+      "calibrated_probability": null,
+      "calibration_status": "disabled_by_policy",
+      "causal_base_rate": null,
+      "confidence": null,
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "decision_at": "2026-01-02T20:00:00Z",
+      "decision_sampled": true,
+      "decision_session": "2026-01-02",
+      "direction": "bullish",
+      "eligibility": null,
+      "engine_version": "test",
+      "entry_basis": "not_modelled",
+      "event": "prediction",
+      "feature_version": "roc20_v1",
+      "forward_eligibility": {
+        "label_maturity_at_utc": "2026-01-09T20:00:00Z",
+        "maturity_basis": "calendar_day_approximation",
+        "prompt_deadline_at_utc": "2026-01-03T08:00:00Z",
+        "prospective_eligible": true,
+        "reason": "recorded_before_label_maturity_within_prompt_window",
+        "recorded_at_utc": "2026-01-02T21:00:00Z",
+        "recorded_before_label_maturity": true,
+        "recorded_promptly": true,
+        "recording_grace_hours": 12,
+        "recording_lag_hours": 1.0,
+        "rule": "recorded_at <= decision_close + 12h, which is inside the regular US/HK close-to-next-open gap; label maturity is checked separately"
+      },
+      "group_key": "SYN|US|fixed_52w_5d_v1|quant_drift_shrinkage_v2|roc20_v1|split_adjusted_price_direction_5d_v1",
+      "horizon": "5D",
+      "horizon_sessions": 5,
+      "import_reason": null,
+      "label_basis": "close_to_close",
+      "market": "US",
+      "model_provenance": {
+        "calibration_states": {},
+        "feature_sets": {},
+        "model_versions": {},
+        "path_probabilities": {},
+        "path_probability_sources": {},
+        "path_statuses": {},
+        "path_weights": {},
+        "prediction_config_sha256": "8f6717de5243313bf139caac52cca439170fdfe6c7fdff5ceb327812d2724c7e",
+        "training_boundaries": {},
+        "validation_sha256": {}
+      },
+      "model_version": "quant_previous_model",
+      "policy_version": "fixed_52w_5d_v1",
+      "prediction_id": "other-model",
+      "predictive_evidence_grade": null,
+      "prob_up": 0.6,
+      "probability_basis": "uncalibrated_model_estimate",
+      "probability_transform": null,
+      "production_probability_eligible": null,
+      "prospective_eligible": true,
+      "raw_probability": 0.6,
+      "recorded_at_utc": "2026-01-02T21:00:00Z",
+      "sampling_status": "anchored",
+      "schema_version": "ledger-3.1",
+      "snapshot_content_sha256": "earlyaaaaaaaaaaaaaaaaaaaa",
+      "snapshot_id": "S-2026-01-02",
+      "status": "pending",
+      "target_version": "split_adjusted_price_direction_5d_v1",
+      "ticker": "SYN"
+    },
+    "prospective": [
+      {
+        "decision_session": "2026-01-02",
+        "probability": 0.6,
+        "target": 1,
+        "probability_transform": {},
+        "causal_base_rate": null,
+        "sampled": true,
+        "sampling_status": "anchored",
+        "recording_prompt_proven": true,
+        "status": "matured",
+        "evidence_scope": "prospective_prompt_recording_anchored",
+        "settled_at": null
+      }
+    ],
+    "tampered_error": {
+      "type": "ValueError",
+      "message": "ledger line 1 failed its own hash check: the event was modified"
+    },
+    "chain_error": {
+      "type": "ValueError",
+      "message": "ledger line 1 breaks the hash chain: prev_hash does not match the previous event"
+    }
+  },
+  "legacy": {
+    "rows": [
+      {
+        "schema_version": "ledger-1.0",
+        "event": "prediction",
+        "prediction_id": "legacy-1",
+        "recorded_at_utc": "2025-12-01T21:00:00Z",
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "asof_timestamp": "2025-12-01T21:00:00Z",
+        "decision_session": "2026-01-02",
+        "status": "pending",
+        "prob_up": 0.55,
+        "model_version": "quant_previous_model",
+        "feature_version": "quant_features_v2",
+        "policy_version": "3.0",
+        "target_version": "split_adjusted_price_direction_5d_v1"
+      },
+      {
+        "schema_version": "ledger-2.0",
+        "event": "prediction",
+        "prediction_id": "legacy-2",
+        "recorded_at_utc": "2025-12-02T21:00:00Z",
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "asof_timestamp": "2025-12-02T21:00:00Z",
+        "decision_session": "2026-01-05",
+        "status": "pending",
+        "prob_up": 0.52,
+        "prospective_eligible": true,
+        "policy_version": "3.0",
+        "target_version": "split_adjusted_price_direction_5d_v1",
+        "model_version": "quant_v1",
+        "feature_version": "quant_features_v3"
+      }
+    ],
+    "events": [
+      {
+        "asof_timestamp": "2025-12-01T21:00:00Z",
+        "decision_session": "2026-01-02",
+        "event": "prediction",
+        "feature_version": "quant_features_v2",
+        "horizon": "5D",
+        "market": "US",
+        "model_version": "quant_previous_model",
+        "policy_version": "3.0",
+        "prediction_id": "legacy-1",
+        "prob_up": 0.55,
+        "recorded_at_utc": "2025-12-01T21:00:00Z",
+        "schema_version": "ledger-1.0",
+        "status": "pending",
+        "target_version": "split_adjusted_price_direction_5d_v1",
+        "ticker": "SYN"
+      },
+      {
+        "asof_timestamp": "2025-12-02T21:00:00Z",
+        "decision_session": "2026-01-05",
+        "event": "prediction",
+        "feature_version": "quant_features_v3",
+        "horizon": "5D",
+        "market": "US",
+        "model_version": "quant_v1",
+        "policy_version": "3.0",
+        "prediction_id": "legacy-2",
+        "prob_up": 0.52,
+        "prospective_eligible": true,
+        "recorded_at_utc": "2025-12-02T21:00:00Z",
+        "schema_version": "ledger-2.0",
+        "status": "pending",
+        "target_version": "split_adjusted_price_direction_5d_v1",
+        "ticker": "SYN"
+      }
+    ],
+    "settlements": [
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "legacy-1",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-01-15",
+        "bars_session_count": 10,
+        "decision_session": "2026-01-02",
+        "label_session": "2026-01-09",
+        "entry_close": 100.0,
+        "exit_close": 110.0,
+        "realized_return": 0.10000000000000009,
+        "hit": 1,
+        "brier": 0.20249999999999996,
+        "baseline_probability": null,
+        "baseline_brier": null,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 0,
+        "baseline_frozen_at": "settlement",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      },
+      {
+        "schema_version": "ledger-3.1",
+        "event": "settlement",
+        "prediction_id": "legacy-2",
+        "settled_at_utc": "2026-01-05T21:00:00Z",
+        "settlement_rule": "close_to_close_horizon_sessions",
+        "bars_ticker": "SYN",
+        "bars_market": "US",
+        "bars_first_session": "2026-01-02",
+        "bars_last_session": "2026-01-15",
+        "bars_session_count": 10,
+        "decision_session": "2026-01-05",
+        "label_session": "2026-01-12",
+        "entry_close": 102.0,
+        "exit_close": 112.0,
+        "realized_return": 0.0980392156862746,
+        "hit": 1,
+        "brier": 0.2304,
+        "baseline_probability": null,
+        "baseline_brier": null,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_history_labels": 0,
+        "baseline_frozen_at": "settlement",
+        "probability_source": "recorded_prob_up",
+        "source_snapshot_id": null,
+        "source_snapshot_sha256": null
+      }
+    ],
+    "audit": {
+      "schema_version": "ledger-3.1",
+      "ledger": "<ledger>",
+      "unique_predictions": 2,
+      "settled_predictions": 2,
+      "prospective_settled_predictions": 0,
+      "prospective_prompt_recording_verified": 0,
+      "retrospective_settled_predictions": 0,
+      "legacy_schema_settled_predictions": 2,
+      "pending_predictions": 0,
+      "pending_prospective_predictions": 0,
+      "abstained_predictions": 0,
+      "settlement_coverage_prospective": null,
+      "duplicate_settlements": [],
+      "identity_conflicts": [],
+      "duplicate_prediction_dates": [],
+      "metrics_basis": "prospective_eligible_predictions_only",
+      "evaluation_window_days": 364,
+      "evaluation_window_start": "2025-02-02",
+      "recent_prospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "overall": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "prospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "retrospective": {
+        "samples": 0,
+        "brier": null,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": null,
+        "ex_post_climatology": null,
+        "ex_post_climatology_brier": null,
+        "direction_accuracy": null,
+        "direction_samples": 0,
+        "direction_ties": 0,
+        "always_up_accuracy": null,
+        "direction_accuracy_delta_vs_always_up": null,
+        "balanced_accuracy": null,
+        "mean_probability": null,
+        "mean_realized_return": null,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 0
+      },
+      "legacy_schema": {
+        "samples": 2,
+        "brier": 0.21645,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": 1.0,
+        "ex_post_climatology": 1.0,
+        "ex_post_climatology_brier": 0.0,
+        "direction_accuracy": 1.0,
+        "direction_samples": 2,
+        "direction_ties": 0,
+        "always_up_accuracy": 1.0,
+        "direction_accuracy_delta_vs_always_up": 0.0,
+        "balanced_accuracy": null,
+        "mean_probability": 0.535,
+        "mean_realized_return": 0.09902,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 2
+      },
+      "all_settled_descriptive": {
+        "samples": 2,
+        "brier": 0.21645,
+        "causal_baseline_brier": null,
+        "causal_baseline_samples": 0,
+        "brier_skill_vs_causal_baseline": null,
+        "observed_up_rate": 1.0,
+        "ex_post_climatology": 1.0,
+        "ex_post_climatology_brier": 0.0,
+        "direction_accuracy": 1.0,
+        "direction_samples": 2,
+        "direction_ties": 0,
+        "always_up_accuracy": 1.0,
+        "direction_accuracy_delta_vs_always_up": 0.0,
+        "balanced_accuracy": null,
+        "mean_probability": 0.535,
+        "mean_realized_return": 0.09902,
+        "calibrated_predictions": 0,
+        "uncalibrated_predictions": 2
+      },
+      "by_horizon": {},
+      "by_engine_version": {},
+      "caveats": [
+        "observed_up_rate is the realised label base rate, not a model hit rate",
+        "ex_post_climatology is descriptive and must not be used as a deployable baseline",
+        "only prospective_eligible predictions enter the forward score",
+        "prospective also requires a provable prompt recording timestamp (ledger-3.1); earlier rows are reported separately",
+        "legacy ledger-1.0/2.0/3.0 rows cannot prove prompt recording and are reported separately"
+      ]
+    },
+    "prospective": [],
+    "errors": {
+      "unsupported_schema": {
+        "type": "ValueError",
+        "message": "ledger line 1 has unsupported schema 'ledger-9.9'"
+      },
+      "unknown_event": {
+        "type": "ValueError",
+        "message": "ledger line 1 has unknown event 'mystery'"
+      },
+      "non_object": {
+        "type": "TypeError",
+        "message": "ledger line 1 must be a JSON object"
+      },
+      "malformed": {
+        "type": "ValueError",
+        "message": "ledger line 1 is not valid JSON: Expecting property name enclosed in double quotes"
+      }
+    },
+    "empty_events": [],
+    "missing_events": []
+  },
+  "provenance": {
+    "input": {
+      "snapshot": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "asof_timestamp": "2026-01-09T21:00:00Z",
+        "snapshot_id": "SYN_TEST",
+        "snapshot_content_sha256": "9999999999999999999999999999999999999999999999999999999999999999"
+      },
+      "consensus": {
+        "prob_up": 0.6,
+        "raw_probability": 0.6,
+        "probability_label": "uncalibrated_model_estimate",
+        "direction": "bullish",
+        "timing": {
+          "decision_session": "2026-01-09",
+          "decision_at": "2026-01-09T21:00:00Z",
+          "label_basis": "close_to_close",
+          "entry_basis": "not_modelled"
+        }
+      },
+      "engine": {
+        "version": "test"
+      },
+      "researchers": {
+        "quant": {
+          "prob_up": 0.6,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "status": "success",
+          "weight": 1.0,
+          "model_version": "quant_drift_shrinkage_v2",
+          "validation": {
+            "model_version": "quant_drift_shrinkage_v2",
+            "model_hyperparameters": {
+              "features": [
+                "roc20"
+              ]
+            },
+            "current_prediction_model_training_boundary": {
+              "training_end_session": "2026-01-08"
+            },
+            "current_prediction_calibration": {
+              "status": "disabled_by_policy",
+              "applied": false,
+              "observations": 0,
+              "fit_observations": 0
+            },
+            "extra": 1
+          }
+        },
+        "factor": {
+          "prob_up": null,
+          "probability_basis": "out_of_sample_factor_score_bucket_frequency",
+          "status": "insufficient_data",
+          "model_version": "factor_restricted_two_honest_v1"
+        },
+        "ml": {
+          "prob_up": 0.49,
+          "status": "success",
+          "validation": {
+            "model_version": "ml_compact_v1",
+            "probability_calibration": {}
+          }
+        }
+      }
+    },
+    "outcome": {
+      "status": "recorded",
+      "prediction_id": "8328219b64dda986ba9543ad4ed7b592",
+      "prospective_eligible": false,
+      "ledger": "<ledger>"
+    },
+    "event": {
+      "asof_timestamp": "2026-01-09T21:00:00Z",
+      "baseline_frozen_at": "prediction",
+      "baseline_history_labels": 1,
+      "baseline_method": "causal_expanding_up_rate_matured_labels",
+      "baseline_probability": 1.0,
+      "calibrated_probability": null,
+      "calibration_status": "disabled_by_policy",
+      "causal_base_rate": null,
+      "confidence": null,
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "decision_at": "2026-01-09T21:00:00Z",
+      "decision_sampled": null,
+      "decision_session": "2026-01-09",
+      "direction": "bullish",
+      "eligibility": null,
+      "engine_version": "test",
+      "entry_basis": "not_modelled",
+      "event": "prediction",
+      "event_hash": "f5d2ad8475879a35af7021404cc0dfa80dff6e9afcc37cf803abaa985f0282a0",
+      "feature_version": "roc20_v1",
+      "forward_eligibility": {
+        "label_maturity_at_utc": "2026-01-16T21:00:00Z",
+        "maturity_basis": "calendar_day_approximation",
+        "prompt_deadline_at_utc": "2026-01-10T09:00:00Z",
+        "prospective_eligible": false,
+        "reason": "recorded_after_label_maturity",
+        "recorded_at_utc": "2026-03-01T00:00:00Z",
+        "recorded_before_label_maturity": false,
+        "recorded_promptly": false,
+        "recording_grace_hours": 12,
+        "recording_lag_hours": 1203.0,
+        "rule": "recorded_at <= decision_close + 12h, which is inside the regular US/HK close-to-next-open gap; label maturity is checked separately"
+      },
+      "group_key": "SYN|US|fixed_52w_5d_v1|quant_drift_shrinkage_v2|roc20_v1|split_adjusted_price_direction_5d_v1",
+      "horizon": "5D",
+      "horizon_sessions": 5,
+      "import_reason": "historical_snapshot_recorded_after_label_maturity",
+      "label_basis": "close_to_close",
+      "market": "US",
+      "model_provenance": {
+        "calibration_states": {
+          "ml": {},
+          "quant": {
+            "applied": false,
+            "fit_observations": 0,
+            "observations": 0,
+            "status": "disabled_by_policy"
+          }
+        },
+        "feature_sets": {
+          "quant": [
+            "roc20"
+          ]
+        },
+        "model_versions": {
+          "factor": "factor_restricted_two_honest_v1",
+          "ml": "ml_compact_v1",
+          "quant": "quant_drift_shrinkage_v2"
+        },
+        "path_probabilities": {
+          "factor": null,
+          "ml": 0.49,
+          "quant": 0.6
+        },
+        "path_probability_sources": {
+          "factor": "out_of_sample_factor_score_bucket_frequency",
+          "ml": null,
+          "quant": "drift_shrunk_causal_base_rate"
+        },
+        "path_statuses": {
+          "factor": "insufficient_data",
+          "ml": "success",
+          "quant": "success"
+        },
+        "path_weights": {
+          "quant": 1.0
+        },
+        "prediction_config_sha256": "eb4408b77bcfe5559cdb9d59e8dfea27f0a55f423c0bdf7c2a9251b803da428d",
+        "training_boundaries": {
+          "quant": {
+            "training_end_session": "2026-01-08"
+          }
+        },
+        "validation_sha256": {
+          "ml": "a18fed8c14c949f6724f3b0411c9697f162da94bf75b127acce05bf8ce6e617c",
+          "quant": "6c1e2d6ac2ef6515ad8f1796c2126d8e3ef929c3829ee5a98ab95247d6957d22"
+        }
+      },
+      "model_version": "quant_drift_shrinkage_v2",
+      "policy_version": "fixed_52w_5d_v1",
+      "prediction_id": "8328219b64dda986ba9543ad4ed7b592",
+      "predictive_evidence_grade": null,
+      "prev_hash": null,
+      "prob_up": 0.6,
+      "probability_basis": "uncalibrated_model_estimate",
+      "probability_transform": null,
+      "production_probability_eligible": null,
+      "prospective_eligible": false,
+      "raw_probability": 0.6,
+      "recorded_at_utc": "2026-03-01T00:00:00Z",
+      "sampling_status": "unanchored_calendar",
+      "schema_version": "ledger-3.1",
+      "snapshot_content_sha256": "9999999999999999999999999999999999999999999999999999999999999999",
+      "snapshot_id": "SYN_TEST",
+      "status": "pending",
+      "target_version": "split_adjusted_price_direction_5d_v1",
+      "ticker": "SYN"
+    }
+  },
+  "snapshot_flow": {
+    "input": {
+      "snapshot": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "asof_timestamp": "2026-10-23T21:00:00Z",
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "snapshot_content_sha256": "00d9769e96e8b45deff4406b0d090a0d264b8ce387baa106d06eb6100540bc3c"
+      },
+      "consensus": {
+        "prob_up": 0.6,
+        "raw_probability": 0.6,
+        "probability_label": "uncalibrated_model_estimate",
+        "direction": "bullish",
+        "timing": {
+          "decision_session": "2026-10-23",
+          "decision_at": "2026-10-23T21:00:00Z",
+          "label_basis": "close_to_close",
+          "entry_basis": "not_modelled"
+        }
+      },
+      "engine": {
+        "version": "test"
+      }
+    },
+    "record": {
+      "status": "recorded",
+      "prediction_id": "b397b40dd786af5ddfdbcaa82708db7c",
+      "prospective_eligible": true,
+      "ledger": "<ledger>"
+    },
+    "second_record": {
+      "status": "duplicate",
+      "prediction_id": "b397b40dd786af5ddfdbcaa82708db7c",
+      "ledger": "<ledger>"
+    },
+    "settle": {
+      "status": "no_new_settlements",
+      "settled": 0,
+      "skipped": 1,
+      "skip_reasons": [
+        {
+          "prediction_id": "b397b40dd786af5ddfdbcaa82708db7c",
+          "reason": "label_not_matured"
+        }
+      ],
+      "source_snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+      "bars_ticker": "SYN",
+      "bars_market": "US"
+    },
+    "events": [
+      {
+        "asof_timestamp": "2026-10-23T21:00:00Z",
+        "baseline_frozen_at": "prediction",
+        "baseline_history_labels": 255,
+        "baseline_method": "causal_expanding_up_rate_matured_labels",
+        "baseline_probability": 0.5019607843137255,
+        "calibrated_probability": null,
+        "calibration_status": "disabled_by_policy",
+        "causal_base_rate": null,
+        "confidence": null,
+        "confidence_score": null,
+        "confidence_score_deprecated": true,
+        "decision_at": "2026-10-23T21:00:00Z",
+        "decision_sampled": null,
+        "decision_session": "2026-10-23",
+        "direction": "bullish",
+        "eligibility": null,
+        "engine_version": "test",
+        "entry_basis": "not_modelled",
+        "event": "prediction",
+        "event_hash": "79fa3b5977b3ebb27bec692105f2ad60dc2ea8818c72b8c355c8c48d7eb0f9d1",
+        "feature_version": "roc20_v1",
+        "forward_eligibility": {
+          "label_maturity_at_utc": "2026-10-30T21:00:00Z",
+          "maturity_basis": "calendar_day_approximation",
+          "prompt_deadline_at_utc": "2026-10-24T09:00:00Z",
+          "prospective_eligible": true,
+          "reason": "recorded_before_label_maturity_within_prompt_window",
+          "recorded_at_utc": "2026-03-01T00:00:00Z",
+          "recorded_before_label_maturity": true,
+          "recorded_promptly": true,
+          "recording_grace_hours": 12,
+          "recording_lag_hours": -5685.0,
+          "rule": "recorded_at <= decision_close + 12h, which is inside the regular US/HK close-to-next-open gap; label maturity is checked separately"
+        },
+        "group_key": "SYN|US|fixed_52w_5d_v1|quant_drift_shrinkage_v2|roc20_v1|split_adjusted_price_direction_5d_v1",
+        "horizon": "5D",
+        "horizon_sessions": 5,
+        "import_reason": null,
+        "label_basis": "close_to_close",
+        "market": "US",
+        "model_provenance": {
+          "calibration_states": {},
+          "feature_sets": {},
+          "model_versions": {},
+          "path_probabilities": {},
+          "path_probability_sources": {},
+          "path_statuses": {},
+          "path_weights": {},
+          "prediction_config_sha256": "8f6717de5243313bf139caac52cca439170fdfe6c7fdff5ceb327812d2724c7e",
+          "training_boundaries": {},
+          "validation_sha256": {}
+        },
+        "model_version": "quant_drift_shrinkage_v2",
+        "policy_version": "fixed_52w_5d_v1",
+        "prediction_id": "b397b40dd786af5ddfdbcaa82708db7c",
+        "predictive_evidence_grade": null,
+        "prev_hash": null,
+        "prob_up": 0.6,
+        "probability_basis": "uncalibrated_model_estimate",
+        "probability_transform": null,
+        "production_probability_eligible": null,
+        "prospective_eligible": true,
+        "raw_probability": 0.6,
+        "recorded_at_utc": "2026-03-01T00:00:00Z",
+        "sampling_status": "unanchored_calendar",
+        "schema_version": "ledger-3.1",
+        "snapshot_content_sha256": "00d9769e96e8b45deff4406b0d090a0d264b8ce387baa106d06eb6100540bc3c",
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "status": "pending",
+        "target_version": "split_adjusted_price_direction_5d_v1",
+        "ticker": "SYN"
+      }
+    ]
+  }
+}

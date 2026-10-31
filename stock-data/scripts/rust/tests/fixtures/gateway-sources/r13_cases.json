@@ -1,0 +1,1033 @@
+{
+  "generated_from": "stock-data/scripts/global_stock_data.py",
+  "note": "legacy requests/results with a scripted offline _provider_get",
+  "cases": [
+    {
+      "function": "us_stock_quote_sina",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://hq.sinajs.cn/list=gb_aapl",
+          "params": {},
+          "headers": {
+            "Referer": "https://finance.sina.com.cn/",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": "gbk",
+          "body_b64": "dmFyIGhxX3N0cl9nYl9hYXBsPSJBcHBsZSBJbmMuLDE4Mi41MjAwMDAsMS4yMzAwMDAsMjAyNi0wMS0wOSAxNjowMDowMCwxNzguMDAwMDAwLDE4MC4wMDAwMDAsMTgzLjAwMDAwMCwxNzkuNTAwMDAwLDIwMC4wMDAwMDAsMTIwLjAwMDAwMCw1MDAwMDAwMCwxLDMwMDAwMDAwMDAwMDAsNi41MDAwMDAsMjguMTAwMDAwLDAuMDAwMDAwLDAsMCwwLDAsMCwwLDAsMCwwLDAsMTgwLjMwMDAwMCwwLDAsMCwwLDAsMCwwLDAsMCI7Cg=="
+        }
+      ],
+      "ok": true,
+      "data": {
+        "name": "Apple Inc.",
+        "price": 182.52,
+        "change_pct": 1.23,
+        "timestamp": "2026-01-09 16:00:00",
+        "prev_close": 180.3,
+        "open": 180.0,
+        "high": 183.0,
+        "low": 179.5,
+        "volume": 50000000.0,
+        "high_52w": 200.0,
+        "low_52w": 120.0,
+        "market_cap": 3000000000000.0,
+        "eps": 6.5,
+        "pe": 28.1
+      }
+    },
+    {
+      "function": "us_stock_quote_sina",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://hq.sinajs.cn/list=gb_aapl",
+          "params": {},
+          "headers": {
+            "Referer": "https://finance.sina.com.cn/",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "dW5leHBlY3RlZA=="
+        }
+      ],
+      "ok": true,
+      "data": {}
+    },
+    {
+      "function": "us_stock_quote_sina",
+      "params": {
+        "ticker": "^GSPC"
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "ticker has an invalid format."
+    },
+    {
+      "function": "us_stock_quote_sina",
+      "params": {
+        "ticker": "0700.HK"
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "This function supports US tickers only."
+    },
+    {
+      "function": "us_stock_quote_sina",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://hq.sinajs.cn/list=gb_aapl",
+          "params": {},
+          "headers": {
+            "Referer": "https://finance.sina.com.cn/",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 500,
+          "reason": "Internal Server Error",
+          "encoding": null,
+          "body_b64": "Ym9vbQ=="
+        }
+      ],
+      "ok": false,
+      "error_type": "HTTPError",
+      "error_message": "500 Server Error: Internal Server Error for url: https://hq.sinajs.cn/list=gb_aapl"
+    },
+    {
+      "function": "us_stock_quote_tencent",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://qt.gtimg.cn/q=usAAPL",
+          "params": {},
+          "headers": {},
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": "gbk",
+          "body_b64": "dmFyIHZfdXNBQVBMPSJ+QXBwbGUgSW5jLn5+MTgyLjUyfjE4MC4zMH4xODEuMDB+NTAwMDAwMDB+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn4yMDI2LTAxLTA5IDE2OjAwOjAwfn4xLjIzfjE4My4xMH4xNzkuNDB+VVNEfn5+fjI4LjEwfn5+fn4yNzAwMH4yODAwMH5BcHBsZSBJbmMufjYuNTB+MjAwLjAwfjEyMC4wMH5+NDUuMjB+fn5+fn5+fn5+fn5+fn5+fn5+IjsK"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "name": "Apple Inc.",
+        "name_en": "Apple Inc.",
+        "price": 182.52,
+        "prev_close": 180.3,
+        "open": 181.0,
+        "volume": 50000000,
+        "high": 183.1,
+        "low": 179.4,
+        "high_52w": 200.0,
+        "low_52w": 120.0,
+        "change_pct": 1.23,
+        "float_market_cap": 27000.0,
+        "market_cap": 28000.0,
+        "eps": 6.5,
+        "pe": 28.1,
+        "pb": 45.2,
+        "currency": "USD",
+        "timestamp": "2026-01-09 16:00:00"
+      }
+    },
+    {
+      "function": "us_stock_quote_tencent",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://qt.gtimg.cn/q=usAAPL",
+          "params": {},
+          "headers": {},
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "dl91c0FBUEw9InNob3J0fmZpZWxkcyI7"
+        }
+      ],
+      "ok": true,
+      "data": {}
+    },
+    {
+      "function": "hk_stock_quote_tencent",
+      "params": {
+        "code": "700"
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "code must contain 4 or 5 Hong Kong code digits."
+    },
+    {
+      "function": "hk_stock_quote_tencent",
+      "params": {
+        "code": "0700"
+      },
+      "requests": [
+        {
+          "url": "https://qt.gtimg.cn/q=r_hk00700",
+          "params": {},
+          "headers": {},
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": "gbk",
+          "body_b64": "dmFyIHZfcl9oazAwNzAwPSJ+zNrRtr/Yucl+MDA3MDB+MzgwLjAwfjM3NS4wMH4zNzYuMDB+MTUwMDAwMDB+fn5+fn5+fn5+fn5+fn5+fn5+fn5+fn4yMDI2LTAxLTA5IDE2OjA4OjAwfn4xLjMzfjM4Mi4wMH4zNzMuMDB+fn41NjAwMDAwMDAwfn4yMC41MH5+fn5+MzIwMDB+MzUwMDB+VEVOQ0VOVH5+NDIwLjAwfjI2MC4wMH5+fn5+fn5+fjQuMTB+fn5+fn5+fn5+fn5+fn5+fkhLRH5+IjsK"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "name": "腾讯控股",
+        "code": "00700",
+        "name_en": "TENCENT",
+        "price": 380.0,
+        "prev_close": 375.0,
+        "open": 376.0,
+        "high": 382.0,
+        "low": 373.0,
+        "volume": 15000000,
+        "amount": 5600000000.0,
+        "change_pct": 1.33,
+        "pe": 20.5,
+        "pb": 4.1,
+        "high_52w": 420.0,
+        "low_52w": 260.0,
+        "float_market_cap": 32000.0,
+        "market_cap": 35000.0,
+        "currency": "HKD",
+        "timestamp": "2026-01-09 16:08:00"
+      }
+    },
+    {
+      "function": "hk_stock_quote_sina",
+      "params": {
+        "code": "00700"
+      },
+      "requests": [
+        {
+          "url": "https://hq.sinajs.cn/list=rt_hk00700",
+          "params": {},
+          "headers": {
+            "Referer": "https://finance.sina.com.cn/",
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": "gbk",
+          "body_b64": "dmFyIGhxX3N0cl9ydF9oazAwNzAwPSJURU5DRU5ULMza0ba/2LnJLDM3Ni4wMDAsMzc1LjAwMCwzODIuMDAwLDM3My4wMDAsMzgwLjAwMCw1LjAwMCwxLjMzMywwLDAsNTYwMDAwMDAwMCwxNTAwMDAwMCwwLDAsMCwwLDAsMCwwLDAsMCwwLDAsMCI7Cg=="
+        }
+      ],
+      "ok": true,
+      "data": {
+        "name_en": "TENCENT",
+        "name": "腾讯控股",
+        "open": 376.0,
+        "prev_close": 375.0,
+        "high": 382.0,
+        "low": 373.0,
+        "price": 380.0,
+        "change": 5.0,
+        "change_pct": 1.333,
+        "volume": 15000000.0,
+        "amount": 5600000000.0
+      }
+    },
+    {
+      "function": "hk_stock_quote_sina",
+      "params": {
+        "code": "abc"
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "code must contain 4 or 5 Hong Kong code digits."
+    },
+    {
+      "function": "stock_quote_eastmoney",
+      "params": {
+        "ticker_or_code": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://push2.eastmoney.com/api/qt/stock/get",
+          "params": {
+            "secid": "105.AAPL",
+            "fields": "f43,f44,f45,f46,f47,f48,f55,f57,f58,f59,f60,f170"
+          },
+          "headers": {},
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJyYyI6IDAsICJkYXRhIjogeyJmNDMiOiAxODI1MiwgImY0NCI6IDE4MzEwLCAiZjQ1IjogMTc5NDAsICJmNDYiOiAxODEwMCwgImY0NyI6IDUwMDAwMDAwLCAiZjQ4IjogOTEyMzQ1Njc4OS4wLCAiZjU1IjogMS4yNSwgImY1NyI6ICJBQVBMIiwgImY1OCI6ICLoi7nmnpwiLCAiZjU5IjogMiwgImY2MCI6IDE4MDMwLCAiZjE3MCI6IDEyM319"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "code": "AAPL",
+        "name": "苹果",
+        "price": 182.52,
+        "high": 183.1,
+        "low": 179.4,
+        "open": 181.0,
+        "volume": 50000000,
+        "amount": 9123456789.0,
+        "turnover_rate": 1.25,
+        "prev_close": 180.3,
+        "change_pct": 1.23
+      }
+    },
+    {
+      "function": "stock_quote_eastmoney",
+      "params": {
+        "ticker_or_code": "00700",
+        "secid_prefix": 116
+      },
+      "requests": [
+        {
+          "url": "https://push2.eastmoney.com/api/qt/stock/get",
+          "params": {
+            "secid": "116.00700",
+            "fields": "f43,f44,f45,f46,f47,f48,f55,f57,f58,f59,f60,f170"
+          },
+          "headers": {},
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogbnVsbH0="
+        }
+      ],
+      "ok": true,
+      "data": {}
+    },
+    {
+      "function": "stock_quote_eastmoney",
+      "params": {
+        "ticker_or_code": "AAPL",
+        "secid_prefix": 1
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "secid_prefix must be 105, 106, 107 or 116."
+    },
+    {
+      "function": "stock_quote_eastmoney",
+      "params": {
+        "ticker_or_code": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://push2.eastmoney.com/api/qt/stock/get",
+          "params": {
+            "secid": "105.AAPL",
+            "fields": "f43,f44,f45,f46,f47,f48,f55,f57,f58,f59,f60,f170"
+          },
+          "headers": {},
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogeyJmNDMiOiAxLCAiZjU5IjogMjB9fQ=="
+        }
+      ],
+      "ok": false,
+      "error_type": "ProviderError",
+      "error_message": "Eastmoney quote lacks a valid price precision."
+    },
+    {
+      "function": "us_stock_kline_sina",
+      "params": {
+        "ticker": "AAPL",
+        "num": 60
+      },
+      "requests": [
+        {
+          "url": "https://stock.finance.sina.com.cn/usstock/api/jsonp.php/var/US_MinKService.getDailyK",
+          "params": {
+            "symbol": "AAPL",
+            "num": "60"
+          },
+          "headers": {
+            "Referer": "https://finance.sina.com.cn/"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "dmFyPShbeyJkIjoiMjAyNi0wMS0wOCIsIm8iOiIxODAuMSIsImgiOiIxODMuMiIsImwiOiIxNzkuOSIsImMiOiIxODIuNSIsInYiOiIxMjM0NTYifSx7ImQiOiIyMDI2LTAxLTA5IiwibyI6IjE4Mi41IiwiaCI6IjE4NC4wIiwibCI6IjE4MS4wIiwiYyI6IjE4My41IiwidiI6IjIyMzQ1NiJ9XSk="
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "date": "2026-01-08",
+          "open": 180.1,
+          "high": 183.2,
+          "low": 179.9,
+          "close": 182.5,
+          "volume": 123456
+        },
+        {
+          "date": "2026-01-09",
+          "open": 182.5,
+          "high": 184.0,
+          "low": 181.0,
+          "close": 183.5,
+          "volume": 223456
+        }
+      ]
+    },
+    {
+      "function": "us_stock_kline_sina",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://stock.finance.sina.com.cn/usstock/api/jsonp.php/var/US_MinKService.getDailyK",
+          "params": {
+            "symbol": "AAPL",
+            "num": "120"
+          },
+          "headers": {
+            "Referer": "https://finance.sina.com.cn/"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "bm8ganNvbnAgaGVyZQ=="
+        }
+      ],
+      "ok": true,
+      "data": []
+    },
+    {
+      "function": "us_stock_kline_sina",
+      "params": {
+        "ticker": "AAPL",
+        "num": 0
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "num must be a positive integer no larger than 10000."
+    },
+    {
+      "function": "financial_statements_eastmoney",
+      "params": {
+        "secucode": "AAPL.O"
+      },
+      "requests": [
+        {
+          "url": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+          "params": {
+            "reportName": "RPT_USF10_FN_BALANCE",
+            "columns": "ALL",
+            "filter": "(SECUCODE=\"AAPL.O\")",
+            "pageNumber": "1",
+            "pageSize": "200",
+            "sortColumns": "REPORT_DATE",
+            "sortTypes": "-1",
+            "source": "WEB",
+            "client": "WEB"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJzdWNjZXNzIjogdHJ1ZSwgInJlc3VsdCI6IHsiZGF0YSI6IFt7IlNFQ1VDT0RFIjogIkFBUEwuTyIsICJJVEVNX05BTUUiOiAi6JCl5Lia5pS25YWlIiwgIkFNT1VOVCI6IDEwMDAuMCwgIlJFUE9SVF9EQVRFIjogIjIwMjUtMDktMzAifSwgeyJTRUNVQ09ERSI6ICJBQVBMLk8iLCAiSVRFTV9OQU1FIjogIuavm+WIqSIsICJBTU9VTlQiOiA1MDAuMCwgIlJFUE9SVF9EQVRFIjogIjIwMjUtMDktMzAifV19fQ=="
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "SECUCODE": "AAPL.O",
+          "ITEM_NAME": "营业收入",
+          "AMOUNT": 1000.0,
+          "REPORT_DATE": "2025-09-30"
+        },
+        {
+          "SECUCODE": "AAPL.O",
+          "ITEM_NAME": "毛利",
+          "AMOUNT": 500.0,
+          "REPORT_DATE": "2025-09-30"
+        }
+      ]
+    },
+    {
+      "function": "financial_statements_eastmoney",
+      "params": {
+        "secucode": "00700.HK",
+        "statement": "cashflow",
+        "page_size": 20
+      },
+      "requests": [
+        {
+          "url": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+          "params": {
+            "reportName": "RPT_HKSK_FN_CASHFLOW",
+            "columns": "ALL",
+            "filter": "(SECUCODE=\"00700.HK\")",
+            "pageNumber": "1",
+            "pageSize": "20",
+            "sortColumns": "REPORT_DATE",
+            "sortTypes": "-1",
+            "source": "WEB",
+            "client": "WEB"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJzdWNjZXNzIjogdHJ1ZSwgInJlc3VsdCI6IHsiZGF0YSI6IFt7IlNFQ1VDT0RFIjogIkFBUEwuTyIsICJJVEVNX05BTUUiOiAi6JCl5Lia5pS25YWlIiwgIkFNT1VOVCI6IDEwMDAuMCwgIlJFUE9SVF9EQVRFIjogIjIwMjUtMDktMzAifSwgeyJTRUNVQ09ERSI6ICJBQVBMLk8iLCAiSVRFTV9OQU1FIjogIuavm+WIqSIsICJBTU9VTlQiOiA1MDAuMCwgIlJFUE9SVF9EQVRFIjogIjIwMjUtMDktMzAifV19fQ=="
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "SECUCODE": "AAPL.O",
+          "ITEM_NAME": "营业收入",
+          "AMOUNT": 1000.0,
+          "REPORT_DATE": "2025-09-30"
+        },
+        {
+          "SECUCODE": "AAPL.O",
+          "ITEM_NAME": "毛利",
+          "AMOUNT": 500.0,
+          "REPORT_DATE": "2025-09-30"
+        }
+      ]
+    },
+    {
+      "function": "financial_statements_eastmoney",
+      "params": {
+        "secucode": "AAPL.O",
+        "statement": "bad"
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "statement must be balance, income or cashflow."
+    },
+    {
+      "function": "financial_statements_eastmoney",
+      "params": {
+        "secucode": "AAPL.O"
+      },
+      "requests": [
+        {
+          "url": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+          "params": {
+            "reportName": "RPT_USF10_FN_BALANCE",
+            "columns": "ALL",
+            "filter": "(SECUCODE=\"AAPL.O\")",
+            "pageNumber": "1",
+            "pageSize": "200",
+            "sortColumns": "REPORT_DATE",
+            "sortTypes": "-1",
+            "source": "WEB",
+            "client": "WEB"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJzdWNjZXNzIjogZmFsc2UsICJyZXN1bHQiOiBudWxsfQ=="
+        }
+      ],
+      "ok": false,
+      "error_type": "ProviderError",
+      "error_message": "Eastmoney datacenter returned a provider error."
+    },
+    {
+      "function": "key_indicators_eastmoney",
+      "params": {
+        "secucode": "00700.HK",
+        "page_size": 2
+      },
+      "requests": [
+        {
+          "url": "https://datacenter-web.eastmoney.com/api/data/v1/get",
+          "params": {
+            "reportName": "RPT_HKF10_FN_GMAININDICATOR",
+            "columns": "ALL",
+            "filter": "(SECUCODE=\"00700.HK\")",
+            "pageNumber": "1",
+            "pageSize": "2",
+            "sortColumns": "REPORT_DATE",
+            "sortTypes": "-1",
+            "source": "WEB",
+            "client": "WEB"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJzdWNjZXNzIjogdHJ1ZSwgInJlc3VsdCI6IHsiZGF0YSI6IFt7IlNFQ1VDT0RFIjogIkFBUEwuTyIsICJJVEVNX05BTUUiOiAi6JCl5Lia5pS25YWlIiwgIkFNT1VOVCI6IDEwMDAuMCwgIlJFUE9SVF9EQVRFIjogIjIwMjUtMDktMzAifSwgeyJTRUNVQ09ERSI6ICJBQVBMLk8iLCAiSVRFTV9OQU1FIjogIuavm+WIqSIsICJBTU9VTlQiOiA1MDAuMCwgIlJFUE9SVF9EQVRFIjogIjIwMjUtMDktMzAifV19fQ=="
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "SECUCODE": "AAPL.O",
+          "ITEM_NAME": "营业收入",
+          "AMOUNT": 1000.0,
+          "REPORT_DATE": "2025-09-30"
+        },
+        {
+          "SECUCODE": "AAPL.O",
+          "ITEM_NAME": "毛利",
+          "AMOUNT": 500.0,
+          "REPORT_DATE": "2025-09-30"
+        }
+      ]
+    },
+    {
+      "function": "fund_flow_daily",
+      "params": {
+        "ticker_or_code": "AAPL",
+        "limit": 10
+      },
+      "requests": [
+        {
+          "url": "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get",
+          "params": {
+            "secid": "105.AAPL",
+            "klt": "101",
+            "fields1": "f1,f2,f3,f7",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57",
+            "lmt": "10"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogeyJrbGluZXMiOiBbIjIwMjYtMDEtMDgsLTEwMDAuNSwyMDAuMCwtMzAwLjAsNDAwLjAsLTExMDAuNSwzLjUiLCAiMjAyNi0wMS0wOSw1MDAuMjUsLTEwMC4wLDUwLjI1LDU1MC4wLDAiXX19"
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "date": "2026-01-08",
+          "main_net": -1000.5,
+          "small_net": 200.0,
+          "mid_net": -300.0,
+          "big_net": 400.0,
+          "super_big_net": -1100.5,
+          "main_pct": 3.5
+        },
+        {
+          "date": "2026-01-09",
+          "main_net": 500.25,
+          "small_net": -100.0,
+          "mid_net": 50.25,
+          "big_net": 550.0,
+          "super_big_net": 0.0,
+          "main_pct": 0
+        }
+      ]
+    },
+    {
+      "function": "fund_flow_daily",
+      "params": {
+        "ticker_or_code": "AAPL"
+      },
+      "requests": [
+        {
+          "url": "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get",
+          "params": {
+            "secid": "105.AAPL",
+            "klt": "101",
+            "fields1": "f1,f2,f3,f7",
+            "fields2": "f51,f52,f53,f54,f55,f56,f57",
+            "lmt": "100"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogbnVsbH0="
+        }
+      ],
+      "ok": true,
+      "data": []
+    },
+    {
+      "function": "fund_flow_daily",
+      "params": {
+        "ticker_or_code": "AAPL",
+        "limit": 0
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "limit must be a positive integer no larger than 10000."
+    },
+    {
+      "function": "stock_search",
+      "params": {
+        "keyword": "苹果"
+      },
+      "requests": [
+        {
+          "url": "https://searchapi.eastmoney.com/api/suggest/get",
+          "params": {
+            "input": "苹果",
+            "type": "14",
+            "token": "D43BF722C8E33BDC906FB84D85E326E8",
+            "count": "10"
+          },
+          "headers": {},
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJRdW90YXRpb25Db2RlVGFibGUiOiB7IkRhdGEiOiBbeyJDb2RlIjogIkFBUEwiLCAiTmFtZSI6ICLoi7nmnpwiLCAiTWt0TnVtIjogIjEwNSIsICJTZWN1cml0eVR5cGVOYW1lIjogIlVTX3N0b2NrIn0sIHsiQ29kZSI6ICJCQUJBIiwgIk5hbWUiOiAi6Zi/6YeM5be05be0IiwgIk1rdE51bSI6ICIxMDYiLCAiU2VjdXJpdHlUeXBlTmFtZSI6ICJVU19zdG9jayJ9LCB7IkNvZGUiOiAiMDcwMCIsICJOYW1lIjogIuiFvuiur+aOp+iCoSIsICJNa3ROdW0iOiAiMTE2IiwgIlNlY3VyaXR5VHlwZU5hbWUiOiAiSEtfc3RvY2sifSwgeyJDb2RlIjogIjAwMDAwMSIsICJOYW1lIjogIuW5s+WuiemTtuihjCIsICJNa3ROdW0iOiAiMCIsICJTZWN1cml0eVR5cGVOYW1lIjogIkFfc3RvY2sifV19fQ=="
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "code": "AAPL",
+          "name": "苹果",
+          "mkt_num": 105,
+          "market_name": "NASDAQ",
+          "security_type": "US_stock"
+        },
+        {
+          "code": "BABA",
+          "name": "阿里巴巴",
+          "mkt_num": 106,
+          "market_name": "NYSE",
+          "security_type": "US_stock"
+        },
+        {
+          "code": "0700",
+          "name": "腾讯控股",
+          "mkt_num": 116,
+          "market_name": "HK",
+          "security_type": "HK_stock"
+        }
+      ]
+    },
+    {
+      "function": "stock_search",
+      "params": {
+        "keyword": "AAPL",
+        "count": 5
+      },
+      "requests": [
+        {
+          "url": "https://searchapi.eastmoney.com/api/suggest/get",
+          "params": {
+            "input": "AAPL",
+            "type": "14",
+            "token": "D43BF722C8E33BDC906FB84D85E326E8",
+            "count": "5"
+          },
+          "headers": {},
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJRdW90YXRpb25Db2RlVGFibGUiOiB7IkRhdGEiOiBudWxsfX0="
+        }
+      ],
+      "ok": false,
+      "error_type": "TypeError",
+      "error_message": "'NoneType' object is not iterable"
+    },
+    {
+      "function": "stock_search",
+      "params": {
+        "keyword": ""
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "keyword must be a nonempty string."
+    },
+    {
+      "function": "market_stock_list",
+      "params": {
+        "market": "us_nasdaq"
+      },
+      "requests": [
+        {
+          "url": "https://push2.eastmoney.com/api/qt/clist/get",
+          "params": {
+            "fs": "m:105",
+            "fields": "f2,f3,f4,f5,f6,f7,f12,f14,f15,f16,f17,f18,f152",
+            "pn": "1",
+            "pz": "20",
+            "fid": "f3",
+            "po": "1"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogeyJ0b3RhbCI6IDIsICJkaWZmIjogW3siZjIiOiAxODI1MiwgImYzIjogMTIzLCAiZjQiOiAyMjAsICJmNSI6IDUwMDAwMDAwLCAiZjYiOiA5MTIzNDU2Nzg5LjAsICJmNyI6IDIxNSwgImYxMiI6ICJBQVBMIiwgImYxNCI6ICLoi7nmnpwiLCAiZjE1IjogMTgzMTAsICJmMTYiOiAxNzk0MCwgImYxNyI6IDE4MTAwLCAiZjE4IjogMTgwMzAsICJmMTUyIjogMn0sIHsiZjIiOiAxMDAsICJmMyI6IC01MCwgImY0IjogLTUsICJmNSI6IDEwMDAsICJmNiI6IDEwMDAwMC4wLCAiZjciOiAxMCwgImYxMiI6ICJURVNUIiwgImYxNCI6ICLmtYvor5UiLCAiZjE1IjogMTA1LCAiZjE2IjogOTUsICJmMTciOiAxMDAsICJmMTgiOiAxMDUsICJmMTUyIjogbnVsbH1dfX0="
+        }
+      ],
+      "ok": true,
+      "data": {
+        "total": 2,
+        "stocks": [
+          {
+            "code": "AAPL",
+            "name": "苹果",
+            "precision": 2,
+            "raw_price": 18252.0,
+            "raw_change_amount": 220.0,
+            "raw_high": 18310.0,
+            "raw_low": 17940.0,
+            "raw_open": 18100.0,
+            "raw_prev_close": 18030.0,
+            "price": null,
+            "change_amount": null,
+            "high": null,
+            "low": null,
+            "open": null,
+            "prev_close": null,
+            "normalization_note": "Raw clist price scaling has not been verified; use stock_quote_eastmoney for normalized quotes. precision is retained without assuming a divisor.",
+            "raw_change_pct": 123.0,
+            "change_pct": 1.23,
+            "volume": 50000000,
+            "amount": 9123456789.0,
+            "raw_amplitude": 215.0,
+            "amplitude": 2.15
+          },
+          {
+            "code": "TEST",
+            "name": "测试",
+            "precision": null,
+            "raw_price": 100.0,
+            "raw_change_amount": -5.0,
+            "raw_high": 105.0,
+            "raw_low": 95.0,
+            "raw_open": 100.0,
+            "raw_prev_close": 105.0,
+            "price": null,
+            "change_amount": null,
+            "high": null,
+            "low": null,
+            "open": null,
+            "prev_close": null,
+            "normalization_note": "Raw clist price scaling has not been verified; use stock_quote_eastmoney for normalized quotes. precision is retained without assuming a divisor.",
+            "raw_change_pct": -50.0,
+            "change_pct": -0.5,
+            "volume": 1000,
+            "amount": 100000.0,
+            "raw_amplitude": 10.0,
+            "amplitude": 0.1
+          }
+        ]
+      }
+    },
+    {
+      "function": "market_stock_list",
+      "params": {
+        "market": "hk",
+        "sort_field": "f5",
+        "sort_desc": false,
+        "page": 2,
+        "page_size": 5
+      },
+      "requests": [
+        {
+          "url": "https://push2.eastmoney.com/api/qt/clist/get",
+          "params": {
+            "fs": "m:116",
+            "fields": "f2,f3,f4,f5,f6,f7,f12,f14,f15,f16,f17,f18,f152",
+            "pn": "2",
+            "pz": "5",
+            "fid": "f5",
+            "po": "0"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogeyJ0b3RhbCI6IDEsICJkaWZmIjogeyIwIjogeyJmMiI6IDEwLCAiZjMiOiAxMCwgImY0IjogMSwgImY1IjogMjAsICJmNiI6IDIwMC4wLCAiZjciOiA1LCAiZjEyIjogIk9ORSIsICJmMTQiOiAi5LiAIiwgImYxNSI6IDExLCAiZjE2IjogOSwgImYxNyI6IDksICJmMTgiOiA5LCAiZjE1MiI6IDB9fX19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "total": 1,
+        "stocks": [
+          {
+            "code": "ONE",
+            "name": "一",
+            "precision": 0,
+            "raw_price": 10.0,
+            "raw_change_amount": 1.0,
+            "raw_high": 11.0,
+            "raw_low": 9.0,
+            "raw_open": 9.0,
+            "raw_prev_close": 9.0,
+            "price": null,
+            "change_amount": null,
+            "high": null,
+            "low": null,
+            "open": null,
+            "prev_close": null,
+            "normalization_note": "Raw clist price scaling has not been verified; use stock_quote_eastmoney for normalized quotes. precision is retained without assuming a divisor.",
+            "raw_change_pct": 10.0,
+            "change_pct": 0.1,
+            "volume": 20,
+            "amount": 200.0,
+            "raw_amplitude": 5.0,
+            "amplitude": 0.05
+          }
+        ]
+      }
+    },
+    {
+      "function": "market_stock_list",
+      "params": {
+        "page": 0
+      },
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "page must be a positive integer no larger than 10000."
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+name: macos-arm64
+
+# A-PARITY-01 evidence: real macOS arm64 build + locked tests + Skill launcher smoke.
+# Runs on demand or on the dedicated evidence branch; it is not part of the default
+# push gate so ordinary pushes do not spend macOS runner minutes.
+on:
+  workflow_dispatch:
+  push:
+    branches: ["ci/macos-arm64-evidence"]
+
+jobs:
+  macos-arm64:
+    # macos-latest is the current Apple Silicon image family; the uname gate below turns
+    # any x86_64 image into a hard failure instead of silently weaker evidence. (macos-14
+    # was retired via scheduled brownout in Nov 2026, so it is deliberately not pinned.)
+    runs-on: macos-latest
+    timeout-minutes: 60
+    env:
+      # The `runner` context is not available in job-level env; use the workspace.
+      EVIDENCE: ${{ github.workspace }}/ci-evidence
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: 1.99.1
+          components: rustfmt, clippy
+
+      - name: Host identity (arm64 is a hard gate)
+        run: |
+          mkdir -p "$EVIDENCE"
+          {
+            uname -a
+            sw_vers
+            sysctl -n machdep.cpu.brand_string
+            rustc --version
+            cargo --version
+            shasum -a 256 stock-data/scripts/rust/Cargo.lock \
+                          stock-data/assets/calendars/manifest.json
+          } | tee "$EVIDENCE/host-identity.txt"
+          arch="$(uname -m)"
+          test "$arch" = "arm64" || { echo "::error::expected arm64, got $arch"; exit 1; }
+
+      - name: Format (macOS arm64)
+        working-directory: stock-data/scripts/rust
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! cargo fmt --all -- --check 2>&1 | tee "$EVIDENCE/fmt.log"; then
+            echo "::error title=macOS fmt failed::$(tail -c 900 "$EVIDENCE/fmt.log" | tr '\n' ' ')"
+            exit 1
+          fi
+
+      - name: Clippy (macOS arm64)
+        working-directory: stock-data/scripts/rust
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! cargo clippy --workspace --all-targets --locked -- -D warnings 2>&1 | tee "$EVIDENCE/clippy.log"; then
+            echo "::error title=macOS clippy failed::$(grep -E '(^error|^warning|panicked)' "$EVIDENCE/clippy.log" | head -5 | tr '\n' ' ' | cut -c1-900)"
+            exit 1
+          fi
+
+      - name: Tests (macOS arm64)
+        working-directory: stock-data/scripts/rust
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! cargo test --workspace --locked 2>&1 | tee "$EVIDENCE/test.log"; then
+            echo "::error title=macOS tests failed::$(grep -A5 -E '(FAILED|panicked|^error)' "$EVIDENCE/test.log" | head -40 | tr '\n' ' ' | cut -c1-3000)"
+            exit 1
+          fi
+
+      - name: Skill launcher + offline selfcheck + capability list
+        shell: bash
+        env:
+          STOCK_DATA_RUST_CACHE: ${{ runner.temp }}/stock-data-cache
+        run: |
+          set -euo pipefail
+          stock-data/scripts/setup.sh 2>&1 | tee "$EVIDENCE/setup.log"
+          stock-data/scripts/run.sh --version | tee "$EVIDENCE/version.txt"
+          stock-data/scripts/run.sh selfcheck --offline > "$EVIDENCE/selfcheck.json"
+          stock-data/scripts/run.sh gateway --list > "$EVIDENCE/gateway-list.json"
+          # Preinstalled jq, not Python: the Skill runtime must not need Python.
+          jq -e '.status == "success" and .executed == 68
+                 and (.failed | length) == 0 and (.not_implemented | length) == 0' \
+             "$EVIDENCE/selfcheck.json"
+          jq -e '.status == "success" and (.data | length) == 56' \
+             "$EVIDENCE/gateway-list.json"
+          if stock-data/scripts/run.sh selfcheck --check-id NOT_A_REAL_CHECK \
+               > "$EVIDENCE/selfcheck-unknown.json" 2>&1; then
+            echo "::error::unknown check id must exit non-zero"; exit 1
+          fi
+
+      - name: Read-only mount smoke (writable cache outside the Skill)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp -R stock-data "$RUNNER_TEMP/ro-skill"
+          chmod -R a-w "$RUNNER_TEMP/ro-skill"
+          STOCK_DATA_RUST_CACHE="$RUNNER_TEMP/ro-cache" \
+            "$RUNNER_TEMP/ro-skill/scripts/run.sh" --version \
+            | tee "$EVIDENCE/readonly-version.txt"
+
+      - name: Echo evidence into the job log (artifact-free retrieval)
+        if: always()
+        shell: bash
+        run: |
+          for f in host-identity.txt fmt.log clippy.log test.log version.txt selfcheck.json \
+                   gateway-list.json readonly-version.txt setup.log selfcheck-unknown.json; do
+            echo "===== $f ====="
+            cat "$EVIDENCE/$f" 2>/dev/null || echo "(missing)"
+          done
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: macos-arm64-evidence
+          path: ${{ github.workspace }}/ci-evidence/

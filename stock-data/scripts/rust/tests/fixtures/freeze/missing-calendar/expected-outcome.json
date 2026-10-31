@@ -1,0 +1,31 @@
+{
+  "snapshot_id": "SYN_20261024T000000Z_5D_9e505ec4e6",
+  "snapshot_content_sha256": "9e505ec4e6b67f6790cfca7c94c67b5717daca7f37a55286fb00e145113bccbe",
+  "manifest_sha256": "6e28e70aebd910b561bdfa10914282173cda6bf5cff57b4bde3e6c0ef36f3cea",
+  "source_payload_sha256": "454af6b32f1974369321a3d6d7b3bee9f766485a9bd8338fbb7e6e5eabf958a2",
+  "snapshot_created_at": "2026-10-24T00:00:00Z",
+  "market_bar_count": 260,
+  "forecast_eligible": true,
+  "reporting_status": "degraded",
+  "files": [
+    "expectations.json",
+    "fundamentals.json",
+    "insider.json",
+    "macro.json",
+    "manifest.json",
+    "market.json",
+    "news.json",
+    "options.json",
+    "raw/expectations.json",
+    "raw/fundamentals.json",
+    "raw/insider.json",
+    "raw/macro.json",
+    "raw/market.json",
+    "raw/news.json",
+    "raw/options.json",
+    "raw/sec.json",
+    "raw/short_volume.json",
+    "sec.json",
+    "short_volume.json"
+  ]
+}

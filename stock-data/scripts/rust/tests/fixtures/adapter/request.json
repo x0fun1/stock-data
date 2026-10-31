@@ -1,0 +1,7 @@
+{
+  "ticker": "SYN",
+  "market": "US",
+  "horizon": "5D",
+  "intent": "forecast",
+  "asof": "2026-10-23T21:00:00Z"
+}

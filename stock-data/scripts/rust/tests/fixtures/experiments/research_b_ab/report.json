@@ -1,0 +1,249 @@
+{
+  "comparisons": {
+    "Q1_selection": {
+      "candidate": "restricted_selection_three",
+      "delta_definition": "positive means the candidate scored worse than production",
+      "interval": null,
+      "interval_status": "insufficient_samples",
+      "mean_delta": -0.06876361655773415,
+      "reference": "production_legacy_three",
+      "required_sessions": 24,
+      "sessions": 2,
+      "verdict": "indeterminate"
+    },
+    "Q2_bucket": {
+      "candidate": "legacy_two_bucket",
+      "delta_definition": "positive means the candidate scored worse than production",
+      "interval": null,
+      "interval_status": "insufficient_samples",
+      "mean_delta": 0.030235686594899433,
+      "reference": "production_legacy_three",
+      "required_sessions": 24,
+      "sessions": 2,
+      "verdict": "indeterminate"
+    }
+  },
+  "limitations": [
+    "Every arm shares the same 52-week window and the same anchored ledger phase; this compares designs, not added history.",
+    "The pool shares one market factor, so session-block resampling is the honest unit and the interval is wide by design.",
+    "A 52-week ledger yields few scorable sessions; an indeterminate verdict is the expected outcome, not a failure.",
+    "No calibration, trading cost, turnover or position sizing is evaluated."
+  ],
+  "per_symbol": [
+    {
+      "bar_count": 260,
+      "legacy_two_bucket": {
+        "brier": 0.2830836552997366,
+        "bucket_counts": {
+          "high": 14,
+          "low": 14
+        },
+        "factors": 5,
+        "predictions": 6,
+        "prob_up": 0.6031746031746033,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "production_legacy_three": {
+        "brier": 0.37746166004528175,
+        "bucket_counts": {
+          "high": 10,
+          "low": 10,
+          "mid": 8
+        },
+        "factors": 5,
+        "predictions": 1,
+        "prob_up": 0.5925925925925927,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "restricted_selection_three": {
+        "brier": 0.32628075740099965,
+        "bucket_counts": {
+          "high": 10,
+          "low": 10,
+          "mid": 8
+        },
+        "factors": 3,
+        "predictions": 2,
+        "prob_up": 0.5925925925925927,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "restricted_two_bucket": {
+        "brier": 0.2656559400811164,
+        "bucket_counts": {
+          "high": 14,
+          "low": 14
+        },
+        "factors": 3,
+        "predictions": 7,
+        "prob_up": 0.507936507936508,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "symbol": "SYN00"
+    },
+    {
+      "bar_count": 260,
+      "legacy_two_bucket": {
+        "brier": 0.31472073183800847,
+        "bucket_counts": {
+          "high": 14,
+          "low": 14
+        },
+        "factors": 5,
+        "predictions": 7,
+        "prob_up": 0.5555555555555556,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "production_legacy_three": {
+        "brier": 0.3602313746849502,
+        "bucket_counts": {
+          "high": 10,
+          "low": 10,
+          "mid": 8
+        },
+        "factors": 5,
+        "predictions": 2,
+        "prob_up": 0.5925925925925927,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "restricted_selection_three": {
+        "brier": 0.32628075740099965,
+        "bucket_counts": {
+          "high": 10,
+          "low": 10,
+          "mid": 8
+        },
+        "factors": 3,
+        "predictions": 2,
+        "prob_up": 0.5925925925925927,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "restricted_two_bucket": {
+        "brier": 0.2656559400811164,
+        "bucket_counts": {
+          "high": 14,
+          "low": 14
+        },
+        "factors": 3,
+        "predictions": 7,
+        "prob_up": 0.507936507936508,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "symbol": "SYN01"
+    },
+    {
+      "bar_count": 260,
+      "legacy_two_bucket": {
+        "brier": 0.33846774552895426,
+        "bucket_counts": {
+          "high": 14,
+          "low": 14
+        },
+        "factors": 5,
+        "predictions": 6,
+        "prob_up": 0.6031746031746033,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "production_legacy_three": {
+        "brier": 0.48225308641975306,
+        "bucket_counts": {
+          "high": 10,
+          "low": 10,
+          "mid": 8
+        },
+        "factors": 5,
+        "predictions": 1,
+        "prob_up": 0.5925925925925927,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "restricted_selection_three": {
+        "brier": 0.32628075740099965,
+        "bucket_counts": {
+          "high": 10,
+          "low": 10,
+          "mid": 8
+        },
+        "factors": 3,
+        "predictions": 2,
+        "prob_up": 0.5925925925925927,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "restricted_two_bucket": {
+        "brier": 0.2656559400811164,
+        "bucket_counts": {
+          "high": 14,
+          "low": 14
+        },
+        "factors": 3,
+        "predictions": 7,
+        "prob_up": 0.507936507936508,
+        "route": "shadow_candidate",
+        "status": "partial"
+      },
+      "symbol": "SYN02"
+    }
+  ],
+  "pool": {
+    "horizon": "5D",
+    "symbols": 3
+  },
+  "preregistration": {
+    "arms": {
+      "legacy_two_bucket": {
+        "bucket_mode": "two",
+        "selection_profile": "legacy"
+      },
+      "production_legacy_three": {
+        "bucket_mode": "three",
+        "selection_profile": "legacy"
+      },
+      "restricted_selection_three": {
+        "bucket_mode": "three",
+        "selection_profile": "restricted"
+      },
+      "restricted_two_bucket": {
+        "bucket_mode": "two",
+        "selection_profile": "restricted"
+      }
+    },
+    "bootstrap": {
+      "block_length": "horizon + 1",
+      "replicates": 500,
+      "seed": 0,
+      "unit": "session_block"
+    },
+    "decision": {
+      "candidate_better": "whole interval below zero",
+      "candidate_worse": "whole interval above zero",
+      "indeterminate": "interval contains zero, or too few scorable sessions"
+    },
+    "metric": "mean_paired_per_session_brier_delta_candidate_minus_reference",
+    "minimum_scorable_sessions_for_interval": 24,
+    "protocol": "research-b-candidates-v1",
+    "questions": {
+      "Q1_selection": [
+        "production_legacy_three",
+        "restricted_selection_three"
+      ],
+      "Q2_bucket": [
+        "production_legacy_three",
+        "legacy_two_bucket"
+      ]
+    },
+    "reference_arm": "production_legacy_three",
+    "registered": "2026-10-19",
+    "switch_policy": "no switch this run; a switch requires a pre-registered re-run that clears the rule",
+    "thresholds_are_not_adjusted_after_seeing_results": true
+  },
+  "production_unchanged": true
+}

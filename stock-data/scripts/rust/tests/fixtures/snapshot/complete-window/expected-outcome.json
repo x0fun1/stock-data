@@ -1,0 +1,31 @@
+{
+  "case": "complete-window",
+  "expectation": "accepted",
+  "outcome": "accepted",
+  "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+  "schema_version": "1.3",
+  "policy_version": "fixed_52w_5d_v1",
+  "forecast_eligible": true,
+  "reporting_status": "degraded",
+  "reason_codes": [
+    "LATEST_CLOSE_SINGLE_PROVIDER",
+    "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+    "CORPORATE_ACTION_UNKNOWN",
+    "POINT_IN_TIME_UNVERIFIED",
+    "ASSET_TYPE_UNVERIFIED"
+  ],
+  "data_domains": {
+    "market": "complete",
+    "fundamentals": "unavailable",
+    "expectations": "unavailable",
+    "news": "unavailable",
+    "insider": "unavailable",
+    "options": "unavailable",
+    "short_volume": "unavailable",
+    "sec": "unavailable",
+    "macro": "unavailable"
+  },
+  "snapshot_content_sha256": "00d9769e96e8b45deff4406b0d090a0d264b8ce387baa106d06eb6100540bc3c",
+  "manifest_sha256": "5ae811cd8fc19b956e0f16b84c27b37d585d36d2a7f58a6dc1d8937f52ef8a13",
+  "market_bar_count": 260
+}

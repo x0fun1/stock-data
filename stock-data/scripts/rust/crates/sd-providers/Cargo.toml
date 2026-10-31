@@ -1,0 +1,21 @@
+[package]
+name = "sd-providers"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "The 56-function gateway registry, transport policy, envelopes and per-source adapters."
+
+[dependencies]
+sd-core = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+chrono-tz = { workspace = true }
+reqwest = { workspace = true }
+encoding_rs = { workspace = true }
+url = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+base64 = { workspace = true }

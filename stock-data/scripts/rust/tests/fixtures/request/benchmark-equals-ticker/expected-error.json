@@ -1,0 +1,7 @@
+{
+  "case": "benchmark-equals-ticker",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "instrument.benchmark must differ from the request ticker",
+  "contains": "benchmark must differ"
+}

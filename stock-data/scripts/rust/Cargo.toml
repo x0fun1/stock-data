@@ -1,0 +1,72 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/sd-core",
+    "crates/sd-research",
+    "crates/sd-audit",
+    "crates/sd-news",
+    "crates/sd-storage",
+    "crates/sd-providers",
+    "crates/sd-app",
+    "crates/sd-cli",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.99"
+license = "MIT"
+repository = "https://github.com/x0fun1/stock-data"
+
+[workspace.dependencies]
+# Dependency set frozen for the first native build. `Cargo.lock` is committed and
+# every CI command runs with `--locked`; a version bump is a reviewed change.
+serde = { version = "1", features = ["derive"] }
+# `preserve_order` keeps readable object insertion order; `arbitrary_precision`
+# keeps Python's arbitrary-precision integers (a 30-digit integer must not become
+# an f64 on the way to a hash).
+serde_json = { version = "1", features = ["preserve_order", "arbitrary_precision"] }
+chrono = { version = "0.4", features = ["serde"] }
+chrono-tz = "0.10"
+sha2 = "0.10"
+regex = "1"
+thiserror = "2"
+clap = { version = "4", features = ["derive"] }
+# Provider transport (R12-R16): a fixed-origin HTTPS client with TLS verification
+# always enabled. The feature set is pinned here like every other dependency.
+reqwest = { version = "0.12", default-features = false, features = [
+    "blocking", "rustls-tls", "charset", "gzip", "brotli",
+] }
+encoding_rs = "0.8"
+base64 = "0.22"
+url = "2"
+
+# Internal crates. Dependency direction is enforced by review and by the
+# boundary tests in each crate:
+#   sd-core     <- everything, no I/O
+#   sd-research <- core          (production/shadow estimators)
+#   sd-audit    <- core          (independent recomputation; never sd-research)
+#   sd-news     <- core          (never research/audit/app/providers)
+#   sd-storage  <- core          (disk formats, atomic I/O, ledgers)
+#   sd-providers<- core          (transport + parsing; no research types)
+#   sd-app      <- all of the above (orchestration only)
+#   sd-cli      <- sd-app + sd-providers (argument/output/exit codes only)
+sd-core = { path = "crates/sd-core" }
+sd-research = { path = "crates/sd-research" }
+sd-audit = { path = "crates/sd-audit" }
+sd-news = { path = "crates/sd-news" }
+sd-storage = { path = "crates/sd-storage" }
+sd-providers = { path = "crates/sd-providers" }
+sd-app = { path = "crates/sd-app" }
+
+[profile.release]
+opt-level = 3
+lto = "thin"
+codegen-units = 1
+strip = true
+# The Skill launcher builds on every invocation; incremental compilation keeps a
+# source edit cheap while the cache lives outside the mounted Skill directory.
+incremental = true
+
+[profile.bench]
+inherits = "release"

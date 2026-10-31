@@ -2,16 +2,16 @@
 
 `stock_kline_yahoo(..., include_metadata=true)` 保留 chart meta、events 和 adjclose；默认仍为 candles 列表。metadata 不证明完整交易日历或复权口径。News 保留 article ID/相关 ticker tags，不能从查询词伪造文章关联。HTTP 固定来源、同 origin redirect、20 MiB 上限；可用 `--output <new-file>` 避免全量 stdout。
 
-global 是本包自带的 Python 回退实现，覆盖美股和港股。执行代码位于 [global_stock_data.py](../scripts/global_stock_data.py)，不再从文档拼接代码片段。函数保留原有能力；常规来源选择由调用者按下表执行，Yahoo `yahoo_*` 入口则统一先试 yfinance，再按已登记映射自动使用旧兼容接口。
+global gateway 现由本 Skill 的原生 Rust runtime 提供，覆盖美股和港股；唯一常规入口是 `"$SKILL_DIR/scripts/run.sh" gateway`。仓库 `legacy/python/global_stock_data.py` 仅是开发期差分参考，不是 Skill 运行时依赖。函数与来源保留原有能力；常规来源选择由调用者按下表执行，Yahoo `yahoo_*` 入口优先原生路由，失败后按已登记映射自动使用旧兼容接口。
 
 ## 运行
 
-需要 Python 3.10+；原来源和 Yahoo 兼容接口使用 `requests`，Yahoo yfinance 优先路由依赖 `requirements.txt` 中的必需组件，并仅在调用 Yahoo 时懒加载。yfinance 请求失败、空结果或依赖/能力不可用时自动尝试语义兼容的旧接口；没有安全映射时明确失败。`--list` 不访问网络或创建 Yahoo 缓存。下面命令在 `stock-data/` 目录运行；其他目录使用脚本实际路径。
+运行不需要 Python；Rust 工具链与 `scripts/setup.sh` 见 README。原生路由失败、空结果或能力不可用时自动尝试语义兼容的旧接口；没有安全映射时明确失败。`--list` 不访问网络或创建 Yahoo 缓存。下面命令可在任意 cwd 运行，`$SKILL_DIR` 为 Skill 实际挂载路径。
 
 ```text
-python scripts/global_stock_data.py --list
-python scripts/global_stock_data.py --function us_stock_quote_sina --params-file request.json
-python scripts/global_stock_data.py --function calc_rsi --params-file candles.json
+"$SKILL_DIR/scripts/run.sh" gateway --list
+"$SKILL_DIR/scripts/run.sh" gateway --function us_stock_quote_sina --params-file request.json
+"$SKILL_DIR/scripts/run.sh" gateway --function calc_rsi --params-file candles.json
 ```
 
 参数文件为 UTF-8 JSON 对象。例如行情请求：

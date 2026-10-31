@@ -1,0 +1,85 @@
+{
+  "forecast_eligible": true,
+  "prediction_eligibility": {
+    "status": "eligible",
+    "blockers": []
+  },
+  "reporting_eligibility": {
+    "status": "degraded",
+    "warnings": [
+      "CALENDAR_OFFICIAL_MISSING",
+      "CALENDAR_FALLBACK_USED",
+      "LATEST_CLOSE_SINGLE_PROVIDER",
+      "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+      "CORPORATE_ACTION_UNKNOWN",
+      "CALENDAR_UNVERIFIED",
+      "POINT_IN_TIME_UNVERIFIED",
+      "ASSET_TYPE_UNVERIFIED"
+    ],
+    "informational": []
+  },
+  "reporting_status": "degraded",
+  "errors": [],
+  "blockers": [],
+  "warnings": [
+    "no complete source-backed exchange calendar is available",
+    "session horizon uses ordered OHLCV observations; calendar holidays and missing sessions are not independently verified",
+    "Latest close has one usable provider; source-level timestamp checks passed, but cross-source matching is unavailable.",
+    "source-backed adjustment/company-action coverage is unavailable; unknown does not mean contaminated",
+    "recent corporate actions could not be independently assessed",
+    "exchange calendar is unverified; no formal 5-session probability is publishable",
+    "historical bars expose dates but no per-bar available_at; provider revision status is disclosed",
+    "asset type is unverified; ETF-specific exposure/NAV/leverage checks are not assessed"
+  ],
+  "reason_codes": [
+    "CALENDAR_OFFICIAL_MISSING",
+    "CALENDAR_FALLBACK_USED",
+    "LATEST_CLOSE_SINGLE_PROVIDER",
+    "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+    "CORPORATE_ACTION_UNKNOWN",
+    "CALENDAR_UNVERIFIED",
+    "POINT_IN_TIME_UNVERIFIED",
+    "ASSET_TYPE_UNVERIFIED"
+  ],
+  "latest_confirmed_close": {
+    "price": 116.11401892611022,
+    "session_date": "2026-10-23",
+    "close_at": null,
+    "currency": "USD",
+    "kind": "provider_verified",
+    "source": "Yahoo Finance"
+  },
+  "latest_close_status": "provider_verified",
+  "calendar_verification": "observation_fallback",
+  "resolved_calendar_evidence": null,
+  "horizon_type": "estimated_observed_sessions",
+  "horizon_confidence": "low",
+  "source_authentication": "not_independently_verified",
+  "session_horizon_verified": false,
+  "adjustment_status": "provider_declared_split_adjusted",
+  "corporate_action_status": "unavailable",
+  "corporate_action_reconciliation": [],
+  "policy": {
+    "applicable": true,
+    "policy_version": "fixed_52w_5d_v1",
+    "decision_session": "2026-10-23",
+    "window_start_exclusive": "2025-10-24",
+    "window_end_inclusive": "2026-10-23",
+    "expected_sessions": 260,
+    "observed_sessions": 260,
+    "missing_sessions": 0,
+    "missing_session_dates": 0,
+    "declared_coverage_status": "complete",
+    "coverage_status": "unverified",
+    "coverage_basis": "declared_only",
+    "coverage_recomputed": false,
+    "calendar_verified": false,
+    "calendar_source": "selfcheck:synthetic_exchange",
+    "price_basis": "split_adjusted",
+    "price_basis_source": "provider_declared_split_adjusted_close",
+    "historical_availability_status": "date_only_no_per_bar_available_at",
+    "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified",
+    "status": "degraded"
+  },
+  "forecast_policy_status": "degraded"
+}

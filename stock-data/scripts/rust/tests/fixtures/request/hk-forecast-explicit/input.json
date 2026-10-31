@@ -1,0 +1,6 @@
+{
+  "ticker": "0700.HK",
+  "market": "HK",
+  "horizon": "5D",
+  "intent": "forecast"
+}

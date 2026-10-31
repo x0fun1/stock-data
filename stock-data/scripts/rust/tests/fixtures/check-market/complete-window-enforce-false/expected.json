@@ -1,0 +1,55 @@
+{
+  "forecast_eligible": true,
+  "prediction_eligibility": {
+    "status": "eligible",
+    "blockers": []
+  },
+  "reporting_eligibility": {
+    "status": "degraded",
+    "warnings": [
+      "LATEST_CLOSE_SINGLE_PROVIDER",
+      "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+      "CORPORATE_ACTION_UNKNOWN",
+      "ASSET_TYPE_UNVERIFIED"
+    ],
+    "informational": []
+  },
+  "reporting_status": "degraded",
+  "errors": [],
+  "blockers": [],
+  "warnings": [
+    "Latest close has one usable provider; source-level timestamp checks passed, but cross-source matching is unavailable.",
+    "source-backed adjustment/company-action coverage is unavailable; unknown does not mean contaminated",
+    "recent corporate actions could not be independently assessed",
+    "asset type is unverified; ETF-specific exposure/NAV/leverage checks are not assessed"
+  ],
+  "reason_codes": [
+    "LATEST_CLOSE_SINGLE_PROVIDER",
+    "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+    "CORPORATE_ACTION_UNKNOWN",
+    "ASSET_TYPE_UNVERIFIED"
+  ],
+  "latest_confirmed_close": {
+    "price": 116.11401892611022,
+    "session_date": "2026-10-23",
+    "close_at": "2026-10-23T20:00:00+00:00",
+    "currency": "USD",
+    "kind": "calendar_verified",
+    "source": "Yahoo Finance"
+  },
+  "latest_close_status": "calendar_verified",
+  "calendar_verification": "source_supplied_schedule",
+  "resolved_calendar_evidence": null,
+  "horizon_type": "exchange_sessions",
+  "horizon_confidence": "high",
+  "source_authentication": "not_independently_verified",
+  "session_horizon_verified": true,
+  "adjustment_status": "provider_declared_split_adjusted",
+  "corporate_action_status": "unavailable",
+  "corporate_action_reconciliation": [],
+  "policy": {
+    "applicable": false,
+    "status": "legacy_not_enforced"
+  },
+  "forecast_policy_status": "legacy_not_enforced"
+}

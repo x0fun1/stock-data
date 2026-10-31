@@ -9,8 +9,8 @@ The adapter is a file contract, not another data fetcher. Collect data with this
 `yahoo_collect.py` collects only the market domain. The collector does not rerun Finnhub or execute research. Keep the existing request schema; provider-specific settings belong to collection CLI/config, not research parameters. News is not collected here: the host supplies `news.data.articles[]` from the Finnhub MCP `get-news-pulse` tool during Step 2. See [yfinance-data.md](yfinance-data.md) and current CLI help.
 
 ```text
-python stock-data/scripts/yahoo_collect.py --request request.json --output gateway-responses.json --cache-dir runtime/yfinance-cache
-python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
+"$SKILL_DIR/scripts/run.sh" collect yahoo --request request.json --output gateway-responses.json --cache-dir runtime/yfinance-cache
+"$SKILL_DIR/scripts/run.sh" research pipeline --request request.json --responses gateway-responses.json --output-root runtime
 ```
 
 ### Declared benchmark (relative-strength factor)
@@ -102,7 +102,7 @@ The example bar is illustrative, not market data. Do not copy its values into a 
 Save the standardized research request in `request.json`. Save the actual gateway responses in `gateway-responses.json`, keyed by data domain (`market`, `fundamentals`, etc.). Run:
 
 ```text
-python stock-data/scripts/quant_research.py adapt --request request.json --responses gateway-responses.json --output collected.json
+"$SKILL_DIR/scripts/run.sh" research adapt --request request.json --responses gateway-responses.json --output collected.json
 ```
 
 For the market response, first map provider-specific candles to `data.bars` using the gateway schema and the exchange's session dates. Retain the provider DATA in `gateway_envelope`; archiving removes credentials/action fields. The adapter will not infer Finnhub/Yahoo field mappings or synthesize timestamps.

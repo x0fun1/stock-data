@@ -1,0 +1,287 @@
+[
+  {
+    "codes": [],
+    "result": {
+      "status": "pass",
+      "reason_codes": [],
+      "blockers": [],
+      "warnings": [],
+      "informational": [],
+      "prediction_eligible": true
+    },
+    "reporting_status": "pass"
+  },
+  {
+    "codes": [
+      "SEVERE_MISSING_BARS"
+    ],
+    "result": {
+      "status": "veto",
+      "reason_codes": [
+        "SEVERE_MISSING_BARS"
+      ],
+      "blockers": [
+        "SEVERE_MISSING_BARS"
+      ],
+      "warnings": [],
+      "informational": [],
+      "prediction_eligible": false
+    },
+    "reporting_status": "veto"
+  },
+  {
+    "codes": [
+      "CALENDAR_UNVERIFIED"
+    ],
+    "result": {
+      "status": "degraded",
+      "reason_codes": [
+        "CALENDAR_UNVERIFIED"
+      ],
+      "blockers": [],
+      "warnings": [
+        "CALENDAR_UNVERIFIED"
+      ],
+      "informational": [],
+      "prediction_eligible": true
+    },
+    "reporting_status": "degraded"
+  },
+  {
+    "codes": [
+      "CALENDAR_UNVERIFIED",
+      "LATEST_CLOSE_SINGLE_PROVIDER",
+      "POINT_IN_TIME_UNVERIFIED"
+    ],
+    "result": {
+      "status": "degraded",
+      "reason_codes": [
+        "CALENDAR_UNVERIFIED",
+        "LATEST_CLOSE_SINGLE_PROVIDER",
+        "POINT_IN_TIME_UNVERIFIED"
+      ],
+      "blockers": [],
+      "warnings": [
+        "CALENDAR_UNVERIFIED",
+        "LATEST_CLOSE_SINGLE_PROVIDER",
+        "POINT_IN_TIME_UNVERIFIED"
+      ],
+      "informational": [],
+      "prediction_eligible": true
+    },
+    "reporting_status": "degraded"
+  },
+  {
+    "codes": [
+      "LATEST_CLOSE_CROSS_VERIFIED"
+    ],
+    "result": {
+      "status": "pass",
+      "reason_codes": [
+        "LATEST_CLOSE_CROSS_VERIFIED"
+      ],
+      "blockers": [],
+      "warnings": [],
+      "informational": [
+        "LATEST_CLOSE_CROSS_VERIFIED"
+      ],
+      "prediction_eligible": true
+    },
+    "reporting_status": "pass"
+  },
+  {
+    "codes": [
+      "DIRECTIONAL_EDGE_UNPROVEN",
+      "SAMPLING_PHASE_UNANCHORED"
+    ],
+    "result": {
+      "status": "pass",
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "SAMPLING_PHASE_UNANCHORED"
+      ],
+      "blockers": [],
+      "warnings": [],
+      "informational": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "SAMPLING_PHASE_UNANCHORED"
+      ],
+      "prediction_eligible": true
+    },
+    "reporting_status": "pass"
+  },
+  {
+    "codes": [
+      "SURVIVORSHIP_NOT_ASSESSED",
+      "PBO_NOT_ASSESSED"
+    ],
+    "result": {
+      "status": "pass",
+      "reason_codes": [
+        "SURVIVORSHIP_NOT_ASSESSED",
+        "PBO_NOT_ASSESSED"
+      ],
+      "blockers": [],
+      "warnings": [
+        "SURVIVORSHIP_NOT_ASSESSED",
+        "PBO_NOT_ASSESSED"
+      ],
+      "informational": [],
+      "prediction_eligible": true
+    },
+    "reporting_status": "pass"
+  },
+  {
+    "codes": [
+      "SURVIVORSHIP_NOT_ASSESSED",
+      "CALENDAR_UNVERIFIED"
+    ],
+    "result": {
+      "status": "degraded",
+      "reason_codes": [
+        "SURVIVORSHIP_NOT_ASSESSED",
+        "CALENDAR_UNVERIFIED"
+      ],
+      "blockers": [],
+      "warnings": [
+        "SURVIVORSHIP_NOT_ASSESSED",
+        "CALENDAR_UNVERIFIED"
+      ],
+      "informational": [],
+      "prediction_eligible": true
+    },
+    "reporting_status": "degraded"
+  },
+  {
+    "codes": [
+      "TARGET_SESSION_UNRESOLVED",
+      "CALENDAR_UNVERIFIED"
+    ],
+    "result": {
+      "status": "veto",
+      "reason_codes": [
+        "TARGET_SESSION_UNRESOLVED",
+        "CALENDAR_UNVERIFIED"
+      ],
+      "blockers": [
+        "TARGET_SESSION_UNRESOLVED"
+      ],
+      "warnings": [
+        "CALENDAR_UNVERIFIED"
+      ],
+      "informational": [],
+      "prediction_eligible": false
+    },
+    "reporting_status": "veto"
+  },
+  {
+    "codes": [
+      "DECISION_SESSION_UNRESOLVED",
+      "FIXED_WINDOW_CONFLICT",
+      "INSUFFICIENT_HISTORY_COVERAGE"
+    ],
+    "result": {
+      "status": "veto",
+      "reason_codes": [
+        "DECISION_SESSION_UNRESOLVED",
+        "FIXED_WINDOW_CONFLICT",
+        "INSUFFICIENT_HISTORY_COVERAGE"
+      ],
+      "blockers": [
+        "DECISION_SESSION_UNRESOLVED",
+        "FIXED_WINDOW_CONFLICT",
+        "INSUFFICIENT_HISTORY_COVERAGE"
+      ],
+      "warnings": [],
+      "informational": [],
+      "prediction_eligible": false
+    },
+    "reporting_status": "veto"
+  },
+  {
+    "codes": [
+      "SEVERE_MISSING_BARS",
+      "SEVERE_MISSING_BARS",
+      "CALENDAR_UNVERIFIED",
+      "SEVERE_MISSING_BARS"
+    ],
+    "result": {
+      "status": "veto",
+      "reason_codes": [
+        "SEVERE_MISSING_BARS",
+        "CALENDAR_UNVERIFIED"
+      ],
+      "blockers": [
+        "SEVERE_MISSING_BARS"
+      ],
+      "warnings": [
+        "CALENDAR_UNVERIFIED"
+      ],
+      "informational": [],
+      "prediction_eligible": false
+    },
+    "reporting_status": "veto"
+  },
+  {
+    "codes": [
+      "NOT_A_CATALOG_CODE"
+    ],
+    "result": {
+      "status": "veto",
+      "reason_codes": [
+        "NOT_A_CATALOG_CODE"
+      ],
+      "blockers": [
+        "NOT_A_CATALOG_CODE"
+      ],
+      "warnings": [],
+      "informational": [],
+      "prediction_eligible": false
+    },
+    "reporting_status": "veto"
+  },
+  {
+    "codes": [
+      "NOT_A_CATALOG_CODE",
+      "CALENDAR_UNVERIFIED"
+    ],
+    "result": {
+      "status": "veto",
+      "reason_codes": [
+        "NOT_A_CATALOG_CODE",
+        "CALENDAR_UNVERIFIED"
+      ],
+      "blockers": [
+        "NOT_A_CATALOG_CODE"
+      ],
+      "warnings": [
+        "CALENDAR_UNVERIFIED"
+      ],
+      "informational": [],
+      "prediction_eligible": false
+    },
+    "reporting_status": "veto"
+  },
+  {
+    "codes": [
+      "NEWS_PARTIAL_EVIDENCE",
+      "LABEL_BASIS_DIVIDENDS_EXCLUDED"
+    ],
+    "result": {
+      "status": "degraded",
+      "reason_codes": [
+        "NEWS_PARTIAL_EVIDENCE",
+        "LABEL_BASIS_DIVIDENDS_EXCLUDED"
+      ],
+      "blockers": [],
+      "warnings": [
+        "NEWS_PARTIAL_EVIDENCE"
+      ],
+      "informational": [
+        "LABEL_BASIS_DIVIDENDS_EXCLUDED"
+      ],
+      "prediction_eligible": true
+    },
+    "reporting_status": "degraded"
+  }
+]

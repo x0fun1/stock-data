@@ -1,0 +1,5 @@
+{
+  "ticker": "^GSPC",
+  "mode": "strict",
+  "asset_type": "index"
+}

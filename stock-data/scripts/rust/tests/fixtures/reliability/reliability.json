@@ -1,0 +1,359 @@
+{
+  "logistic_shortfall": [
+    {
+      "status": "not_applicable_insufficient_samples",
+      "stage_requirements": {
+        "train_nonoverlap": 60,
+        "calibration_nonoverlap": 30,
+        "validation_nonoverlap": 30
+      },
+      "required_non_overlapping_labels": 120,
+      "available_non_overlapping_labels": 0,
+      "shortfall": 120,
+      "stages_may_share_observations": false,
+      "implementation_policy": "deferred_by_fixed_52_week_design",
+      "activation_target": "none_in_current_research_b_architecture",
+      "alternative": "existing_research_c_logistic_path",
+      "activation_note": "A fitted L2 logistic path would need the training, calibration and validation labels separately and at once. A 52-week window cannot supply that at any horizon, so this is not a threshold awaiting more data but a design boundary; the fitted model lives in Research C. This field is retained so historical results stay traceable."
+    },
+    {
+      "status": "not_applicable_insufficient_samples",
+      "stage_requirements": {
+        "train_nonoverlap": 60,
+        "calibration_nonoverlap": 30,
+        "validation_nonoverlap": 30
+      },
+      "required_non_overlapping_labels": 120,
+      "available_non_overlapping_labels": 11,
+      "shortfall": 109,
+      "stages_may_share_observations": false,
+      "implementation_policy": "deferred_by_fixed_52_week_design",
+      "activation_target": "none_in_current_research_b_architecture",
+      "alternative": "existing_research_c_logistic_path",
+      "activation_note": "A fitted L2 logistic path would need the training, calibration and validation labels separately and at once. A 52-week window cannot supply that at any horizon, so this is not a threshold awaiting more data but a design boundary; the fitted model lives in Research C. This field is retained so historical results stay traceable."
+    },
+    {
+      "status": "not_applicable_insufficient_samples",
+      "stage_requirements": {
+        "train_nonoverlap": 60,
+        "calibration_nonoverlap": 30,
+        "validation_nonoverlap": 30
+      },
+      "required_non_overlapping_labels": 120,
+      "available_non_overlapping_labels": 12,
+      "shortfall": 108,
+      "stages_may_share_observations": false,
+      "implementation_policy": "deferred_by_fixed_52_week_design",
+      "activation_target": "none_in_current_research_b_architecture",
+      "alternative": "existing_research_c_logistic_path",
+      "activation_note": "A fitted L2 logistic path would need the training, calibration and validation labels separately and at once. A 52-week window cannot supply that at any horizon, so this is not a threshold awaiting more data but a design boundary; the fitted model lives in Research C. This field is retained so historical results stay traceable."
+    },
+    {
+      "status": "not_applicable_insufficient_samples",
+      "stage_requirements": {
+        "train_nonoverlap": 60,
+        "calibration_nonoverlap": 30,
+        "validation_nonoverlap": 30
+      },
+      "required_non_overlapping_labels": 120,
+      "available_non_overlapping_labels": 60,
+      "shortfall": 60,
+      "stages_may_share_observations": false,
+      "implementation_policy": "deferred_by_fixed_52_week_design",
+      "activation_target": "none_in_current_research_b_architecture",
+      "alternative": "existing_research_c_logistic_path",
+      "activation_note": "A fitted L2 logistic path would need the training, calibration and validation labels separately and at once. A 52-week window cannot supply that at any horizon, so this is not a threshold awaiting more data but a design boundary; the fitted model lives in Research C. This field is retained so historical results stay traceable."
+    },
+    {
+      "status": "not_applicable_insufficient_samples",
+      "stage_requirements": {
+        "train_nonoverlap": 60,
+        "calibration_nonoverlap": 30,
+        "validation_nonoverlap": 30
+      },
+      "required_non_overlapping_labels": 120,
+      "available_non_overlapping_labels": 119,
+      "shortfall": 1,
+      "stages_may_share_observations": false,
+      "implementation_policy": "deferred_by_fixed_52_week_design",
+      "activation_target": "none_in_current_research_b_architecture",
+      "alternative": "existing_research_c_logistic_path",
+      "activation_note": "A fitted L2 logistic path would need the training, calibration and validation labels separately and at once. A 52-week window cannot supply that at any horizon, so this is not a threshold awaiting more data but a design boundary; the fitted model lives in Research C. This field is retained so historical results stay traceable."
+    },
+    {
+      "status": "sample_threshold_met",
+      "stage_requirements": {
+        "train_nonoverlap": 60,
+        "calibration_nonoverlap": 30,
+        "validation_nonoverlap": 30
+      },
+      "required_non_overlapping_labels": 120,
+      "available_non_overlapping_labels": 120,
+      "shortfall": 0,
+      "stages_may_share_observations": false,
+      "implementation_policy": "deferred_by_fixed_52_week_design",
+      "activation_target": "none_in_current_research_b_architecture",
+      "alternative": "existing_research_c_logistic_path",
+      "activation_note": "A fitted L2 logistic path would need the training, calibration and validation labels separately and at once. A 52-week window cannot supply that at any horizon, so this is not a threshold awaiting more data but a design boundary; the fitted model lives in Research C. This field is retained so historical results stay traceable."
+    }
+  ],
+  "sample_diagnostics": {
+    "with_dates": {
+      "bar_count": 300,
+      "feature_warmup_sessions": 60,
+      "horizon_sessions": 5,
+      "decision_dates": 240,
+      "raw_sample_count": 235,
+      "matured_sample_count": 235,
+      "nonoverlap_sample_count": 34,
+      "nonoverlap_count_basis": "anchored_phase",
+      "effective_sample_size_estimate": 47.0,
+      "effective_sample_size_kind": "approximation_only_raw_over_horizon",
+      "sample_coverage": 0.9791666666666666,
+      "overlapping_observations_are_independent": false,
+      "note": "The non-overlapping count is the conservative figure and is never larger than the effective estimate; raw divided by horizon approximates dependence but is not a measured effective sample size."
+    },
+    "legacy_spacing": {
+      "bar_count": 300,
+      "feature_warmup_sessions": 60,
+      "horizon_sessions": 5,
+      "decision_dates": 240,
+      "raw_sample_count": 235,
+      "matured_sample_count": 235,
+      "nonoverlap_sample_count": 40,
+      "nonoverlap_count_basis": "legacy_spacing",
+      "effective_sample_size_estimate": 47.0,
+      "effective_sample_size_kind": "approximation_only_raw_over_horizon",
+      "sample_coverage": 0.9791666666666666,
+      "overlapping_observations_are_independent": false,
+      "note": "The non-overlapping count is the conservative figure and is never larger than the effective estimate; raw divided by horizon approximates dependence but is not a measured effective sample size."
+    },
+    "too_short": {
+      "bar_count": 4,
+      "feature_warmup_sessions": 10,
+      "horizon_sessions": 5,
+      "decision_dates": 0,
+      "raw_sample_count": 0,
+      "matured_sample_count": 0,
+      "nonoverlap_sample_count": 0,
+      "nonoverlap_count_basis": "legacy_spacing",
+      "effective_sample_size_estimate": 0.0,
+      "effective_sample_size_kind": "approximation_only_raw_over_horizon",
+      "sample_coverage": 0.0,
+      "overlapping_observations_are_independent": false,
+      "note": "The non-overlapping count is the conservative figure and is never larger than the effective estimate; raw divided by horizon approximates dependence but is not a measured effective sample size."
+    }
+  },
+  "probabilistic_scores": {
+    "daily": {
+      "brier": 0.37740000000000007,
+      "base_rate_brier": 0.27935,
+      "brier_skill_vs_base_rate": -0.35099337748344395,
+      "log_loss": 2.3824004681892257,
+      "base_rate_log_loss": 0.7627577648241989,
+      "calibration_slope": 0.0009504305912390844,
+      "calibration_intercept": 0.4959910191608797,
+      "calibration_slope_method": "ols_of_outcome_on_logit_probability_diagnostic_only",
+      "calibration_slope_is_logistic_calibration_slope": false,
+      "paired_common_samples": 40,
+      "brier_difference_model_minus_base": 0.09805000000000003,
+      "brier_difference_interval": [
+        0.03499000000000001,
+        0.16043000000000002
+      ],
+      "brier_difference_interval_status": "exploratory",
+      "block_length": 6,
+      "block_length_basis": "horizon_plus_one_because_adjacent_labels_overlap",
+      "minimum_session_gap": 1,
+      "baseline": "same_date_historical_base_rate",
+      "comparison_sample_matched": true,
+      "scored_predictions": 40,
+      "base_rate_scored_predictions": 40
+    },
+    "non_overlapping": {
+      "brier": 0.37740000000000007,
+      "base_rate_brier": 0.27935,
+      "brier_skill_vs_base_rate": -0.35099337748344395,
+      "log_loss": 2.3824004681892257,
+      "base_rate_log_loss": 0.7627577648241989,
+      "calibration_slope": 0.0009504305912390844,
+      "calibration_intercept": 0.4959910191608797,
+      "calibration_slope_method": "ols_of_outcome_on_logit_probability_diagnostic_only",
+      "calibration_slope_is_logistic_calibration_slope": false,
+      "paired_common_samples": 40,
+      "brier_difference_model_minus_base": 0.09805000000000003,
+      "brier_difference_interval": [
+        0.03570250000000003,
+        0.16383750000000002
+      ],
+      "brier_difference_interval_status": "exploratory",
+      "block_length": 1,
+      "block_length_basis": "one_record_because_labels_do_not_overlap",
+      "minimum_session_gap": 7,
+      "baseline": "same_date_historical_base_rate",
+      "comparison_sample_matched": true,
+      "scored_predictions": 40,
+      "base_rate_scored_predictions": 40
+    },
+    "no_base_rate": {
+      "brier": null,
+      "base_rate_brier": null,
+      "brier_skill_vs_base_rate": null,
+      "log_loss": null,
+      "base_rate_log_loss": null,
+      "calibration_slope": null,
+      "calibration_intercept": null,
+      "calibration_slope_method": "ols_of_outcome_on_logit_probability_diagnostic_only",
+      "calibration_slope_is_logistic_calibration_slope": false,
+      "paired_common_samples": 0,
+      "brier_difference_model_minus_base": null,
+      "brier_difference_interval": null,
+      "brier_difference_interval_status": "insufficient_samples",
+      "block_length": 6,
+      "block_length_basis": "horizon_plus_one_because_adjacent_labels_overlap",
+      "minimum_session_gap": null,
+      "baseline": "same_date_historical_base_rate",
+      "comparison_sample_matched": true,
+      "scored_predictions": 25,
+      "base_rate_scored_predictions": 0
+    },
+    "empty": {
+      "brier": null,
+      "base_rate_brier": null,
+      "brier_skill_vs_base_rate": null,
+      "log_loss": null,
+      "base_rate_log_loss": null,
+      "calibration_slope": null,
+      "calibration_intercept": null,
+      "calibration_slope_method": "ols_of_outcome_on_logit_probability_diagnostic_only",
+      "calibration_slope_is_logistic_calibration_slope": false,
+      "paired_common_samples": 0,
+      "brier_difference_model_minus_base": null,
+      "brier_difference_interval": null,
+      "brier_difference_interval_status": "insufficient_samples",
+      "block_length": 6,
+      "block_length_basis": "horizon_plus_one_because_adjacent_labels_overlap",
+      "minimum_session_gap": null,
+      "baseline": "same_date_historical_base_rate",
+      "comparison_sample_matched": true,
+      "scored_predictions": 0,
+      "base_rate_scored_predictions": 0
+    },
+    "small": {
+      "brier": 0.16000000000000003,
+      "base_rate_brier": 0.25,
+      "brier_skill_vs_base_rate": 0.3599999999999999,
+      "log_loss": 0.5108256237659907,
+      "base_rate_log_loss": 0.6931471805599453,
+      "calibration_slope": null,
+      "calibration_intercept": null,
+      "calibration_slope_method": "ols_of_outcome_on_logit_probability_diagnostic_only",
+      "calibration_slope_is_logistic_calibration_slope": false,
+      "paired_common_samples": 2,
+      "brier_difference_model_minus_base": -0.08999999999999997,
+      "brier_difference_interval": null,
+      "brier_difference_interval_status": "insufficient_samples",
+      "block_length": 6,
+      "block_length_basis": "horizon_plus_one_because_adjacent_labels_overlap",
+      "minimum_session_gap": 1,
+      "baseline": "same_date_historical_base_rate",
+      "comparison_sample_matched": true,
+      "scored_predictions": 2,
+      "base_rate_scored_predictions": 2
+    }
+  },
+  "qualification": {
+    "passing": {
+      "route": "legacy_bucket",
+      "route_reason": "legacy_bucket_qualified",
+      "checks": {
+        "matured_nonoverlap": {
+          "observed": 20,
+          "required": 12,
+          "passed": true
+        },
+        "bucket_observations": {
+          "observed": 8,
+          "required": 6,
+          "passed": true
+        },
+        "validation_predictions": {
+          "observed": 10,
+          "required": 8,
+          "passed": true
+        },
+        "buckets_available": {
+          "observed": 3,
+          "required": 2,
+          "passed": true
+        }
+      },
+      "withheld_models": {
+        "logistic": {
+          "status": "not_applicable_insufficient_samples",
+          "stage_requirements": {
+            "train_nonoverlap": 60,
+            "calibration_nonoverlap": 30,
+            "validation_nonoverlap": 30
+          },
+          "required_non_overlapping_labels": 120,
+          "available_non_overlapping_labels": 20,
+          "shortfall": 100,
+          "stages_may_share_observations": false,
+          "implementation_policy": "deferred_by_fixed_52_week_design",
+          "activation_target": "none_in_current_research_b_architecture",
+          "alternative": "existing_research_c_logistic_path",
+          "activation_note": "A fitted L2 logistic path would need the training, calibration and validation labels separately and at once. A 52-week window cannot supply that at any horizon, so this is not a threshold awaiting more data but a design boundary; the fitted model lives in Research C. This field is retained so historical results stay traceable."
+        }
+      },
+      "thresholds_declared_in_advance": true,
+      "thresholds_adjustable_per_symbol": false
+    },
+    "failing": {
+      "route": "abstained",
+      "route_reason": "insufficient_matured_evidence:matured_nonoverlap,bucket_observations,validation_predictions,buckets_available",
+      "checks": {
+        "matured_nonoverlap": {
+          "observed": 3,
+          "required": 12,
+          "passed": false
+        },
+        "bucket_observations": {
+          "observed": 2,
+          "required": 6,
+          "passed": false
+        },
+        "validation_predictions": {
+          "observed": 4,
+          "required": 8,
+          "passed": false
+        },
+        "buckets_available": {
+          "observed": 1,
+          "required": 2,
+          "passed": false
+        }
+      },
+      "withheld_models": {
+        "logistic": {
+          "status": "not_applicable_insufficient_samples",
+          "stage_requirements": {
+            "train_nonoverlap": 60,
+            "calibration_nonoverlap": 30,
+            "validation_nonoverlap": 30
+          },
+          "required_non_overlapping_labels": 120,
+          "available_non_overlapping_labels": 3,
+          "shortfall": 117,
+          "stages_may_share_observations": false,
+          "implementation_policy": "deferred_by_fixed_52_week_design",
+          "activation_target": "none_in_current_research_b_architecture",
+          "alternative": "existing_research_c_logistic_path",
+          "activation_note": "A fitted L2 logistic path would need the training, calibration and validation labels separately and at once. A 52-week window cannot supply that at any horizon, so this is not a threshold awaiting more data but a design boundary; the fitted model lives in Research C. This field is retained so historical results stay traceable."
+        }
+      },
+      "thresholds_declared_in_advance": true,
+      "thresholds_adjustable_per_symbol": false
+    }
+  }
+}

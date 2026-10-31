@@ -1,0 +1,7 @@
+{
+  "case": "policy-mismatch",
+  "error_type": "PolicyError",
+  "code": "POLICY_VERSION_MISMATCH",
+  "message": "request.policy_version is not the active policy",
+  "contains": "POLICY_VERSION_MISMATCH"
+}

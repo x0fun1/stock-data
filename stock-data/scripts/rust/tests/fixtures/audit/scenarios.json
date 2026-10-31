@@ -1,0 +1,4081 @@
+[
+  {
+    "case": "approved-base",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "approved",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": true,
+      "may_report_direction": true,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "descriptive-request",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "descriptive",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "Request intent does not authorize a future-direction probability."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DESCRIPTIVE_REQUEST",
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "missing-identity",
+    "input": {
+      "manifest": {
+        "snapshot_id": null,
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "Snapshot identity or source payload digest is missing.",
+        "quant used a different snapshot identity.",
+        "factor used a different snapshot identity.",
+        "ml used a different snapshot identity.",
+        "factor_backtest used a different snapshot identity."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "SNAPSHOT_IDENTITY_INVALID"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "policy-version-mismatch",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v0",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "Snapshot policy version does not match the active fixed-window policy."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "POLICY_VERSION_MISMATCH"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v0",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": false
+    }
+  },
+  {
+    "case": "coverage-incomplete",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "incomplete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 250,
+          "missing_sessions": 10,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "52-week coverage is incomplete (basis recomputed_from_calendar_and_bars); expected 260 sessions, observed 250, missing 10."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "INSUFFICIENT_HISTORY_COVERAGE"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "incomplete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 250,
+          "missing_sessions": 10
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": false
+    }
+  },
+  {
+    "case": "calendar-unverified",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": false,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "Exchange calendar is unverified; a formal 5-session probability cannot be published."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "CALENDAR_UNVERIFIED",
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": false,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": false
+    }
+  },
+  {
+    "case": "target-unresolved",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": null,
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "The 5th-session target could not be resolved from the frozen calendar; a formal probability cannot be published against an undetermined close."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "TARGET_SESSION_UNRESOLVED"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "price-basis-wrong",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_and_dividend_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "Price basis is not the declared split-adjusted close."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "PRICE_BASIS_UNVERIFIED"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_and_dividend_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "current-integrity-fail",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": false,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "Current probability could not be reproduced from frozen bars and fixed parameters."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "PREDICTION_INTEGRITY_FAILED"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": false,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "oos-integrity-fail",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": false,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "At least one OOS probability record failed the integrity audit."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "OOS_INTEGRITY_FAILED"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": false,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "aggregation-contract",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "average",
+        "production_path_count": 2,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "Consensus must use exactly one production path."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "AGGREGATION_CONTRACT",
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "confidence-score",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": 0.9,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "A 0-100 aggregate confidence score must not be published."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "CONFIDENCE_SCORE_PRESENT",
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "shadow-promoted",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "production_probability": true,
+            "probability": 0.52
+          }
+        ],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "factor is shadow-only but is marked as production."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "SHADOW_PATH_PROMOTED"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "shadow-invalid-probability",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [
+          {
+            "path": "ml",
+            "production_probability": false,
+            "probability": 1.5
+          }
+        ],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "ml shadow probability is outside [0,1]."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "SHADOW_PROBABILITY_INVALID"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "diagnostic-probability",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": 0.5,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "factor_backtest is diagnostic-only and must not emit a probability.",
+        "factor_backtest probability has no provenance."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIAGNOSTIC_EMITTED_PROBABILITY",
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "PREDICTION_FAILED"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "invalid-probability",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 1.2,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": null,
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "quant produced an invalid probability value.",
+        "factor probability has no provenance."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "PREDICTION_FAILED"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "leakage",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": false,
+              "future_returns_used_only_as_labels": false
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "vetoed",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [
+        "quant declared future returns outside the label role.",
+        "quant declared features beyond the decision close."
+      ],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "LEAKAGE_DETECTED"
+      ],
+      "may_report_probability": false,
+      "may_report_direction": false,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "oos-insufficient",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 11,
+            "nonoverlap_valid_count": 3
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "approved",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [],
+      "warnings": [
+        "Only 11 effective replay samples (3 non-overlapping rows); 12 effective samples are required for publication.",
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "OOS_SUPPORT_INSUFFICIENT"
+      ],
+      "may_report_probability": true,
+      "may_report_direction": true,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 3,
+        "oos_effective_samples": 11,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "data-partial",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "partial"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": []
+    },
+    "result": {
+      "status": "approved",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes.",
+        "Snapshot has non-fatal data-quality limitations; coverage and price basis are reported separately."
+      ],
+      "reason_codes": [
+        "DATA_WARNING",
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": true,
+      "may_report_direction": true,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "prospective-records",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": null,
+      "prospective_records": [
+        {
+          "sampled": true,
+          "status": "matured",
+          "sampling_status": "anchored"
+        },
+        {
+          "sampled": false,
+          "status": "matured",
+          "sampling_status": "anchored"
+        },
+        {
+          "sampled": true,
+          "status": "pending",
+          "sampling_status": "anchored"
+        },
+        {
+          "sampled": true,
+          "status": "matured",
+          "sampling_status": "unanchored_calendar"
+        }
+      ]
+    },
+    "result": {
+      "status": "approved",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [],
+      "warnings": [
+        "No supported directional edge; 2/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": true,
+      "may_report_direction": true,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 2,
+        "prospective_matured_unanchored": 1,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "news-unassessed",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": {
+        "status": "unavailable",
+        "warnings": []
+      },
+      "prospective_records": []
+    },
+    "result": {
+      "status": "approved",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes.",
+        "News evidence is unavailable or not assessed; it neither supports nor blocks the quant probability."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "NEWS_NOT_ASSESSED"
+      ],
+      "may_report_probability": true,
+      "may_report_direction": true,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability",
+        "news_warning_count": 0,
+        "news_state": "not_assessed"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "news-partial",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": {
+        "status": "partial",
+        "warnings": [
+          "one headline skipped",
+          "source gap"
+        ]
+      },
+      "prospective_records": []
+    },
+    "result": {
+      "status": "approved",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes.",
+        "News was assessed with 2 disclosed warning(s); the delivered line reports the count and must not be described as unassessed."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN",
+        "NEWS_PARTIAL_EVIDENCE"
+      ],
+      "may_report_probability": true,
+      "may_report_direction": true,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability",
+        "news_warning_count": 2,
+        "news_state": "partial"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "news-complete",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": {
+        "status": "complete",
+        "warnings": []
+      },
+      "prospective_records": []
+    },
+    "result": {
+      "status": "approved",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": true,
+      "may_report_direction": true,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability",
+        "news_warning_count": 0,
+        "news_state": "complete"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  },
+  {
+    "case": "news-legacy-valid",
+    "input": {
+      "manifest": {
+        "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+        "source_payload_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "request": {
+          "intent": "forecast",
+          "ticker": "SYN",
+          "market": "US",
+          "horizon": "5D"
+        },
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0,
+          "target_session": "2026-10-30",
+          "price_basis": "split_adjusted",
+          "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified"
+        },
+        "data_validation": {
+          "policy": {
+            "price_basis": "split_adjusted"
+          }
+        },
+        "data_quality": {
+          "overall": "complete"
+        }
+      },
+      "researchers": [
+        {
+          "researcher_id": "quant",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "forecast",
+          "prob_up": 0.55,
+          "probability_source": "drift_shrunk_causal_base_rate",
+          "validation": {
+            "leakage_audit": {
+              "features_use_data_through_decision_close_only": true,
+              "future_returns_used_only_as_labels": true
+            },
+            "price_basis": {
+              "dividends_reinvested": false
+            }
+          }
+        },
+        {
+          "researcher_id": "factor",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.52,
+          "probability_source": "factor_bucket",
+          "validation": {}
+        },
+        {
+          "researcher_id": "ml",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "shadow",
+          "prob_up": 0.48,
+          "probability_source": "ml_compact",
+          "validation": {}
+        },
+        {
+          "researcher_id": "factor_backtest",
+          "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+          "result_role": "diagnostic",
+          "prob_up": null,
+          "validation": {}
+        }
+      ],
+      "consensus": {
+        "prob_up": 0.55,
+        "production_probability_eligible": true,
+        "computable": true,
+        "aggregation_method": "single_path",
+        "production_path_count": 1,
+        "confidence_score": null,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "directional_edge_supported": false,
+        "shadow_predictions": [],
+        "evidence": {
+          "positive": [],
+          "negative": []
+        },
+        "assessment": {
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "production_probability_eligible": true,
+          "directional_edge_supported": false,
+          "oos_evidence_audit": {
+            "effective_valid_samples": 30,
+            "nonoverlap_valid_count": 30
+          }
+        }
+      },
+      "news": {
+        "status": "valid",
+        "warnings": []
+      },
+      "prospective_records": []
+    },
+    "result": {
+      "status": "approved",
+      "verification_scope": "fixed 52-week / 5-session policy: transform replay, coverage, price basis, path roles, OOS integrity",
+      "vetoes": [],
+      "warnings": [
+        "No supported directional edge; 0/30 prospective non-overlapping outcomes."
+      ],
+      "reason_codes": [
+        "DIRECTIONAL_EDGE_UNPROVEN"
+      ],
+      "may_report_probability": true,
+      "may_report_direction": true,
+      "production_eligibility": {
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "trading_signal_eligible": false
+      },
+      "checks": {
+        "snapshot_identity": "checked",
+        "policy": {
+          "policy_version": "fixed_52w_5d_v1",
+          "coverage_status": "complete",
+          "declared_coverage_status": "complete",
+          "coverage_basis": "recomputed_from_calendar_and_bars",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "expected_sessions": 260,
+          "observed_sessions": 260,
+          "missing_sessions": 0
+        },
+        "price_basis": "split_adjusted",
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "oos_nonoverlap": 30,
+        "oos_effective_samples": 30,
+        "prospective_nonoverlap": 0,
+        "prospective_matured_unanchored": 0,
+        "prospective_counting_rule": "only records written within the prompt-recording window on an anchored fixed phase count as non-overlapping forward evidence; unanchored or late records are reported separately",
+        "sampling": {},
+        "news_relationship": "independent_of_quant_probability",
+        "news_warning_count": 0,
+        "news_state": "complete"
+      },
+      "bias_audit": {
+        "survivorship": "not_assessed_no_delisting_universe",
+        "look_ahead": "transform replay verifies labels matured by each decision close",
+        "data_snooping": "single predeclared model; no path or weight selection on this window",
+        "costs": "gross close-to-close; no execution, spread, slippage or fees",
+        "provider_revision": "provider_history_may_be_revised_not_point_in_time_certified"
+      },
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "evidence_summary": {
+        "positive": [],
+        "negative": []
+      },
+      "policy_ok": true
+    }
+  }
+]

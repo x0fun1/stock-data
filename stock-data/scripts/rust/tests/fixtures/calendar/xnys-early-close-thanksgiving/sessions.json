@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "calendar": "XNYS",
+  "timezone": "America/New_York",
+  "generator": {
+    "library": "exchange_calendars",
+    "version": "4.13.2"
+  },
+  "requested_range": {
+    "start": "2026-11-20",
+    "end": "2026-12-01"
+  },
+  "sessions": [
+    {
+      "date": "2026-11-20",
+      "close_at": "2026-11-20T21:00:00Z"
+    },
+    {
+      "date": "2026-11-23",
+      "close_at": "2026-11-23T21:00:00Z"
+    },
+    {
+      "date": "2026-11-24",
+      "close_at": "2026-11-24T21:00:00Z"
+    },
+    {
+      "date": "2026-11-25",
+      "close_at": "2026-11-25T21:00:00Z"
+    },
+    {
+      "date": "2026-11-27",
+      "close_at": "2026-11-27T18:00:00Z"
+    },
+    {
+      "date": "2026-11-30",
+      "close_at": "2026-11-30T21:00:00Z"
+    },
+    {
+      "date": "2026-12-01",
+      "close_at": "2026-12-01T21:00:00Z"
+    }
+  ],
+  "note": "half session after Thanksgiving"
+}

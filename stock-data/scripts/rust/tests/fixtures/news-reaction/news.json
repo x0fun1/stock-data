@@ -1,0 +1,399 @@
+{
+  "reactions": {
+    "pre_market": {
+      "status": "confirmed_positive",
+      "reaction_window": "first_session_after_publication",
+      "calendar_mapping": "nominal_close_estimate",
+      "market_session_date": "2026-01-06",
+      "session_mapping_rule": "source close timestamp when supplied, otherwise nominal local 16:00; first eligible frozen session",
+      "daily_close_return": 0.006951340615690249,
+      "opening_gap_return": 0.004937437934458888,
+      "price_direction": "positive",
+      "abnormal_volume_z": null,
+      "pre_event_volatility_5d": null,
+      "post_event_volatility_5d": 0.003242757487474323,
+      "volatility_change": null,
+      "sector_relative_return": null,
+      "warning": "daily OHLCV cannot isolate intraday reaction or establish causality"
+    },
+    "intraday_after_open": {
+      "status": "intraday_daily_association",
+      "reaction_window": "whole_session_includes_pre_publication",
+      "calendar_mapping": "nominal_close_estimate",
+      "market_session_date": "2026-01-06",
+      "session_mapping_rule": "source close timestamp when supplied, otherwise nominal local 16:00; first eligible frozen session",
+      "daily_close_return": 0.006951340615690249,
+      "opening_gap_return": null,
+      "price_direction": "positive",
+      "abnormal_volume_z": null,
+      "pre_event_volatility_5d": null,
+      "post_event_volatility_5d": 0.003242757487474323,
+      "volatility_change": null,
+      "sector_relative_return": null,
+      "warning": "daily OHLCV cannot isolate intraday reaction or establish causality"
+    },
+    "after_close": {
+      "status": "event_price_divergence_negative",
+      "reaction_window": "first_session_after_publication",
+      "calendar_mapping": "nominal_close_estimate",
+      "market_session_date": "2026-01-07",
+      "session_mapping_rule": "source close timestamp when supplied, otherwise nominal local 16:00; first eligible frozen session",
+      "daily_close_return": 0.0009861932938854956,
+      "opening_gap_return": -0.0010157790927022292,
+      "price_direction": "positive",
+      "abnormal_volume_z": null,
+      "pre_event_volatility_5d": null,
+      "post_event_volatility_5d": 0.0032144129792835933,
+      "volatility_change": null,
+      "sector_relative_return": null,
+      "warning": "daily OHLCV cannot isolate intraday reaction or establish causality"
+    },
+    "session_closes": {
+      "status": "event_price_divergence_negative",
+      "reaction_window": "first_session_after_publication",
+      "calendar_mapping": "source_close_timestamp",
+      "market_session_date": "2026-01-07",
+      "session_mapping_rule": "source close timestamp when supplied, otherwise nominal local 16:00; first eligible frozen session",
+      "daily_close_return": 0.0009861932938854956,
+      "opening_gap_return": -0.0010157790927022292,
+      "price_direction": "positive",
+      "abnormal_volume_z": null,
+      "pre_event_volatility_5d": null,
+      "post_event_volatility_5d": 0.0032144129792835933,
+      "volatility_change": null,
+      "sector_relative_return": null,
+      "warning": "daily OHLCV cannot isolate intraday reaction or establish causality"
+    },
+    "hk_timezone": {
+      "status": "confirmed_positive",
+      "reaction_window": "first_session_after_publication",
+      "calendar_mapping": "nominal_close_estimate",
+      "market_session_date": "2026-01-06",
+      "session_mapping_rule": "source close timestamp when supplied, otherwise nominal local 16:00; first eligible frozen session",
+      "daily_close_return": 0.006951340615690249,
+      "opening_gap_return": 0.004937437934458888,
+      "price_direction": "positive",
+      "abnormal_volume_z": null,
+      "pre_event_volatility_5d": null,
+      "post_event_volatility_5d": 0.003242757487474323,
+      "volatility_change": null,
+      "sector_relative_return": null,
+      "warning": "daily OHLCV cannot isolate intraday reaction or establish causality"
+    },
+    "unknown_market": {
+      "status": "unavailable",
+      "warning": "no session-time mapping for market 'JP'"
+    },
+    "before_window": {
+      "status": "unavailable",
+      "market_session_date": null,
+      "session_mapping_rule": "first frozen exchange session ending after publication",
+      "daily_close_return": null,
+      "opening_gap_return": null,
+      "abnormal_volume_z": null,
+      "pre_event_volatility_5d": null,
+      "post_event_volatility_5d": null,
+      "volatility_change": null,
+      "sector_relative_return": null,
+      "warning": "news predates the available frozen OHLCV window; no market reaction is assessed"
+    },
+    "after_window": {
+      "status": "unavailable",
+      "market_session_date": null,
+      "session_mapping_rule": "first frozen exchange session ending after publication",
+      "daily_close_return": null,
+      "opening_gap_return": null,
+      "abnormal_volume_z": null,
+      "pre_event_volatility_5d": null,
+      "post_event_volatility_5d": null,
+      "volatility_change": null,
+      "sector_relative_return": null,
+      "warning": "no frozen market session follows this news item within the snapshot"
+    },
+    "no_bars": {
+      "status": "unavailable",
+      "warning": "frozen market history contains no bars"
+    }
+  },
+  "returns": {
+    "empty_bars": [
+      0.010000000000000009,
+      -0.004950495049504955
+    ]
+  },
+  "trailing_sigma": {
+    "full": [
+      8.529601659252731e-05,
+      20
+    ],
+    "short": [
+      null,
+      2
+    ],
+    "empty": [
+      null,
+      0
+    ]
+  },
+  "buckets": {
+    "with_close": {
+      "bucket": "pre_market",
+      "basis": "session_close_at minus 6.5h regular session; frozen calendar only",
+      "session_date": "2026-01-06",
+      "session_open_at": "2026-01-06T14:30:00Z",
+      "session_close_at": "2026-01-06T21:00:00Z",
+      "published_at": "2026-01-06T12:00:00Z",
+      "information_path": "pre_open_positioning",
+      "direction_neutral": true
+    },
+    "after_close": {
+      "bucket": "after_close",
+      "basis": "session_close_at minus 6.5h regular session; frozen calendar only",
+      "session_date": "2026-01-06",
+      "session_open_at": "2026-01-06T14:30:00Z",
+      "session_close_at": "2026-01-06T21:00:00Z",
+      "published_at": "2026-01-06T22:00:00Z",
+      "information_path": "overnight_gap_into_next_session",
+      "direction_neutral": true
+    },
+    "no_close": {
+      "bucket": "unknown",
+      "basis": "session_close_at minus 6.5h regular session; frozen calendar only",
+      "reason": "mapped session has no recorded close time"
+    },
+    "no_inputs": {
+      "bucket": "unknown",
+      "basis": "session_close_at minus 6.5h regular session; frozen calendar only",
+      "reason": "publication time or session close unavailable"
+    }
+  },
+  "priced_in": {
+    "large_no_continuation": {
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true,
+      "state": "continued",
+      "reason": "a large event-session move was followed by a same-direction 5-session drift",
+      "event_session_return": 0.021,
+      "sigma_5d": 9.5e-05,
+      "move_to_sigma_5d": 221.1945,
+      "forward_5d_return": 0.019231,
+      "continuation": true,
+      "trailing_sigma_observations": 9,
+      "threshold_sigma_multiple": 1.0,
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "continued": {
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true,
+      "state": "likely_priced_in",
+      "reason": "a large event-session move was not followed by same-direction drift",
+      "event_session_return": 0.021,
+      "sigma_5d": 9.5e-05,
+      "move_to_sigma_5d": 221.1945,
+      "forward_5d_return": -0.038462,
+      "continuation": false,
+      "trailing_sigma_observations": 9,
+      "threshold_sigma_multiple": 1.0,
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "within_noise": {
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true,
+      "state": "continued",
+      "reason": "a large event-session move was followed by a same-direction 5-session drift",
+      "event_session_return": 0.0001,
+      "sigma_5d": 9.5e-05,
+      "move_to_sigma_5d": 1.0533,
+      "forward_5d_return": 0.019231,
+      "continuation": true,
+      "trailing_sigma_observations": 9,
+      "threshold_sigma_multiple": 1.0,
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "unclassifiable": {
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true,
+      "state": "not_assessable",
+      "reason": "reaction is not classifiable for this event session"
+    },
+    "unmatured": {
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true,
+      "state": "not_assessable",
+      "reason": "the 5-session continuation window has not matured in the frozen bars"
+    },
+    "direction_neutral": {
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true,
+      "state": "not_assessable",
+      "reason": "event direction is not one-sided"
+    }
+  },
+  "aggregate": {
+    "too_few": {
+      "state": "not_assessable",
+      "assessable_events": 1,
+      "minimum_events": 3,
+      "reason": "too few matured event windows to judge absorption",
+      "display_only": true,
+      "probability_effect": "none"
+    },
+    "mostly_priced_in": {
+      "state": "likely_priced_in",
+      "assessable_events": 3,
+      "likely_priced_in_events": 2,
+      "share_priced_in": 0.6667,
+      "rule": "share of matured event windows with a >=1 sigma_5d move and no same-direction continuation",
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true
+    },
+    "mixed": {
+      "state": "mixed_absorption",
+      "assessable_events": 3,
+      "likely_priced_in_events": 1,
+      "share_priced_in": 0.3333,
+      "rule": "share of matured event windows with a >=1 sigma_5d move and no same-direction continuation",
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true
+    },
+    "ignores_other": {
+      "state": "likely_priced_in",
+      "assessable_events": 3,
+      "likely_priced_in_events": 2,
+      "share_priced_in": 0.6667,
+      "rule": "share of matured event windows with a >=1 sigma_5d move and no same-direction continuation",
+      "display_only": true,
+      "probability_effect": "none",
+      "direction_neutral": true
+    }
+  },
+  "inputs": {
+    "bars": [
+      {
+        "date": "2026-01-02",
+        "open": 99.8,
+        "high": 101.0,
+        "low": 99.0,
+        "close": 100.0,
+        "volume": 1000000.0
+      },
+      {
+        "date": "2026-01-05",
+        "open": 100.4986,
+        "high": 101.70700000000001,
+        "low": 99.693,
+        "close": 100.7,
+        "volume": 1010000.0
+      },
+      {
+        "date": "2026-01-06",
+        "open": 101.19720000000001,
+        "high": 102.414,
+        "low": 100.38600000000001,
+        "close": 101.4,
+        "volume": 1020000.0
+      },
+      {
+        "date": "2026-01-07",
+        "open": 101.297,
+        "high": 102.515,
+        "low": 100.485,
+        "close": 101.5,
+        "volume": 1030000.0
+      },
+      {
+        "date": "2026-01-08",
+        "open": 101.9956,
+        "high": 103.22200000000001,
+        "low": 101.178,
+        "close": 102.2,
+        "volume": 1040000.0
+      },
+      {
+        "date": "2026-01-09",
+        "open": 102.69420000000001,
+        "high": 103.929,
+        "low": 101.87100000000001,
+        "close": 102.9,
+        "volume": 1050000.0
+      },
+      {
+        "date": "2026-01-12",
+        "open": 102.794,
+        "high": 104.03,
+        "low": 101.97,
+        "close": 103.0,
+        "volume": 1060000.0
+      },
+      {
+        "date": "2026-01-13",
+        "open": 103.4926,
+        "high": 104.73700000000001,
+        "low": 102.663,
+        "close": 103.7,
+        "volume": 1070000.0
+      },
+      {
+        "date": "2026-01-14",
+        "open": 104.19120000000001,
+        "high": 105.444,
+        "low": 103.35600000000001,
+        "close": 104.4,
+        "volume": 1080000.0
+      },
+      {
+        "date": "2026-01-15",
+        "open": 104.291,
+        "high": 105.545,
+        "low": 103.455,
+        "close": 104.5,
+        "volume": 1090000.0
+      }
+    ],
+    "session_closes": {
+      "2026-01-05": "2026-01-05T21:00:00Z",
+      "2026-01-06": "2026-01-06T21:00:00Z",
+      "2026-01-07": "2026-01-07T21:00:00Z"
+    },
+    "closes": [
+      100.0,
+      100.4,
+      100.8,
+      101.2,
+      101.6,
+      102.0,
+      102.4,
+      102.8,
+      103.2,
+      103.6,
+      104.0,
+      104.4,
+      104.8,
+      105.2,
+      105.6,
+      106.0,
+      106.4,
+      106.8,
+      107.2,
+      107.6,
+      108.0,
+      108.4,
+      108.8,
+      109.2,
+      109.6,
+      110.0,
+      110.4,
+      110.8,
+      111.2,
+      111.6
+    ]
+  }
+}

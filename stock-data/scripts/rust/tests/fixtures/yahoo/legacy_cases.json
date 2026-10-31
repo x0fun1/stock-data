@@ -1,0 +1,863 @@
+{
+  "generated_from": "stock-data/scripts/global_stock_data.py",
+  "note": "legacy Yahoo routes with scripted HTTP; stub crumb unless the bootstrap case",
+  "cases": [
+    {
+      "function": "stock_kline_yahoo",
+      "params": {
+        "symbol": "AAPL",
+        "interval": "1d",
+        "range_": "6mo",
+        "include_metadata": true
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v8/finance/chart/AAPL",
+          "params": {
+            "interval": "1d",
+            "range": "6mo",
+            "events": "div,splits",
+            "includeAdjustedClose": "true"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"chart\": {\"error\": null, \"result\": [{\"meta\": {\"symbol\": \"AAPL\", \"currency\": \"USD\", \"exchangeTimezoneName\": \"America/New_York\"}, \"timestamp\": [1767377400, 1767636600], \"events\": {\"dividends\": {\"1767636600\": {\"amount\": 0.24}}}, \"indicators\": {\"quote\": [{\"open\": [100.0, 101.5], \"high\": [103.0, 104.0], \"low\": [99.5, 101.0], \"close\": [102.5, 103.0], \"volume\": [1000, 1200]}], \"adjclose\": [{\"adjclose\": [101.25, 103.0]}]}}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "bars": [
+          {
+            "date": "2026-01-02",
+            "timestamp_epoch": 1767377400,
+            "timestamp_utc": "2026-01-02T18:10:00Z",
+            "open": 100.0,
+            "high": 103.0,
+            "low": 99.5,
+            "close": 102.5,
+            "volume": 1000.0
+          },
+          {
+            "date": "2026-01-05",
+            "timestamp_epoch": 1767636600,
+            "timestamp_utc": "2026-01-05T18:10:00Z",
+            "open": 101.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "volume": 1200.0
+          }
+        ],
+        "meta": {
+          "symbol": "AAPL",
+          "currency": "USD",
+          "exchangeTimezoneName": "America/New_York"
+        },
+        "adjclose": [
+          {
+            "adjclose": [
+              101.25,
+              103.0
+            ]
+          }
+        ],
+        "events": {
+          "dividends": {
+            "1767636600": {
+              "amount": 0.24
+            }
+          }
+        },
+        "frequency": "1d",
+        "symbol": "AAPL",
+        "price_basis": "provider_quote_OHLCV_adjustment_unverified",
+        "calendar_status": "not_a_complete_exchange_calendar"
+      }
+    },
+    {
+      "function": "stock_kline_yahoo",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v8/finance/chart/AAPL",
+          "params": {
+            "interval": "1d",
+            "range": "6mo",
+            "events": "div,splits",
+            "includeAdjustedClose": "true"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"chart\": {\"error\": null, \"result\": [{\"meta\": {\"symbol\": \"AAPL\", \"currency\": \"USD\", \"exchangeTimezoneName\": \"America/New_York\"}, \"timestamp\": [1767377400, 1767636600], \"events\": {\"dividends\": {\"1767636600\": {\"amount\": 0.24}}}, \"indicators\": {\"quote\": [{\"open\": [100.0, 101.5], \"high\": [103.0, 104.0], \"low\": [99.5, 101.0], \"close\": [102.5, 103.0], \"volume\": [1000, 1200]}]}}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "date": "2026-01-02",
+          "timestamp_epoch": 1767377400,
+          "timestamp_utc": "2026-01-02T18:10:00Z",
+          "open": 100.0,
+          "high": 103.0,
+          "low": 99.5,
+          "close": 102.5,
+          "volume": 1000.0
+        },
+        {
+          "date": "2026-01-05",
+          "timestamp_epoch": 1767636600,
+          "timestamp_utc": "2026-01-05T18:10:00Z",
+          "open": 101.5,
+          "high": 104.0,
+          "low": 101.0,
+          "close": 103.0,
+          "volume": 1200.0
+        }
+      ]
+    },
+    {
+      "function": "stock_kline_yahoo",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v8/finance/chart/AAPL",
+          "params": {
+            "interval": "1d",
+            "range": "6mo",
+            "events": "div,splits",
+            "includeAdjustedClose": "true"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"chart\": {\"error\": null, \"result\": []}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": []
+    },
+    {
+      "function": "stock_kline_yahoo",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v8/finance/chart/AAPL",
+          "params": {
+            "interval": "1d",
+            "range": "6mo",
+            "events": "div,splits",
+            "includeAdjustedClose": "true"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"chart\": {\"error\": {\"code\": \"Not Found\"}, \"result\": null}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": false,
+      "error_type": "ProviderError",
+      "error_message": "Yahoo chart returned a provider error."
+    },
+    {
+      "function": "stock_kline_yahoo",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v8/finance/chart/AAPL",
+          "params": {
+            "interval": "1d",
+            "range": "6mo",
+            "events": "div,splits",
+            "includeAdjustedClose": "true"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"chart\": {\"error\": null, \"result\": [{\"timestamp\": [\"bad\"]}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": false,
+      "error_type": "ProviderError",
+      "error_message": "Yahoo chart returned an invalid candle timestamp."
+    },
+    {
+      "function": "stock_kline_yahoo",
+      "params": {
+        "symbol": "AAPL",
+        "interval": "2h"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "Unsupported Yahoo candle interval."
+    },
+    {
+      "function": "stock_kline_yahoo",
+      "params": {
+        "symbol": "AAPL",
+        "range_": "99y"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "Unsupported Yahoo candle range."
+    },
+    {
+      "function": "yahoo_quote_summary",
+      "params": {
+        "symbol": "AAPL",
+        "modules": [
+          "price",
+          "summaryDetail"
+        ]
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v10/finance/quoteSummary/AAPL",
+          "params": {
+            "modules": "price,summaryDetail",
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"quoteSummary\": {\"error\": null, \"result\": [{\"price\": {\"regularMarketPrice\": {\"raw\": 101.5}}, \"summaryDetail\": {\"trailingPE\": {\"raw\": 28.1}}}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "price": {
+          "regularMarketPrice": {
+            "raw": 101.5
+          }
+        },
+        "summaryDetail": {
+          "trailingPE": {
+            "raw": 28.1
+          }
+        }
+      }
+    },
+    {
+      "function": "yahoo_quote_summary",
+      "params": {
+        "symbol": "AAPL",
+        "modules": []
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "modules must be a nonempty list of module names."
+    },
+    {
+      "function": "yahoo_quote_summary",
+      "params": {
+        "symbol": "AAPL",
+        "modules": [
+          "price"
+        ]
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v10/finance/quoteSummary/AAPL",
+          "params": {
+            "modules": "price",
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"quoteSummary\": {\"error\": {\"code\": \"x\"}, \"result\": null}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": false,
+      "error_type": "ProviderError",
+      "error_message": "Yahoo quoteSummary returned a provider error."
+    },
+    {
+      "function": "key_statistics",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v10/finance/quoteSummary/AAPL",
+          "params": {
+            "modules": "financialData,defaultKeyStatistics,summaryDetail",
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"quoteSummary\": {\"error\": null, \"result\": [{\"financialData\": {\"currentPrice\": {\"raw\": 101.5}, \"targetMeanPrice\": {\"raw\": 120.0}, \"recommendationKey\": \"buy\", \"operatingMargins\": {\"raw\": 0.3}, \"grossMargins\": {\"raw\": 0.45}, \"returnOnEquity\": {\"raw\": 0.5}, \"returnOnAssets\": {\"raw\": 0.2}, \"earningsGrowth\": {\"raw\": 0.1}, \"revenueGrowth\": {\"raw\": 0.08}, \"totalRevenue\": {\"raw\": 400000.0}, \"totalCash\": {\"raw\": 50000.0}, \"totalDebt\": {\"raw\": 100000.0}}, \"defaultKeyStatistics\": {\"forwardPE\": {\"raw\": 25.0}, \"pegRatio\": {\"raw\": 2.1}, \"priceToBook\": {\"raw\": 45.0}, \"enterpriseValue\": {\"raw\": 3000000.0}, \"enterpriseToEbitda\": {\"raw\": 22.0}, \"enterpriseToRevenue\": {\"raw\": 7.5}, \"profitMargins\": {\"raw\": 0.25}, \"beta\": {\"raw\": 1.2}, \"shortRatio\": {\"raw\": 1.5}, \"payoutRatio\": {\"raw\": 0.15}}, \"summaryDetail\": {\"trailingPE\": {\"raw\": 28.1}, \"dividendYield\": {\"raw\": 0.005}, \"marketCap\": {\"raw\": 3000000000000}}}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "current_price": 101.5,
+        "target_high": null,
+        "target_low": null,
+        "target_mean": 120.0,
+        "recommendation": "buy",
+        "trailing_pe": 28.1,
+        "forward_pe": 25.0,
+        "peg_ratio": 2.1,
+        "price_to_book": 45.0,
+        "enterprise_value": 3000000.0,
+        "ev_to_ebitda": 22.0,
+        "ev_to_revenue": 7.5,
+        "profit_margin": 0.25,
+        "operating_margin": 0.3,
+        "gross_margin": 0.45,
+        "return_on_equity": 0.5,
+        "return_on_assets": 0.2,
+        "earnings_growth": 0.1,
+        "revenue_growth": 0.08,
+        "beta": 1.2,
+        "short_ratio": 1.5,
+        "dividend_yield": 0.005,
+        "payout_ratio": 0.15,
+        "market_cap": 3000000000000,
+        "total_revenue": 400000.0,
+        "total_cash": 50000.0,
+        "total_debt": 100000.0
+      }
+    },
+    {
+      "function": "analyst_estimates",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v10/finance/quoteSummary/AAPL",
+          "params": {
+            "modules": "earningsTrend,recommendationTrend,upgradeDowngradeHistory,earnings,earningsHistory",
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"quoteSummary\": {\"error\": null, \"result\": [{\"earningsTrend\": {\"trend\": [{\"period\": \"0q\", \"endDate\": \"2026-03-31\", \"earningsEstimate\": {\"avg\": {\"raw\": 2.1}, \"high\": {\"raw\": 2.3}, \"low\": {\"raw\": 1.9}, \"numberOfAnalysts\": {\"raw\": 30}}, \"revenueEstimate\": {\"avg\": {\"raw\": 100000.0}}}]}, \"recommendationTrend\": {\"trend\": [{\"period\": \"0m\", \"strongBuy\": 10, \"buy\": 8, \"hold\": 5, \"sell\": 1, \"strongSell\": 0}]}, \"upgradeDowngradeHistory\": {\"history\": [{\"epochGradeDate\": 1767377400, \"firm\": \"F1\", \"toGrade\": \"Buy\", \"fromGrade\": \"Hold\", \"action\": \"up\"}]}}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "eps_trend": [
+          {
+            "period": "0q",
+            "end_date": "2026-03-31",
+            "eps_estimate": 2.1,
+            "eps_high": 2.3,
+            "eps_low": 1.9,
+            "revenue_estimate": 100000.0,
+            "num_analysts": 30
+          }
+        ],
+        "rating_trend": [
+          {
+            "period": "0m",
+            "strong_buy": 10,
+            "buy": 8,
+            "hold": 5,
+            "sell": 1,
+            "strong_sell": 0
+          }
+        ],
+        "upgrade_downgrade": [
+          {
+            "date": 1767377400,
+            "firm": "F1",
+            "to_grade": "Buy",
+            "from_grade": "Hold",
+            "action": "up"
+          }
+        ]
+      }
+    },
+    {
+      "function": "institutional_holders",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v10/finance/quoteSummary/AAPL",
+          "params": {
+            "modules": "institutionOwnership,majorHoldersBreakdown",
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"quoteSummary\": {\"error\": null, \"result\": [{\"majorHoldersBreakdown\": {\"insidersPercentHeld\": {\"raw\": 0.01}, \"institutionsPercentHeld\": {\"raw\": 0.6}, \"institutionsFloatPercentHeld\": {\"raw\": 0.62}, \"institutionsCount\": {\"raw\": 5000}}, \"institutionOwnership\": {\"ownershipList\": [{\"organization\": \"Vanguard\", \"position\": {\"raw\": 1000000}, \"value\": {\"raw\": 200000000.0}, \"pctHeld\": {\"raw\": 0.07}, \"reportDate\": {\"fmt\": \"2025-12-31\"}}, {\"organization\": \"BlackRock\", \"position\": {\"raw\": 900000}, \"value\": {\"raw\": 180000000.0}, \"pctHeld\": {\"raw\": 0.06}, \"reportDate\": \"2025-12-31\"}]}}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "overview": {
+          "insiders_pct": 0.01,
+          "institutions_pct": 0.6,
+          "institutions_float_pct": 0.62,
+          "institutions_count": 5000
+        },
+        "top_holders": [
+          {
+            "name": "Vanguard",
+            "shares": 1000000,
+            "value": 200000000.0,
+            "pct_held": 0.07,
+            "report_date": "2025-12-31"
+          },
+          {
+            "name": "BlackRock",
+            "shares": 900000,
+            "value": 180000000.0,
+            "pct_held": 0.06,
+            "report_date": null
+          }
+        ]
+      }
+    },
+    {
+      "function": "financial_statements_yahoo",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v10/finance/quoteSummary/AAPL",
+          "params": {
+            "modules": "incomeStatementHistory,balanceSheetHistory,cashflowStatementHistory",
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"quoteSummary\": {\"error\": null, \"result\": [{\"incomeStatementHistory\": {\"incomeStatementHistory\": [{\"endDate\": {\"fmt\": \"2025-09-30\"}, \"totalRevenue\": {\"raw\": 1000.0}, \"netIncome\": {\"raw\": 200.0}, \"grossProfit\": {\"raw\": 450.0}}]}, \"balanceSheetHistory\": {\"balanceSheetStatements\": [{\"endDate\": {\"fmt\": \"2025-09-30\"}, \"totalAssets\": {\"raw\": 5000.0}}]}, \"cashflowStatementHistory\": {\"cashflowStatements\": [{\"endDate\": {\"fmt\": \"2025-09-30\"}, \"operatingCashflow\": {\"raw\": 300.0}}]}}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "income": [
+          {
+            "endDate": "2025-09-30",
+            "totalRevenue": 1000.0,
+            "netIncome": 200.0,
+            "grossProfit": 450.0
+          }
+        ],
+        "balance": [
+          {
+            "endDate": "2025-09-30",
+            "totalAssets": 5000.0
+          }
+        ],
+        "cashflow": [
+          {
+            "endDate": "2025-09-30",
+            "operatingCashflow": 300.0
+          }
+        ]
+      }
+    },
+    {
+      "function": "financial_statements_yahoo",
+      "params": {
+        "symbol": "AAPL",
+        "quarterly": true
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v10/finance/quoteSummary/AAPL",
+          "params": {
+            "modules": "incomeStatementHistoryQuarterly,balanceSheetHistoryQuarterly,cashflowStatementHistoryQuarterly",
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"quoteSummary\": {\"error\": null, \"result\": [{}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "income": [],
+        "balance": [],
+        "cashflow": []
+      }
+    },
+    {
+      "function": "options_chain",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v7/finance/options/AAPL",
+          "params": {
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"optionChain\": {\"error\": null, \"result\": [{\"expirationDates\": [1768521600], \"quote\": {\"regularMarketPrice\": {\"raw\": 101.5}}, \"options\": [{\"calls\": [{\"strike\": {\"raw\": 100.0}, \"lastPrice\": {\"raw\": 3.5}, \"bid\": {\"raw\": 3.4}, \"ask\": {\"raw\": 3.6}, \"volume\": {\"raw\": 120}, \"openInterest\": {\"raw\": 500}, \"impliedVolatility\": {\"raw\": 0.25}, \"inTheMoney\": true, \"expiration\": {\"fmt\": \"2026-01-16\"}, \"contractSymbol\": \"AAPL260116C00100000\"}], \"puts\": [{\"strike\": {\"raw\": 110.0}, \"lastPrice\": {\"raw\": 1.5}, \"bid\": 1.4, \"ask\": 1.6, \"volume\": 50, \"openInterest\": 60, \"impliedVolatility\": 0.3, \"inTheMoney\": false, \"expiration\": \"2026-01-16\", \"contractSymbol\": \"AAPL260116P00110000\"}]}]}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "expiration_dates": [
+          1768521600
+        ],
+        "calls": [
+          {
+            "strike": 100.0,
+            "last_price": 3.5,
+            "bid": 3.4,
+            "ask": 3.6,
+            "volume": 120,
+            "open_interest": 500,
+            "implied_volatility": 0.25,
+            "in_the_money": true,
+            "expiration": "2026-01-16",
+            "contract_symbol": "AAPL260116C00100000"
+          }
+        ],
+        "puts": [
+          {
+            "strike": 110.0,
+            "last_price": 1.5,
+            "bid": 1.4,
+            "ask": 1.6,
+            "volume": 50,
+            "open_interest": 60,
+            "implied_volatility": 0.3,
+            "in_the_money": false,
+            "expiration": null,
+            "contract_symbol": "AAPL260116P00110000"
+          }
+        ],
+        "underlying_price": {
+          "raw": 101.5
+        }
+      }
+    },
+    {
+      "function": "options_chain",
+      "params": {
+        "symbol": "AAPL",
+        "expiration": 1768521600
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v7/finance/options/AAPL",
+          "params": {
+            "crumb": "stub-crumb",
+            "date": "1768521600"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"optionChain\": {\"error\": null, \"result\": [{\"expirationDates\": [1768521600], \"quote\": {\"regularMarketPrice\": {\"raw\": 101.5}}, \"options\": [{\"calls\": [{\"strike\": {\"raw\": 100.0}, \"lastPrice\": {\"raw\": 3.5}, \"bid\": {\"raw\": 3.4}, \"ask\": {\"raw\": 3.6}, \"volume\": {\"raw\": 120}, \"openInterest\": {\"raw\": 500}, \"impliedVolatility\": {\"raw\": 0.25}, \"inTheMoney\": true, \"expiration\": {\"fmt\": \"2026-01-16\"}, \"contractSymbol\": \"AAPL260116C00100000\"}], \"puts\": [{\"strike\": {\"raw\": 110.0}, \"lastPrice\": {\"raw\": 1.5}, \"bid\": 1.4, \"ask\": 1.6, \"volume\": 50, \"openInterest\": 60, \"impliedVolatility\": 0.3, \"inTheMoney\": false, \"expiration\": \"2026-01-16\", \"contractSymbol\": \"AAPL260116P00110000\"}]}]}]}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "expiration_dates": [
+          1768521600
+        ],
+        "calls": [
+          {
+            "strike": 100.0,
+            "last_price": 3.5,
+            "bid": 3.4,
+            "ask": 3.6,
+            "volume": 120,
+            "open_interest": 500,
+            "implied_volatility": 0.25,
+            "in_the_money": true,
+            "expiration": "2026-01-16",
+            "contract_symbol": "AAPL260116C00100000"
+          }
+        ],
+        "puts": [
+          {
+            "strike": 110.0,
+            "last_price": 1.5,
+            "bid": 1.4,
+            "ask": 1.6,
+            "volume": 50,
+            "open_interest": 60,
+            "implied_volatility": 0.3,
+            "in_the_money": false,
+            "expiration": null,
+            "contract_symbol": "AAPL260116P00110000"
+          }
+        ],
+        "underlying_price": {
+          "raw": 101.5
+        }
+      }
+    },
+    {
+      "function": "options_chain",
+      "params": {
+        "symbol": "AAPL",
+        "expiration": 4102444801
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "expiration must be a positive integer no larger than 4102444800."
+    },
+    {
+      "function": "options_chain",
+      "params": {
+        "symbol": "AAPL",
+        "expiration": "2026-11-20"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "expiration must be a positive integer no larger than 4102444800."
+    },
+    {
+      "function": "options_chain",
+      "params": {
+        "symbol": "0700.HK"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "This function supports US tickers only."
+    },
+    {
+      "function": "options_chain",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "crumb": "stub-crumb",
+      "session_headers": {},
+      "requests": [
+        {
+          "url": "https://query2.finance.yahoo.com/v7/finance/options/AAPL",
+          "params": {
+            "crumb": "stub-crumb"
+          },
+          "headers": {},
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "body": "{\"optionChain\": {\"error\": {\"code\": \"x\"}, \"result\": null}}",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": false,
+      "error_type": "ProviderError",
+      "error_message": "Yahoo options returned a provider error."
+    },
+    {
+      "function": "__get_yahoo_session__",
+      "params": {},
+      "requests": [
+        {
+          "url": "https://fc.yahoo.com",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Accept-Encoding": "gzip, deflate",
+            "Accept": "*/*",
+            "Connection": "keep-alive"
+          },
+          "timeout": 10.0
+        },
+        {
+          "url": "https://query2.finance.yahoo.com/v1/test/getcrumb",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Accept-Encoding": "gzip, deflate",
+            "Accept": "*/*",
+            "Connection": "keep-alive",
+            "Cookie": "A1=cookie-value"
+          },
+          "timeout": 10.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 404,
+          "body": "",
+          "reason": "Not Found",
+          "set_cookie": {
+            "A1": "cookie-value"
+          }
+        },
+        {
+          "status": 200,
+          "body": "crumb-token",
+          "reason": "OK",
+          "set_cookie": {}
+        }
+      ],
+      "ok": true,
+      "data": {
+        "crumb": "crumb-token"
+      }
+    }
+  ]
+}

@@ -1,0 +1,221 @@
+{
+  "run_id": "run-1",
+  "snapshot_id": "snap-1",
+  "policy_version": "fixed_52w_5d_v1",
+  "analysis_id": "run-1",
+  "analysis_status": "success",
+  "stages": [
+    {
+      "stage": "request",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    },
+    {
+      "stage": "collection",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    },
+    {
+      "stage": "data",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    },
+    {
+      "stage": "quant",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    },
+    {
+      "stage": "audit",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    },
+    {
+      "stage": "news",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    },
+    {
+      "stage": "cross-validation",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    },
+    {
+      "stage": "risk",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    },
+    {
+      "stage": "final",
+      "status": "complete",
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "fixed_52w_5d_v1"
+    }
+  ],
+  "snapshot": {
+    "ticker": "SYN",
+    "market": "US",
+    "horizon": "5D",
+    "snapshot_id": "snap-1",
+    "asof_timestamp": "2026-01-05T21:00:00Z",
+    "target_session": "2026-01-12",
+    "last_bar_date": "2026-01-05",
+    "data_validation": {
+      "blockers": []
+    },
+    "warnings": [],
+    "policy": {
+      "decision_session": "2026-01-05",
+      "window_start_exclusive": "2025-10-06",
+      "window_end_inclusive": "2026-01-05",
+      "coverage_status": "complete",
+      "coverage_recomputed": true,
+      "calendar_verified": true,
+      "calendar_source": "XNYS",
+      "expected_sessions": 63,
+      "observed_sessions": 63,
+      "missing_sessions": 0,
+      "price_basis": "split_adjusted",
+      "policy_version": "fixed_52w_5d_v1"
+    }
+  },
+  "consensus": {
+    "prob_up": 0.57,
+    "raw_probability": 0.61,
+    "direction": "bullish",
+    "model_lean": "up",
+    "production_probability_eligible": true,
+    "directional_edge_supported": false,
+    "reason_codes": [],
+    "computable": true,
+    "current_prediction_integrity_pass": true,
+    "oos_integrity_pass": true,
+    "economic_viability": {
+      "status": "thin"
+    },
+    "production": {
+      "prob_up": 0.57,
+      "matching_observations": 42,
+      "causal_base_rate": 0.52,
+      "probability_transform": {
+        "k": 50,
+        "n_eff": 12.5
+      }
+    },
+    "evidence": {
+      "directional_edge_state": "insufficient_evidence",
+      "replay_valid": 120,
+      "replay_nonoverlap": 20,
+      "replay_total": 130,
+      "replay_abstained": 10,
+      "replay_coverage_ratio": 0.6667,
+      "oos_effective_samples": 24,
+      "prospective_nonoverlap": 12,
+      "directional_edge_independent_supported": false,
+      "baseline_comparison": {
+        "observations": 120,
+        "effective_sample_size": 24,
+        "brier_model": 0.24,
+        "brier_causal_base_rate": 0.26,
+        "brier_constant_half": 0.25,
+        "skill": 0.04,
+        "auc": 0.55,
+        "verdict": "inconclusive"
+      },
+      "relative_baseline_skill": [],
+      "oos_sampling_status": "anchored",
+      "oos_sampling_role": "primary",
+      "directional_edge_primary_evidence": "in_window_replay",
+      "replay_type": "prefix_walk_forward"
+    },
+    "shadow_predictions": [],
+    "diagnostics": {},
+    "trading_signal_eligible": false,
+    "aggregation_method": "single_path",
+    "production_path_count": 1
+  },
+  "adversarial_audit": {
+    "status": "pass",
+    "may_report_probability": true,
+    "may_report_direction": true,
+    "vetoes": [],
+    "warnings": []
+  },
+  "news_result": {
+    "ticker": "SYN",
+    "market": "US",
+    "horizon": "5D",
+    "snapshot_id": "snap-1",
+    "asof_timestamp": "2026-01-05T21:00:00Z",
+    "status": "complete",
+    "warnings": [
+      "tampered after freeze"
+    ],
+    "warning_count": 0,
+    "ai_lean": {
+      "status": "assessed",
+      "coverage": {
+        "candidate_count": 2,
+        "assessed_count": 2,
+        "direct_label_counts": {
+          "bullish": 1,
+          "bearish": 1,
+          "neutral": 0,
+          "mixed": 0,
+          "unclear": 0
+        }
+      },
+      "items": [
+        {
+          "news_id": "event-1",
+          "lean": "bullish",
+          "reason": "beat"
+        },
+        {
+          "news_id": "opinion-1",
+          "lean": "bearish",
+          "reason": "probe"
+        }
+      ],
+      "major_direct_items": []
+    },
+    "ai_lean_candidates": [
+      {
+        "news_id": "event-1"
+      },
+      {
+        "news_id": "opinion-1"
+      }
+    ],
+    "expected_volatility_regime": {
+      "regime": "normal"
+    },
+    "event_time_bucket_counts": {
+      "pre_market": 1
+    },
+    "opinion_source_agreement": {
+      "state": "mixed"
+    },
+    "event_source_agreement": {
+      "state": "consistent"
+    },
+    "market_confirmation": "not_assessed"
+  }
+}

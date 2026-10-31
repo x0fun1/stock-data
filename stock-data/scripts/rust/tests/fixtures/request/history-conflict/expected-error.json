@@ -1,0 +1,7 @@
+{
+  "case": "history-conflict",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "conflicting request history window",
+  "contains": "conflicting request history window"
+}

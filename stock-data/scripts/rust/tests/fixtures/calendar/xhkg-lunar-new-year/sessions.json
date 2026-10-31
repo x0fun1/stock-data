@@ -1,0 +1,44 @@
+{
+  "schema_version": "1.0",
+  "calendar": "XHKG",
+  "timezone": "Asia/Hong_Kong",
+  "generator": {
+    "library": "exchange_calendars",
+    "version": "4.13.2"
+  },
+  "requested_range": {
+    "start": "2027-02-04",
+    "end": "2027-02-16"
+  },
+  "sessions": [
+    {
+      "date": "2027-02-04",
+      "close_at": "2027-02-04T08:00:00Z"
+    },
+    {
+      "date": "2027-02-05",
+      "close_at": "2027-02-05T04:00:00Z"
+    },
+    {
+      "date": "2027-02-10",
+      "close_at": "2027-02-10T08:00:00Z"
+    },
+    {
+      "date": "2027-02-11",
+      "close_at": "2027-02-11T08:00:00Z"
+    },
+    {
+      "date": "2027-02-12",
+      "close_at": "2027-02-12T08:00:00Z"
+    },
+    {
+      "date": "2027-02-15",
+      "close_at": "2027-02-15T08:00:00Z"
+    },
+    {
+      "date": "2027-02-16",
+      "close_at": "2027-02-16T08:00:00Z"
+    }
+  ],
+  "note": "HK Lunar New Year closure"
+}

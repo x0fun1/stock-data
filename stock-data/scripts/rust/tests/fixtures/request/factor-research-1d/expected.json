@@ -1,0 +1,9 @@
+{
+  "ticker": "MU",
+  "market": "US",
+  "horizon": "1D",
+  "asof": null,
+  "mode": "standard",
+  "intent": "factor_research",
+  "asset_type": "unknown"
+}

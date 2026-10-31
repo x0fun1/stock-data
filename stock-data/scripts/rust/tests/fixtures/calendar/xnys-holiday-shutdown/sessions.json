@@ -1,0 +1,28 @@
+{
+  "schema_version": "1.0",
+  "calendar": "XNYS",
+  "timezone": "America/New_York",
+  "generator": {
+    "library": "exchange_calendars",
+    "version": "4.13.2"
+  },
+  "requested_range": {
+    "start": "2026-06-17",
+    "end": "2026-06-22"
+  },
+  "sessions": [
+    {
+      "date": "2026-06-17",
+      "close_at": "2026-06-17T20:00:00Z"
+    },
+    {
+      "date": "2026-06-18",
+      "close_at": "2026-06-18T20:00:00Z"
+    },
+    {
+      "date": "2026-06-22",
+      "close_at": "2026-06-22T20:00:00Z"
+    }
+  ],
+  "note": "Juneteenth holiday then reopen"
+}

@@ -1,0 +1,840 @@
+{
+  "normalized": [
+    {
+      "article_id": null,
+      "url": null,
+      "title": "Valid headline",
+      "summary": "Summary",
+      "published_at": "2026-01-05T12:00:00Z",
+      "updated_at": null,
+      "occurred_at": null,
+      "announcement_at": null,
+      "scheduled_at": null,
+      "source": "wire",
+      "source_type": "news",
+      "record_type": "event",
+      "tickers": [
+        "AAPL",
+        "MSFT"
+      ],
+      "event_type_hint": "EARNINGS_BEAT",
+      "canonical_event_id": null,
+      "original_reporting_id": null,
+      "event_group": "company",
+      "exposure_tickers": [
+        "AMD",
+        "NVDA"
+      ],
+      "exposure_basis": null,
+      "event_strength": 0.5,
+      "relevance": null,
+      "magnitude": null,
+      "novelty": null,
+      "source_quality": null,
+      "sentiment_score": -0.3
+    },
+    {
+      "article_id": null,
+      "url": null,
+      "title": "Bad scheduled",
+      "summary": null,
+      "published_at": "2026-01-05T12:00:00Z",
+      "updated_at": null,
+      "occurred_at": null,
+      "announcement_at": null,
+      "scheduled_at": null,
+      "source": "unknown",
+      "source_type": "news",
+      "record_type": "unknown",
+      "tickers": [],
+      "event_type_hint": null,
+      "canonical_event_id": null,
+      "original_reporting_id": null,
+      "event_group": null,
+      "exposure_tickers": [],
+      "exposure_basis": null,
+      "event_strength": null,
+      "relevance": null,
+      "magnitude": null,
+      "novelty": null,
+      "source_quality": null,
+      "sentiment_score": null
+    },
+    {
+      "article_id": null,
+      "url": null,
+      "title": "Line break",
+      "summary": null,
+      "published_at": "2026-01-05T12:00:00Z",
+      "updated_at": null,
+      "occurred_at": null,
+      "announcement_at": null,
+      "scheduled_at": null,
+      "source": "unknown",
+      "source_type": "news",
+      "record_type": "unknown",
+      "tickers": [],
+      "event_type_hint": null,
+      "canonical_event_id": null,
+      "original_reporting_id": null,
+      "event_group": null,
+      "exposure_tickers": [],
+      "exposure_basis": null,
+      "event_strength": null,
+      "relevance": null,
+      "magnitude": null,
+      "novelty": null,
+      "source_quality": null,
+      "sentiment_score": null
+    },
+    {
+      "article_id": null,
+      "url": null,
+      "title": "Long xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+      "summary": null,
+      "published_at": "2026-01-05T12:00:00Z",
+      "updated_at": null,
+      "occurred_at": null,
+      "announcement_at": null,
+      "scheduled_at": null,
+      "source": "unknown",
+      "source_type": "news",
+      "record_type": "unknown",
+      "tickers": [],
+      "event_type_hint": null,
+      "canonical_event_id": null,
+      "original_reporting_id": null,
+      "event_group": null,
+      "exposure_tickers": [],
+      "exposure_basis": null,
+      "event_strength": null,
+      "relevance": null,
+      "magnitude": null,
+      "novelty": null,
+      "source_quality": null,
+      "sentiment_score": null
+    },
+    {
+      "article_id": null,
+      "url": null,
+      "title": "Weird type",
+      "summary": null,
+      "published_at": "2026-01-05T12:00:00Z",
+      "updated_at": null,
+      "occurred_at": null,
+      "announcement_at": null,
+      "scheduled_at": null,
+      "source": "unknown",
+      "source_type": "social",
+      "record_type": "unknown",
+      "tickers": [],
+      "event_type_hint": null,
+      "canonical_event_id": null,
+      "original_reporting_id": null,
+      "event_group": null,
+      "exposure_tickers": [],
+      "exposure_basis": null,
+      "event_strength": null,
+      "relevance": null,
+      "magnitude": null,
+      "novelty": null,
+      "source_quality": null,
+      "sentiment_score": null
+    },
+    {
+      "article_id": null,
+      "url": null,
+      "title": "Old record",
+      "summary": null,
+      "published_at": "2025-12-01T12:00:00Z",
+      "updated_at": null,
+      "occurred_at": null,
+      "announcement_at": null,
+      "scheduled_at": null,
+      "source": "unknown",
+      "source_type": "news",
+      "record_type": "unknown",
+      "tickers": [],
+      "event_type_hint": null,
+      "canonical_event_id": null,
+      "original_reporting_id": null,
+      "event_group": null,
+      "exposure_tickers": [],
+      "exposure_basis": null,
+      "event_strength": null,
+      "relevance": null,
+      "magnitude": null,
+      "novelty": null,
+      "source_quality": null,
+      "sentiment_score": null
+    },
+    {
+      "article_id": null,
+      "url": null,
+      "title": "No source",
+      "summary": null,
+      "published_at": "2026-01-04T12:00:00Z",
+      "updated_at": null,
+      "occurred_at": null,
+      "announcement_at": null,
+      "scheduled_at": null,
+      "source": "unknown",
+      "source_type": "news",
+      "record_type": "unknown",
+      "tickers": [],
+      "event_type_hint": null,
+      "canonical_event_id": null,
+      "original_reporting_id": null,
+      "event_group": null,
+      "exposure_tickers": [],
+      "exposure_basis": null,
+      "event_strength": null,
+      "relevance": null,
+      "magnitude": null,
+      "novelty": null,
+      "source_quality": null,
+      "sentiment_score": null
+    }
+  ],
+  "excluded": {
+    "invalid_record": 0,
+    "missing_title": 1,
+    "missing_or_invalid_published_at": 2,
+    "after_asof": 1,
+    "updated_after_asof": 1,
+    "over_analysis_cap": 0
+  },
+  "warnings": [
+    "scheduled_at could not be parsed and was dropped; the record is retained",
+    "ignored unsupported record_type 'memo'; treated as unknown",
+    "excluded news records at the point-in-time boundary: missing_title=1, missing_or_invalid_published_at=2, after_asof=1, updated_after_asof=1",
+    "1 news headline(s) were truncated to 400 characters"
+  ],
+  "sentiment": {
+    "source": "provider",
+    "period": "2026-W01",
+    "sentiment_source": "aggregate",
+    "available_at": "2026-01-05T20:00:00Z",
+    "percent_scale": "fraction",
+    "sentiment_score": 0.4,
+    "bullish_percent": 0.6,
+    "bearish_percent": 0.3,
+    "ticker": "MSFT"
+  },
+  "sentiment_warnings": [],
+  "sentiment_cases": {
+    "undeclared_scale": [
+      {
+        "source": "provider",
+        "period": "2026-W01",
+        "sentiment_source": "aggregate",
+        "available_at": "2026-01-05T20:00:00Z",
+        "percent_scale": "fraction",
+        "sentiment_score": null,
+        "bullish_percent": 0.6,
+        "bearish_percent": 0.3,
+        "ticker": "MSFT"
+      },
+      [
+        "provider sentiment_score excluded: invalid or unspecified scale/range"
+      ]
+    ],
+    "percent_exceed": [
+      {
+        "source": "provider",
+        "period": "2026-W01",
+        "sentiment_source": "aggregate",
+        "available_at": "2026-01-05T20:00:00Z",
+        "percent_scale": "percent",
+        "sentiment_score": null,
+        "bullish_percent": null,
+        "bearish_percent": null,
+        "ticker": "MSFT"
+      },
+      [
+        "provider sentiment_score excluded: invalid or unspecified scale/range",
+        "provider bullish/bearish shares exceed the declared scale"
+      ]
+    ],
+    "late": [
+      null,
+      [
+        "provider sentiment aggregate excluded because it was fetched or timestamped after the snapshot as-of"
+      ]
+    ],
+    "missing_timestamp": [
+      null,
+      [
+        "provider sentiment aggregate excluded because no timezone-aware availability timestamp was supplied"
+      ]
+    ],
+    "non_object": [
+      null,
+      []
+    ]
+  },
+  "roles": [
+    {
+      "role": "event",
+      "opinion": false
+    },
+    {
+      "role": "unknown",
+      "opinion": false
+    },
+    {
+      "role": "unknown",
+      "opinion": false
+    },
+    {
+      "role": "unknown",
+      "opinion": false
+    },
+    {
+      "role": "opinion",
+      "opinion": true
+    },
+    {
+      "role": "unknown",
+      "opinion": false
+    },
+    {
+      "role": "unknown",
+      "opinion": false
+    }
+  ],
+  "bad_data": {
+    "not_array": [
+      [],
+      {
+        "invalid_record": 0,
+        "missing_title": 0,
+        "missing_or_invalid_published_at": 0,
+        "after_asof": 0,
+        "updated_after_asof": 0,
+        "over_analysis_cap": 0
+      },
+      [
+        "news.data must be an array or an object with an articles array"
+      ]
+    ],
+    "list_with_non_objects": [
+      [
+        {
+          "article_id": null,
+          "url": null,
+          "title": "ok",
+          "summary": null,
+          "published_at": "2026-01-05T00:00:00Z",
+          "updated_at": null,
+          "occurred_at": null,
+          "announcement_at": null,
+          "scheduled_at": null,
+          "source": "unknown",
+          "source_type": "news",
+          "record_type": "unknown",
+          "tickers": [],
+          "event_type_hint": null,
+          "canonical_event_id": null,
+          "original_reporting_id": null,
+          "event_group": null,
+          "exposure_tickers": [],
+          "exposure_basis": null,
+          "event_strength": null,
+          "relevance": null,
+          "magnitude": null,
+          "novelty": null,
+          "source_quality": null,
+          "sentiment_score": null
+        }
+      ],
+      {
+        "invalid_record": 2,
+        "missing_title": 0,
+        "missing_or_invalid_published_at": 0,
+        "after_asof": 0,
+        "updated_after_asof": 0,
+        "over_analysis_cap": 0
+      },
+      [
+        "excluded news records at the point-in-time boundary: invalid_record=2"
+      ]
+    ]
+  },
+  "dedup": {
+    "duplicate_count": 3,
+    "cluster_count": 5,
+    "clusters": [
+      {
+        "cluster_id": "cluster_61f7bf3daacf",
+        "first_published_at": "2026-01-05T13:00:00Z",
+        "representative": {
+          "title": "Company beats estimates",
+          "summary": "Different ticker",
+          "published_at": "2026-01-05T13:00:00Z",
+          "source": "wire",
+          "url": null,
+          "article_id": "A3",
+          "tickers": [
+            "AAPL"
+          ],
+          "record_type": "news"
+        },
+        "articles": [
+          {
+            "title": "Company beats estimates",
+            "summary": "Different ticker",
+            "published_at": "2026-01-05T13:00:00Z",
+            "source": "wire",
+            "url": null,
+            "article_id": "A3",
+            "tickers": [
+              "AAPL"
+            ],
+            "record_type": "news"
+          }
+        ],
+        "sources": [
+          "wire"
+        ],
+        "independent_reporting_ids": [],
+        "article_count": 1,
+        "role": "event",
+        "is_opinion": false
+      },
+      {
+        "cluster_id": "cluster_8bcb36f36337",
+        "first_published_at": "2026-01-05T12:00:00Z",
+        "representative": {
+          "title": "Company beats estimates!",
+          "summary": "Revenue beat again",
+          "published_at": "2026-01-06T12:00:00Z",
+          "source": "other",
+          "url": "https://other.example/beats",
+          "article_id": "A2",
+          "tickers": [
+            "MSFT"
+          ],
+          "record_type": "news",
+          "original_reporting_id": "R3"
+        },
+        "articles": [
+          {
+            "title": "Company beats estimates",
+            "summary": "Revenue beat",
+            "published_at": "2026-01-05T12:00:00Z",
+            "source": "wire",
+            "url": "https://Example.com/story/?utm_source=x&id=7",
+            "article_id": "A1",
+            "tickers": [
+              "MSFT"
+            ],
+            "record_type": "news",
+            "original_reporting_id": "R1"
+          },
+          {
+            "title": "Company beats estimates",
+            "summary": "Revenue beat",
+            "published_at": "2026-01-05T13:00:00Z",
+            "source": "wire",
+            "url": "https://example.com/story?id=7",
+            "article_id": "A1",
+            "tickers": [
+              "MSFT"
+            ],
+            "record_type": "news",
+            "original_reporting_id": "R2"
+          },
+          {
+            "title": "Company beats estimates!",
+            "summary": "Revenue beat again",
+            "published_at": "2026-01-06T12:00:00Z",
+            "source": "other",
+            "url": "https://other.example/beats",
+            "article_id": "A2",
+            "tickers": [
+              "MSFT"
+            ],
+            "record_type": "news",
+            "original_reporting_id": "R3"
+          }
+        ],
+        "sources": [
+          "other",
+          "wire"
+        ],
+        "independent_reporting_ids": [
+          "R1",
+          "R2",
+          "R3"
+        ],
+        "article_count": 3,
+        "role": "event",
+        "is_opinion": false
+      },
+      {
+        "cluster_id": "cluster_1cb2a64c02d6",
+        "first_published_at": "2026-01-05T12:00:00Z",
+        "representative": {
+          "title": "Different words entirely",
+          "summary": "two",
+          "published_at": "2026-01-05T15:00:00Z",
+          "source": "wire",
+          "record_type": "event",
+          "tickers": [
+            "MSFT"
+          ],
+          "canonical_event_id": "E1",
+          "occurred_at": "2026-01-05T12:00:00Z"
+        },
+        "articles": [
+          {
+            "title": "Same canonical",
+            "summary": "one",
+            "published_at": "2026-01-05T12:00:00Z",
+            "source": "wire",
+            "record_type": "event",
+            "tickers": [
+              "MSFT"
+            ],
+            "canonical_event_id": "E1",
+            "occurred_at": "2026-01-05T12:00:00Z"
+          },
+          {
+            "title": "Different words entirely",
+            "summary": "two",
+            "published_at": "2026-01-05T15:00:00Z",
+            "source": "wire",
+            "record_type": "event",
+            "tickers": [
+              "MSFT"
+            ],
+            "canonical_event_id": "E1",
+            "occurred_at": "2026-01-05T12:00:00Z"
+          }
+        ],
+        "sources": [
+          "wire"
+        ],
+        "independent_reporting_ids": [],
+        "article_count": 2,
+        "role": "event",
+        "is_opinion": false
+      },
+      {
+        "cluster_id": "cluster_54b1a7cdff88",
+        "first_published_at": "2026-01-05T10:00:00Z",
+        "representative": {
+          "title": "Analyst says buy",
+          "summary": "Opinion",
+          "published_at": "2026-01-05T10:00:00Z",
+          "source": "social",
+          "source_type": "social",
+          "record_type": "opinion",
+          "tickers": [
+            "MSFT"
+          ]
+        },
+        "articles": [
+          {
+            "title": "Analyst says buy",
+            "summary": "Opinion",
+            "published_at": "2026-01-05T10:00:00Z",
+            "source": "social",
+            "source_type": "social",
+            "record_type": "opinion",
+            "tickers": [
+              "MSFT"
+            ]
+          }
+        ],
+        "sources": [
+          "social"
+        ],
+        "independent_reporting_ids": [],
+        "article_count": 1,
+        "role": "opinion",
+        "is_opinion": true
+      },
+      {
+        "cluster_id": "cluster_66e4d601d3d9",
+        "first_published_at": "2026-01-04T12:00:00Z",
+        "representative": {
+          "title": "Totally unrelated",
+          "summary": "",
+          "published_at": "2026-01-04T12:00:00Z",
+          "source": "wire",
+          "record_type": "event",
+          "tickers": [
+            "MSFT"
+          ],
+          "occurred_at": "2026-01-02T12:00:00Z"
+        },
+        "articles": [
+          {
+            "title": "Totally unrelated",
+            "summary": "",
+            "published_at": "2026-01-04T12:00:00Z",
+            "source": "wire",
+            "record_type": "event",
+            "tickers": [
+              "MSFT"
+            ],
+            "occurred_at": "2026-01-02T12:00:00Z"
+          }
+        ],
+        "sources": [
+          "wire"
+        ],
+        "independent_reporting_ids": [],
+        "article_count": 1,
+        "role": "event",
+        "is_opinion": false
+      }
+    ],
+    "clean_urls": [
+      "https://example.com/a/b?q=2",
+      "https://example.com/a/b",
+      null
+    ],
+    "title_keys": [
+      "company beats estimates",
+      ""
+    ]
+  },
+  "inputs": {
+    "asof": "2026-01-05T21:00:00Z",
+    "articles_payload": {
+      "articles": [
+        {
+          "title": "Valid headline",
+          "summary": "Summary",
+          "published_at": "2026-01-05T12:00:00Z",
+          "source": "wire",
+          "source_type": "News",
+          "record_type": "event",
+          "tickers": [
+            "msft",
+            "AAPL",
+            "msft"
+          ],
+          "event_type_hint": "earnings_beat",
+          "event_group": "company",
+          "exposure_tickers": [
+            "nvda",
+            "AMD"
+          ],
+          "event_strength": 0.5,
+          "relevance": 1.2,
+          "sentiment_score": -0.3
+        },
+        {
+          "title": "",
+          "published_at": "2026-01-05T12:00:00Z"
+        },
+        {
+          "title": "After as of",
+          "published_at": "2026-01-06T12:00:00Z"
+        },
+        {
+          "title": "Invalid published",
+          "published_at": "not-a-date"
+        },
+        {
+          "title": "Updated after",
+          "published_at": "2026-01-05T12:00:00Z",
+          "updated_at": "2026-01-06T00:00:00Z"
+        },
+        {
+          "title": "Occurred after",
+          "published_at": "2026-01-05T12:00:00Z",
+          "occurred_at": "2026-01-06T00:00:00Z"
+        },
+        {
+          "title": "Bad scheduled",
+          "published_at": "2026-01-05T12:00:00Z",
+          "scheduled_at": "bad"
+        },
+        {
+          "title": "Line\nbreak",
+          "published_at": "2026-01-05T12:00:00Z"
+        },
+        {
+          "title": "Long xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+          "published_at": "2026-01-05T12:00:00Z"
+        },
+        {
+          "title": "Weird type",
+          "published_at": "2026-01-05T12:00:00Z",
+          "record_type": "memo",
+          "source_type": "SOCIAL",
+          "sentiment_score": 33
+        },
+        {
+          "title": "Old record",
+          "published_at": "2025-12-01T12:00:00Z"
+        },
+        {
+          "title": "No source",
+          "published_at": "2026-01-04T12:00:00Z"
+        }
+      ],
+      "source_sentiment": {
+        "source": "provider",
+        "period": "2026-W01",
+        "sentiment_source": "aggregate",
+        "available_at": "2026-01-05T20:00:00Z",
+        "percent_scale": "fraction",
+        "sentiment_score": 0.4,
+        "sentiment_score_scale": "minus_one_to_one",
+        "bullish_percent": 0.6,
+        "bearish_percent": 0.3,
+        "ticker": "MSFT"
+      }
+    },
+    "undeclared": {
+      "source": "provider",
+      "period": "2026-W01",
+      "sentiment_source": "aggregate",
+      "available_at": "2026-01-05T20:00:00Z",
+      "percent_scale": "fraction",
+      "sentiment_score": 0.6,
+      "bullish_percent": 0.6,
+      "bearish_percent": 0.3,
+      "ticker": "MSFT"
+    },
+    "percent_exceed": {
+      "source": "provider",
+      "period": "2026-W01",
+      "sentiment_source": "aggregate",
+      "available_at": "2026-01-05T20:00:00Z",
+      "percent_scale": "percent",
+      "sentiment_score": 0.6,
+      "bullish_percent": 70,
+      "bearish_percent": 40,
+      "ticker": "MSFT"
+    },
+    "late": {
+      "source": "provider",
+      "period": "2026-W01",
+      "sentiment_source": "aggregate",
+      "available_at": "2026-01-06T00:00:00Z",
+      "percent_scale": "fraction",
+      "sentiment_score": 0.4,
+      "sentiment_score_scale": "minus_one_to_one",
+      "bullish_percent": 0.6,
+      "bearish_percent": 0.3,
+      "ticker": "MSFT"
+    },
+    "missing": {
+      "source": "provider",
+      "period": "2026-W01",
+      "sentiment_source": "aggregate",
+      "percent_scale": "fraction",
+      "sentiment_score": 0.4,
+      "sentiment_score_scale": "minus_one_to_one",
+      "bullish_percent": 0.6,
+      "bearish_percent": 0.3,
+      "ticker": "MSFT"
+    },
+    "dedupe_records": [
+      {
+        "title": "Company beats estimates",
+        "summary": "Revenue beat",
+        "published_at": "2026-01-05T12:00:00Z",
+        "source": "wire",
+        "url": "https://Example.com/story/?utm_source=x&id=7",
+        "article_id": "A1",
+        "tickers": [
+          "MSFT"
+        ],
+        "record_type": "news",
+        "original_reporting_id": "R1"
+      },
+      {
+        "title": "Company beats estimates",
+        "summary": "Revenue beat",
+        "published_at": "2026-01-05T13:00:00Z",
+        "source": "wire",
+        "url": "https://example.com/story?id=7",
+        "article_id": "A1",
+        "tickers": [
+          "MSFT"
+        ],
+        "record_type": "news",
+        "original_reporting_id": "R2"
+      },
+      {
+        "title": "Company beats estimates!",
+        "summary": "Revenue beat again",
+        "published_at": "2026-01-06T12:00:00Z",
+        "source": "other",
+        "url": "https://other.example/beats",
+        "article_id": "A2",
+        "tickers": [
+          "MSFT"
+        ],
+        "record_type": "news",
+        "original_reporting_id": "R3"
+      },
+      {
+        "title": "Company beats estimates",
+        "summary": "Different ticker",
+        "published_at": "2026-01-05T13:00:00Z",
+        "source": "wire",
+        "url": null,
+        "article_id": "A3",
+        "tickers": [
+          "AAPL"
+        ],
+        "record_type": "news"
+      },
+      {
+        "title": "Analyst says buy",
+        "summary": "Opinion",
+        "published_at": "2026-01-05T10:00:00Z",
+        "source": "social",
+        "source_type": "social",
+        "record_type": "opinion",
+        "tickers": [
+          "MSFT"
+        ]
+      },
+      {
+        "title": "Totally unrelated",
+        "summary": "",
+        "published_at": "2026-01-04T12:00:00Z",
+        "source": "wire",
+        "record_type": "event",
+        "tickers": [
+          "MSFT"
+        ],
+        "occurred_at": "2026-01-02T12:00:00Z"
+      },
+      {
+        "title": "Same canonical",
+        "summary": "one",
+        "published_at": "2026-01-05T12:00:00Z",
+        "source": "wire",
+        "record_type": "event",
+        "tickers": [
+          "MSFT"
+        ],
+        "canonical_event_id": "E1",
+        "occurred_at": "2026-01-05T12:00:00Z"
+      },
+      {
+        "title": "Different words entirely",
+        "summary": "two",
+        "published_at": "2026-01-05T15:00:00Z",
+        "source": "wire",
+        "record_type": "event",
+        "tickers": [
+          "MSFT"
+        ],
+        "canonical_event_id": "E1",
+        "occurred_at": "2026-01-05T12:00:00Z"
+      }
+    ]
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "market": {
+    "status": "success",
+    "data": {
+      "x": 1
+    },
+    "isError": true
+  }
+}

@@ -1,0 +1,3309 @@
+{
+  "reportable": {
+    "reporting_status": "reportable",
+    "lines": {
+      "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+      "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+      "probability": "上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）",
+      "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）",
+      "directional_edge": "方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势",
+      "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
+      "validation": "验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored",
+      "relative_skill": "相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24",
+      "news": "新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）"
+    },
+    "agent_summary": {
+      "schema": "agent-summary-3.0",
+      "ticker": "SYN",
+      "market": "US",
+      "horizon": "5D",
+      "asof": "2026-01-05T21:00:00Z",
+      "decision_session": "2026-01-05",
+      "policy_version": "3.0",
+      "headline": {
+        "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+        "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+        "probability": "上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）",
+        "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）"
+      },
+      "sections": {
+        "quant": {
+          "production_probability_eligible": true,
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "directional_edge_supported": false,
+          "trading_signal_eligible": false,
+          "probability_label": "uncalibrated_model_estimate",
+          "reason_codes": [],
+          "matching_observations": 42,
+          "causal_base_rate": 0.52
+        },
+        "replay_and_prospective": {
+          "replay_type": "prefix_walk_forward",
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "primary_evidence": "in_window_replay",
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "calibration_status": "disabled_by_policy"
+        },
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "probability": 0.54,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "ml",
+            "probability": 0.49,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        },
+        "news": {
+          "status": "complete",
+          "state": "complete",
+          "assessed": true,
+          "warning_count": 0,
+          "ai_assessment_status": "assessed",
+          "direct_label_counts": {
+            "bullish": 2,
+            "bearish": 1,
+            "neutral": 1,
+            "mixed": 0,
+            "unclear": 0
+          },
+          "volatility_regime": "normal",
+          "independent_of_quant": true
+        }
+      },
+      "contract": {
+        "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
+        "validation": "验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored",
+        "relative_skill": "相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24",
+        "news": "新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）",
+        "directional_edge": "方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势"
+      }
+    },
+    "final_response": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）\n模型倾向：点估计偏上涨（仅描述点估计）\n方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势\n生产路径：A；B/C为影子研究，D为描述性诊断\n验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n\n证据边界：\n- 概率语义：漂移收缩的因果基率估计；未校准，不可解释为真实涨跌频率\n- 资格状态：computable=True；current_integrity=True；oos_integrity=True；production_eligible=True；directional_edge=False；trading_signal=false\n- 优势证据状态：positive_skill_with_estimated_interval_excluding_zero；回放范围=in_window_causal_prefix_replay_not_independent_holdout（120条，有效样本≈24）；独立方向优势=False；成熟前向（12条）\n- 回放类型：prefix_walk_forward；前缀回放成熟120条，其中非重叠20条；真实前向12条；抽样状态anchored\n- 校准状态：disabled_by_policy；影子路径：factor, ml\n- 标签口径：拆股调整=True；分红调整=False；股息翻转率未量化（快照无分红历史）\n- 标的：SYN / US / 5D；快照 snap-1\n\n消息面（AI 标题判断，未核验正文）：\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation",
+    "markdown": "# Stock Data 研究报告\n\n- 研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n- 预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n- 上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）\n- 模型倾向：点估计偏上涨（仅描述点估计）\n- 方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势\n- 生产路径：A；B/C为影子研究，D为描述性诊断\n- 验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n- 相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n- 新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n\n## 数据与目标\n\n- 决策日：2026-01-05\n- 窗口：(2025-10-06, 2026-01-05]\n- 日历验证：True；来源 XNYS；预期交易日 63；观测 63；缺失 0\n- 价格基础：split_adjusted（拆股调整，现金分红不再投资）\n\n## 概率与证据\n\n- 模型倾向：点估计偏上涨\n- 当前匹配样本：42；因果基率：0.5200\n- 前缀回放：类型 prefix_walk_forward；有效 120；非重叠 20；弃权 10\n- 有效回放样本：24（=有效条数/5）；对照基线：因果基率与常数0.5\n- 抽样相位：anchored（角色：primary）\n- 方向优势状态：positive_skill_with_estimated_interval_excluding_zero；主要证据：in_window_replay\n- 真实前向：非重叠 12；校准状态 disabled_by_policy\n- 方向优势（回放）：回放区间下界>0（窗口内回放，非独立留出）\n- 独立方向优势：证据不足（成熟前向 12/30 条；抽样状态 anchored）\n\n## 影子与诊断（非生产、不可引用、不进入生产概率）\n\n- 本节仅是影子研究/描述性诊断输出：不得作为生产概率、方向结论或交付文本引用；对外只使用 `final_response.md` 的固定九行。\n- factor：54.0%；状态 shadow\n- ml：49.0%；状态 shadow\n- D 描述性诊断（5D）：IC=0.0100；留出样本=24；descriptive_only=true\n\n## 消息面\n\n- 状态：complete（complete）；已评估：True；警告：0 条\n- 新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n- 预期波动状态：normal\n- 发布时段分布：{'pre_market': 1, 'intraday': 2, 'after_close': 1}\n- 来源一致度：观点 mixed；事件 consistent\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation\n\n### 逐条 AI 新闻判断\n\n\n## 审计与限制\n\n- 审计状态：pass；may_report_probability=True\n- 否决：无\n- 警告：audit note\n- 收益为拆股调整收盘价的 5 交易日方向，不含分红再投资；未建模执行、价差、滑点与费用。\n- 标签口径：拆股调整=split_adjusted；分红调整=False；股息翻转率=None（declared_not_quantified）\n- 快照：snap-1；政策：3.0",
+    "synthesis": {
+      "quant": {
+        "prob_up": 0.57,
+        "raw_probability": 0.61,
+        "direction": "bullish",
+        "model_lean": "up",
+        "probability_label": "uncalibrated_model_estimate",
+        "calibrated_probability": null,
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "evidence": {
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "replay_valid": 120,
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_independent_supported": false,
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "relative_baseline_skill": [
+            {
+              "primary": true,
+              "status": "estimated",
+              "mean": 0.0123,
+              "lower": 0.001,
+              "upper": 0.023
+            }
+          ],
+          "oos_sampling_status": "anchored",
+          "oos_sampling_role": "primary",
+          "directional_edge_primary_evidence": "in_window_replay",
+          "replay_type": "prefix_walk_forward"
+        },
+        "reason_codes": [],
+        "confidence_score": null,
+        "confidence_score_deprecated": true,
+        "reporting_status": "reportable_uncalibrated"
+      },
+      "quant_field_source": "quant_result.json.consensus",
+      "economic_viability": {
+        "status": "thin",
+        "source": "quant_result.json.consensus.economic_viability",
+        "single_source": true
+      },
+      "alignment": "NOT_COMPUTED",
+      "quantitative_bias": "bullish",
+      "quant_prob_up": 0.57,
+      "news_event_bias": null,
+      "news_evidence_direction": null,
+      "alignment_basis": "independent_sections",
+      "news_ai_status": "assessed",
+      "news_direct_label_counts": {
+        "bullish": 2,
+        "bearish": 1,
+        "neutral": 1,
+        "mixed": 0,
+        "unclear": 0
+      },
+      "news_sentiment": "headline_ai",
+      "market_confirmation": "not_assessed",
+      "overall_confidence": null,
+      "overall_confidence_deprecated": true,
+      "quant_probability_preserved": true,
+      "probability_blending": "prohibited_in_v1",
+      "key_risks": [
+        {
+          "source": "data_or_audit",
+          "detail": "fatal gate: stale data",
+          "severity": "high"
+        },
+        {
+          "source": "coverage_or_validation",
+          "detail": "audit note",
+          "severity": "medium"
+        },
+        {
+          "source": "coverage_or_validation",
+          "detail": "coverage note",
+          "severity": "medium"
+        },
+        {
+          "source": "coverage_or_validation",
+          "detail": "fatal gate: stale data",
+          "severity": "medium"
+        }
+      ],
+      "news_major_bearish": [
+        {
+          "headline": "Regulator opens probe",
+          "url": "https://example.com/b",
+          "reason": "investigation"
+        }
+      ],
+      "news_warnings": [],
+      "evidence_links": {
+        "quant_paths": [
+          "factor",
+          "ml"
+        ],
+        "news_urls": [
+          "https://example.com/a",
+          "https://example.com/b"
+        ]
+      },
+      "warnings": []
+    },
+    "quant_fields": {
+      "prob_up": 0.57,
+      "raw_probability": 0.61,
+      "direction": "bullish",
+      "model_lean": "up",
+      "probability_label": "uncalibrated_model_estimate",
+      "calibrated_probability": null,
+      "production_probability_eligible": true,
+      "directional_edge_supported": false,
+      "evidence": {
+        "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+        "replay_valid": 120,
+        "replay_nonoverlap": 20,
+        "replay_total": 130,
+        "replay_abstained": 10,
+        "replay_coverage_ratio": 0.6667,
+        "oos_effective_samples": 24,
+        "prospective_nonoverlap": 12,
+        "directional_edge_independent_supported": false,
+        "baseline_comparison": {
+          "observations": 120,
+          "effective_sample_size": 24,
+          "brier_model": 0.24,
+          "brier_causal_base_rate": 0.26,
+          "brier_constant_half": 0.25,
+          "skill": 0.04,
+          "auc": 0.55,
+          "verdict": "inconclusive"
+        },
+        "relative_baseline_skill": [
+          {
+            "primary": true,
+            "status": "estimated",
+            "mean": 0.0123,
+            "lower": 0.001,
+            "upper": 0.023
+          }
+        ],
+        "oos_sampling_status": "anchored",
+        "oos_sampling_role": "primary",
+        "directional_edge_primary_evidence": "in_window_replay",
+        "replay_type": "prefix_walk_forward"
+      },
+      "reason_codes": [],
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "reporting_status": "reportable_uncalibrated"
+    }
+  },
+  "unavailable": {
+    "reporting_status": "unavailable",
+    "lines": {
+      "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+      "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+      "probability": "上涨概率：不可用（原因码OOS_SUPPORT_INSUFFICIENT/TARGET_SESSION_UNRESOLVED；实际缺口：有效回放样本 24/12，预测目标交易日未解析）",
+      "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）",
+      "directional_edge": "方向优势：不可用（没有可发布的生产概率）",
+      "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
+      "validation": "验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored",
+      "relative_skill": "相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24",
+      "news": "新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）"
+    },
+    "agent_summary": {
+      "schema": "agent-summary-3.0",
+      "ticker": "SYN",
+      "market": "US",
+      "horizon": "5D",
+      "asof": "2026-01-05T21:00:00Z",
+      "decision_session": "2026-01-05",
+      "policy_version": "3.0",
+      "headline": {
+        "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+        "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+        "probability": "上涨概率：不可用（原因码OOS_SUPPORT_INSUFFICIENT/TARGET_SESSION_UNRESOLVED；实际缺口：有效回放样本 24/12，预测目标交易日未解析）",
+        "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）"
+      },
+      "sections": {
+        "quant": {
+          "production_probability_eligible": false,
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "directional_edge_supported": false,
+          "trading_signal_eligible": false,
+          "probability_label": "uncalibrated_model_estimate",
+          "reason_codes": [
+            "OOS_SUPPORT_INSUFFICIENT",
+            "TARGET_SESSION_UNRESOLVED"
+          ],
+          "matching_observations": 42,
+          "causal_base_rate": 0.52
+        },
+        "replay_and_prospective": {
+          "replay_type": "prefix_walk_forward",
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "primary_evidence": "in_window_replay",
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "calibration_status": "disabled_by_policy"
+        },
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "probability": 0.54,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "ml",
+            "probability": 0.49,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        },
+        "news": {
+          "status": "complete",
+          "state": "complete",
+          "assessed": true,
+          "warning_count": 0,
+          "ai_assessment_status": "assessed",
+          "direct_label_counts": {
+            "bullish": 2,
+            "bearish": 1,
+            "neutral": 1,
+            "mixed": 0,
+            "unclear": 0
+          },
+          "volatility_regime": "normal",
+          "independent_of_quant": true
+        }
+      },
+      "contract": {
+        "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
+        "validation": "验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored",
+        "relative_skill": "相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24",
+        "news": "新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）",
+        "directional_edge": "方向优势：不可用（没有可发布的生产概率）"
+      }
+    },
+    "final_response": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n上涨概率：不可用（原因码OOS_SUPPORT_INSUFFICIENT/TARGET_SESSION_UNRESOLVED；实际缺口：有效回放样本 24/12，预测目标交易日未解析）\n模型倾向：点估计偏上涨（仅描述点估计）\n方向优势：不可用（没有可发布的生产概率）\n生产路径：A；B/C为影子研究，D为描述性诊断\n验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n\n证据边界：\n- 概率语义：漂移收缩的因果基率估计；未校准，不可解释为真实涨跌频率\n- 资格状态：computable=True；current_integrity=True；oos_integrity=True；production_eligible=False；directional_edge=False；trading_signal=false\n- 优势证据状态：positive_skill_with_estimated_interval_excluding_zero；回放范围=in_window_causal_prefix_replay_not_independent_holdout（120条，有效样本≈24）；独立方向优势=False；成熟前向（12条）\n- 回放类型：prefix_walk_forward；前缀回放成熟120条，其中非重叠20条；真实前向12条；抽样状态anchored\n- 校准状态：disabled_by_policy；影子路径：factor, ml\n- 标签口径：拆股调整=True；分红调整=False；股息翻转率未量化（快照无分红历史）\n- 标的：SYN / US / 5D；快照 snap-1\n- 原因码：OOS_SUPPORT_INSUFFICIENT, TARGET_SESSION_UNRESOLVED\n\n消息面（AI 标题判断，未核验正文）：\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation",
+    "markdown": "# Stock Data 研究报告\n\n- 研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n- 预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n- 上涨概率：不可用（原因码OOS_SUPPORT_INSUFFICIENT/TARGET_SESSION_UNRESOLVED；实际缺口：有效回放样本 24/12，预测目标交易日未解析）\n- 模型倾向：点估计偏上涨（仅描述点估计）\n- 方向优势：不可用（没有可发布的生产概率）\n- 生产路径：A；B/C为影子研究，D为描述性诊断\n- 验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n- 相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n- 新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n\n## 数据与目标\n\n- 决策日：2026-01-05\n- 窗口：(2025-10-06, 2026-01-05]\n- 日历验证：True；来源 XNYS；预期交易日 63；观测 63；缺失 0\n- 价格基础：split_adjusted（拆股调整，现金分红不再投资）\n\n## 概率与证据\n\n- 模型倾向：点估计偏上涨\n- 当前匹配样本：42；因果基率：0.5200\n- 前缀回放：类型 prefix_walk_forward；有效 120；非重叠 20；弃权 10\n- 有效回放样本：24（=有效条数/5）；对照基线：因果基率与常数0.5\n- 抽样相位：anchored（角色：primary）\n- 方向优势状态：positive_skill_with_estimated_interval_excluding_zero；主要证据：in_window_replay\n- 真实前向：非重叠 12；校准状态 disabled_by_policy\n- 方向优势（回放）：回放区间下界>0（窗口内回放，非独立留出）\n- 独立方向优势：证据不足（成熟前向 12/30 条；抽样状态 anchored）\n\n## 影子与诊断（非生产、不可引用、不进入生产概率）\n\n- 本节仅是影子研究/描述性诊断输出：不得作为生产概率、方向结论或交付文本引用；对外只使用 `final_response.md` 的固定九行。\n- factor：54.0%；状态 shadow\n- ml：49.0%；状态 shadow\n- D 描述性诊断（5D）：IC=0.0100；留出样本=24；descriptive_only=true\n\n## 消息面\n\n- 状态：complete（complete）；已评估：True；警告：0 条\n- 新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n- 预期波动状态：normal\n- 发布时段分布：{'pre_market': 1, 'intraday': 2, 'after_close': 1}\n- 来源一致度：观点 mixed；事件 consistent\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation\n\n### 逐条 AI 新闻判断\n\n\n## 审计与限制\n\n- 审计状态：pass；may_report_probability=False\n- 否决：无\n- 警告：audit note\n- 收益为拆股调整收盘价的 5 交易日方向，不含分红再投资；未建模执行、价差、滑点与费用。\n- 标签口径：拆股调整=split_adjusted；分红调整=False；股息翻转率=None（declared_not_quantified）\n- 快照：snap-1；政策：3.0",
+    "synthesis": {
+      "quant": {
+        "prob_up": null,
+        "raw_probability": null,
+        "direction": "research_unavailable",
+        "model_lean": "up",
+        "probability_label": "uncalibrated_model_estimate",
+        "calibrated_probability": null,
+        "production_probability_eligible": false,
+        "directional_edge_supported": false,
+        "evidence": {
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "replay_valid": 120,
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_independent_supported": false,
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "relative_baseline_skill": [
+            {
+              "primary": true,
+              "status": "estimated",
+              "mean": 0.0123,
+              "lower": 0.001,
+              "upper": 0.023
+            }
+          ],
+          "oos_sampling_status": "anchored",
+          "oos_sampling_role": "primary",
+          "directional_edge_primary_evidence": "in_window_replay",
+          "replay_type": "prefix_walk_forward"
+        },
+        "reason_codes": [
+          "OOS_SUPPORT_INSUFFICIENT",
+          "TARGET_SESSION_UNRESOLVED"
+        ],
+        "confidence_score": null,
+        "confidence_score_deprecated": true,
+        "reporting_status": "unavailable"
+      },
+      "quant_field_source": "quant_result.json.consensus",
+      "economic_viability": {
+        "status": "thin",
+        "source": "quant_result.json.consensus.economic_viability",
+        "single_source": true
+      },
+      "alignment": "NOT_COMPUTED",
+      "quantitative_bias": "research_unavailable",
+      "quant_prob_up": null,
+      "news_event_bias": null,
+      "news_evidence_direction": null,
+      "alignment_basis": "independent_sections",
+      "news_ai_status": "assessed",
+      "news_direct_label_counts": {
+        "bullish": 2,
+        "bearish": 1,
+        "neutral": 1,
+        "mixed": 0,
+        "unclear": 0
+      },
+      "news_sentiment": "headline_ai",
+      "market_confirmation": "not_assessed",
+      "overall_confidence": null,
+      "overall_confidence_deprecated": true,
+      "quant_probability_preserved": true,
+      "probability_blending": "prohibited_in_v1",
+      "key_risks": [
+        {
+          "source": "data_or_audit",
+          "detail": "fatal gate: stale data",
+          "severity": "high"
+        },
+        {
+          "source": "coverage_or_validation",
+          "detail": "audit note",
+          "severity": "medium"
+        },
+        {
+          "source": "coverage_or_validation",
+          "detail": "coverage note",
+          "severity": "medium"
+        },
+        {
+          "source": "coverage_or_validation",
+          "detail": "fatal gate: stale data",
+          "severity": "medium"
+        }
+      ],
+      "news_major_bearish": [
+        {
+          "headline": "Regulator opens probe",
+          "url": "https://example.com/b",
+          "reason": "investigation"
+        }
+      ],
+      "news_warnings": [],
+      "evidence_links": {
+        "quant_paths": [
+          "factor",
+          "ml"
+        ],
+        "news_urls": [
+          "https://example.com/a",
+          "https://example.com/b"
+        ]
+      },
+      "warnings": []
+    },
+    "quant_fields": {
+      "prob_up": null,
+      "raw_probability": null,
+      "direction": "research_unavailable",
+      "model_lean": "up",
+      "probability_label": "uncalibrated_model_estimate",
+      "calibrated_probability": null,
+      "production_probability_eligible": false,
+      "directional_edge_supported": false,
+      "evidence": {
+        "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+        "replay_valid": 120,
+        "replay_nonoverlap": 20,
+        "replay_total": 130,
+        "replay_abstained": 10,
+        "replay_coverage_ratio": 0.6667,
+        "oos_effective_samples": 24,
+        "prospective_nonoverlap": 12,
+        "directional_edge_independent_supported": false,
+        "baseline_comparison": {
+          "observations": 120,
+          "effective_sample_size": 24,
+          "brier_model": 0.24,
+          "brier_causal_base_rate": 0.26,
+          "brier_constant_half": 0.25,
+          "skill": 0.04,
+          "auc": 0.55,
+          "verdict": "inconclusive"
+        },
+        "relative_baseline_skill": [
+          {
+            "primary": true,
+            "status": "estimated",
+            "mean": 0.0123,
+            "lower": 0.001,
+            "upper": 0.023
+          }
+        ],
+        "oos_sampling_status": "anchored",
+        "oos_sampling_role": "primary",
+        "directional_edge_primary_evidence": "in_window_replay",
+        "replay_type": "prefix_walk_forward"
+      },
+      "reason_codes": [
+        "OOS_SUPPORT_INSUFFICIENT",
+        "TARGET_SESSION_UNRESOLVED"
+      ],
+      "confidence_score": null,
+      "confidence_score_deprecated": true,
+      "reporting_status": "unavailable"
+    }
+  },
+  "news_states": {
+    "complete": {
+      "lines": {
+        "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+        "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+        "probability": "上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）",
+        "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）",
+        "directional_edge": "方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势",
+        "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
+        "validation": "验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored",
+        "relative_skill": "相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24",
+        "news": "新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）"
+      },
+      "markdown": "# Stock Data 研究报告\n\n- 研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n- 预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n- 上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）\n- 模型倾向：点估计偏上涨（仅描述点估计）\n- 方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势\n- 生产路径：A；B/C为影子研究，D为描述性诊断\n- 验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n- 相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n- 新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n\n## 数据与目标\n\n- 决策日：2026-01-05\n- 窗口：(2025-10-06, 2026-01-05]\n- 日历验证：True；来源 XNYS；预期交易日 63；观测 63；缺失 0\n- 价格基础：split_adjusted（拆股调整，现金分红不再投资）\n\n## 概率与证据\n\n- 模型倾向：点估计偏上涨\n- 当前匹配样本：42；因果基率：0.5200\n- 前缀回放：类型 prefix_walk_forward；有效 120；非重叠 20；弃权 10\n- 有效回放样本：24（=有效条数/5）；对照基线：因果基率与常数0.5\n- 抽样相位：anchored（角色：primary）\n- 方向优势状态：positive_skill_with_estimated_interval_excluding_zero；主要证据：in_window_replay\n- 真实前向：非重叠 12；校准状态 disabled_by_policy\n- 方向优势（回放）：回放区间下界>0（窗口内回放，非独立留出）\n- 独立方向优势：证据不足（成熟前向 12/30 条；抽样状态 anchored）\n\n## 影子与诊断（非生产、不可引用、不进入生产概率）\n\n- 本节仅是影子研究/描述性诊断输出：不得作为生产概率、方向结论或交付文本引用；对外只使用 `final_response.md` 的固定九行。\n- factor：54.0%；状态 shadow\n- ml：49.0%；状态 shadow\n- D 描述性诊断（5D）：IC=0.0100；留出样本=24；descriptive_only=true\n\n## 消息面\n\n- 状态：complete（complete）；已评估：True；警告：0 条\n- 新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n- 预期波动状态：normal\n- 发布时段分布：{'pre_market': 1, 'intraday': 2, 'after_close': 1}\n- 来源一致度：观点 mixed；事件 consistent\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation\n\n### 逐条 AI 新闻判断\n\n\n## 审计与限制\n\n- 审计状态：pass；may_report_probability=True\n- 否决：无\n- 警告：audit note\n- 收益为拆股调整收盘价的 5 交易日方向，不含分红再投资；未建模执行、价差、滑点与费用。\n- 标签口径：拆股调整=split_adjusted；分红调整=False；股息翻转率=None（declared_not_quantified）\n- 快照：snap-1；政策：3.0",
+      "final_response": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）\n模型倾向：点估计偏上涨（仅描述点估计）\n方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势\n生产路径：A；B/C为影子研究，D为描述性诊断\n验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n\n证据边界：\n- 概率语义：漂移收缩的因果基率估计；未校准，不可解释为真实涨跌频率\n- 资格状态：computable=True；current_integrity=True；oos_integrity=True；production_eligible=True；directional_edge=False；trading_signal=false\n- 优势证据状态：positive_skill_with_estimated_interval_excluding_zero；回放范围=in_window_causal_prefix_replay_not_independent_holdout（120条，有效样本≈24）；独立方向优势=False；成熟前向（12条）\n- 回放类型：prefix_walk_forward；前缀回放成熟120条，其中非重叠20条；真实前向12条；抽样状态anchored\n- 校准状态：disabled_by_policy；影子路径：factor, ml\n- 标签口径：拆股调整=True；分红调整=False；股息翻转率未量化（快照无分红历史）\n- 标的：SYN / US / 5D；快照 snap-1\n\n消息面（AI 标题判断，未核验正文）：\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation"
+    },
+    "partial": {
+      "lines": {
+        "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+        "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+        "probability": "上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）",
+        "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）",
+        "directional_edge": "方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势",
+        "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
+        "validation": "验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored",
+        "relative_skill": "相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24",
+        "news": "新闻：已采集（partial；1 条警告；AI逐条部分完成，覆盖2/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）"
+      },
+      "markdown": "# Stock Data 研究报告\n\n- 研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n- 预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n- 上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）\n- 模型倾向：点估计偏上涨（仅描述点估计）\n- 方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势\n- 生产路径：A；B/C为影子研究，D为描述性诊断\n- 验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n- 相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n- 新闻：已采集（partial；1 条警告；AI逐条部分完成，覆盖2/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n\n## 数据与目标\n\n- 决策日：2026-01-05\n- 窗口：(2025-10-06, 2026-01-05]\n- 日历验证：True；来源 XNYS；预期交易日 63；观测 63；缺失 0\n- 价格基础：split_adjusted（拆股调整，现金分红不再投资）\n\n## 概率与证据\n\n- 模型倾向：点估计偏上涨\n- 当前匹配样本：42；因果基率：0.5200\n- 前缀回放：类型 prefix_walk_forward；有效 120；非重叠 20；弃权 10\n- 有效回放样本：24（=有效条数/5）；对照基线：因果基率与常数0.5\n- 抽样相位：anchored（角色：primary）\n- 方向优势状态：positive_skill_with_estimated_interval_excluding_zero；主要证据：in_window_replay\n- 真实前向：非重叠 12；校准状态 disabled_by_policy\n- 方向优势（回放）：回放区间下界>0（窗口内回放，非独立留出）\n- 独立方向优势：证据不足（成熟前向 12/30 条；抽样状态 anchored）\n\n## 影子与诊断（非生产、不可引用、不进入生产概率）\n\n- 本节仅是影子研究/描述性诊断输出：不得作为生产概率、方向结论或交付文本引用；对外只使用 `final_response.md` 的固定九行。\n- factor：54.0%；状态 shadow\n- ml：49.0%；状态 shadow\n- D 描述性诊断（5D）：IC=0.0100；留出样本=24；descriptive_only=true\n\n## 消息面\n\n- 状态：partial（partial）；已评估：True；警告：1 条\n- 新闻：已采集（partial；1 条警告；AI逐条部分完成，覆盖2/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n- 预期波动状态：normal\n- 发布时段分布：{'pre_market': 1, 'intraday': 2, 'after_close': 1}\n- 来源一致度：观点 mixed；事件 consistent\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation\n\n### 逐条 AI 新闻判断\n\n\n## 审计与限制\n\n- 审计状态：pass；may_report_probability=True\n- 否决：无\n- 警告：audit note\n- 收益为拆股调整收盘价的 5 交易日方向，不含分红再投资；未建模执行、价差、滑点与费用。\n- 标签口径：拆股调整=split_adjusted；分红调整=False；股息翻转率=None（declared_not_quantified）\n- 快照：snap-1；政策：3.0",
+      "final_response": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）\n模型倾向：点估计偏上涨（仅描述点估计）\n方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势\n生产路径：A；B/C为影子研究，D为描述性诊断\n验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n新闻：已采集（partial；1 条警告；AI逐条部分完成，覆盖2/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）\n\n证据边界：\n- 概率语义：漂移收缩的因果基率估计；未校准，不可解释为真实涨跌频率\n- 资格状态：computable=True；current_integrity=True；oos_integrity=True；production_eligible=True；directional_edge=False；trading_signal=false\n- 优势证据状态：positive_skill_with_estimated_interval_excluding_zero；回放范围=in_window_causal_prefix_replay_not_independent_holdout（120条，有效样本≈24）；独立方向优势=False；成熟前向（12条）\n- 回放类型：prefix_walk_forward；前缀回放成熟120条，其中非重叠20条；真实前向12条；抽样状态anchored\n- 校准状态：disabled_by_policy；影子路径：factor, ml\n- 标签口径：拆股调整=True；分红调整=False；股息翻转率未量化（快照无分红历史）\n- 标的：SYN / US / 5D；快照 snap-1\n\n消息面（AI 标题判断，未核验正文）：\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation"
+    },
+    "not_assessed": {
+      "lines": {
+        "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+        "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+        "probability": "上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）",
+        "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）",
+        "directional_edge": "方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势",
+        "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
+        "validation": "验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored",
+        "relative_skill": "相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24",
+        "news": "新闻：未提供"
+      },
+      "markdown": "# Stock Data 研究报告\n\n- 研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n- 预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n- 上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）\n- 模型倾向：点估计偏上涨（仅描述点估计）\n- 方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势\n- 生产路径：A；B/C为影子研究，D为描述性诊断\n- 验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n- 相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n- 新闻：未提供\n\n## 数据与目标\n\n- 决策日：2026-01-05\n- 窗口：(2025-10-06, 2026-01-05]\n- 日历验证：True；来源 XNYS；预期交易日 63；观测 63；缺失 0\n- 价格基础：split_adjusted（拆股调整，现金分红不再投资）\n\n## 概率与证据\n\n- 模型倾向：点估计偏上涨\n- 当前匹配样本：42；因果基率：0.5200\n- 前缀回放：类型 prefix_walk_forward；有效 120；非重叠 20；弃权 10\n- 有效回放样本：24（=有效条数/5）；对照基线：因果基率与常数0.5\n- 抽样相位：anchored（角色：primary）\n- 方向优势状态：positive_skill_with_estimated_interval_excluding_zero；主要证据：in_window_replay\n- 真实前向：非重叠 12；校准状态 disabled_by_policy\n- 方向优势（回放）：回放区间下界>0（窗口内回放，非独立留出）\n- 独立方向优势：证据不足（成熟前向 12/30 条；抽样状态 anchored）\n\n## 影子与诊断（非生产、不可引用、不进入生产概率）\n\n- 本节仅是影子研究/描述性诊断输出：不得作为生产概率、方向结论或交付文本引用；对外只使用 `final_response.md` 的固定九行。\n- factor：54.0%；状态 shadow\n- ml：49.0%；状态 shadow\n- D 描述性诊断（5D）：IC=0.0100；留出样本=24；descriptive_only=true\n\n## 消息面\n\n- 状态：not_assessed（not_assessed）；已评估：False；警告：0 条\n- 新闻：未提供\n- 预期波动状态：normal\n- 发布时段分布：{'pre_market': 1, 'intraday': 2, 'after_close': 1}\n- 来源一致度：观点 mixed；事件 consistent\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation\n\n### 逐条 AI 新闻判断\n\n\n## 审计与限制\n\n- 审计状态：pass；may_report_probability=True\n- 否决：无\n- 警告：audit note\n- 收益为拆股调整收盘价的 5 交易日方向，不含分红再投资；未建模执行、价差、滑点与费用。\n- 标签口径：拆股调整=split_adjusted；分红调整=False；股息翻转率=None（declared_not_quantified）\n- 快照：snap-1；政策：3.0",
+      "final_response": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）\n预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）\n上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）\n模型倾向：点估计偏上涨（仅描述点估计）\n方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势\n生产路径：A；B/C为影子研究，D为描述性诊断\n验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored\n相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24\n新闻：未提供\n\n证据边界：\n- 概率语义：漂移收缩的因果基率估计；未校准，不可解释为真实涨跌频率\n- 资格状态：computable=True；current_integrity=True；oos_integrity=True；production_eligible=True；directional_edge=False；trading_signal=false\n- 优势证据状态：positive_skill_with_estimated_interval_excluding_zero；回放范围=in_window_causal_prefix_replay_not_independent_holdout（120条，有效样本≈24）；独立方向优势=False；成熟前向（12条）\n- 回放类型：prefix_walk_forward；前缀回放成熟120条，其中非重叠20条；真实前向12条；抽样状态anchored\n- 校准状态：disabled_by_policy；影子路径：factor, ml\n- 标签口径：拆股调整=True；分红调整=False；股息翻转率未量化（快照无分红历史）\n- 标的：SYN / US / 5D；快照 snap-1\n\n消息面（AI 标题判断，未核验正文）：\n- 重大利多：[Company beats estimates](<https://example.com/a>)；2026-01-05T12:00:00Z；理由：raised guidance\n- 重大利空：[Regulator opens probe](<https://example.com/b>)；2026-01-05T13:00:00Z；理由：investigation"
+    }
+  },
+  "inputs": {
+    "news_complete": {
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "3.0",
+      "analysis_id": "run-1",
+      "analysis_status": "success",
+      "snapshot": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "target_session": "2026-01-12",
+        "last_bar_date": "2026-01-05",
+        "data_validation": {
+          "blockers": [
+            "fatal gate: stale data"
+          ]
+        },
+        "warnings": [
+          "coverage note",
+          "fatal gate: stale data"
+        ],
+        "policy": {
+          "decision_session": "2026-01-05",
+          "window_start_exclusive": "2025-10-06",
+          "window_end_inclusive": "2026-01-05",
+          "coverage_status": "complete",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "calendar_source": "XNYS",
+          "expected_sessions": 63,
+          "observed_sessions": 63,
+          "missing_sessions": 0,
+          "price_basis": "split_adjusted",
+          "policy_version": "3.0"
+        }
+      },
+      "consensus": {
+        "prob_up": 0.57,
+        "raw_probability": 0.61,
+        "direction": "bullish",
+        "model_lean": "up",
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "reason_codes": [],
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "economic_viability": {
+          "status": "thin"
+        },
+        "production": {
+          "prob_up": 0.57,
+          "matching_observations": 42,
+          "causal_base_rate": 0.52,
+          "probability_transform": {
+            "k": 50,
+            "n_eff": 12.5
+          }
+        },
+        "evidence": {
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "replay_valid": 120,
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_independent_supported": false,
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "relative_baseline_skill": [
+            {
+              "primary": true,
+              "status": "estimated",
+              "mean": 0.0123,
+              "lower": 0.001,
+              "upper": 0.023
+            }
+          ],
+          "oos_sampling_status": "anchored",
+          "oos_sampling_role": "primary",
+          "directional_edge_primary_evidence": "in_window_replay",
+          "replay_type": "prefix_walk_forward"
+        },
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "probability": 0.54,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "ml",
+            "probability": 0.49,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        }
+      },
+      "adversarial_audit": {
+        "status": "pass",
+        "may_report_probability": true,
+        "may_report_direction": true,
+        "vetoes": [],
+        "warnings": [
+          "audit note"
+        ]
+      },
+      "news_result": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "status": "complete",
+        "warnings": [],
+        "warning_count": 0,
+        "ai_lean": {
+          "status": "assessed",
+          "coverage": {
+            "candidate_count": 4,
+            "assessed_count": 4,
+            "direct_label_counts": {
+              "bullish": 2,
+              "bearish": 1,
+              "neutral": 1,
+              "mixed": 0,
+              "unclear": 0
+            }
+          },
+          "major_direct_items": [
+            {
+              "headline": "Company beats estimates",
+              "url": "https://example.com/a",
+              "reason": "raised guidance",
+              "published_at": "2026-01-05T12:00:00Z",
+              "lean": "bullish"
+            },
+            {
+              "headline": "Regulator opens probe",
+              "url": "https://example.com/b",
+              "reason": "investigation",
+              "published_at": "2026-01-05T13:00:00Z",
+              "lean": "bearish"
+            }
+          ]
+        },
+        "expected_volatility_regime": {
+          "regime": "normal"
+        },
+        "event_time_bucket_counts": {
+          "pre_market": 1,
+          "intraday": 2,
+          "after_close": 1
+        },
+        "opinion_source_agreement": {
+          "state": "mixed"
+        },
+        "event_source_agreement": {
+          "state": "consistent"
+        },
+        "market_confirmation": "not_assessed"
+      }
+    },
+    "news_partial": {
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "3.0",
+      "analysis_id": "run-1",
+      "analysis_status": "success",
+      "snapshot": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "target_session": "2026-01-12",
+        "last_bar_date": "2026-01-05",
+        "data_validation": {
+          "blockers": [
+            "fatal gate: stale data"
+          ]
+        },
+        "warnings": [
+          "coverage note",
+          "fatal gate: stale data"
+        ],
+        "policy": {
+          "decision_session": "2026-01-05",
+          "window_start_exclusive": "2025-10-06",
+          "window_end_inclusive": "2026-01-05",
+          "coverage_status": "complete",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "calendar_source": "XNYS",
+          "expected_sessions": 63,
+          "observed_sessions": 63,
+          "missing_sessions": 0,
+          "price_basis": "split_adjusted",
+          "policy_version": "3.0"
+        }
+      },
+      "consensus": {
+        "prob_up": 0.57,
+        "raw_probability": 0.61,
+        "direction": "bullish",
+        "model_lean": "up",
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "reason_codes": [],
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "economic_viability": {
+          "status": "thin"
+        },
+        "production": {
+          "prob_up": 0.57,
+          "matching_observations": 42,
+          "causal_base_rate": 0.52,
+          "probability_transform": {
+            "k": 50,
+            "n_eff": 12.5
+          }
+        },
+        "evidence": {
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "replay_valid": 120,
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_independent_supported": false,
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "relative_baseline_skill": [
+            {
+              "primary": true,
+              "status": "estimated",
+              "mean": 0.0123,
+              "lower": 0.001,
+              "upper": 0.023
+            }
+          ],
+          "oos_sampling_status": "anchored",
+          "oos_sampling_role": "primary",
+          "directional_edge_primary_evidence": "in_window_replay",
+          "replay_type": "prefix_walk_forward"
+        },
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "probability": 0.54,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "ml",
+            "probability": 0.49,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        }
+      },
+      "adversarial_audit": {
+        "status": "pass",
+        "may_report_probability": true,
+        "may_report_direction": true,
+        "vetoes": [],
+        "warnings": [
+          "audit note"
+        ]
+      },
+      "news_result": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "status": "partial",
+        "warnings": [
+          "news warning one"
+        ],
+        "warning_count": 1,
+        "ai_lean": {
+          "status": "partial",
+          "coverage": {
+            "candidate_count": 4,
+            "assessed_count": 2,
+            "direct_label_counts": {
+              "bullish": 2,
+              "bearish": 1,
+              "neutral": 1,
+              "mixed": 0,
+              "unclear": 0
+            }
+          },
+          "major_direct_items": [
+            {
+              "headline": "Company beats estimates",
+              "url": "https://example.com/a",
+              "reason": "raised guidance",
+              "published_at": "2026-01-05T12:00:00Z",
+              "lean": "bullish"
+            },
+            {
+              "headline": "Regulator opens probe",
+              "url": "https://example.com/b",
+              "reason": "investigation",
+              "published_at": "2026-01-05T13:00:00Z",
+              "lean": "bearish"
+            }
+          ]
+        },
+        "expected_volatility_regime": {
+          "regime": "normal"
+        },
+        "event_time_bucket_counts": {
+          "pre_market": 1,
+          "intraday": 2,
+          "after_close": 1
+        },
+        "opinion_source_agreement": {
+          "state": "mixed"
+        },
+        "event_source_agreement": {
+          "state": "consistent"
+        },
+        "market_confirmation": "not_assessed"
+      }
+    },
+    "news_not_assessed": {
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "3.0",
+      "analysis_id": "run-1",
+      "analysis_status": "success",
+      "snapshot": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "target_session": "2026-01-12",
+        "last_bar_date": "2026-01-05",
+        "data_validation": {
+          "blockers": [
+            "fatal gate: stale data"
+          ]
+        },
+        "warnings": [
+          "coverage note",
+          "fatal gate: stale data"
+        ],
+        "policy": {
+          "decision_session": "2026-01-05",
+          "window_start_exclusive": "2025-10-06",
+          "window_end_inclusive": "2026-01-05",
+          "coverage_status": "complete",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "calendar_source": "XNYS",
+          "expected_sessions": 63,
+          "observed_sessions": 63,
+          "missing_sessions": 0,
+          "price_basis": "split_adjusted",
+          "policy_version": "3.0"
+        }
+      },
+      "consensus": {
+        "prob_up": 0.57,
+        "raw_probability": 0.61,
+        "direction": "bullish",
+        "model_lean": "up",
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "reason_codes": [],
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "economic_viability": {
+          "status": "thin"
+        },
+        "production": {
+          "prob_up": 0.57,
+          "matching_observations": 42,
+          "causal_base_rate": 0.52,
+          "probability_transform": {
+            "k": 50,
+            "n_eff": 12.5
+          }
+        },
+        "evidence": {
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "replay_valid": 120,
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_independent_supported": false,
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "relative_baseline_skill": [
+            {
+              "primary": true,
+              "status": "estimated",
+              "mean": 0.0123,
+              "lower": 0.001,
+              "upper": 0.023
+            }
+          ],
+          "oos_sampling_status": "anchored",
+          "oos_sampling_role": "primary",
+          "directional_edge_primary_evidence": "in_window_replay",
+          "replay_type": "prefix_walk_forward"
+        },
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "probability": 0.54,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "ml",
+            "probability": 0.49,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        }
+      },
+      "adversarial_audit": {
+        "status": "pass",
+        "may_report_probability": true,
+        "may_report_direction": true,
+        "vetoes": [],
+        "warnings": [
+          "audit note"
+        ]
+      },
+      "news_result": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "status": "not_assessed",
+        "warnings": [],
+        "warning_count": 0,
+        "ai_lean": {
+          "status": "partial",
+          "coverage": {
+            "candidate_count": 4,
+            "assessed_count": 2,
+            "direct_label_counts": {
+              "bullish": 2,
+              "bearish": 1,
+              "neutral": 1,
+              "mixed": 0,
+              "unclear": 0
+            }
+          },
+          "major_direct_items": [
+            {
+              "headline": "Company beats estimates",
+              "url": "https://example.com/a",
+              "reason": "raised guidance",
+              "published_at": "2026-01-05T12:00:00Z",
+              "lean": "bullish"
+            },
+            {
+              "headline": "Regulator opens probe",
+              "url": "https://example.com/b",
+              "reason": "investigation",
+              "published_at": "2026-01-05T13:00:00Z",
+              "lean": "bearish"
+            }
+          ]
+        },
+        "expected_volatility_regime": {
+          "regime": "normal"
+        },
+        "event_time_bucket_counts": {
+          "pre_market": 1,
+          "intraday": 2,
+          "after_close": 1
+        },
+        "opinion_source_agreement": {
+          "state": "mixed"
+        },
+        "event_source_agreement": {
+          "state": "consistent"
+        },
+        "market_confirmation": "not_assessed"
+      }
+    },
+    "reportable": {
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "3.0",
+      "analysis_id": "run-1",
+      "analysis_status": "success",
+      "snapshot": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "target_session": "2026-01-12",
+        "last_bar_date": "2026-01-05",
+        "data_validation": {
+          "blockers": [
+            "fatal gate: stale data"
+          ]
+        },
+        "warnings": [
+          "coverage note",
+          "fatal gate: stale data"
+        ],
+        "policy": {
+          "decision_session": "2026-01-05",
+          "window_start_exclusive": "2025-10-06",
+          "window_end_inclusive": "2026-01-05",
+          "coverage_status": "complete",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "calendar_source": "XNYS",
+          "expected_sessions": 63,
+          "observed_sessions": 63,
+          "missing_sessions": 0,
+          "price_basis": "split_adjusted",
+          "policy_version": "3.0"
+        }
+      },
+      "consensus": {
+        "prob_up": 0.57,
+        "raw_probability": 0.61,
+        "direction": "bullish",
+        "model_lean": "up",
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "reason_codes": [],
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "economic_viability": {
+          "status": "thin"
+        },
+        "production": {
+          "prob_up": 0.57,
+          "matching_observations": 42,
+          "causal_base_rate": 0.52,
+          "probability_transform": {
+            "k": 50,
+            "n_eff": 12.5
+          }
+        },
+        "evidence": {
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "replay_valid": 120,
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_independent_supported": false,
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "relative_baseline_skill": [
+            {
+              "primary": true,
+              "status": "estimated",
+              "mean": 0.0123,
+              "lower": 0.001,
+              "upper": 0.023
+            }
+          ],
+          "oos_sampling_status": "anchored",
+          "oos_sampling_role": "primary",
+          "directional_edge_primary_evidence": "in_window_replay",
+          "replay_type": "prefix_walk_forward"
+        },
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "probability": 0.54,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "ml",
+            "probability": 0.49,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        }
+      },
+      "adversarial_audit": {
+        "status": "pass",
+        "may_report_probability": true,
+        "may_report_direction": true,
+        "vetoes": [],
+        "warnings": [
+          "audit note"
+        ]
+      },
+      "news_result": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "status": "complete",
+        "warnings": [],
+        "warning_count": 0,
+        "ai_lean": {
+          "status": "assessed",
+          "coverage": {
+            "candidate_count": 4,
+            "assessed_count": 4,
+            "direct_label_counts": {
+              "bullish": 2,
+              "bearish": 1,
+              "neutral": 1,
+              "mixed": 0,
+              "unclear": 0
+            }
+          },
+          "major_direct_items": [
+            {
+              "headline": "Company beats estimates",
+              "url": "https://example.com/a",
+              "reason": "raised guidance",
+              "published_at": "2026-01-05T12:00:00Z",
+              "lean": "bullish"
+            },
+            {
+              "headline": "Regulator opens probe",
+              "url": "https://example.com/b",
+              "reason": "investigation",
+              "published_at": "2026-01-05T13:00:00Z",
+              "lean": "bearish"
+            }
+          ]
+        },
+        "expected_volatility_regime": {
+          "regime": "normal"
+        },
+        "event_time_bucket_counts": {
+          "pre_market": 1,
+          "intraday": 2,
+          "after_close": 1
+        },
+        "opinion_source_agreement": {
+          "state": "mixed"
+        },
+        "event_source_agreement": {
+          "state": "consistent"
+        },
+        "market_confirmation": "not_assessed"
+      }
+    },
+    "unavailable": {
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "3.0",
+      "analysis_id": "run-1",
+      "analysis_status": "success",
+      "snapshot": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "target_session": "2026-01-12",
+        "last_bar_date": "2026-01-05",
+        "data_validation": {
+          "blockers": [
+            "fatal gate: stale data"
+          ]
+        },
+        "warnings": [
+          "coverage note",
+          "fatal gate: stale data"
+        ],
+        "policy": {
+          "decision_session": "2026-01-05",
+          "window_start_exclusive": "2025-10-06",
+          "window_end_inclusive": "2026-01-05",
+          "coverage_status": "complete",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "calendar_source": "XNYS",
+          "expected_sessions": 63,
+          "observed_sessions": 63,
+          "missing_sessions": 0,
+          "price_basis": "split_adjusted",
+          "policy_version": "3.0"
+        }
+      },
+      "consensus": {
+        "prob_up": null,
+        "raw_probability": null,
+        "direction": "unavailable",
+        "model_lean": "up",
+        "production_probability_eligible": false,
+        "directional_edge_supported": false,
+        "reason_codes": [
+          "OOS_SUPPORT_INSUFFICIENT",
+          "TARGET_SESSION_UNRESOLVED"
+        ],
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "economic_viability": {
+          "status": "thin"
+        },
+        "production": {
+          "prob_up": null,
+          "matching_observations": 42,
+          "causal_base_rate": 0.52,
+          "probability_transform": {
+            "k": 50,
+            "n_eff": 12.5
+          }
+        },
+        "evidence": {
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "replay_valid": 120,
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_independent_supported": false,
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "relative_baseline_skill": [
+            {
+              "primary": true,
+              "status": "estimated",
+              "mean": 0.0123,
+              "lower": 0.001,
+              "upper": 0.023
+            }
+          ],
+          "oos_sampling_status": "anchored",
+          "oos_sampling_role": "primary",
+          "directional_edge_primary_evidence": "in_window_replay",
+          "replay_type": "prefix_walk_forward"
+        },
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "probability": 0.54,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "ml",
+            "probability": 0.49,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        }
+      },
+      "adversarial_audit": {
+        "status": "pass",
+        "may_report_probability": false,
+        "may_report_direction": false,
+        "vetoes": [],
+        "warnings": [
+          "audit note"
+        ]
+      },
+      "news_result": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "status": "complete",
+        "warnings": [],
+        "warning_count": 0,
+        "ai_lean": {
+          "status": "assessed",
+          "coverage": {
+            "candidate_count": 4,
+            "assessed_count": 4,
+            "direct_label_counts": {
+              "bullish": 2,
+              "bearish": 1,
+              "neutral": 1,
+              "mixed": 0,
+              "unclear": 0
+            }
+          },
+          "major_direct_items": [
+            {
+              "headline": "Company beats estimates",
+              "url": "https://example.com/a",
+              "reason": "raised guidance",
+              "published_at": "2026-01-05T12:00:00Z",
+              "lean": "bullish"
+            },
+            {
+              "headline": "Regulator opens probe",
+              "url": "https://example.com/b",
+              "reason": "investigation",
+              "published_at": "2026-01-05T13:00:00Z",
+              "lean": "bearish"
+            }
+          ]
+        },
+        "expected_volatility_regime": {
+          "regime": "normal"
+        },
+        "event_time_bucket_counts": {
+          "pre_market": 1,
+          "intraday": 2,
+          "after_close": 1
+        },
+        "opinion_source_agreement": {
+          "state": "mixed"
+        },
+        "event_source_agreement": {
+          "state": "consistent"
+        },
+        "market_confirmation": "not_assessed"
+      }
+    },
+    "pad_result": {
+      "run_id": "run-1",
+      "snapshot_id": "snap-1",
+      "policy_version": "3.0",
+      "analysis_id": "run-1",
+      "analysis_status": "success",
+      "snapshot": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "target_session": "2026-01-12",
+        "last_bar_date": "2026-01-05",
+        "data_validation": {
+          "blockers": [
+            "fatal gate: stale data"
+          ]
+        },
+        "warnings": [
+          "coverage note",
+          "fatal gate: stale data"
+        ],
+        "policy": {
+          "decision_session": "2026-01-05",
+          "window_start_exclusive": "2025-10-06",
+          "window_end_inclusive": "2026-01-05",
+          "coverage_status": "complete",
+          "coverage_recomputed": true,
+          "calendar_verified": true,
+          "calendar_source": "XNYS",
+          "expected_sessions": 63,
+          "observed_sessions": 63,
+          "missing_sessions": 0,
+          "price_basis": "split_adjusted",
+          "policy_version": "3.0"
+        }
+      },
+      "consensus": {
+        "prob_up": 0.57,
+        "raw_probability": 0.61,
+        "direction": "bullish",
+        "model_lean": "up",
+        "production_probability_eligible": true,
+        "directional_edge_supported": false,
+        "reason_codes": [],
+        "computable": true,
+        "current_prediction_integrity_pass": true,
+        "oos_integrity_pass": true,
+        "economic_viability": {
+          "status": "thin"
+        },
+        "production": {
+          "prob_up": 0.57,
+          "matching_observations": 42,
+          "causal_base_rate": 0.52,
+          "probability_transform": {
+            "k": 50,
+            "n_eff": 12.5
+          }
+        },
+        "evidence": {
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "replay_valid": 120,
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_independent_supported": false,
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "relative_baseline_skill": [
+            {
+              "primary": true,
+              "status": "estimated",
+              "mean": 0.0123,
+              "lower": 0.001,
+              "upper": 0.023
+            }
+          ],
+          "oos_sampling_status": "anchored",
+          "oos_sampling_role": "primary",
+          "directional_edge_primary_evidence": "in_window_replay",
+          "replay_type": "prefix_walk_forward"
+        },
+        "shadow_predictions": [
+          {
+            "path": "shadow-0",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-1",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-2",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-3",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-4",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-5",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-6",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-7",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-8",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-9",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-10",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-11",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-12",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-13",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-14",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-15",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-16",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-17",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-18",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-19",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-20",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-21",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-22",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-23",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-24",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-25",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-26",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-27",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-28",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-29",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-30",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-31",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-32",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-33",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-34",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-35",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-36",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-37",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-38",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-39",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-40",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-41",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-42",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-43",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-44",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-45",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-46",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-47",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-48",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-49",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-50",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-51",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-52",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-53",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-54",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-55",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-56",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-57",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-58",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-59",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-60",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-61",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-62",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-63",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-64",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-65",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-66",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-67",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-68",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-69",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-70",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-71",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-72",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-73",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-74",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-75",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-76",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-77",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-78",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-79",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-80",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-81",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-82",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-83",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-84",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-85",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-86",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-87",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-88",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-89",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-90",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-91",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-92",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-93",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-94",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-95",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-96",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-97",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-98",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-99",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-100",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-101",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-102",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-103",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-104",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-105",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-106",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-107",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-108",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-109",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-110",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-111",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-112",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-113",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-114",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-115",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-116",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-117",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-118",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-119",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-120",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-121",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-122",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-123",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-124",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-125",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-126",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-127",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-128",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-129",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-130",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-131",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-132",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-133",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-134",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-135",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-136",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-137",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-138",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-139",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-140",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-141",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-142",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-143",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-144",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-145",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-146",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-147",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-148",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-149",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-150",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-151",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-152",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-153",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-154",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-155",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-156",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-157",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-158",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-159",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-160",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-161",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-162",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-163",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-164",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-165",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-166",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-167",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-168",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-169",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-170",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-171",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-172",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-173",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-174",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-175",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-176",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-177",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-178",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-179",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-180",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-181",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-182",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-183",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-184",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-185",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-186",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-187",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-188",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-189",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-190",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-191",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-192",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-193",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-194",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-195",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-196",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-197",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-198",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          },
+          {
+            "path": "shadow-199",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1",
+            "padding": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        }
+      },
+      "adversarial_audit": {
+        "status": "pass",
+        "may_report_probability": true,
+        "may_report_direction": true,
+        "vetoes": [],
+        "warnings": [
+          "audit note"
+        ]
+      },
+      "news_result": {
+        "ticker": "SYN",
+        "market": "US",
+        "horizon": "5D",
+        "snapshot_id": "snap-1",
+        "asof_timestamp": "2026-01-05T21:00:00Z",
+        "status": "complete",
+        "warnings": [],
+        "warning_count": 0,
+        "ai_lean": {
+          "status": "assessed",
+          "coverage": {
+            "candidate_count": 4,
+            "assessed_count": 4,
+            "direct_label_counts": {
+              "bullish": 2,
+              "bearish": 1,
+              "neutral": 1,
+              "mixed": 0,
+              "unclear": 0
+            }
+          },
+          "major_direct_items": [
+            {
+              "headline": "Company beats estimates",
+              "url": "https://example.com/a",
+              "reason": "raised guidance",
+              "published_at": "2026-01-05T12:00:00Z",
+              "lean": "bullish"
+            },
+            {
+              "headline": "Regulator opens probe",
+              "url": "https://example.com/b",
+              "reason": "investigation",
+              "published_at": "2026-01-05T13:00:00Z",
+              "lean": "bearish"
+            }
+          ]
+        },
+        "expected_volatility_regime": {
+          "regime": "normal"
+        },
+        "event_time_bucket_counts": {
+          "pre_market": 1,
+          "intraday": 2,
+          "after_close": 1
+        },
+        "opinion_source_agreement": {
+          "state": "mixed"
+        },
+        "event_source_agreement": {
+          "state": "consistent"
+        },
+        "market_confirmation": "not_assessed"
+      }
+    },
+    "mismatch_news": {
+      "ticker": "OTHER",
+      "market": "US",
+      "horizon": "5D",
+      "snapshot_id": "snap-1",
+      "asof_timestamp": "2026-01-05T21:00:00Z",
+      "status": "complete",
+      "warnings": [],
+      "warning_count": 0,
+      "ai_lean": {
+        "status": "assessed",
+        "coverage": {
+          "candidate_count": 4,
+          "assessed_count": 4,
+          "direct_label_counts": {
+            "bullish": 2,
+            "bearish": 1,
+            "neutral": 1,
+            "mixed": 0,
+            "unclear": 0
+          }
+        },
+        "major_direct_items": [
+          {
+            "headline": "Company beats estimates",
+            "url": "https://example.com/a",
+            "reason": "raised guidance",
+            "published_at": "2026-01-05T12:00:00Z",
+            "lean": "bullish"
+          },
+          {
+            "headline": "Regulator opens probe",
+            "url": "https://example.com/b",
+            "reason": "investigation",
+            "published_at": "2026-01-05T13:00:00Z",
+            "lean": "bearish"
+          }
+        ]
+      },
+      "expected_volatility_regime": {
+        "regime": "normal"
+      },
+      "event_time_bucket_counts": {
+        "pre_market": 1,
+        "intraday": 2,
+        "after_close": 1
+      },
+      "opinion_source_agreement": {
+        "state": "mixed"
+      },
+      "event_source_agreement": {
+        "state": "consistent"
+      },
+      "market_confirmation": "not_assessed"
+    }
+  },
+  "budget": {
+    "trimmed": {
+      "schema": "agent-summary-3.0",
+      "ticker": "SYN",
+      "market": "US",
+      "horizon": "5D",
+      "asof": "2026-01-05T21:00:00Z",
+      "decision_session": "2026-01-05",
+      "policy_version": "3.0",
+      "headline": {
+        "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+        "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+        "probability": "上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）",
+        "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）"
+      },
+      "sections": {
+        "quant": {
+          "production_probability_eligible": true,
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "directional_edge_supported": false,
+          "trading_signal_eligible": false,
+          "probability_label": "uncalibrated_model_estimate",
+          "reason_codes": [],
+          "matching_observations": 42,
+          "causal_base_rate": 0.52
+        },
+        "replay_and_prospective": {
+          "replay_type": "prefix_walk_forward",
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "primary_evidence": "in_window_replay",
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "calibration_status": "disabled_by_policy"
+        },
+        "shadow_predictions": [
+          {
+            "path": "shadow-0",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "shadow-1",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "shadow-2",
+            "probability": 0.5,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {},
+        "news": {
+          "status": "complete",
+          "state": "complete",
+          "assessed": true,
+          "warning_count": 0,
+          "ai_assessment_status": "assessed",
+          "direct_label_counts": {
+            "bullish": 2,
+            "bearish": 1,
+            "neutral": 1,
+            "mixed": 0,
+            "unclear": 0
+          },
+          "volatility_regime": "normal",
+          "independent_of_quant": true
+        }
+      },
+      "contract": {},
+      "truncated": true
+    },
+    "untouched": {
+      "schema": "agent-summary-3.0",
+      "ticker": "SYN",
+      "market": "US",
+      "horizon": "5D",
+      "asof": "2026-01-05T21:00:00Z",
+      "decision_session": "2026-01-05",
+      "policy_version": "3.0",
+      "headline": {
+        "research_window": "研究窗口：截至2026-01-05的52周（364个自然日；覆盖已按交易日历逐日重算）",
+        "forecast_target": "预测目标：2026-01-12收盘相对2026-01-05收盘的拆股调整价格涨跌（5个交易日）",
+        "probability": "上涨概率：57.0%（漂移收缩估计 k=50；先验权重≈80.0%；未校准，不可作为真实频率）",
+        "model_lean": "模型倾向：点估计偏上涨（仅描述点估计）"
+      },
+      "sections": {
+        "quant": {
+          "production_probability_eligible": true,
+          "current_prediction_integrity_pass": true,
+          "oos_integrity_pass": true,
+          "directional_edge_supported": false,
+          "trading_signal_eligible": false,
+          "probability_label": "uncalibrated_model_estimate",
+          "reason_codes": [],
+          "matching_observations": 42,
+          "causal_base_rate": 0.52
+        },
+        "replay_and_prospective": {
+          "replay_type": "prefix_walk_forward",
+          "replay_nonoverlap": 20,
+          "replay_total": 130,
+          "replay_abstained": 10,
+          "replay_coverage_ratio": 0.6667,
+          "oos_effective_samples": 24,
+          "prospective_nonoverlap": 12,
+          "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+          "primary_evidence": "in_window_replay",
+          "baseline_comparison": {
+            "observations": 120,
+            "effective_sample_size": 24,
+            "brier_model": 0.24,
+            "brier_causal_base_rate": 0.26,
+            "brier_constant_half": 0.25,
+            "skill": 0.04,
+            "auc": 0.55,
+            "verdict": "inconclusive"
+          },
+          "calibration_status": "disabled_by_policy"
+        },
+        "shadow_predictions": [
+          {
+            "path": "factor",
+            "probability": 0.54,
+            "status": "shadow",
+            "model_version": "v1"
+          },
+          {
+            "path": "ml",
+            "probability": 0.49,
+            "status": "shadow",
+            "model_version": "v1"
+          }
+        ],
+        "diagnostics": {
+          "information_coefficient": 0.01,
+          "holdout_sample_count": 24
+        },
+        "news": {
+          "status": "complete",
+          "state": "complete",
+          "assessed": true,
+          "warning_count": 0,
+          "ai_assessment_status": "assessed",
+          "direct_label_counts": {
+            "bullish": 2,
+            "bearish": 1,
+            "neutral": 1,
+            "mixed": 0,
+            "unclear": 0
+          },
+          "volatility_regime": "normal",
+          "independent_of_quant": true
+        }
+      },
+      "contract": {
+        "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
+        "validation": "验证：前缀回放120条（其中非重叠20条；有效样本≈24）；真实前向12条；覆盖率66.7%；抽样状态anchored",
+        "relative_skill": "相对因果基率技能：0.0123；区间：[0.0010, 0.0230]；Brier 模型0.2400 vs 基率0.2600 vs 常数0.5 0.2500；AUC 0.5500；有效样本≈24",
+        "news": "新闻：已采集（complete；0 条警告；AI逐条已完成，覆盖4/4；直接相关利多2条、利空1条、中性1条、混合0条、不明0条；波动状态 normal）",
+        "directional_edge": "方向优势：仅回放区间下界大于0（窗口内因果前缀回放，非独立留出，120 条）；独立前向证据 12/30 条，尚不足以支持方向优势"
+      }
+    }
+  },
+  "synthesis_mismatch": "Quant/News identity or as-of mismatch"
+}

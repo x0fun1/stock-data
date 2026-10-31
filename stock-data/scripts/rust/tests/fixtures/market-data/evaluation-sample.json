@@ -1,0 +1,600 @@
+{
+  "predictions": [
+    {
+      "decision_session": "2025-09-01",
+      "decision_index": 0,
+      "status": "matured",
+      "probability": 0.5
+    },
+    {
+      "decision_session": "2025-09-03",
+      "decision_index": 2,
+      "status": "matured",
+      "probability": 0.502
+    },
+    {
+      "decision_session": "2025-09-05",
+      "decision_index": 4,
+      "status": "matured",
+      "probability": 0.504
+    },
+    {
+      "decision_session": "2025-09-09",
+      "decision_index": 6,
+      "status": "matured",
+      "probability": 0.506
+    },
+    {
+      "decision_session": "2025-09-11",
+      "decision_index": 8,
+      "status": "matured",
+      "probability": 0.508
+    },
+    {
+      "decision_session": "2025-09-15",
+      "decision_index": 10,
+      "status": "matured",
+      "probability": 0.51
+    },
+    {
+      "decision_session": "2025-09-17",
+      "decision_index": 12,
+      "status": "matured",
+      "probability": 0.512
+    },
+    {
+      "decision_session": "2025-09-19",
+      "decision_index": 14,
+      "status": "matured",
+      "probability": 0.514
+    },
+    {
+      "decision_session": "2025-09-23",
+      "decision_index": 16,
+      "status": "matured",
+      "probability": 0.516
+    },
+    {
+      "decision_session": "2025-09-25",
+      "decision_index": 18,
+      "status": "matured",
+      "probability": 0.518
+    },
+    {
+      "decision_session": "2025-09-29",
+      "decision_index": 20,
+      "status": "matured",
+      "probability": 0.52
+    },
+    {
+      "decision_session": "2025-10-01",
+      "decision_index": 22,
+      "status": "matured",
+      "probability": 0.522
+    },
+    {
+      "decision_session": "2025-10-03",
+      "decision_index": 24,
+      "status": "matured",
+      "probability": 0.524
+    },
+    {
+      "decision_session": "2025-10-07",
+      "decision_index": 26,
+      "status": "matured",
+      "probability": 0.526
+    },
+    {
+      "decision_session": "2025-10-09",
+      "decision_index": 28,
+      "status": "matured",
+      "probability": 0.528
+    },
+    {
+      "decision_session": "2025-10-13",
+      "decision_index": 30,
+      "status": "matured",
+      "probability": 0.53
+    },
+    {
+      "decision_session": "2025-10-15",
+      "decision_index": 32,
+      "status": "matured",
+      "probability": 0.532
+    },
+    {
+      "decision_session": "2025-10-17",
+      "decision_index": 34,
+      "status": "matured",
+      "probability": 0.534
+    },
+    {
+      "decision_session": "2025-10-21",
+      "decision_index": 36,
+      "status": "matured",
+      "probability": 0.536
+    },
+    {
+      "decision_session": "2025-10-23",
+      "decision_index": 38,
+      "status": "matured",
+      "probability": 0.538
+    },
+    {
+      "decision_session": "2025-10-27",
+      "decision_index": 40,
+      "status": "matured",
+      "probability": 0.54
+    },
+    {
+      "decision_session": "2025-10-29",
+      "decision_index": 42,
+      "status": "matured",
+      "probability": 0.542
+    },
+    {
+      "decision_session": "2025-10-31",
+      "decision_index": 44,
+      "status": "matured",
+      "probability": 0.544
+    },
+    {
+      "decision_session": "2025-11-04",
+      "decision_index": 46,
+      "status": "matured",
+      "probability": 0.546
+    },
+    {
+      "decision_session": "2025-11-06",
+      "decision_index": 48,
+      "status": "matured",
+      "probability": 0.548
+    },
+    {
+      "decision_session": "2025-11-10",
+      "decision_index": 50,
+      "status": "matured",
+      "probability": 0.55
+    },
+    {
+      "decision_session": "2025-11-12",
+      "decision_index": 52,
+      "status": "matured",
+      "probability": 0.552
+    },
+    {
+      "decision_session": "2025-11-14",
+      "decision_index": 54,
+      "status": "matured",
+      "probability": 0.554
+    },
+    {
+      "decision_session": "2025-11-18",
+      "decision_index": 56,
+      "status": "matured",
+      "probability": 0.556
+    },
+    {
+      "decision_session": "2025-11-20",
+      "decision_index": 58,
+      "status": "matured",
+      "probability": 0.558
+    },
+    {
+      "decision_session": "2025-11-25",
+      "decision_index": 61,
+      "status": "pending",
+      "probability": null
+    }
+  ],
+  "anchored": {
+    "sampled_predictions": [
+      {
+        "decision_session": "2025-09-01",
+        "decision_index": 0,
+        "status": "matured",
+        "probability": 0.5
+      },
+      {
+        "decision_session": "2025-09-03",
+        "decision_index": 2,
+        "status": "matured",
+        "probability": 0.502
+      },
+      {
+        "decision_session": "2025-09-05",
+        "decision_index": 4,
+        "status": "matured",
+        "probability": 0.504
+      },
+      {
+        "decision_session": "2025-09-09",
+        "decision_index": 6,
+        "status": "matured",
+        "probability": 0.506
+      },
+      {
+        "decision_session": "2025-09-11",
+        "decision_index": 8,
+        "status": "matured",
+        "probability": 0.508
+      },
+      {
+        "decision_session": "2025-09-15",
+        "decision_index": 10,
+        "status": "matured",
+        "probability": 0.51
+      },
+      {
+        "decision_session": "2025-09-17",
+        "decision_index": 12,
+        "status": "matured",
+        "probability": 0.512
+      },
+      {
+        "decision_session": "2025-09-19",
+        "decision_index": 14,
+        "status": "matured",
+        "probability": 0.514
+      },
+      {
+        "decision_session": "2025-09-23",
+        "decision_index": 16,
+        "status": "matured",
+        "probability": 0.516
+      },
+      {
+        "decision_session": "2025-09-25",
+        "decision_index": 18,
+        "status": "matured",
+        "probability": 0.518
+      },
+      {
+        "decision_session": "2025-09-29",
+        "decision_index": 20,
+        "status": "matured",
+        "probability": 0.52
+      },
+      {
+        "decision_session": "2025-10-01",
+        "decision_index": 22,
+        "status": "matured",
+        "probability": 0.522
+      },
+      {
+        "decision_session": "2025-10-03",
+        "decision_index": 24,
+        "status": "matured",
+        "probability": 0.524
+      },
+      {
+        "decision_session": "2025-10-07",
+        "decision_index": 26,
+        "status": "matured",
+        "probability": 0.526
+      },
+      {
+        "decision_session": "2025-10-09",
+        "decision_index": 28,
+        "status": "matured",
+        "probability": 0.528
+      },
+      {
+        "decision_session": "2025-10-13",
+        "decision_index": 30,
+        "status": "matured",
+        "probability": 0.53
+      },
+      {
+        "decision_session": "2025-10-15",
+        "decision_index": 32,
+        "status": "matured",
+        "probability": 0.532
+      },
+      {
+        "decision_session": "2025-10-17",
+        "decision_index": 34,
+        "status": "matured",
+        "probability": 0.534
+      },
+      {
+        "decision_session": "2025-10-21",
+        "decision_index": 36,
+        "status": "matured",
+        "probability": 0.536
+      },
+      {
+        "decision_session": "2025-10-23",
+        "decision_index": 38,
+        "status": "matured",
+        "probability": 0.538
+      },
+      {
+        "decision_session": "2025-10-27",
+        "decision_index": 40,
+        "status": "matured",
+        "probability": 0.54
+      },
+      {
+        "decision_session": "2025-10-29",
+        "decision_index": 42,
+        "status": "matured",
+        "probability": 0.542
+      },
+      {
+        "decision_session": "2025-10-31",
+        "decision_index": 44,
+        "status": "matured",
+        "probability": 0.544
+      },
+      {
+        "decision_session": "2025-11-04",
+        "decision_index": 46,
+        "status": "matured",
+        "probability": 0.546
+      },
+      {
+        "decision_session": "2025-11-06",
+        "decision_index": 48,
+        "status": "matured",
+        "probability": 0.548
+      },
+      {
+        "decision_session": "2025-11-10",
+        "decision_index": 50,
+        "status": "matured",
+        "probability": 0.55
+      },
+      {
+        "decision_session": "2025-11-12",
+        "decision_index": 52,
+        "status": "matured",
+        "probability": 0.552
+      },
+      {
+        "decision_session": "2025-11-14",
+        "decision_index": 54,
+        "status": "matured",
+        "probability": 0.554
+      },
+      {
+        "decision_session": "2025-11-18",
+        "decision_index": 56,
+        "status": "matured",
+        "probability": 0.556
+      },
+      {
+        "decision_session": "2025-11-20",
+        "decision_index": 58,
+        "status": "matured",
+        "probability": 0.558
+      }
+    ],
+    "total_predictions": 31,
+    "matured_predictions": 30,
+    "nonoverlap_predictions": 10,
+    "expected_sampled_sessions": 0,
+    "coverage_ratio": null,
+    "sampling": {
+      "method": "fixed_exchange_session_phase",
+      "status": "unanchored",
+      "anchor_session": "2000-01-03",
+      "modulus": 6,
+      "phase": 0,
+      "session_gap": 6,
+      "session_gap_is_sampling_policy_not_label_independence": true,
+      "phase_window_independent": false,
+      "role": "throttle_only_not_qualification"
+    }
+  },
+  "unanchored": {
+    "sampled_predictions": [
+      {
+        "decision_session": "2025-09-01",
+        "decision_index": 0,
+        "status": "matured",
+        "probability": 0.5
+      },
+      {
+        "decision_session": "2025-09-03",
+        "decision_index": 2,
+        "status": "matured",
+        "probability": 0.502
+      },
+      {
+        "decision_session": "2025-09-05",
+        "decision_index": 4,
+        "status": "matured",
+        "probability": 0.504
+      },
+      {
+        "decision_session": "2025-09-09",
+        "decision_index": 6,
+        "status": "matured",
+        "probability": 0.506
+      },
+      {
+        "decision_session": "2025-09-11",
+        "decision_index": 8,
+        "status": "matured",
+        "probability": 0.508
+      },
+      {
+        "decision_session": "2025-09-15",
+        "decision_index": 10,
+        "status": "matured",
+        "probability": 0.51
+      },
+      {
+        "decision_session": "2025-09-17",
+        "decision_index": 12,
+        "status": "matured",
+        "probability": 0.512
+      },
+      {
+        "decision_session": "2025-09-19",
+        "decision_index": 14,
+        "status": "matured",
+        "probability": 0.514
+      },
+      {
+        "decision_session": "2025-09-23",
+        "decision_index": 16,
+        "status": "matured",
+        "probability": 0.516
+      },
+      {
+        "decision_session": "2025-09-25",
+        "decision_index": 18,
+        "status": "matured",
+        "probability": 0.518
+      },
+      {
+        "decision_session": "2025-09-29",
+        "decision_index": 20,
+        "status": "matured",
+        "probability": 0.52
+      },
+      {
+        "decision_session": "2025-10-01",
+        "decision_index": 22,
+        "status": "matured",
+        "probability": 0.522
+      },
+      {
+        "decision_session": "2025-10-03",
+        "decision_index": 24,
+        "status": "matured",
+        "probability": 0.524
+      },
+      {
+        "decision_session": "2025-10-07",
+        "decision_index": 26,
+        "status": "matured",
+        "probability": 0.526
+      },
+      {
+        "decision_session": "2025-10-09",
+        "decision_index": 28,
+        "status": "matured",
+        "probability": 0.528
+      },
+      {
+        "decision_session": "2025-10-13",
+        "decision_index": 30,
+        "status": "matured",
+        "probability": 0.53
+      },
+      {
+        "decision_session": "2025-10-15",
+        "decision_index": 32,
+        "status": "matured",
+        "probability": 0.532
+      },
+      {
+        "decision_session": "2025-10-17",
+        "decision_index": 34,
+        "status": "matured",
+        "probability": 0.534
+      },
+      {
+        "decision_session": "2025-10-21",
+        "decision_index": 36,
+        "status": "matured",
+        "probability": 0.536
+      },
+      {
+        "decision_session": "2025-10-23",
+        "decision_index": 38,
+        "status": "matured",
+        "probability": 0.538
+      },
+      {
+        "decision_session": "2025-10-27",
+        "decision_index": 40,
+        "status": "matured",
+        "probability": 0.54
+      },
+      {
+        "decision_session": "2025-10-29",
+        "decision_index": 42,
+        "status": "matured",
+        "probability": 0.542
+      },
+      {
+        "decision_session": "2025-10-31",
+        "decision_index": 44,
+        "status": "matured",
+        "probability": 0.544
+      },
+      {
+        "decision_session": "2025-11-04",
+        "decision_index": 46,
+        "status": "matured",
+        "probability": 0.546
+      },
+      {
+        "decision_session": "2025-11-06",
+        "decision_index": 48,
+        "status": "matured",
+        "probability": 0.548
+      },
+      {
+        "decision_session": "2025-11-10",
+        "decision_index": 50,
+        "status": "matured",
+        "probability": 0.55
+      },
+      {
+        "decision_session": "2025-11-12",
+        "decision_index": 52,
+        "status": "matured",
+        "probability": 0.552
+      },
+      {
+        "decision_session": "2025-11-14",
+        "decision_index": 54,
+        "status": "matured",
+        "probability": 0.554
+      },
+      {
+        "decision_session": "2025-11-18",
+        "decision_index": 56,
+        "status": "matured",
+        "probability": 0.556
+      },
+      {
+        "decision_session": "2025-11-20",
+        "decision_index": 58,
+        "status": "matured",
+        "probability": 0.558
+      }
+    ],
+    "total_predictions": 31,
+    "matured_predictions": 30,
+    "nonoverlap_predictions": 10,
+    "expected_sampled_sessions": 0,
+    "coverage_ratio": null,
+    "sampling": {
+      "method": "fixed_exchange_session_phase",
+      "status": "unanchored",
+      "anchor_session": "2000-01-03",
+      "modulus": 6,
+      "phase": 0,
+      "session_gap": 6,
+      "session_gap_is_sampling_policy_not_label_independence": true,
+      "phase_window_independent": false,
+      "role": "throttle_only_not_qualification"
+    }
+  },
+  "no-sessions": {
+    "sampled_predictions": [],
+    "total_predictions": 31,
+    "matured_predictions": 30,
+    "nonoverlap_predictions": 0,
+    "coverage_ratio": null,
+    "sampling": {
+      "method": "unavailable"
+    }
+  }
+}

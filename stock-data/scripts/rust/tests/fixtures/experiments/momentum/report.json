@@ -1,0 +1,99 @@
+{
+  "preregistration": {
+    "protocol": "momentum-ab-v1",
+    "registered": "2026-10-19",
+    "signal_a": "raw_20_session_roc",
+    "signal_b": "composite_20_session_score",
+    "metric": "mean_cross_sectional_spearman_ic",
+    "primary_horizons": [
+      5,
+      10
+    ],
+    "report_only_horizons": [
+      20
+    ],
+    "min_names_per_date": 12,
+    "bootstrap": "circular_block",
+    "bootstrap_block_length": "horizon_plus_one",
+    "bootstrap_iterations": 2000,
+    "bootstrap_confidence": 0.95,
+    "bootstrap_seed": 20261019,
+    "verdict_rule": "composite_better: delta_ic > 0 and the 95% paired interval excludes zero on every primary horizon; composite_worse: delta_ic < 0 and the 95% paired interval excludes zero on every primary horizon; otherwise indistinguishable",
+    "report_only_note": "20-session results are reported but never decide the verdict: roughly ten independent blocks cannot support a claim at that horizon.",
+    "weight_claim": "the 50/30/20 weights stay frozen regardless of the outcome; no re-fitting is performed by this protocol"
+  },
+  "pool": {
+    "symbols": [
+      "SYN00",
+      "SYN01",
+      "SYN02",
+      "SYN03",
+      "SYN04",
+      "SYN05",
+      "SYN06",
+      "SYN07",
+      "SYN08",
+      "SYN09",
+      "SYN10",
+      "SYN11",
+      "SYN12",
+      "SYN13"
+    ],
+    "symbol_count": 14,
+    "sessions": 260,
+    "first_session": "2025-10-27",
+    "last_session": "2026-10-23",
+    "benchmark": "SPY",
+    "dropped": {},
+    "manifest": "pool.json"
+  },
+  "results": {
+    "5": {
+      "horizon": 5,
+      "status": "no_usable_sessions",
+      "usable_sessions": 0
+    },
+    "10": {
+      "horizon": 10,
+      "status": "no_usable_sessions",
+      "usable_sessions": 0
+    },
+    "20": {
+      "horizon": 20,
+      "status": "no_usable_sessions",
+      "usable_sessions": 0
+    }
+  },
+  "verdict": "indistinguishable",
+  "incremental_value_claim": "not_established",
+  "robustness": {
+    "status": "evaluated",
+    "label": "stocks_only",
+    "excluded": [
+      "SYN03",
+      "SYN07",
+      "SYN11"
+    ],
+    "symbol_count": 11,
+    "results": {
+      "5": {
+        "horizon": 5,
+        "status": "no_usable_sessions",
+        "usable_sessions": 0
+      },
+      "10": {
+        "horizon": 10,
+        "status": "no_usable_sessions",
+        "usable_sessions": 0
+      },
+      "20": {
+        "horizon": 20,
+        "status": "no_usable_sessions",
+        "usable_sessions": 0
+      }
+    },
+    "verdict": "indistinguishable",
+    "note": "disclosure only; the registered verdict is computed on the full pool"
+  },
+  "durability": "consistent_across_pool_slices"
+}

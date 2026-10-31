@@ -1,0 +1,6 @@
+{
+  "ticker": "MU",
+  "instrument": {
+    "benchmark": "mu"
+  }
+}

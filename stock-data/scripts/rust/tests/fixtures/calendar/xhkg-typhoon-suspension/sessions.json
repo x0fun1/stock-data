@@ -1,0 +1,40 @@
+{
+  "schema_version": "1.0",
+  "calendar": "XHKG",
+  "timezone": "Asia/Hong_Kong",
+  "generator": {
+    "library": "exchange_calendars",
+    "version": "4.13.2"
+  },
+  "requested_range": {
+    "start": "2026-07-20",
+    "end": "2026-07-27"
+  },
+  "sessions": [
+    {
+      "date": "2026-07-20",
+      "close_at": "2026-07-20T08:00:00Z"
+    },
+    {
+      "date": "2026-07-21",
+      "close_at": "2026-07-21T08:00:00Z"
+    },
+    {
+      "date": "2026-07-22",
+      "close_at": "2026-07-22T08:00:00Z"
+    },
+    {
+      "date": "2026-07-23",
+      "close_at": "2026-07-23T08:00:00Z"
+    },
+    {
+      "date": "2026-07-24",
+      "close_at": "2026-07-24T08:00:00Z"
+    },
+    {
+      "date": "2026-07-27",
+      "close_at": "2026-07-27T08:00:00Z"
+    }
+  ],
+  "note": "HK severe-weather suspension is not fully modelled by the calendar library"
+}

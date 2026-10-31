@@ -1,0 +1,7 @@
+{
+  "case": "unknown-field",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "unsupported request fields: surprise",
+  "contains": "unsupported request fields"
+}

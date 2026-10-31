@@ -1,0 +1,7 @@
+{
+  "case": "market-unknown",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "request.market must be US or HK",
+  "contains": "request.market must be US or HK"
+}

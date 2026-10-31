@@ -1,0 +1,22 @@
+[package]
+name = "sd-app"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Use-case orchestration: pipeline stages, consensus, reports, delivery, ledger/cleanup use cases, selfcheck."
+
+[dependencies]
+sd-core = { workspace = true }
+sd-research = { workspace = true }
+sd-audit = { workspace = true }
+sd-news = { workspace = true }
+sd-storage = { workspace = true }
+sd-providers = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+regex = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

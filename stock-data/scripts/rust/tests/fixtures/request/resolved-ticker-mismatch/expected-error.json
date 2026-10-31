@@ -1,0 +1,7 @@
+{
+  "case": "resolved-ticker-mismatch",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "resolved instrument differs from request ticker",
+  "contains": "resolved instrument differs"
+}

@@ -1,0 +1,60 @@
+{
+  "ticker": "SYN",
+  "market": "US",
+  "horizon": "5D",
+  "snapshot_id": "snap-1",
+  "asof_timestamp": "2026-01-05T21:00:00Z",
+  "status": "complete",
+  "warnings": [
+    "tampered after freeze"
+  ],
+  "warning_count": 0,
+  "ai_lean": {
+    "status": "assessed",
+    "coverage": {
+      "candidate_count": 2,
+      "assessed_count": 2,
+      "direct_label_counts": {
+        "bullish": 1,
+        "bearish": 1,
+        "neutral": 0,
+        "mixed": 0,
+        "unclear": 0
+      }
+    },
+    "items": [
+      {
+        "news_id": "event-1",
+        "lean": "bullish",
+        "reason": "beat"
+      },
+      {
+        "news_id": "opinion-1",
+        "lean": "bearish",
+        "reason": "probe"
+      }
+    ],
+    "major_direct_items": []
+  },
+  "ai_lean_candidates": [
+    {
+      "news_id": "event-1"
+    },
+    {
+      "news_id": "opinion-1"
+    }
+  ],
+  "expected_volatility_regime": {
+    "regime": "normal"
+  },
+  "event_time_bucket_counts": {
+    "pre_market": 1
+  },
+  "opinion_source_agreement": {
+    "state": "mixed"
+  },
+  "event_source_agreement": {
+    "state": "consistent"
+  },
+  "market_confirmation": "not_assessed"
+}

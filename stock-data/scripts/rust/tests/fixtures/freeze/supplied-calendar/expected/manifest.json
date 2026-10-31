@@ -1,0 +1,1736 @@
+{
+  "schema_version": "1.3",
+  "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+  "ticker": "SYN",
+  "market": "US",
+  "horizon": "5D",
+  "request": {
+    "ticker": "SYN",
+    "market": "US",
+    "horizon": "5D",
+    "asof": "2026-10-23T21:00:00Z",
+    "mode": "standard",
+    "intent": "forecast",
+    "asset_type": "unknown",
+    "policy": {
+      "policy_version": "fixed_52w_5d_v1",
+      "history_calendar_days": 364,
+      "horizon_sessions": 5,
+      "horizon_label": "5D",
+      "window_closed": "right",
+      "target_version": "split_adjusted_price_direction_5d_v1",
+      "model_versions": {
+        "quant": "quant_drift_shrinkage_v2",
+        "factor": "factor_restricted_two_honest_v1",
+        "ml": "ml_compact_daily_v1",
+        "factor_backtest": "factor_backtest_5d_descriptive_v1"
+      },
+      "feature_versions": {
+        "quant": "roc20_v1",
+        "factor": "factor_bucket_v1",
+        "ml": "compact_v1",
+        "factor_backtest": "factor_diagnostic_v1"
+      },
+      "production_paths": [
+        "quant"
+      ],
+      "shadow_paths": [
+        "factor",
+        "ml"
+      ],
+      "diagnostic_paths": [
+        "factor_backtest"
+      ],
+      "nonoverlap_gap_sessions": 6,
+      "min_valid_oos_nonoverlap": 12,
+      "min_prospective_nonoverlap": 30,
+      "price_basis": "split_adjusted",
+      "price_basis_source": "provider_declared_split_adjusted_close",
+      "target_price_basis": {
+        "split_adjusted": true,
+        "dividend_adjusted": false,
+        "evidence_status": "declared_by_provider_not_independently_verified",
+        "dividend_flip_bias": "negative_on_dividend_payers; label_flip_rate_disclosed_not_corrected"
+      },
+      "estimator": {
+        "type": "causal_drift_shrinkage",
+        "version": "drift_shrinkage_v2",
+        "k": 50,
+        "mu_annual": 0.06,
+        "vol_window_sessions": 250,
+        "max_history_sessions": 250,
+        "roc_role": "disclosure_only"
+      },
+      "evidence_floors": {
+        "min_replay_effective_samples": 12,
+        "min_replay_observations": 30,
+        "min_prospective_nonoverlap": 30,
+        "prospective_floor_retained": true,
+        "primary_evidence": "in_window_causal_prefix_replay_with_block_bootstrap",
+        "independent_holdout": "not_available_inside_a_single_52_week_window",
+        "prospective_recording_grace_hours": 12
+      },
+      "coverage_rule": {
+        "expected_sessions_source": "resolved_exchange_calendar",
+        "observed_sessions_source": "frozen_bars",
+        "declaration_is_not_evidence": true,
+        "unverified_calendar_cannot_claim_complete": true
+      },
+      "sampling_anchor_session": "2000-01-03",
+      "sampling_modulus": 6,
+      "sampling_role": "throttle_only_not_qualification",
+      "calibration_policy": "disabled_by_policy"
+    }
+  },
+  "asof_timestamp": "2026-10-23T21:00:00Z",
+  "snapshot_created_at": "2026-10-24T00:00:00Z",
+  "collection_captured_at": "2026-10-23T21:00:00+00:00",
+  "source_payload_sha256": "685084701b0facb6fc6b0a2d039f6a55b1457e0b49a4d82e13c9e17b9835e93d",
+  "snapshot_content_sha256": "00d9769e96e8b45deff4406b0d090a0d264b8ce387baa106d06eb6100540bc3c",
+  "domain_sha256s": {
+    "market": "7e320d4d712846430dccb30370b83a6336933f3ca588e9c4f53226c011b7460c",
+    "fundamentals": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "expectations": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "news": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "insider": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "options": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "short_volume": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "sec": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "macro": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8"
+  },
+  "raw_domain_sha256s": {
+    "market": "7e320d4d712846430dccb30370b83a6336933f3ca588e9c4f53226c011b7460c",
+    "fundamentals": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "expectations": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "news": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "insider": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "options": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "short_volume": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "sec": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8",
+    "macro": "471d264a54b4bececd78706316c6a60a1de50ff331156c7b16066ab08ad283f8"
+  },
+  "policy": {
+    "policy_version": "fixed_52w_5d_v1",
+    "history_calendar_days": 364,
+    "horizon_sessions": 5,
+    "horizon_label": "5D",
+    "window_closed": "right",
+    "target_version": "split_adjusted_price_direction_5d_v1",
+    "model_versions": {
+      "quant": "quant_drift_shrinkage_v2",
+      "factor": "factor_restricted_two_honest_v1",
+      "ml": "ml_compact_daily_v1",
+      "factor_backtest": "factor_backtest_5d_descriptive_v1"
+    },
+    "feature_versions": {
+      "quant": "roc20_v1",
+      "factor": "factor_bucket_v1",
+      "ml": "compact_v1",
+      "factor_backtest": "factor_diagnostic_v1"
+    },
+    "production_paths": [
+      "quant"
+    ],
+    "shadow_paths": [
+      "factor",
+      "ml"
+    ],
+    "diagnostic_paths": [
+      "factor_backtest"
+    ],
+    "nonoverlap_gap_sessions": 6,
+    "min_valid_oos_nonoverlap": 12,
+    "min_prospective_nonoverlap": 30,
+    "price_basis": "split_adjusted",
+    "price_basis_source": "provider_declared_split_adjusted_close",
+    "target_price_basis": {
+      "split_adjusted": true,
+      "dividend_adjusted": false,
+      "evidence_status": "declared_by_provider_not_independently_verified",
+      "dividend_flip_bias": "negative_on_dividend_payers; label_flip_rate_disclosed_not_corrected"
+    },
+    "estimator": {
+      "type": "causal_drift_shrinkage",
+      "version": "drift_shrinkage_v2",
+      "k": 50,
+      "mu_annual": 0.06,
+      "vol_window_sessions": 250,
+      "max_history_sessions": 250,
+      "roc_role": "disclosure_only"
+    },
+    "evidence_floors": {
+      "min_replay_effective_samples": 12,
+      "min_replay_observations": 30,
+      "min_prospective_nonoverlap": 30,
+      "prospective_floor_retained": true,
+      "primary_evidence": "in_window_causal_prefix_replay_with_block_bootstrap",
+      "independent_holdout": "not_available_inside_a_single_52_week_window",
+      "prospective_recording_grace_hours": 12
+    },
+    "coverage_rule": {
+      "expected_sessions_source": "resolved_exchange_calendar",
+      "observed_sessions_source": "frozen_bars",
+      "declaration_is_not_evidence": true,
+      "unverified_calendar_cannot_claim_complete": true
+    },
+    "sampling_anchor_session": "2000-01-03",
+    "sampling_modulus": 6,
+    "sampling_role": "throttle_only_not_qualification",
+    "calibration_policy": "disabled_by_policy",
+    "decision_session": "2026-10-23",
+    "target_session": "2026-10-30",
+    "window_start_exclusive": "2025-10-24",
+    "window_end_inclusive": "2026-10-23",
+    "expected_sessions": 260,
+    "observed_sessions": 260,
+    "missing_sessions": 0,
+    "missing_session_dates": [],
+    "declared_coverage_status": "complete",
+    "coverage_status": "complete",
+    "coverage_basis": "recomputed_from_calendar_and_bars",
+    "coverage_recomputed": true,
+    "calendar_verified": true,
+    "calendar_source": "selfcheck:synthetic_exchange"
+  },
+  "market_bar_count": 260,
+  "data_domains": {
+    "market": "complete",
+    "fundamentals": "unavailable",
+    "expectations": "unavailable",
+    "news": "unavailable",
+    "insider": "unavailable",
+    "options": "unavailable",
+    "short_volume": "unavailable",
+    "sec": "unavailable",
+    "macro": "unavailable"
+  },
+  "sources": {
+    "market": {
+      "actual_source": "Yahoo Finance",
+      "source_timestamp": "2026-10-23T21:00:00+00:00",
+      "currency": "USD",
+      "unit": "USD",
+      "adjustment": "provider",
+      "price_basis": "split_adjusted",
+      "price_basis_source": "provider_declared_split_adjusted_close",
+      "adjustment_evidence": null,
+      "session_calendar": {
+        "source": "selfcheck:synthetic_exchange",
+        "timezone": "America/New_York",
+        "coverage_start": "2025-09-01",
+        "coverage_end": "2026-11-06",
+        "sessions": [
+          {
+            "date": "2025-09-01",
+            "close_at": "2025-09-01T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-02",
+            "close_at": "2025-09-02T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-03",
+            "close_at": "2025-09-03T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-04",
+            "close_at": "2025-09-04T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-05",
+            "close_at": "2025-09-05T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-08",
+            "close_at": "2025-09-08T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-09",
+            "close_at": "2025-09-09T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-10",
+            "close_at": "2025-09-10T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-11",
+            "close_at": "2025-09-11T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-12",
+            "close_at": "2025-09-12T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-15",
+            "close_at": "2025-09-15T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-16",
+            "close_at": "2025-09-16T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-17",
+            "close_at": "2025-09-17T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-18",
+            "close_at": "2025-09-18T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-19",
+            "close_at": "2025-09-19T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-22",
+            "close_at": "2025-09-22T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-23",
+            "close_at": "2025-09-23T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-24",
+            "close_at": "2025-09-24T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-25",
+            "close_at": "2025-09-25T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-26",
+            "close_at": "2025-09-26T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-29",
+            "close_at": "2025-09-29T20:00:00+00:00"
+          },
+          {
+            "date": "2025-09-30",
+            "close_at": "2025-09-30T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-01",
+            "close_at": "2025-10-01T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-02",
+            "close_at": "2025-10-02T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-03",
+            "close_at": "2025-10-03T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-06",
+            "close_at": "2025-10-06T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-07",
+            "close_at": "2025-10-07T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-08",
+            "close_at": "2025-10-08T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-09",
+            "close_at": "2025-10-09T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-10",
+            "close_at": "2025-10-10T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-13",
+            "close_at": "2025-10-13T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-14",
+            "close_at": "2025-10-14T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-15",
+            "close_at": "2025-10-15T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-16",
+            "close_at": "2025-10-16T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-17",
+            "close_at": "2025-10-17T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-20",
+            "close_at": "2025-10-20T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-21",
+            "close_at": "2025-10-21T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-22",
+            "close_at": "2025-10-22T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-23",
+            "close_at": "2025-10-23T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-24",
+            "close_at": "2025-10-24T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-27",
+            "close_at": "2025-10-27T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-28",
+            "close_at": "2025-10-28T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-29",
+            "close_at": "2025-10-29T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-30",
+            "close_at": "2025-10-30T20:00:00+00:00"
+          },
+          {
+            "date": "2025-10-31",
+            "close_at": "2025-10-31T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-03",
+            "close_at": "2025-11-03T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-04",
+            "close_at": "2025-11-04T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-05",
+            "close_at": "2025-11-05T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-06",
+            "close_at": "2025-11-06T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-07",
+            "close_at": "2025-11-07T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-10",
+            "close_at": "2025-11-10T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-11",
+            "close_at": "2025-11-11T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-12",
+            "close_at": "2025-11-12T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-13",
+            "close_at": "2025-11-13T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-14",
+            "close_at": "2025-11-14T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-17",
+            "close_at": "2025-11-17T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-18",
+            "close_at": "2025-11-18T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-19",
+            "close_at": "2025-11-19T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-20",
+            "close_at": "2025-11-20T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-21",
+            "close_at": "2025-11-21T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-24",
+            "close_at": "2025-11-24T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-25",
+            "close_at": "2025-11-25T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-26",
+            "close_at": "2025-11-26T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-27",
+            "close_at": "2025-11-27T20:00:00+00:00"
+          },
+          {
+            "date": "2025-11-28",
+            "close_at": "2025-11-28T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-01",
+            "close_at": "2025-12-01T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-02",
+            "close_at": "2025-12-02T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-03",
+            "close_at": "2025-12-03T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-04",
+            "close_at": "2025-12-04T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-05",
+            "close_at": "2025-12-05T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-08",
+            "close_at": "2025-12-08T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-09",
+            "close_at": "2025-12-09T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-10",
+            "close_at": "2025-12-10T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-11",
+            "close_at": "2025-12-11T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-12",
+            "close_at": "2025-12-12T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-15",
+            "close_at": "2025-12-15T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-16",
+            "close_at": "2025-12-16T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-17",
+            "close_at": "2025-12-17T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-18",
+            "close_at": "2025-12-18T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-19",
+            "close_at": "2025-12-19T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-22",
+            "close_at": "2025-12-22T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-23",
+            "close_at": "2025-12-23T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-24",
+            "close_at": "2025-12-24T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-25",
+            "close_at": "2025-12-25T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-26",
+            "close_at": "2025-12-26T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-29",
+            "close_at": "2025-12-29T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-30",
+            "close_at": "2025-12-30T20:00:00+00:00"
+          },
+          {
+            "date": "2025-12-31",
+            "close_at": "2025-12-31T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-01",
+            "close_at": "2026-01-01T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-02",
+            "close_at": "2026-01-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-05",
+            "close_at": "2026-01-05T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-06",
+            "close_at": "2026-01-06T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-07",
+            "close_at": "2026-01-07T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-08",
+            "close_at": "2026-01-08T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-09",
+            "close_at": "2026-01-09T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-12",
+            "close_at": "2026-01-12T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-13",
+            "close_at": "2026-01-13T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-14",
+            "close_at": "2026-01-14T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-15",
+            "close_at": "2026-01-15T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-16",
+            "close_at": "2026-01-16T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-19",
+            "close_at": "2026-01-19T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-20",
+            "close_at": "2026-01-20T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-21",
+            "close_at": "2026-01-21T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-22",
+            "close_at": "2026-01-22T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-23",
+            "close_at": "2026-01-23T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-26",
+            "close_at": "2026-01-26T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-27",
+            "close_at": "2026-01-27T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-28",
+            "close_at": "2026-01-28T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-29",
+            "close_at": "2026-01-29T20:00:00+00:00"
+          },
+          {
+            "date": "2026-01-30",
+            "close_at": "2026-01-30T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-02",
+            "close_at": "2026-02-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-03",
+            "close_at": "2026-02-03T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-04",
+            "close_at": "2026-02-04T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-05",
+            "close_at": "2026-02-05T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-06",
+            "close_at": "2026-02-06T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-09",
+            "close_at": "2026-02-09T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-10",
+            "close_at": "2026-02-10T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-11",
+            "close_at": "2026-02-11T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-12",
+            "close_at": "2026-02-12T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-13",
+            "close_at": "2026-02-13T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-16",
+            "close_at": "2026-02-16T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-17",
+            "close_at": "2026-02-17T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-18",
+            "close_at": "2026-02-18T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-19",
+            "close_at": "2026-02-19T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-20",
+            "close_at": "2026-02-20T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-23",
+            "close_at": "2026-02-23T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-24",
+            "close_at": "2026-02-24T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-25",
+            "close_at": "2026-02-25T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-26",
+            "close_at": "2026-02-26T20:00:00+00:00"
+          },
+          {
+            "date": "2026-02-27",
+            "close_at": "2026-02-27T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-02",
+            "close_at": "2026-03-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-03",
+            "close_at": "2026-03-03T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-04",
+            "close_at": "2026-03-04T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-05",
+            "close_at": "2026-03-05T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-06",
+            "close_at": "2026-03-06T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-09",
+            "close_at": "2026-03-09T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-10",
+            "close_at": "2026-03-10T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-11",
+            "close_at": "2026-03-11T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-12",
+            "close_at": "2026-03-12T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-13",
+            "close_at": "2026-03-13T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-16",
+            "close_at": "2026-03-16T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-17",
+            "close_at": "2026-03-17T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-18",
+            "close_at": "2026-03-18T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-19",
+            "close_at": "2026-03-19T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-20",
+            "close_at": "2026-03-20T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-23",
+            "close_at": "2026-03-23T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-24",
+            "close_at": "2026-03-24T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-25",
+            "close_at": "2026-03-25T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-26",
+            "close_at": "2026-03-26T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-27",
+            "close_at": "2026-03-27T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-30",
+            "close_at": "2026-03-30T20:00:00+00:00"
+          },
+          {
+            "date": "2026-03-31",
+            "close_at": "2026-03-31T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-01",
+            "close_at": "2026-04-01T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-02",
+            "close_at": "2026-04-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-03",
+            "close_at": "2026-04-03T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-06",
+            "close_at": "2026-04-06T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-07",
+            "close_at": "2026-04-07T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-08",
+            "close_at": "2026-04-08T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-09",
+            "close_at": "2026-04-09T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-10",
+            "close_at": "2026-04-10T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-13",
+            "close_at": "2026-04-13T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-14",
+            "close_at": "2026-04-14T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-15",
+            "close_at": "2026-04-15T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-16",
+            "close_at": "2026-04-16T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-17",
+            "close_at": "2026-04-17T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-20",
+            "close_at": "2026-04-20T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-21",
+            "close_at": "2026-04-21T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-22",
+            "close_at": "2026-04-22T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-23",
+            "close_at": "2026-04-23T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-24",
+            "close_at": "2026-04-24T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-27",
+            "close_at": "2026-04-27T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-28",
+            "close_at": "2026-04-28T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-29",
+            "close_at": "2026-04-29T20:00:00+00:00"
+          },
+          {
+            "date": "2026-04-30",
+            "close_at": "2026-04-30T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-01",
+            "close_at": "2026-05-01T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-04",
+            "close_at": "2026-05-04T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-05",
+            "close_at": "2026-05-05T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-06",
+            "close_at": "2026-05-06T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-07",
+            "close_at": "2026-05-07T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-08",
+            "close_at": "2026-05-08T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-11",
+            "close_at": "2026-05-11T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-12",
+            "close_at": "2026-05-12T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-13",
+            "close_at": "2026-05-13T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-14",
+            "close_at": "2026-05-14T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-15",
+            "close_at": "2026-05-15T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-18",
+            "close_at": "2026-05-18T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-19",
+            "close_at": "2026-05-19T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-20",
+            "close_at": "2026-05-20T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-21",
+            "close_at": "2026-05-21T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-22",
+            "close_at": "2026-05-22T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-25",
+            "close_at": "2026-05-25T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-26",
+            "close_at": "2026-05-26T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-27",
+            "close_at": "2026-05-27T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-28",
+            "close_at": "2026-05-28T20:00:00+00:00"
+          },
+          {
+            "date": "2026-05-29",
+            "close_at": "2026-05-29T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-01",
+            "close_at": "2026-06-01T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-02",
+            "close_at": "2026-06-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-03",
+            "close_at": "2026-06-03T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-04",
+            "close_at": "2026-06-04T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-05",
+            "close_at": "2026-06-05T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-08",
+            "close_at": "2026-06-08T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-09",
+            "close_at": "2026-06-09T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-10",
+            "close_at": "2026-06-10T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-11",
+            "close_at": "2026-06-11T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-12",
+            "close_at": "2026-06-12T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-15",
+            "close_at": "2026-06-15T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-16",
+            "close_at": "2026-06-16T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-17",
+            "close_at": "2026-06-17T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-18",
+            "close_at": "2026-06-18T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-19",
+            "close_at": "2026-06-19T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-22",
+            "close_at": "2026-06-22T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-23",
+            "close_at": "2026-06-23T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-24",
+            "close_at": "2026-06-24T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-25",
+            "close_at": "2026-06-25T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-26",
+            "close_at": "2026-06-26T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-29",
+            "close_at": "2026-06-29T20:00:00+00:00"
+          },
+          {
+            "date": "2026-06-30",
+            "close_at": "2026-06-30T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-01",
+            "close_at": "2026-07-01T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-02",
+            "close_at": "2026-07-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-03",
+            "close_at": "2026-07-03T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-06",
+            "close_at": "2026-07-06T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-07",
+            "close_at": "2026-07-07T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-08",
+            "close_at": "2026-07-08T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-09",
+            "close_at": "2026-07-09T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-10",
+            "close_at": "2026-07-10T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-13",
+            "close_at": "2026-07-13T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-14",
+            "close_at": "2026-07-14T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-15",
+            "close_at": "2026-07-15T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-16",
+            "close_at": "2026-07-16T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-17",
+            "close_at": "2026-07-17T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-20",
+            "close_at": "2026-07-20T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-21",
+            "close_at": "2026-07-21T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-22",
+            "close_at": "2026-07-22T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-23",
+            "close_at": "2026-07-23T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-24",
+            "close_at": "2026-07-24T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-27",
+            "close_at": "2026-07-27T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-28",
+            "close_at": "2026-07-28T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-29",
+            "close_at": "2026-07-29T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-30",
+            "close_at": "2026-07-30T20:00:00+00:00"
+          },
+          {
+            "date": "2026-07-31",
+            "close_at": "2026-07-31T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-03",
+            "close_at": "2026-08-03T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-04",
+            "close_at": "2026-08-04T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-05",
+            "close_at": "2026-08-05T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-06",
+            "close_at": "2026-08-06T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-07",
+            "close_at": "2026-08-07T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-10",
+            "close_at": "2026-08-10T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-11",
+            "close_at": "2026-08-11T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-12",
+            "close_at": "2026-08-12T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-13",
+            "close_at": "2026-08-13T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-14",
+            "close_at": "2026-08-14T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-17",
+            "close_at": "2026-08-17T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-18",
+            "close_at": "2026-08-18T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-19",
+            "close_at": "2026-08-19T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-20",
+            "close_at": "2026-08-20T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-21",
+            "close_at": "2026-08-21T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-24",
+            "close_at": "2026-08-24T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-25",
+            "close_at": "2026-08-25T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-26",
+            "close_at": "2026-08-26T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-27",
+            "close_at": "2026-08-27T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-28",
+            "close_at": "2026-08-28T20:00:00+00:00"
+          },
+          {
+            "date": "2026-08-31",
+            "close_at": "2026-08-31T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-01",
+            "close_at": "2026-09-01T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-02",
+            "close_at": "2026-09-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-03",
+            "close_at": "2026-09-03T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-04",
+            "close_at": "2026-09-04T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-07",
+            "close_at": "2026-09-07T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-08",
+            "close_at": "2026-09-08T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-09",
+            "close_at": "2026-09-09T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-10",
+            "close_at": "2026-09-10T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-11",
+            "close_at": "2026-09-11T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-14",
+            "close_at": "2026-09-14T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-15",
+            "close_at": "2026-09-15T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-16",
+            "close_at": "2026-09-16T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-17",
+            "close_at": "2026-09-17T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-18",
+            "close_at": "2026-09-18T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-21",
+            "close_at": "2026-09-21T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-22",
+            "close_at": "2026-09-22T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-23",
+            "close_at": "2026-09-23T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-24",
+            "close_at": "2026-09-24T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-25",
+            "close_at": "2026-09-25T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-28",
+            "close_at": "2026-09-28T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-29",
+            "close_at": "2026-09-29T20:00:00+00:00"
+          },
+          {
+            "date": "2026-09-30",
+            "close_at": "2026-09-30T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-01",
+            "close_at": "2026-10-01T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-02",
+            "close_at": "2026-10-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-05",
+            "close_at": "2026-10-05T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-06",
+            "close_at": "2026-10-06T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-07",
+            "close_at": "2026-10-07T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-08",
+            "close_at": "2026-10-08T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-09",
+            "close_at": "2026-10-09T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-12",
+            "close_at": "2026-10-12T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-13",
+            "close_at": "2026-10-13T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-14",
+            "close_at": "2026-10-14T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-15",
+            "close_at": "2026-10-15T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-16",
+            "close_at": "2026-10-16T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-19",
+            "close_at": "2026-10-19T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-20",
+            "close_at": "2026-10-20T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-21",
+            "close_at": "2026-10-21T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-22",
+            "close_at": "2026-10-22T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-23",
+            "close_at": "2026-10-23T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-26",
+            "close_at": "2026-10-26T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-27",
+            "close_at": "2026-10-27T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-28",
+            "close_at": "2026-10-28T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-29",
+            "close_at": "2026-10-29T20:00:00+00:00"
+          },
+          {
+            "date": "2026-10-30",
+            "close_at": "2026-10-30T20:00:00+00:00"
+          },
+          {
+            "date": "2026-11-02",
+            "close_at": "2026-11-02T20:00:00+00:00"
+          },
+          {
+            "date": "2026-11-03",
+            "close_at": "2026-11-03T20:00:00+00:00"
+          },
+          {
+            "date": "2026-11-04",
+            "close_at": "2026-11-04T20:00:00+00:00"
+          },
+          {
+            "date": "2026-11-05",
+            "close_at": "2026-11-05T20:00:00+00:00"
+          },
+          {
+            "date": "2026-11-06",
+            "close_at": "2026-11-06T20:00:00+00:00"
+          }
+        ]
+      },
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": "2026-10-23T21:00:00+00:00"
+    },
+    "fundamentals": {
+      "actual_source": null,
+      "source_timestamp": null,
+      "currency": null,
+      "unit": null,
+      "adjustment": null,
+      "price_basis": null,
+      "price_basis_source": null,
+      "adjustment_evidence": null,
+      "session_calendar": null,
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": null
+    },
+    "expectations": {
+      "actual_source": null,
+      "source_timestamp": null,
+      "currency": null,
+      "unit": null,
+      "adjustment": null,
+      "price_basis": null,
+      "price_basis_source": null,
+      "adjustment_evidence": null,
+      "session_calendar": null,
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": null
+    },
+    "news": {
+      "actual_source": null,
+      "source_timestamp": null,
+      "currency": null,
+      "unit": null,
+      "adjustment": null,
+      "price_basis": null,
+      "price_basis_source": null,
+      "adjustment_evidence": null,
+      "session_calendar": null,
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": null
+    },
+    "insider": {
+      "actual_source": null,
+      "source_timestamp": null,
+      "currency": null,
+      "unit": null,
+      "adjustment": null,
+      "price_basis": null,
+      "price_basis_source": null,
+      "adjustment_evidence": null,
+      "session_calendar": null,
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": null
+    },
+    "options": {
+      "actual_source": null,
+      "source_timestamp": null,
+      "currency": null,
+      "unit": null,
+      "adjustment": null,
+      "price_basis": null,
+      "price_basis_source": null,
+      "adjustment_evidence": null,
+      "session_calendar": null,
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": null
+    },
+    "short_volume": {
+      "actual_source": null,
+      "source_timestamp": null,
+      "currency": null,
+      "unit": null,
+      "adjustment": null,
+      "price_basis": null,
+      "price_basis_source": null,
+      "adjustment_evidence": null,
+      "session_calendar": null,
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": null
+    },
+    "sec": {
+      "actual_source": null,
+      "source_timestamp": null,
+      "currency": null,
+      "unit": null,
+      "adjustment": null,
+      "price_basis": null,
+      "price_basis_source": null,
+      "adjustment_evidence": null,
+      "session_calendar": null,
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": null
+    },
+    "macro": {
+      "actual_source": null,
+      "source_timestamp": null,
+      "currency": null,
+      "unit": null,
+      "adjustment": null,
+      "price_basis": null,
+      "price_basis_source": null,
+      "adjustment_evidence": null,
+      "session_calendar": null,
+      "latest_price_observations": null,
+      "fallback_used": null,
+      "fallback_reason": null,
+      "fetched_at": null
+    }
+  },
+  "data_validation": {
+    "forecast_eligible": true,
+    "prediction_eligibility": {
+      "status": "eligible",
+      "blockers": []
+    },
+    "reporting_eligibility": {
+      "status": "degraded",
+      "warnings": [
+        "LATEST_CLOSE_SINGLE_PROVIDER",
+        "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+        "CORPORATE_ACTION_UNKNOWN",
+        "POINT_IN_TIME_UNVERIFIED",
+        "ASSET_TYPE_UNVERIFIED"
+      ],
+      "informational": []
+    },
+    "reporting_status": "degraded",
+    "errors": [],
+    "blockers": [],
+    "warnings": [
+      "Latest close has one usable provider; source-level timestamp checks passed, but cross-source matching is unavailable.",
+      "source-backed adjustment/company-action coverage is unavailable; unknown does not mean contaminated",
+      "recent corporate actions could not be independently assessed",
+      "historical bars expose dates but no per-bar available_at; provider revision status is disclosed",
+      "asset type is unverified; ETF-specific exposure/NAV/leverage checks are not assessed"
+    ],
+    "reason_codes": [
+      "LATEST_CLOSE_SINGLE_PROVIDER",
+      "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+      "CORPORATE_ACTION_UNKNOWN",
+      "POINT_IN_TIME_UNVERIFIED",
+      "ASSET_TYPE_UNVERIFIED"
+    ],
+    "latest_confirmed_close": {
+      "price": 116.11401892611022,
+      "session_date": "2026-10-23",
+      "close_at": "2026-10-23T20:00:00+00:00",
+      "currency": "USD",
+      "kind": "calendar_verified",
+      "source": "Yahoo Finance"
+    },
+    "latest_close_status": "calendar_verified",
+    "calendar_verification": "source_supplied_schedule",
+    "resolved_calendar_evidence": null,
+    "horizon_type": "exchange_sessions",
+    "horizon_confidence": "high",
+    "source_authentication": "not_independently_verified",
+    "session_horizon_verified": true,
+    "adjustment_status": "provider_declared_split_adjusted",
+    "corporate_action_status": "unavailable",
+    "corporate_action_reconciliation": [],
+    "policy": {
+      "applicable": true,
+      "policy_version": "fixed_52w_5d_v1",
+      "decision_session": "2026-10-23",
+      "window_start_exclusive": "2025-10-24",
+      "window_end_inclusive": "2026-10-23",
+      "expected_sessions": 260,
+      "observed_sessions": 260,
+      "missing_sessions": 0,
+      "missing_session_dates": [],
+      "declared_coverage_status": "complete",
+      "coverage_status": "complete",
+      "coverage_basis": "recomputed_from_calendar_and_bars",
+      "coverage_recomputed": true,
+      "calendar_verified": true,
+      "calendar_source": "selfcheck:synthetic_exchange",
+      "price_basis": "split_adjusted",
+      "price_basis_source": "provider_declared_split_adjusted_close",
+      "historical_availability_status": "date_only_no_per_bar_available_at",
+      "provider_revision_status": "provider_history_may_be_revised_not_point_in_time_certified",
+      "status": "degraded"
+    },
+    "forecast_policy_status": "degraded"
+  },
+  "latest_confirmed_close": {
+    "price": 116.11401892611022,
+    "session_date": "2026-10-23",
+    "close_at": "2026-10-23T20:00:00+00:00",
+    "currency": "USD",
+    "kind": "calendar_verified",
+    "source": "Yahoo Finance"
+  },
+  "warnings": [
+    "Latest close has one usable provider; source-level timestamp checks passed, but cross-source matching is unavailable.",
+    "OHLCV adjustment convention is missing or unrecognized",
+    "asset type is unverified; ETF-specific exposure/NAV/leverage checks are not assessed",
+    "expectations domain status is unavailable",
+    "fundamentals domain status is unavailable",
+    "historical bars expose dates but no per-bar available_at; provider revision status is disclosed",
+    "insider domain status is unavailable",
+    "macro domain status is unavailable",
+    "news domain status is unavailable",
+    "options domain status is unavailable",
+    "recent corporate actions could not be independently assessed",
+    "sec domain status is unavailable",
+    "short_volume domain status is unavailable",
+    "source-backed adjustment/company-action coverage is unavailable; unknown does not mean contaminated"
+  ],
+  "data_quality": {
+    "schema": "data_completeness_v2",
+    "overall": "partial",
+    "score": null,
+    "score_deprecated": true,
+    "deprecated_fields": [
+      "score",
+      "confidence_score",
+      "confidence_penalties",
+      "overall_quality_labels"
+    ],
+    "components": {
+      "observed_sessions": 260,
+      "expected_sessions": 260,
+      "coverage_ratio": 1.0,
+      "prediction_eligible": true,
+      "required_domains": [
+        "market"
+      ]
+    },
+    "issues": [
+      "Latest close has one usable provider; source-level timestamp checks passed, but cross-source matching is unavailable.",
+      "OHLCV adjustment convention is missing or unrecognized",
+      "asset type is unverified; ETF-specific exposure/NAV/leverage checks are not assessed",
+      "expectations domain status is unavailable",
+      "fundamentals domain status is unavailable",
+      "historical bars expose dates but no per-bar available_at; provider revision status is disclosed",
+      "insider domain status is unavailable",
+      "macro domain status is unavailable",
+      "news domain status is unavailable",
+      "options domain status is unavailable",
+      "recent corporate actions could not be independently assessed",
+      "sec domain status is unavailable",
+      "short_volume domain status is unavailable",
+      "source-backed adjustment/company-action coverage is unavailable; unknown does not mean contaminated"
+    ],
+    "reason_codes": [
+      "LATEST_CLOSE_SINGLE_PROVIDER",
+      "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+      "CORPORATE_ACTION_UNKNOWN",
+      "POINT_IN_TIME_UNVERIFIED",
+      "ASSET_TYPE_UNVERIFIED"
+    ]
+  },
+  "manifest_sha256": "5ae811cd8fc19b956e0f16b84c27b37d585d36d2a7f58a6dc1d8937f52ef8a13"
+}

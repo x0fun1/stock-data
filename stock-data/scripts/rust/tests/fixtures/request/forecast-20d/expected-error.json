@@ -1,0 +1,7 @@
+{
+  "case": "forecast-20d",
+  "error_type": "PolicyError",
+  "code": "UNSUPPORTED_FORECAST_HORIZON",
+  "message": "forecast horizon must be 5D under fixed_52w_5d_v1; got 20D",
+  "contains": "UNSUPPORTED_FORECAST_HORIZON"
+}

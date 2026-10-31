@@ -1,0 +1,25 @@
+[package]
+name = "sd-cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Native `stock-data` command line entry point."
+
+[[bin]]
+name = "stock-data"
+path = "src/main.rs"
+
+[dependencies]
+sd-core = { workspace = true }
+sd-app = { workspace = true }
+sd-providers = { workspace = true }
+sd-storage = { workspace = true }
+sd-news = { workspace = true }
+chrono = { workspace = true }
+clap = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }

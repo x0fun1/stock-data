@@ -1,0 +1,5 @@
+{
+  "ticker": "MU",
+  "intent": "forecast",
+  "horizon": "20D"
+}

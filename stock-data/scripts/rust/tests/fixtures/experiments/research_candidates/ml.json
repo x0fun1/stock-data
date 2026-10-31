@@ -1,0 +1,1074 @@
+{
+  "arm": "ml.feature_set full_v1 -> compact_v1",
+  "common_sessions": 131,
+  "incumbent_sessions": 131,
+  "candidate_sessions": 171,
+  "coverage": {
+    "incumbent": 0.9703703703703703,
+    "candidate": 0.9771428571428571
+  },
+  "paired": [
+    {
+      "decision_session": "2026-04-17",
+      "horizon": 5,
+      "incumbent": 0.29658003128192384,
+      "candidate": 0.3663233077222263,
+      "target": 0,
+      "difference": 0.046233050825365996
+    },
+    {
+      "decision_session": "2026-04-20",
+      "horizon": 5,
+      "incumbent": 0.28556094038899493,
+      "candidate": 0.36536708462932077,
+      "target": 0,
+      "difference": 0.05194805585468214
+    },
+    {
+      "decision_session": "2026-04-21",
+      "horizon": 5,
+      "incumbent": 0.3192690295963902,
+      "candidate": 0.3480285257162101,
+      "target": 0,
+      "difference": 0.01919114145277806
+    },
+    {
+      "decision_session": "2026-04-22",
+      "horizon": 5,
+      "incumbent": 0.28693369818979236,
+      "candidate": 0.34462986824218583,
+      "target": 0,
+      "difference": 0.03643879892775552
+    },
+    {
+      "decision_session": "2026-04-23",
+      "horizon": 5,
+      "incumbent": 0.2563163395800598,
+      "candidate": 0.35012729996690867,
+      "target": 0,
+      "difference": 0.05689106024639713
+    },
+    {
+      "decision_session": "2026-04-24",
+      "horizon": 5,
+      "incumbent": 0.2656156284733199,
+      "candidate": 0.33814645159353074,
+      "target": 1,
+      "difference": -0.10127028560440238
+    },
+    {
+      "decision_session": "2026-04-27",
+      "horizon": 5,
+      "incumbent": 0.26927936761798016,
+      "candidate": 0.32998357823289864,
+      "target": 1,
+      "difference": -0.08503063715118875
+    },
+    {
+      "decision_session": "2026-04-28",
+      "horizon": 5,
+      "incumbent": 0.26595646264104766,
+      "candidate": 0.3212847348785886,
+      "target": 1,
+      "difference": -0.07816550362961588
+    },
+    {
+      "decision_session": "2026-04-29",
+      "horizon": 5,
+      "incumbent": 0.22519417717779527,
+      "candidate": 0.3343325166252724,
+      "target": 1,
+      "difference": -0.1572108646567506
+    },
+    {
+      "decision_session": "2026-04-30",
+      "horizon": 5,
+      "incumbent": 0.23248733653236164,
+      "candidate": 0.3257557157822403,
+      "target": 1,
+      "difference": -0.1344703337828691
+    },
+    {
+      "decision_session": "2026-05-01",
+      "horizon": 5,
+      "incumbent": 0.21707343564836562,
+      "candidate": 0.3412544835569082,
+      "target": 1,
+      "difference": -0.17902834973357812
+    },
+    {
+      "decision_session": "2026-05-04",
+      "horizon": 5,
+      "incumbent": 0.2328106067840342,
+      "candidate": 0.3471023185678525,
+      "target": 1,
+      "difference": -0.16230418264360785
+    },
+    {
+      "decision_session": "2026-05-05",
+      "horizon": 5,
+      "incumbent": 0.2586879331604727,
+      "candidate": 0.35731875651505385,
+      "target": 0,
+      "difference": 0.060757246994627145
+    },
+    {
+      "decision_session": "2026-05-06",
+      "horizon": 5,
+      "incumbent": 0.2255382348164693,
+      "candidate": 0.3718732175276517,
+      "target": 0,
+      "difference": 0.08742219455023928
+    },
+    {
+      "decision_session": "2026-05-07",
+      "horizon": 5,
+      "incumbent": 0.2520975252837387,
+      "candidate": 0.37909693389838306,
+      "target": 0,
+      "difference": 0.08016132303696975
+    },
+    {
+      "decision_session": "2026-05-08",
+      "horizon": 5,
+      "incumbent": 0.276739382035452,
+      "candidate": 0.38380834599716435,
+      "target": 0,
+      "difference": 0.07072416088771517
+    },
+    {
+      "decision_session": "2026-05-11",
+      "horizon": 5,
+      "incumbent": 0.296435817332906,
+      "candidate": 0.3848745777581414,
+      "target": 0,
+      "difference": 0.06025424680667958
+    },
+    {
+      "decision_session": "2026-05-12",
+      "horizon": 5,
+      "incumbent": 0.3219284223792189,
+      "candidate": 0.37013842291269083,
+      "target": 1,
+      "difference": -0.06305545808622265
+    },
+    {
+      "decision_session": "2026-05-13",
+      "horizon": 5,
+      "incumbent": 0.2945059394008211,
+      "candidate": 0.37319898941141844,
+      "target": 0,
+      "difference": 0.0525437373553439
+    },
+    {
+      "decision_session": "2026-05-14",
+      "horizon": 5,
+      "incumbent": 0.26651803702520854,
+      "candidate": 0.3789331343520432,
+      "target": 0,
+      "difference": 0.07255845625009318
+    },
+    {
+      "decision_session": "2026-05-15",
+      "horizon": 5,
+      "incumbent": 0.22941237220933777,
+      "candidate": 0.37974046579411896,
+      "target": 0,
+      "difference": 0.09157278483881869
+    },
+    {
+      "decision_session": "2026-05-18",
+      "horizon": 5,
+      "incumbent": 0.26816109142175487,
+      "candidate": 0.3726658284147751,
+      "target": 0,
+      "difference": 0.06696944871556382
+    },
+    {
+      "decision_session": "2026-05-19",
+      "horizon": 5,
+      "incumbent": 0.25393302575595017,
+      "candidate": 0.38913278824875797,
+      "target": 0,
+      "difference": 0.08694234532068065
+    },
+    {
+      "decision_session": "2026-05-20",
+      "horizon": 5,
+      "incumbent": 0.2991442427303755,
+      "candidate": 0.3751007731184965,
+      "target": 0,
+      "difference": 0.05121331203536396
+    },
+    {
+      "decision_session": "2026-05-21",
+      "horizon": 5,
+      "incumbent": 0.2886446999970959,
+      "candidate": 0.36861313539773327,
+      "target": 0,
+      "difference": 0.05255988075133415
+    },
+    {
+      "decision_session": "2026-05-22",
+      "horizon": 5,
+      "incumbent": 0.32559098100240746,
+      "candidate": 0.3564340766031804,
+      "target": 0,
+      "difference": 0.021035764053851796
+    },
+    {
+      "decision_session": "2026-05-25",
+      "horizon": 5,
+      "incumbent": 0.34984136023830104,
+      "candidate": 0.3470792117119116,
+      "target": 1,
+      "difference": 0.003599298921956151
+    },
+    {
+      "decision_session": "2026-05-26",
+      "horizon": 5,
+      "incumbent": 0.30690765090625083,
+      "candidate": 0.3477460406596203,
+      "target": 1,
+      "difference": -0.05494177689708968
+    },
+    {
+      "decision_session": "2026-05-27",
+      "horizon": 5,
+      "incumbent": 0.28508291723394563,
+      "candidate": 0.34856918357187305,
+      "target": 1,
+      "difference": -0.0867443266385094
+    },
+    {
+      "decision_session": "2026-05-28",
+      "horizon": 5,
+      "incumbent": 0.29435589138924756,
+      "candidate": 0.3428873039568339,
+      "target": 1,
+      "difference": -0.06613651271594495
+    },
+    {
+      "decision_session": "2026-05-29",
+      "horizon": 5,
+      "incumbent": 0.28480868074486126,
+      "candidate": 0.34294426906494946,
+      "target": 1,
+      "difference": -0.07977638958331218
+    },
+    {
+      "decision_session": "2026-06-01",
+      "horizon": 5,
+      "incumbent": 0.2823684835150311,
+      "candidate": 0.3529529574154343,
+      "target": 1,
+      "difference": -0.09632511813508343
+    },
+    {
+      "decision_session": "2026-06-02",
+      "horizon": 5,
+      "incumbent": 0.2965578460196904,
+      "candidate": 0.3563183789149926,
+      "target": 1,
+      "difference": -0.08050483467383462
+    },
+    {
+      "decision_session": "2026-06-03",
+      "horizon": 5,
+      "incumbent": 0.25039907792813815,
+      "candidate": 0.3632487867092773,
+      "target": 1,
+      "difference": -0.15644943474377798
+    },
+    {
+      "decision_session": "2026-06-04",
+      "horizon": 5,
+      "incumbent": 0.24646005897181586,
+      "candidate": 0.3725118977686986,
+      "target": 1,
+      "difference": -0.174081124282919
+    },
+    {
+      "decision_session": "2026-06-05",
+      "horizon": 5,
+      "incumbent": 0.21469904558987019,
+      "candidate": 0.3835775027714583,
+      "target": 0,
+      "difference": 0.10103602045518693
+    },
+    {
+      "decision_session": "2026-06-08",
+      "horizon": 5,
+      "incumbent": 0.26306662097821415,
+      "candidate": 0.386195815227862,
+      "target": 1,
+      "difference": -0.166315227872678
+    },
+    {
+      "decision_session": "2026-06-09",
+      "horizon": 5,
+      "incumbent": 0.2538325131003301,
+      "candidate": 0.39618737253409475,
+      "target": 1,
+      "difference": -0.192176229418889
+    },
+    {
+      "decision_session": "2026-06-10",
+      "horizon": 5,
+      "incumbent": 0.25729481606790616,
+      "candidate": 0.3980866297641511,
+      "target": 1,
+      "difference": -0.18931128497092725
+    },
+    {
+      "decision_session": "2026-06-11",
+      "horizon": 5,
+      "incumbent": 0.2686098619411169,
+      "candidate": 0.4030019551511926,
+      "target": 1,
+      "difference": -0.17852486849649335
+    },
+    {
+      "decision_session": "2026-06-12",
+      "horizon": 5,
+      "incumbent": 0.2858417185279135,
+      "candidate": 0.3944364927282396,
+      "target": 1,
+      "difference": -0.1433148896558885
+    },
+    {
+      "decision_session": "2026-06-15",
+      "horizon": 5,
+      "incumbent": 0.28510234994848116,
+      "candidate": 0.4024354402147218,
+      "target": 1,
+      "difference": -0.15399524693781047
+    },
+    {
+      "decision_session": "2026-06-16",
+      "horizon": 5,
+      "incumbent": 0.2365975799794187,
+      "candidate": 0.4208509915451173,
+      "target": 0,
+      "difference": 0.12113714223239096
+    },
+    {
+      "decision_session": "2026-06-17",
+      "horizon": 5,
+      "incumbent": 0.28127536506979,
+      "candidate": 0.4246939311315937,
+      "target": 1,
+      "difference": -0.18558802797874419
+    },
+    {
+      "decision_session": "2026-06-18",
+      "horizon": 5,
+      "incumbent": 0.258781617288335,
+      "candidate": 0.4391736982688258,
+      "target": 0,
+      "difference": 0.12590561180475135
+    },
+    {
+      "decision_session": "2026-06-19",
+      "horizon": 5,
+      "incumbent": 0.2845969803503036,
+      "candidate": 0.4524938267517155,
+      "target": 0,
+      "difference": 0.12375522202390044
+    },
+    {
+      "decision_session": "2026-06-22",
+      "horizon": 5,
+      "incumbent": 0.3305161191201785,
+      "candidate": 0.4525892731355062,
+      "target": 1,
+      "difference": -0.14855016287159356
+    },
+    {
+      "decision_session": "2026-06-23",
+      "horizon": 5,
+      "incumbent": 0.3464779119153447,
+      "candidate": 0.42317414022310235,
+      "target": 1,
+      "difference": -0.0943630471071708
+    },
+    {
+      "decision_session": "2026-06-24",
+      "horizon": 5,
+      "incumbent": 0.31526742260221385,
+      "candidate": 0.43474077868624533,
+      "target": 1,
+      "difference": -0.14934071526958298
+    },
+    {
+      "decision_session": "2026-06-25",
+      "horizon": 5,
+      "incumbent": 0.32507301026302604,
+      "candidate": 0.4279382320310964,
+      "target": 1,
+      "difference": -0.12827177510370563
+    },
+    {
+      "decision_session": "2026-06-26",
+      "horizon": 5,
+      "incumbent": 0.31163509025638425,
+      "candidate": 0.42419682536737247,
+      "target": 1,
+      "difference": -0.1422969530493241
+    },
+    {
+      "decision_session": "2026-06-29",
+      "horizon": 5,
+      "incumbent": 0.3120773068741706,
+      "candidate": 0.4349044483813921,
+      "target": 0,
+      "difference": 0.09174963375608768
+    },
+    {
+      "decision_session": "2026-06-30",
+      "horizon": 5,
+      "incumbent": 0.3316429925991885,
+      "candidate": 0.44510607373460986,
+      "target": 0,
+      "difference": 0.08813234233529456
+    },
+    {
+      "decision_session": "2026-07-01",
+      "horizon": 5,
+      "incumbent": 0.3637386286695534,
+      "candidate": 0.4420189843815947,
+      "target": 0,
+      "difference": 0.06307499256732921
+    },
+    {
+      "decision_session": "2026-07-02",
+      "horizon": 5,
+      "incumbent": 0.3641205380829538,
+      "candidate": 0.4434391685226076,
+      "target": 0,
+      "difference": 0.06405452992620178
+    },
+    {
+      "decision_session": "2026-07-03",
+      "horizon": 5,
+      "incumbent": 0.37801653841084837,
+      "candidate": 0.44516897910170833,
+      "target": 0,
+      "difference": 0.055278916642336834
+    },
+    {
+      "decision_session": "2026-07-06",
+      "horizon": 5,
+      "incumbent": 0.4053834252753171,
+      "candidate": 0.43575422717525336,
+      "target": 0,
+      "difference": 0.0255460250131537
+    },
+    {
+      "decision_session": "2026-07-07",
+      "horizon": 5,
+      "incumbent": 0.3843304868715007,
+      "candidate": 0.42936407741941246,
+      "target": 1,
+      "difference": -0.0534235932564851
+    },
+    {
+      "decision_session": "2026-07-08",
+      "horizon": 5,
+      "incumbent": 0.3679124571324364,
+      "candidate": 0.4260498683784263,
+      "target": 0,
+      "difference": 0.046158914232047515
+    },
+    {
+      "decision_session": "2026-07-09",
+      "horizon": 5,
+      "incumbent": 0.35875818053756275,
+      "candidate": 0.4222186328761641,
+      "target": 0,
+      "difference": 0.049561141845194584
+    },
+    {
+      "decision_session": "2026-07-10",
+      "horizon": 5,
+      "incumbent": 0.3752265076686695,
+      "candidate": 0.41452891919389817,
+      "target": 0,
+      "difference": 0.031039292790835254
+    },
+    {
+      "decision_session": "2026-07-13",
+      "horizon": 5,
+      "incumbent": 0.35246544882127157,
+      "candidate": 0.414036152240258,
+      "target": 0,
+      "difference": 0.0471940427491377
+    },
+    {
+      "decision_session": "2026-07-14",
+      "horizon": 5,
+      "incumbent": 0.3537916070756813,
+      "candidate": 0.4185374049014593,
+      "target": 0,
+      "difference": 0.050005058064454794
+    },
+    {
+      "decision_session": "2026-07-15",
+      "horizon": 5,
+      "incumbent": 0.3622961797287149,
+      "candidate": 0.41578818993183375,
+      "target": 0,
+      "difference": 0.04162129704076936
+    },
+    {
+      "decision_session": "2026-07-16",
+      "horizon": 5,
+      "incumbent": 0.3866037160038595,
+      "candidate": 0.40511456897832326,
+      "target": 1,
+      "difference": -0.022366325178427737
+    },
+    {
+      "decision_session": "2026-07-17",
+      "horizon": 5,
+      "incumbent": 0.3766518141101904,
+      "candidate": 0.4009410621838622,
+      "target": 1,
+      "difference": -0.029691349874717388
+    },
+    {
+      "decision_session": "2026-07-20",
+      "horizon": 5,
+      "incumbent": 0.37613121516506504,
+      "candidate": 0.40100232033068006,
+      "target": 1,
+      "difference": -0.030414040442189094
+    },
+    {
+      "decision_session": "2026-07-21",
+      "horizon": 5,
+      "incumbent": 0.3788278372343949,
+      "candidate": 0.40459843233789444,
+      "target": 1,
+      "difference": -0.031351829020406397
+    },
+    {
+      "decision_session": "2026-07-22",
+      "horizon": 5,
+      "incumbent": 0.37441737585217816,
+      "candidate": 0.40260631030156213,
+      "target": 1,
+      "difference": -0.03447439914416145
+    },
+    {
+      "decision_session": "2026-07-23",
+      "horizon": 5,
+      "incumbent": 0.33483704135665676,
+      "candidate": 0.41249450663721315,
+      "target": 1,
+      "difference": -0.09727905681971438
+    },
+    {
+      "decision_session": "2026-07-24",
+      "horizon": 5,
+      "incumbent": 0.3163649454228932,
+      "candidate": 0.42028613442398516,
+      "target": 0,
+      "difference": 0.07655365609662594
+    },
+    {
+      "decision_session": "2026-07-27",
+      "horizon": 5,
+      "incumbent": 0.3470021283300863,
+      "candidate": 0.42269176596454316,
+      "target": 0,
+      "difference": 0.05825785194861445
+    },
+    {
+      "decision_session": "2026-07-28",
+      "horizon": 5,
+      "incumbent": 0.3502930907011106,
+      "candidate": 0.42650504878274753,
+      "target": 0,
+      "difference": 0.05920130724423735
+    },
+    {
+      "decision_session": "2026-07-29",
+      "horizon": 5,
+      "incumbent": 0.36436511094491214,
+      "candidate": 0.4280513551586135,
+      "target": 1,
+      "difference": -0.07690645984817529
+    },
+    {
+      "decision_session": "2026-07-30",
+      "horizon": 5,
+      "incumbent": 0.38472309601578886,
+      "candidate": 0.4304290826369551,
+      "target": 1,
+      "difference": -0.05415463867061571
+    },
+    {
+      "decision_session": "2026-07-31",
+      "horizon": 5,
+      "incumbent": 0.38258766839974057,
+      "candidate": 0.424837624073866,
+      "target": 1,
+      "difference": -0.050386228531073274
+    },
+    {
+      "decision_session": "2026-08-03",
+      "horizon": 5,
+      "incumbent": 0.37273687195141764,
+      "candidate": 0.42924790442586286,
+      "target": 1,
+      "difference": -0.06770107720702312
+    },
+    {
+      "decision_session": "2026-08-04",
+      "horizon": 5,
+      "incumbent": 0.36083801178693486,
+      "candidate": 0.42957637503677626,
+      "target": 1,
+      "difference": -0.08314493526029387
+    },
+    {
+      "decision_session": "2026-08-05",
+      "horizon": 5,
+      "incumbent": 0.3684395429619194,
+      "candidate": 0.43318173337307125,
+      "target": 1,
+      "difference": -0.07758566351219309
+    },
+    {
+      "decision_session": "2026-08-06",
+      "horizon": 5,
+      "incumbent": 0.3263567452502037,
+      "candidate": 0.4362155591941035,
+      "target": 1,
+      "difference": -0.13594233897508157
+    },
+    {
+      "decision_session": "2026-08-07",
+      "horizon": 5,
+      "incumbent": 0.34085479663728246,
+      "candidate": 0.4447571630063311,
+      "target": 0,
+      "difference": 0.08162694165479699
+    },
+    {
+      "decision_session": "2026-08-10",
+      "horizon": 5,
+      "incumbent": 0.3464130460032349,
+      "candidate": 0.44921997253148255,
+      "target": 0,
+      "difference": 0.0817965852799466
+    },
+    {
+      "decision_session": "2026-08-11",
+      "horizon": 5,
+      "incumbent": 0.3861367531882214,
+      "candidate": 0.44337147907509683,
+      "target": 0,
+      "difference": 0.047476676294497616
+    },
+    {
+      "decision_session": "2026-08-12",
+      "horizon": 5,
+      "incumbent": 0.35111780163265705,
+      "candidate": 0.44885789531948467,
+      "target": 0,
+      "difference": 0.07818969956728757
+    },
+    {
+      "decision_session": "2026-08-13",
+      "horizon": 5,
+      "incumbent": 0.3789723933992251,
+      "candidate": 0.4606876843698373,
+      "target": 0,
+      "difference": 0.06861306757130581
+    },
+    {
+      "decision_session": "2026-08-14",
+      "horizon": 5,
+      "incumbent": 0.40369199351706986,
+      "candidate": 0.4495960271970342,
+      "target": 1,
+      "difference": -0.05263870531835835
+    },
+    {
+      "decision_session": "2026-08-17",
+      "horizon": 5,
+      "incumbent": 0.3950782870451285,
+      "candidate": 0.4468240984721535,
+      "target": 1,
+      "difference": -0.059926700773110186
+    },
+    {
+      "decision_session": "2026-08-18",
+      "horizon": 5,
+      "incumbent": 0.3768410292756673,
+      "candidate": 0.4451436230968169,
+      "target": 1,
+      "difference": -0.08046150380408251
+    },
+    {
+      "decision_session": "2026-08-19",
+      "horizon": 5,
+      "incumbent": 0.40084961519023277,
+      "candidate": 0.436588586489052,
+      "target": 1,
+      "difference": -0.04154876274328767
+    },
+    {
+      "decision_session": "2026-08-20",
+      "horizon": 5,
+      "incumbent": 0.3638334918837843,
+      "candidate": 0.4350659204860631,
+      "target": 1,
+      "difference": -0.08555731185252002
+    },
+    {
+      "decision_session": "2026-08-21",
+      "horizon": 5,
+      "incumbent": 0.3519869100786972,
+      "candidate": 0.43759580963506206,
+      "target": 1,
+      "difference": -0.10362249136931312
+    },
+    {
+      "decision_session": "2026-08-24",
+      "horizon": 5,
+      "incumbent": 0.38453045867290775,
+      "candidate": 0.4390810250055322,
+      "target": 1,
+      "difference": -0.06417265979253695
+    },
+    {
+      "decision_session": "2026-08-25",
+      "horizon": 5,
+      "incumbent": 0.36121922994464717,
+      "candidate": 0.4423579614325155,
+      "target": 1,
+      "difference": -0.09707622901480967
+    },
+    {
+      "decision_session": "2026-08-26",
+      "horizon": 5,
+      "incumbent": 0.3439185492023031,
+      "candidate": 0.44593946348026303,
+      "target": 1,
+      "difference": -0.12345979195227197
+    },
+    {
+      "decision_session": "2026-08-27",
+      "horizon": 5,
+      "incumbent": 0.3720130072890233,
+      "candidate": 0.45132338988208304,
+      "target": 1,
+      "difference": -0.09332164052368758
+    },
+    {
+      "decision_session": "2026-08-28",
+      "horizon": 5,
+      "incumbent": 0.41043201645616356,
+      "candidate": 0.45397449246856575,
+      "target": 1,
+      "difference": -0.04944655234498507
+    },
+    {
+      "decision_session": "2026-08-31",
+      "horizon": 5,
+      "incumbent": 0.3374591811682596,
+      "candidate": 0.4501618037818006,
+      "target": 1,
+      "difference": -0.13663829459774984
+    },
+    {
+      "decision_session": "2026-09-01",
+      "horizon": 5,
+      "incumbent": 0.38020094383934694,
+      "candidate": 0.4558618259779118,
+      "target": 1,
+      "difference": -0.08806451758954398
+    },
+    {
+      "decision_session": "2026-09-02",
+      "horizon": 5,
+      "incumbent": 0.3999108030358269,
+      "candidate": 0.4618253053245169,
+      "target": 1,
+      "difference": -0.07047504232405666
+    },
+    {
+      "decision_session": "2026-09-03",
+      "horizon": 5,
+      "incumbent": 0.41289395688394814,
+      "candidate": 0.46480143264153573,
+      "target": 0,
+      "difference": 0.04555895215434044
+    },
+    {
+      "decision_session": "2026-09-04",
+      "horizon": 5,
+      "incumbent": 0.41810588335667,
+      "candidate": 0.4668184127232401,
+      "target": 1,
+      "difference": -0.0543181579731562
+    },
+    {
+      "decision_session": "2026-09-07",
+      "horizon": 5,
+      "incumbent": 0.4382133150176135,
+      "candidate": 0.4714306022658208,
+      "target": 0,
+      "difference": 0.03021590329398835
+    },
+    {
+      "decision_session": "2026-09-08",
+      "horizon": 5,
+      "incumbent": 0.4632895036872324,
+      "candidate": 0.48071916651255886,
+      "target": 1,
+      "difference": -0.018405572824885752
+    },
+    {
+      "decision_session": "2026-09-09",
+      "horizon": 5,
+      "incumbent": 0.47068469737224206,
+      "candidate": 0.4772775284552181,
+      "target": 1,
+      "difference": -0.006935907338029623
+    },
+    {
+      "decision_session": "2026-09-10",
+      "horizon": 5,
+      "incumbent": 0.4612274935102894,
+      "candidate": 0.46931763742563926,
+      "target": 1,
+      "difference": -0.008652043801700038
+    },
+    {
+      "decision_session": "2026-09-11",
+      "horizon": 5,
+      "incumbent": 0.4517382909577564,
+      "candidate": 0.4848242375751938,
+      "target": 1,
+      "difference": -0.035184835411941395
+    },
+    {
+      "decision_session": "2026-09-14",
+      "horizon": 5,
+      "incumbent": 0.4668871524740135,
+      "candidate": 0.4819127219542456,
+      "target": 1,
+      "difference": -0.015794880524406918
+    },
+    {
+      "decision_session": "2026-09-15",
+      "horizon": 5,
+      "incumbent": 0.4725368391339884,
+      "candidate": 0.48582994174259675,
+      "target": 1,
+      "difference": -0.01384653726234264
+    },
+    {
+      "decision_session": "2026-09-16",
+      "horizon": 5,
+      "incumbent": 0.4790921586594443,
+      "candidate": 0.4989690928032509,
+      "target": 1,
+      "difference": -0.02031300920368012
+    },
+    {
+      "decision_session": "2026-09-17",
+      "horizon": 5,
+      "incumbent": 0.47853815339646166,
+      "candidate": 0.5018811601672533,
+      "target": 1,
+      "difference": -0.023800078866850566
+    },
+    {
+      "decision_session": "2026-09-18",
+      "horizon": 5,
+      "incumbent": 0.4923081213902542,
+      "candidate": 0.5016609864267356,
+      "target": 0,
+      "difference": 0.00929645891584413
+    },
+    {
+      "decision_session": "2026-09-21",
+      "horizon": 5,
+      "incumbent": 0.49888466008709687,
+      "candidate": 0.5107010217345068,
+      "target": 0,
+      "difference": 0.011929629530451041
+    },
+    {
+      "decision_session": "2026-09-22",
+      "horizon": 5,
+      "incumbent": 0.5061207793608177,
+      "candidate": 0.5098546715982764,
+      "target": 0,
+      "difference": 0.0037935428497847257
+    },
+    {
+      "decision_session": "2026-09-23",
+      "horizon": 5,
+      "incumbent": 0.5143061067980386,
+      "candidate": 0.49955605565681244,
+      "target": 0,
+      "difference": -0.014954518746363138
+    },
+    {
+      "decision_session": "2026-09-24",
+      "horizon": 5,
+      "incumbent": 0.5092655008021215,
+      "candidate": 0.5032270077629465,
+      "target": 0,
+      "difference": -0.006113928965186977
+    },
+    {
+      "decision_session": "2026-09-25",
+      "horizon": 5,
+      "incumbent": 0.5102948800338255,
+      "candidate": 0.5015670875835571,
+      "target": 0,
+      "difference": -0.008831321241684731
+    },
+    {
+      "decision_session": "2026-09-28",
+      "horizon": 5,
+      "incumbent": 0.5082832990502041,
+      "candidate": 0.49556448542295917,
+      "target": 0,
+      "difference": -0.012767752880836869
+    },
+    {
+      "decision_session": "2026-09-29",
+      "horizon": 5,
+      "incumbent": 0.5074027021288693,
+      "candidate": 0.4923572120947401,
+      "target": 0,
+      "difference": -0.01504187782597316
+    },
+    {
+      "decision_session": "2026-09-30",
+      "horizon": 5,
+      "incumbent": 0.49287959234043444,
+      "candidate": 0.4802331031167042,
+      "target": 1,
+      "difference": 0.012986519230886673
+    },
+    {
+      "decision_session": "2026-10-01",
+      "horizon": 5,
+      "incumbent": 0.47730240092526344,
+      "candidate": 0.47828249923056165,
+      "target": 1,
+      "difference": -0.0010236294693851122
+    },
+    {
+      "decision_session": "2026-10-02",
+      "horizon": 5,
+      "incumbent": 0.4769416938696929,
+      "candidate": 0.4762715960117042,
+      "target": 1,
+      "difference": 0.0007014495322214542
+    },
+    {
+      "decision_session": "2026-10-05",
+      "horizon": 5,
+      "incumbent": 0.47694464009160525,
+      "candidate": 0.46900284251490265,
+      "target": 1,
+      "difference": 0.008371071728352997
+    },
+    {
+      "decision_session": "2026-10-06",
+      "horizon": 5,
+      "incumbent": 0.4631593254199247,
+      "candidate": 0.46822950909600075,
+      "target": 0,
+      "difference": 0.004722312464842143
+    },
+    {
+      "decision_session": "2026-10-07",
+      "horizon": 5,
+      "incumbent": 0.4369674630053274,
+      "candidate": 0.47846672828490827,
+      "target": 0,
+      "difference": 0.037989846350352074
+    },
+    {
+      "decision_session": "2026-10-08",
+      "horizon": 5,
+      "incumbent": 0.4692983164726926,
+      "candidate": 0.4814479693317105,
+      "target": 0,
+      "difference": 0.011551237329524122
+    },
+    {
+      "decision_session": "2026-10-09",
+      "horizon": 5,
+      "incumbent": 0.4762459712489055,
+      "candidate": 0.4752803323398722,
+      "target": 0,
+      "difference": -0.0009188308217139285
+    },
+    {
+      "decision_session": "2026-10-12",
+      "horizon": 5,
+      "incumbent": 0.47833099232907794,
+      "candidate": 0.4721579654515212,
+      "target": 1,
+      "difference": 0.0064786598719129285
+    },
+    {
+      "decision_session": "2026-10-13",
+      "horizon": 5,
+      "incumbent": 0.4694680164982956,
+      "candidate": 0.4638806971114928,
+      "target": 1,
+      "difference": 0.00595972141140616
+    },
+    {
+      "decision_session": "2026-10-14",
+      "horizon": 5,
+      "incumbent": 0.4663307165975752,
+      "candidate": 0.4591244305385485,
+      "target": 1,
+      "difference": 0.0077434775929918764
+    },
+    {
+      "decision_session": "2026-10-15",
+      "horizon": 5,
+      "incumbent": 0.4638354129053208,
+      "candidate": 0.454837989447983,
+      "target": 1,
+      "difference": 0.009729153294709636
+    },
+    {
+      "decision_session": "2026-10-16",
+      "horizon": 5,
+      "incumbent": 0.4206861958829325,
+      "candidate": 0.45310752208862204,
+      "target": 0,
+      "difference": 0.028329551166838052
+    }
+  ],
+  "verdict": {
+    "status": "candidate_supported",
+    "relative_brier_difference": -0.07522003546925388,
+    "interval": {
+      "status": "estimated",
+      "observations": 131,
+      "block_sessions": 6,
+      "iterations": 2000,
+      "mean": -0.02209418947259141,
+      "low": -0.04534128334949617,
+      "high": -0.0031613401756940404
+    },
+    "coverage_delta": 0.006772486772486763
+  }
+}

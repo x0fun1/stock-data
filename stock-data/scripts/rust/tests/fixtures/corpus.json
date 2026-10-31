@@ -1,0 +1,3467 @@
+{
+  "corpus_version": "1.0",
+  "generated_by": "tools/refactor/fixtures.py",
+  "generated_at_utc": "2026-10-30T22:05:19Z",
+  "baseline_commit": "a7da2f1666faf46498b87628444fe88dd9ccfff2",
+  "python_version": "3.13.7",
+  "baseline": {
+    "path": "D:\\stock-data\\runtime\\refactor\\baseline\\summary.json",
+    "generated_at_utc": "2026-10-30T16:21:36Z",
+    "selfcheck_exit": 0,
+    "actual_head": "a7da2f1666faf46498b87628444fe88dd9ccfff2"
+  },
+  "groups": {
+    "json": {
+      "status": "ok",
+      "seconds": 0.127,
+      "detail": {
+        "cases": 14,
+        "rejections": 3,
+        "cases_detail": [
+          {
+            "case": "plain-object",
+            "note": "sorted key order is part of the digest",
+            "sha256": "d3626ac30a87e6f7a6428233b3c68299976865fa5508e4267c5415c76af7a772"
+          },
+          {
+            "case": "unicode-chinese",
+            "note": "UTF-8 stays literal in canonical bytes",
+            "sha256": "de6838000f3e7aa2035dcade08edd16c77e42d5a9c6b25a38092cb57c9c7a5c4"
+          },
+          {
+            "case": "unicode-emoji",
+            "note": "4-byte UTF-8 survives both profiles",
+            "sha256": "3ce71ff03aa00c9d1f16ebe70a7591d409d2b15e23fe0cd60ed69ea803f7f8be"
+          },
+          {
+            "case": "backslash-and-quote",
+            "note": "escaping differences are visible",
+            "sha256": "7f5035f0195c8476ed83fad62eabb1f53ca24fc989457b471fabb84fb9b5bca0"
+          },
+          {
+            "case": "control-and-newline",
+            "note": "\\n and \\t escaping",
+            "sha256": "7aa504eb4a846978e40a99cd584c2ce45523612cf317be9884b2b052af84da6c"
+          },
+          {
+            "case": "int-vs-float",
+            "note": "1 and 1.0 must stay distinct",
+            "sha256": "28cdbfcaeae32723839a0d4909b13cfd3d033ec40828b3715a2e583cbd37832b"
+          },
+          {
+            "case": "negative-zero",
+            "note": "Python prints -0.0; a rewrite must not fold it to 0.0",
+            "sha256": "313ced45c5061347c26ca1288910a4f80cbd4f3c93e988cb8bb00d1cbab5cd86"
+          },
+          {
+            "case": "exponent",
+            "note": "exponent formatting is Python-specific",
+            "sha256": "d47891a95ccb12f8056557557f64c50a8268364af66375a286cd002537398544"
+          },
+          {
+            "case": "large-integer",
+            "note": "arbitrary precision integer",
+            "sha256": "d3afcde0129b0b1c6f30ff1257fd80e689bc646dbf1e6185a0f2b204d58a04b9"
+          },
+          {
+            "case": "null-vs-missing",
+            "note": "null/false/0/empty/missing are five states",
+            "sha256": "ee74d5526d8cbabf4821601420191be7a994e671b89f79f1ce9d0d0c5049b7ad"
+          },
+          {
+            "case": "nested-order",
+            "note": "nested sorting and array order preservation",
+            "sha256": "c20ffed92d2dd33389d8706ca4a9085eaf3778c64234ba9c2736f5830a1257de"
+          },
+          {
+            "case": "array-of-objects",
+            "note": "list order is semantic, never sorted",
+            "sha256": "2164bf8a34237b9ca2d904cc07b133a7af19d3bb212864346b09be98a35ac624"
+          },
+          {
+            "case": "bool-not-int",
+            "note": "true is not 1",
+            "sha256": "4e6974ed18e1043acf09dfa8648e7a169bd9d4048d3c67740768609a75ef542c"
+          },
+          {
+            "case": "empty-containers",
+            "note": "empty containers keep their type",
+            "sha256": "7c557880ceed861401b04be6735c9708e326427e072562fd259da6f6a2612b96"
+          }
+        ]
+      }
+    },
+    "request": {
+      "status": "ok",
+      "seconds": 0.019,
+      "detail": {
+        "accepted": 9,
+        "rejected": 14
+      }
+    },
+    "calendar": {
+      "status": "ok",
+      "seconds": 1.282,
+      "detail": {
+        "cases": 9,
+        "library_version": "4.13.2",
+        "detail": [
+          {
+            "case": "xnys-dst-spring",
+            "calendar": "XNYS",
+            "sessions": 15,
+            "note": "US DST spring-forward inside the window"
+          },
+          {
+            "case": "xnys-dst-fall",
+            "calendar": "XNYS",
+            "sessions": 15,
+            "note": "US DST fall-back inside the window"
+          },
+          {
+            "case": "xnys-early-close-thanksgiving",
+            "calendar": "XNYS",
+            "sessions": 7,
+            "note": "half session after Thanksgiving"
+          },
+          {
+            "case": "xnys-year-boundary",
+            "calendar": "XNYS",
+            "sessions": 10,
+            "note": "crosses a year boundary"
+          },
+          {
+            "case": "xnys-leap-day",
+            "calendar": "XNYS",
+            "sessions": 7,
+            "note": "leap day 2028-02-29"
+          },
+          {
+            "case": "xnys-holiday-shutdown",
+            "calendar": "XNYS",
+            "sessions": 3,
+            "note": "Juneteenth holiday then reopen"
+          },
+          {
+            "case": "xhkg-golden-week",
+            "calendar": "XHKG",
+            "sessions": 9,
+            "note": "HK National Day closure cluster"
+          },
+          {
+            "case": "xhkg-lunar-new-year",
+            "calendar": "XHKG",
+            "sessions": 7,
+            "note": "HK Lunar New Year closure"
+          },
+          {
+            "case": "xhkg-typhoon-suspension",
+            "calendar": "XHKG",
+            "sessions": 6,
+            "note": "HK severe-weather suspension is not fully modelled by the calendar library"
+          }
+        ]
+      }
+    },
+    "snapshot": {
+      "status": "ok",
+      "seconds": 0.545,
+      "detail": {
+        "cases": [
+          {
+            "case": "complete-window",
+            "expectation": "accepted",
+            "outcome": "accepted",
+            "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+            "schema_version": "1.3",
+            "policy_version": "fixed_52w_5d_v1",
+            "forecast_eligible": true,
+            "reporting_status": "degraded",
+            "reason_codes": [
+              "LATEST_CLOSE_SINGLE_PROVIDER",
+              "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+              "CORPORATE_ACTION_UNKNOWN",
+              "POINT_IN_TIME_UNVERIFIED",
+              "ASSET_TYPE_UNVERIFIED"
+            ],
+            "data_domains": {
+              "market": "complete",
+              "fundamentals": "unavailable",
+              "expectations": "unavailable",
+              "news": "unavailable",
+              "insider": "unavailable",
+              "options": "unavailable",
+              "short_volume": "unavailable",
+              "sec": "unavailable",
+              "macro": "unavailable"
+            },
+            "snapshot_content_sha256": "00d9769e96e8b45deff4406b0d090a0d264b8ce387baa106d06eb6100540bc3c",
+            "manifest_sha256": "5ae811cd8fc19b956e0f16b84c27b37d585d36d2a7f58a6dc1d8937f52ef8a13",
+            "market_bar_count": 260
+          },
+          {
+            "case": "missing-calendar",
+            "expectation": "accepted_with_warnings",
+            "outcome": "accepted",
+            "snapshot_id": "SYN_20261024T000000Z_5D_9e505ec4e6",
+            "schema_version": "1.3",
+            "policy_version": "fixed_52w_5d_v1",
+            "forecast_eligible": false,
+            "reporting_status": "veto",
+            "reason_codes": [
+              "SEVERE_MISSING_BARS",
+              "LATEST_CLOSE_SINGLE_PROVIDER",
+              "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+              "CORPORATE_ACTION_UNKNOWN",
+              "CALENDAR_UNVERIFIED",
+              "POINT_IN_TIME_UNVERIFIED",
+              "ASSET_TYPE_UNVERIFIED"
+            ],
+            "data_domains": {
+              "market": "partial",
+              "fundamentals": "unavailable",
+              "expectations": "unavailable",
+              "news": "unavailable",
+              "insider": "unavailable",
+              "options": "unavailable",
+              "short_volume": "unavailable",
+              "sec": "unavailable",
+              "macro": "unavailable"
+            },
+            "snapshot_content_sha256": "9e505ec4e6b67f6790cfca7c94c67b5717daca7f37a55286fb00e145113bccbe",
+            "manifest_sha256": "161a3667461750c59fdeb9a926f51cc3b29617a0aadedbdba8281d8f5cf8a28e",
+            "market_bar_count": 260
+          },
+          {
+            "case": "total-return-basis",
+            "expectation": "rejected",
+            "outcome": "rejected",
+            "error_type": "ValueError",
+            "error": "snapshot rejected: price basis None is not the required 'split_adjusted' split-adjusted close"
+          },
+          {
+            "case": "dividend-adjusted-basis",
+            "expectation": "rejected",
+            "outcome": "rejected",
+            "error_type": "ValueError",
+            "error": "snapshot rejected: price basis 'split_and_dividend_adjusted' is not the required 'split_adjusted' split-adjusted close"
+          },
+          {
+            "case": "literal-split-adjusted",
+            "expectation": "rejected",
+            "outcome": "rejected",
+            "error_type": "ValueError",
+            "error": "snapshot rejected: price basis None is not the required 'split_adjusted' split-adjusted close"
+          }
+        ]
+      }
+    },
+    "gateway": {
+      "status": "ok",
+      "seconds": 0.087,
+      "detail": {
+        "functions": 56
+      }
+    },
+    "security": {
+      "status": "ok",
+      "seconds": 0.004,
+      "detail": {
+        "texts": 24,
+        "urls": 13,
+        "sanitize": 4,
+        "provider": 10
+      }
+    },
+    "adapter": {
+      "status": "ok",
+      "seconds": 0.039,
+      "detail": {
+        "cases": 7
+      }
+    },
+    "gate": {
+      "status": "ok",
+      "seconds": 0.006,
+      "detail": {
+        "catalog": 80,
+        "classify_cases": 14,
+        "analysis_cases": 7
+      }
+    },
+    "check-market": {
+      "status": "ok",
+      "seconds": 0.128,
+      "detail": {
+        "cases": 15
+      }
+    },
+    "freeze": {
+      "status": "ok",
+      "seconds": 0.266,
+      "detail": {
+        "cases": [
+          {
+            "case": "supplied-calendar",
+            "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+            "files": 19
+          },
+          {
+            "case": "missing-calendar",
+            "snapshot_id": "SYN_20261024T000000Z_5D_9e505ec4e6",
+            "files": 19
+          }
+        ]
+      }
+    },
+    "load": {
+      "status": "ok",
+      "seconds": 0.07,
+      "detail": {
+        "cases": [
+          "complete-window",
+          "missing-calendar"
+        ]
+      }
+    },
+    "market-data": {
+      "status": "ok",
+      "seconds": 0.02,
+      "detail": {
+        "ordinals": 40,
+        "anchored_cases": 10
+      }
+    },
+    "math": {
+      "status": "ok",
+      "seconds": 0.01,
+      "detail": {
+        "rng_streams": 5,
+        "series": 60
+      }
+    },
+    "statistics": {
+      "status": "ok",
+      "seconds": 0.059,
+      "detail": {
+        "records": 65,
+        "improvements": 60
+      }
+    },
+    "quant": {
+      "status": "ok",
+      "seconds": 0.365,
+      "detail": {
+        "origins": 230
+      }
+    },
+    "quant-origin": {
+      "status": "ok",
+      "seconds": 0.044,
+      "detail": {
+        "cases": 21,
+        "series": 320
+      }
+    },
+    "reliability": {
+      "status": "ok",
+      "seconds": 0.019,
+      "detail": {
+        "diagnostics": 3,
+        "score_cases": 5
+      }
+    },
+    "audit": {
+      "status": "ok",
+      "seconds": 0.029,
+      "detail": {
+        "cases": 24
+      }
+    },
+    "probability-quality": {
+      "status": "ok",
+      "seconds": 0.053,
+      "detail": {
+        "tamper": 28,
+        "legacy": 4,
+        "oos_rows": 60
+      }
+    },
+    "consensus": {
+      "status": "ok",
+      "seconds": 0.037,
+      "detail": {
+        "cases": 6
+      }
+    },
+    "momentum": {
+      "status": "ok",
+      "seconds": 0.015,
+      "detail": {
+        "compute": 6,
+        "score_at": 4
+      }
+    },
+    "research-tooling": {
+      "status": "ok",
+      "seconds": 0.031,
+      "detail": {
+        "purged": 4,
+        "walk_forward": 4,
+        "metrics_observations": 61
+      }
+    },
+    "factor-backtest": {
+      "status": "ok",
+      "seconds": 0.056,
+      "detail": {
+        "status": "partial",
+        "factors": 9
+      }
+    },
+    "news-classify": {
+      "status": "ok",
+      "seconds": 0.044,
+      "detail": {
+        "cases": 14,
+        "decay": 8
+      }
+    },
+    "news-normalize": {
+      "status": "ok",
+      "seconds": 0.033,
+      "detail": {
+        "normalized": 7,
+        "excluded": 5,
+        "clusters": 5,
+        "duplicates": 3
+      }
+    },
+    "ml": {
+      "status": "ok",
+      "seconds": 2.713,
+      "detail": {
+        "status": "success",
+        "observations": 171,
+        "refits": 171,
+        "probability": 0.4625866617200871
+      }
+    },
+    "factor": {
+      "status": "ok",
+      "seconds": 0.502,
+      "detail": {
+        "status": "partial",
+        "prob_up": 0.507936507936508,
+        "route": "shadow_candidate"
+      }
+    },
+    "news-reaction": {
+      "status": "ok",
+      "seconds": 0.061,
+      "detail": {
+        "reactions": 9,
+        "buckets": 4
+      }
+    },
+    "news-impact": {
+      "status": "ok",
+      "seconds": 0.047,
+      "detail": {
+        "magnitude": 9,
+        "patterns": 10,
+        "tiers": 12
+      }
+    },
+    "news-ai": {
+      "status": "ok",
+      "seconds": 0.031,
+      "detail": {
+        "items": 3,
+        "errors": 23
+      }
+    },
+    "report": {
+      "status": "ok",
+      "seconds": 0.036,
+      "detail": {
+        "cases": 4,
+        "lines": 9
+      }
+    },
+    "news-pipeline": {
+      "status": "ok",
+      "seconds": 0.077,
+      "detail": {
+        "status": "complete",
+        "events": 5,
+        "opinions": 2,
+        "warnings": 1,
+        "digest": "3c1f518a3b288906"
+      }
+    },
+    "delivery": {
+      "status": "ok",
+      "seconds": 0.042,
+      "detail": {
+        "response_cases": 6,
+        "stage_cases": 6,
+        "coverage_cases": 7
+      }
+    },
+    "cleanup": {
+      "status": "ok",
+      "seconds": 0.47,
+      "detail": {
+        "receipt_cases": 9,
+        "gc_cases": 5,
+        "orphans": 1
+      }
+    },
+    "ledger": {
+      "status": "ok",
+      "seconds": 0.143,
+      "detail": {
+        "basic_events": 1,
+        "settlements": 1,
+        "forward_events": 3,
+        "legacy_events": 2
+      }
+    },
+    "experiments": {
+      "status": "ok",
+      "seconds": 20.732,
+      "detail": {
+        "momentum_sessions": 260,
+        "selection_symbols": 3,
+        "research_b_symbols": 3,
+        "candidates_evaluate_error": "price basis None is not the policy basis 'split_adjusted'; a dividend-reinvested series cannot serve the 5D price-direction target"
+      }
+    },
+    "gateway-local": {
+      "status": "ok",
+      "seconds": 8.528,
+      "detail": {
+        "group": "gateway-local",
+        "cases": 46,
+        "note": "R12 local gateway differential envelopes from the legacy CLI"
+      }
+    },
+    "gateway-sources": {
+      "status": "ok",
+      "seconds": 0.007,
+      "detail": {
+        "group": "gateway-sources",
+        "cases": 69,
+        "note": "R13 China sources + R14 official sources"
+      }
+    },
+    "yahoo": {
+      "status": "ok",
+      "seconds": 0.024,
+      "detail": {
+        "group": "yahoo",
+        "cases": 92,
+        "note": "R15 pure normalization + legacy Yahoo routes + compatibility fallback + provider routing"
+      }
+    },
+    "collector": {
+      "status": "ok",
+      "seconds": 0.25,
+      "detail": {
+        "group": "collector",
+        "cases": 15,
+        "note": "R16 collector"
+      }
+    }
+  },
+  "failed_groups": [],
+  "file_count": 361,
+  "files": [
+    {
+      "path": "collector/cases.json",
+      "group": "collector",
+      "role": "R16 collector differential cases",
+      "bytes": 5779945,
+      "sha256": "26f8c9302f81b897f7a7ec72dac59e2630e23949e056d72709a0c33de6e6869a",
+      "note": "offline, no network"
+    },
+    {
+      "path": "yahoo/normalize_cases.json",
+      "group": "yahoo",
+      "role": "R15 pure normalization differential cases",
+      "bytes": 112267,
+      "sha256": "a1fb5e164fdb366bd1de29ead513b0c7cf5d6c6fed65446829177f623f7fa556",
+      "note": "offline, no yfinance import"
+    },
+    {
+      "path": "yahoo/legacy_cases.json",
+      "group": "yahoo",
+      "role": "R15 legacy Yahoo differential cases",
+      "bytes": 27072,
+      "sha256": "84e1dc62962cd4f39d1eb07c0be1057d7cd5e11c71bf3ba04c1410576b020c19",
+      "note": "offline scripted HTTP"
+    },
+    {
+      "path": "yahoo/fallback_cases.json",
+      "group": "yahoo",
+      "role": "R15 compatibility-fallback differential cases",
+      "bytes": 51508,
+      "sha256": "610e23de69e17832d847dac0e351cf81f0e03632b0325f298f91ebe9fb5de63a",
+      "note": "offline, no network"
+    },
+    {
+      "path": "yahoo/provider_cases.json",
+      "group": "yahoo",
+      "role": "R15 provider routing differential cases",
+      "bytes": 20442,
+      "sha256": "aa0b353e875e232367ebb3b3b7f3f029468d57b04e9e7e5e59a5940800efc7ed",
+      "note": "offline, no network"
+    },
+    {
+      "path": "gateway-sources/r13_cases.json",
+      "group": "gateway-sources",
+      "role": "R13 China source differential cases",
+      "bytes": 29801,
+      "sha256": "e3d957eccbd93b07d7ebcfdee137f17784a6707a8c0589ef7f718996d8787625",
+      "note": "offline scripted responses, no network"
+    },
+    {
+      "path": "gateway-sources/r14_cases.json",
+      "group": "gateway-sources",
+      "role": "R14 official source differential cases",
+      "bytes": 55763,
+      "sha256": "b48f360c6153f92e8cc3b0bea41fb4b9a692e0750a5d2ef15adf7a1b6f55ac96",
+      "note": "offline scripted responses, deterministic clock and environment"
+    },
+    {
+      "path": "gateway-local/local/inputs/params.json",
+      "group": "gateway-local",
+      "role": "params-file input",
+      "bytes": 577,
+      "sha256": "91b81477b2aee35ad73f643d0d16e3c3a8490ad11606ac7fddccd4437392f4d7",
+      "note": ""
+    },
+    {
+      "path": "gateway-local/local/cases.json",
+      "group": "gateway-local",
+      "role": "legacy CLI envelopes and exit codes",
+      "bytes": 78585,
+      "sha256": "afe9be04380695f621fd25dd87bafb8547e3ec81b7ae41f04794384523a92951",
+      "note": "R12 local gateway differential cases"
+    },
+    {
+      "path": "experiments/momentum/inputs.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 3657087,
+      "sha256": "51fb3bfb2f90c4c0ca0c12ff8b3d0baa65ece44deaa035e76a4c7849357c83a6",
+      "note": ""
+    },
+    {
+      "path": "experiments/momentum/panel.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 78188,
+      "sha256": "e11ad04436986649eabfc38c82bf97e2ac0e11979ce7dc77bdb480f9e72d66bc",
+      "note": ""
+    },
+    {
+      "path": "experiments/momentum/report.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 2631,
+      "sha256": "2f104f14e432801546923a6df63da788c3f28df05a9d0541fae18834d665927c",
+      "note": ""
+    },
+    {
+      "path": "experiments/momentum/report.md",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 2277,
+      "sha256": "80e95496cbe91a6d749287e2c0276fb252de4bcac5fc264c65d7823ecc260078",
+      "note": ""
+    },
+    {
+      "path": "experiments/selection_ab/inputs.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 731446,
+      "sha256": "9cf6db74e1753bfbccfebcc87920dd54b0b3b8d984529c005944d5cc942419db",
+      "note": ""
+    },
+    {
+      "path": "experiments/selection_ab/report.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 4547,
+      "sha256": "88ff85531b6944199af47b8539da8723d1fc2fc2c10fe05b400d83716c5acf15",
+      "note": ""
+    },
+    {
+      "path": "experiments/selection_ab/report.md",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 1538,
+      "sha256": "b12708b906d5b1a6b74596fd4b0307ec6e1867fff35e982702ace62cd848b0c1",
+      "note": ""
+    },
+    {
+      "path": "experiments/research_b_ab/inputs.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 731446,
+      "sha256": "9cf6db74e1753bfbccfebcc87920dd54b0b3b8d984529c005944d5cc942419db",
+      "note": ""
+    },
+    {
+      "path": "experiments/research_b_ab/report.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 6958,
+      "sha256": "291cfdba25dca5fb7a2c22143bde06796e098887b3dca858e13ad1dbf873c77d",
+      "note": ""
+    },
+    {
+      "path": "experiments/research_b_ab/report.md",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 2051,
+      "sha256": "00d540105cf721a806b3ed0850d01d71d11c4e997834f2fc85afb1bbaa5569af",
+      "note": ""
+    },
+    {
+      "path": "experiments/research_candidates/inputs.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 52585,
+      "sha256": "8c65b2e0c7ab8cff152e1ff9a18666476ba7270cb83c9e97141dc6912550a6e5",
+      "note": ""
+    },
+    {
+      "path": "experiments/research_candidates/ml.json",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 28351,
+      "sha256": "f7624f1092ccd60e5f0506d2c63a3314c60bcde1b028b9f0368fc7fbfc1e423f",
+      "note": ""
+    },
+    {
+      "path": "experiments/research_candidates/evaluate_error.txt",
+      "group": "experiments",
+      "role": "reference",
+      "bytes": 130,
+      "sha256": "720b03ae0ffa96fe64adbf3b093b4230774f4e90770b50da5615128131f6a0d6",
+      "note": ""
+    },
+    {
+      "path": "ledger/golden/basic.jsonl",
+      "group": "ledger",
+      "role": "reference",
+      "bytes": 8354,
+      "sha256": "cd4f37859ee08a3a14a83c001b26b2fd04d073bc1103624d3a7f8480a36db11d",
+      "note": "byte-exact append-only ledger after predictions and settlements"
+    },
+    {
+      "path": "ledger/golden/metrics.jsonl",
+      "group": "ledger",
+      "role": "reference",
+      "bytes": 13708,
+      "sha256": "0858a305718d1b04f79b3ba67cd07217a6f767398141cfee57a90cf295142598",
+      "note": "byte-exact ledger for the metric-semantics scenario"
+    },
+    {
+      "path": "ledger/golden/forward.jsonl",
+      "group": "ledger",
+      "role": "reference",
+      "bytes": 7309,
+      "sha256": "b204ff6e3f6bf99599b743b43d833f47dbb0510f5688a030431aafe6ea11bc93",
+      "note": "byte-exact ledger with prompt/late/historical/backfilled records"
+    },
+    {
+      "path": "ledger/golden/isolation.jsonl",
+      "group": "ledger",
+      "role": "reference",
+      "bytes": 9325,
+      "sha256": "57a6011bed1fb2fa57557d2899e85ad8b1481dcde5963d27355433d4f053f598",
+      "note": "byte-exact ledger with a foreign model row and settlement"
+    },
+    {
+      "path": "ledger/golden/provenance.jsonl",
+      "group": "ledger",
+      "role": "reference",
+      "bytes": 3092,
+      "sha256": "0a81e1e4ce2b789f9bd239da009915f42780ce6c451473e96796a1c0afa57ee3",
+      "note": "byte-exact ledger row with model provenance"
+    },
+    {
+      "path": "ledger/golden/snapshot.jsonl",
+      "group": "ledger",
+      "role": "reference",
+      "bytes": 2489,
+      "sha256": "7b3a29b838be6e20539523e4f03f0421838c8d35025efdd9ca7178e1406d8578",
+      "note": "byte-exact ledger recorded and settled against the frozen snapshot"
+    },
+    {
+      "path": "ledger/ledger.json",
+      "group": "ledger",
+      "role": "reference",
+      "bytes": 82800,
+      "sha256": "f943443ab8dfad17dbc2129303338117fd972da6111c490ba20772d195e442d9",
+      "note": "ledger append/read/settle/audit/prospective references; wall clock pinned"
+    },
+    {
+      "path": "cleanup/analysis_src_files.json",
+      "group": "cleanup",
+      "role": "reference",
+      "bytes": 662,
+      "sha256": "4b55384ce2fb08c9278bcd09c4c9cc96b1d09145de4a33b4e4982a95abe23023",
+      "note": "analysis fixture tree"
+    },
+    {
+      "path": "cleanup/run_src_files.json",
+      "group": "cleanup",
+      "role": "reference",
+      "bytes": 611,
+      "sha256": "e0be32c47afe61e9217c6850b8f6523a96ba6fa3786e7363f055baaaa58b1d24",
+      "note": "owned-run fixture tree"
+    },
+    {
+      "path": "cleanup/run_retained_files.json",
+      "group": "cleanup",
+      "role": "reference",
+      "bytes": 801,
+      "sha256": "812ec523533e99d0a5d417c644204ab20420d2eca17ba2480da2d251b6e4e7e5",
+      "note": "run with frozen snapshot/collection receipts"
+    },
+    {
+      "path": "cleanup/orphan_src_files.json",
+      "group": "cleanup",
+      "role": "reference",
+      "bytes": 211,
+      "sha256": "d5a0bc5f8fa563e47832b68235dd304ea7ba6f56ea039312388132a7c876f20a",
+      "note": "orphan-sweep fixture tree"
+    },
+    {
+      "path": "cleanup/cleanup.json",
+      "group": "cleanup",
+      "role": "reference",
+      "bytes": 21171,
+      "sha256": "d5d77999461b81203a8af97455b816b1f0075880e0b25770fdad1ed4959967ee",
+      "note": "cleanup/retention references with a pinned clock and <TREE> paths"
+    },
+    {
+      "path": "delivery/valid/analysis.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 5440,
+      "sha256": "824e2d0bb8e9e9d758033528add2a9588b99eb0f178e2b840251998d249bff41",
+      "note": ""
+    },
+    {
+      "path": "delivery/valid/news_result.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 1108,
+      "sha256": "2ff23e845f994f2fa26a7702310ed688f60589463d6250d27047430f6c16e02f",
+      "note": ""
+    },
+    {
+      "path": "delivery/valid/news_result.freeze.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 159,
+      "sha256": "d84c10caaac1b031d6d395cab01e72e7261cb870e8b71c45acb3ba06c6103bbb",
+      "note": ""
+    },
+    {
+      "path": "delivery/valid/response.md",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 953,
+      "sha256": "8ef9f24d6c24c9b2455cc2070acfe2c6581a0a854676545a9717fabc3905a6ea",
+      "note": ""
+    },
+    {
+      "path": "delivery/missing_line/analysis.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 5440,
+      "sha256": "824e2d0bb8e9e9d758033528add2a9588b99eb0f178e2b840251998d249bff41",
+      "note": ""
+    },
+    {
+      "path": "delivery/missing_line/news_result.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 1108,
+      "sha256": "2ff23e845f994f2fa26a7702310ed688f60589463d6250d27047430f6c16e02f",
+      "note": ""
+    },
+    {
+      "path": "delivery/missing_line/news_result.freeze.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 159,
+      "sha256": "d84c10caaac1b031d6d395cab01e72e7261cb870e8b71c45acb3ba06c6103bbb",
+      "note": ""
+    },
+    {
+      "path": "delivery/missing_line/response.md",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 775,
+      "sha256": "7841ded31758d61c891c70d276ae25ffc5c1535a8b6e05eeefd0a33b129c5257",
+      "note": ""
+    },
+    {
+      "path": "delivery/tampered/analysis.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 5475,
+      "sha256": "f09c440f020a619c5f3292a19c54f1a178cb4878943f21c99b346c8c265cefbb",
+      "note": ""
+    },
+    {
+      "path": "delivery/tampered/news_result.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 1139,
+      "sha256": "352b302a840a560f4ead178530644e960fc6fdae4652156e29866e33c86a2671",
+      "note": ""
+    },
+    {
+      "path": "delivery/tampered/news_result.freeze.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 159,
+      "sha256": "461548d43b028ae541dee7d574576d3543693df86692189a5eb6f194753cfa3b",
+      "note": ""
+    },
+    {
+      "path": "delivery/tampered/response.md",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 953,
+      "sha256": "8ef9f24d6c24c9b2455cc2070acfe2c6581a0a854676545a9717fabc3905a6ea",
+      "note": ""
+    },
+    {
+      "path": "delivery/missing_freeze/analysis.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 5440,
+      "sha256": "824e2d0bb8e9e9d758033528add2a9588b99eb0f178e2b840251998d249bff41",
+      "note": ""
+    },
+    {
+      "path": "delivery/missing_freeze/news_result.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 1108,
+      "sha256": "2ff23e845f994f2fa26a7702310ed688f60589463d6250d27047430f6c16e02f",
+      "note": ""
+    },
+    {
+      "path": "delivery/missing_freeze/response.md",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 953,
+      "sha256": "8ef9f24d6c24c9b2455cc2070acfe2c6581a0a854676545a9717fabc3905a6ea",
+      "note": ""
+    },
+    {
+      "path": "delivery/delivery.json",
+      "group": "delivery",
+      "role": "reference",
+      "bytes": 13931,
+      "sha256": "406f4e3edce1cf61882ee52594970bc6775f94f0c72689a175fab2ce8e925f1f",
+      "note": "delivery response/stage/coverage contracts and frozen-news file fixtures"
+    },
+    {
+      "path": "news-pipeline/result.json",
+      "group": "news-pipeline",
+      "role": "reference",
+      "bytes": 783023,
+      "sha256": "45f277cabb3962f977987d61cb6dcd55e40ae28a749253500361ba19af54bbe8",
+      "note": "deterministic News pipeline reference on the frozen complete-window snapshot; the freeze receipt's frozen_at is normalized to a fixed timestamp because the legacy freeze_result stamps the wall clock (all other fields are produced by the Python pipeline)"
+    },
+    {
+      "path": "report/report.json",
+      "group": "report",
+      "role": "reference",
+      "bytes": 138454,
+      "sha256": "d587149dd376c5183b7812eaa534b7c7f46a165f412395f2a3a6b420bdd1679c",
+      "note": "fixed report lines/summary/markdown, budget trimming and Quant-News synthesis"
+    },
+    {
+      "path": "news-ai/news.json",
+      "group": "news-ai",
+      "role": "reference",
+      "bytes": 24604,
+      "sha256": "387e63664be5b5eb911fda13073c53588de6400d54b2e4d9bbf266d1791ed3ab",
+      "note": "AI lean validation/identity, reporting block and record attachment"
+    },
+    {
+      "path": "news-impact/news.json",
+      "group": "news-impact",
+      "role": "reference",
+      "bytes": 22660,
+      "sha256": "4e74fcc923229f3f77cf9d9085d8382e935060b4b8a41e9e1109a6c823d1242c",
+      "note": "news impact bands, breadth scope, exact-alias publisher tiers and caveats"
+    },
+    {
+      "path": "news-reaction/news.json",
+      "group": "news-reaction",
+      "role": "reference",
+      "bytes": 12897,
+      "sha256": "7c0aa35eb0658b6fa5eeb1d76bb5c2d5201cfda06f3f66d485ecde0234ee84e7",
+      "note": "news-time reaction validation and timing/priced-in disclosures on frozen bars"
+    },
+    {
+      "path": "factor/result.json",
+      "group": "factor",
+      "role": "reference",
+      "bytes": 56329,
+      "sha256": "7e4939f3d4023fd1d171b58d3868ee7ff99d757d66d5676d27c4f6fd0c4fdd9e",
+      "note": "Research B shadow factor result on the frozen 260-session window"
+    },
+    {
+      "path": "ml/result.json",
+      "group": "ml",
+      "role": "reference",
+      "bytes": 207155,
+      "sha256": "9aea7e4aca281a279c9226090b96b368383eee3976e8f4150e27f291d8b8aeab",
+      "note": "Research C deterministic logistic shadow replay on the frozen 260-session window; wall-clock leaves normalized to 0.0 (process timing is not model state)"
+    },
+    {
+      "path": "news-normalize/news.json",
+      "group": "news-normalize",
+      "role": "reference",
+      "bytes": 23397,
+      "sha256": "7a1210eeee93e5a2fec0e5d1c4dccdddac0c1c2397480eb82d701b4332ef9604",
+      "note": "PIT normalization, aggregate gating, clustering and URL identity references"
+    },
+    {
+      "path": "news-classify/news.json",
+      "group": "news-classify",
+      "role": "reference",
+      "bytes": 5322,
+      "sha256": "e395d8ee885508b75df684c8bcfd2eec09892f0cdfeae619e959040017a8fb8e",
+      "note": "deterministic news screening, clustering text and session decay"
+    },
+    {
+      "path": "factor-backtest/descriptive.json",
+      "group": "factor-backtest",
+      "role": "reference",
+      "bytes": 13563,
+      "sha256": "0834df670a6177f48bc80a245d97cab95b46ff096c9c1fd0e125fcdcfaa606bf",
+      "note": "Research D 5D descriptive factor diagnostics; never a probability"
+    },
+    {
+      "path": "research-tooling/toolkit.json",
+      "group": "research-tooling",
+      "role": "reference",
+      "bytes": 48934,
+      "sha256": "4cad590430c2a5732a8f87d58eb355c0572d9cac20d6dee68f124d961306df1a",
+      "note": "purged CV folds, selection evidence/verdicts and feasibility/timing disclosures"
+    },
+    {
+      "path": "momentum/momentum.json",
+      "group": "momentum",
+      "role": "reference",
+      "bytes": 39927,
+      "sha256": "92d22fc7d3cf6baeb7cd74efba601b0bdc3a16210c75f9866dfb825342de8a75",
+      "note": "composite momentum compute/score_at/rank IC on a deterministic 200-session series"
+    },
+    {
+      "path": "consensus/consensus.json",
+      "group": "consensus",
+      "role": "reference",
+      "bytes": 787246,
+      "sha256": "60bcb5a100563f6f4c94e3a2cf897d26bbe8457ae8d6e024065a802ae2007a1d",
+      "note": "single-path consensus, shadow isolation, veto redaction and compatibility helpers"
+    },
+    {
+      "path": "probability-quality/audit.json",
+      "group": "probability-quality",
+      "role": "reference",
+      "bytes": 233033,
+      "sha256": "0b14f743bca89a29308f1e71a0caacf140b4e1ad181028ed8cbb76693e0a5968",
+      "note": "independent transform replay, tampering verdicts, OOS audit and directional-edge evidence"
+    },
+    {
+      "path": "audit/scenarios.json",
+      "group": "audit",
+      "role": "reference",
+      "bytes": 144517,
+      "sha256": "be91afa7e75b5fcd8eff9d365f1f11a37dfe367e5582138ec44a77bb3b01d326",
+      "note": "audit() outputs for every veto/warning path plus News attachment"
+    },
+    {
+      "path": "reliability/reliability.json",
+      "group": "reliability",
+      "role": "reference",
+      "bytes": 16243,
+      "sha256": "e0aa1607a1fa05f041a68190591a62466e03a81ac797332f4427ed0030e837b2",
+      "note": "Research B reliability accounting: shortfall, sample diagnostics, paired scores, qualification"
+    },
+    {
+      "path": "quant-origin/predictions.json",
+      "group": "quant-origin",
+      "role": "reference",
+      "bytes": 104938,
+      "sha256": "0bb9ae86157fe9b6e201859e333bb084b7db167ec80d90830001f2473beda488",
+      "note": "quant.predict_at_origin rows: probabilities, transforms, matching origins, abstentions"
+    },
+    {
+      "path": "quant/synthetic-260/result.json",
+      "group": "quant",
+      "role": "reference",
+      "bytes": 887325,
+      "sha256": "7b153a85ba7e5ef7435f7930f88933fe9b64ef5060a79a394bf53a24fb33d6f3",
+      "note": "full production path A result for the synthetic 260-session series"
+    },
+    {
+      "path": "quant/synthetic-260/origins.json",
+      "group": "quant",
+      "role": "reference",
+      "bytes": 84037,
+      "sha256": "26da7cbd47ec2092c9f075e5ab7ca042d04d50097833b0bec5adb84fd5b929fe",
+      "note": "per-origin replay values (validation.oos_forecasts); Rust must match within 1e-10"
+    },
+    {
+      "path": "quant/synthetic-260/probability.json",
+      "group": "quant",
+      "role": "reference",
+      "bytes": 729,
+      "sha256": "142e6c7a2811b4c7acbd320a0243ad6242f267fe3a84d125e75201ab6e38f6de",
+      "note": "probability, direction and the permanently null calibration fields"
+    },
+    {
+      "path": "quant/synthetic-260/result.json",
+      "group": "quant",
+      "role": "reference",
+      "bytes": 887325,
+      "sha256": "7b153a85ba7e5ef7435f7930f88933fe9b64ef5060a79a394bf53a24fb33d6f3",
+      "note": "full production path A result for the synthetic 260-session series"
+    },
+    {
+      "path": "quant/synthetic-260/origins.json",
+      "group": "quant",
+      "role": "reference",
+      "bytes": 84037,
+      "sha256": "26da7cbd47ec2092c9f075e5ab7ca042d04d50097833b0bec5adb84fd5b929fe",
+      "note": "per-origin replay values (validation.oos_forecasts); Rust must match within 1e-10"
+    },
+    {
+      "path": "quant/synthetic-260/probability.json",
+      "group": "quant",
+      "role": "reference",
+      "bytes": 729,
+      "sha256": "142e6c7a2811b4c7acbd320a0243ad6242f267fe3a84d125e75201ab6e38f6de",
+      "note": "probability, direction and the permanently null calibration fields"
+    },
+    {
+      "path": "statistics/effectiveness.json",
+      "group": "statistics",
+      "role": "reference",
+      "bytes": 41343,
+      "sha256": "ff45f65c6d9f43a53347b72d473f369b9301da1b8a92b5084ba429ad55467bfc",
+      "note": "paired rows, Brier/AUC, bootstrap intervals, baseline comparison, power curve"
+    },
+    {
+      "path": "math/rng.json",
+      "group": "math",
+      "role": "reference",
+      "bytes": 4004,
+      "sha256": "6616bd081dd6bc746f132d7a817d0a2234cf80370866d4ddaebfc3b319242375",
+      "note": "CPython random.Random streams: random/getrandbits/randrange/gauss"
+    },
+    {
+      "path": "math/math-utils.json",
+      "group": "math",
+      "role": "reference",
+      "bytes": 5107,
+      "sha256": "555f838839d85ca16e888c35585865065d001bc2d3a7abb6bcf77f4b75091def",
+      "note": "math_utils outputs on deterministic series, including bootstrap provenance"
+    },
+    {
+      "path": "market-data/business-day-ordinal.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 2243,
+      "sha256": "a996d9c9f208f09cb550ab5d58a4b4b967823f56fcbca61fb3932e7d676bf88d",
+      "note": "weekday ordinal from the fixed Monday epoch"
+    },
+    {
+      "path": "market-data/non-overlapping.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 2367,
+      "sha256": "7d82a084eba55d90fa79fdab2882fd6d7d8dcbdcebeae14e3920ee614e3d9f26",
+      "note": "legacy greedy spacing"
+    },
+    {
+      "path": "market-data/anchored-non-overlapping.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 33933,
+      "sha256": "06c5bcc5ed83f79c77b23dbca2a9ef5d22ecd37eb91a9a4845b3f524f29f4385",
+      "note": "absolute weekday phase then session gap; fallback provenance included"
+    },
+    {
+      "path": "market-data/forward-returns.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 1452,
+      "sha256": "cd67deb2a1aad77c691f89d7d726c743c0fe81ded0e11a87871dacedcaa7488b",
+      "note": "forward returns with unlabeled tail"
+    },
+    {
+      "path": "market-data/simple-return.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 349,
+      "sha256": "4f1a307fc567a2fa2f6f9b1f9183fdf56d01e225818a10e40d91127e00fe0264",
+      "note": "simple return plus the zero-start rejection"
+    },
+    {
+      "path": "market-data/prediction-price-series.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 11377,
+      "sha256": "5f1e909193f54ca0f2a7020039689b655e62e586d32848454cacd8b835922f84",
+      "note": "production target series from the frozen snapshot"
+    },
+    {
+      "path": "market-data/adjusted-close-series.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 34520,
+      "sha256": "411d5afc32608f2f1cfaff326f50080c8331144d76870b3143b3887a95915dd7",
+      "note": "basis selection decided over the whole series before reading values"
+    },
+    {
+      "path": "market-data/fixed-phase-sample.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 5857,
+      "sha256": "4c205e80df0c25de7d1cc89bcdac5763d04045103d89a306edb4062c6e13a712",
+      "note": "anchored phase versus documented all-rows fallback"
+    },
+    {
+      "path": "market-data/evaluation-sample.json",
+      "group": "market-data",
+      "role": "reference",
+      "bytes": 14374,
+      "sha256": "c043fd7d34d5eec72a5f25df697fc297b5aa379a9de231fcb62deeebbd1358b0",
+      "note": "evaluation accounting with and without an anchored calendar"
+    },
+    {
+      "path": "load/complete-window/expected-manifest.json",
+      "group": "load",
+      "role": "reference",
+      "bytes": 52212,
+      "sha256": "9b5e9ee6045c62a03770c722150e105ede0934bb0ad7876af65e292dcc572fdf",
+      "note": "snapshot.load_snapshot() manifest after load-time derived recomputation"
+    },
+    {
+      "path": "load/complete-window/expected-market.json",
+      "group": "load",
+      "role": "reference",
+      "bytes": 3011,
+      "sha256": "0e56327d330f94c50faad292a2c1b30148be72cc8b2c22c234a7fb8e888e9557",
+      "note": "loaded market block shape consumed by the researchers"
+    },
+    {
+      "path": "load/missing-calendar/expected-manifest.json",
+      "group": "load",
+      "role": "reference",
+      "bytes": 44408,
+      "sha256": "165b021ce77e9c5367cf2367c8bb4d1a21bf9030efa471b97ed6b183a90828df",
+      "note": "snapshot.load_snapshot() manifest after load-time derived recomputation"
+    },
+    {
+      "path": "load/missing-calendar/expected-market.json",
+      "group": "load",
+      "role": "reference",
+      "bytes": 29235,
+      "sha256": "8a2a5d002a9bb70876d1c2800baa591ed38265adee621954abbe2a059a7f592e",
+      "note": "loaded market block shape consumed by the researchers"
+    },
+    {
+      "path": "freeze/supplied-calendar/input.json",
+      "group": "freeze",
+      "role": "input",
+      "bytes": 226851,
+      "sha256": "7cba4c95738c106d8c630b3aaeb32d1ff960933878d730bb33eec7af44dd488c",
+      "note": "receipt frozen identically by Python and Rust"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/expectations.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/fundamentals.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/insider.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/macro.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/manifest.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 53948,
+      "sha256": "dfa417e2451ed4371b9b44b4799b451ef22868bcf0644b9df46c55af644c93b0",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/market.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 201645,
+      "sha256": "299ff019f892c37a4bbb1cb9e7f18ba74e01ce0e95a90385affa55afffcbf2ce",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/news.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/options.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/expectations.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/fundamentals.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/insider.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/macro.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/market.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 201645,
+      "sha256": "299ff019f892c37a4bbb1cb9e7f18ba74e01ce0e95a90385affa55afffcbf2ce",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/news.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/options.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/sec.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/raw/short_volume.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/sec.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected/short_volume.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen supplied-calendar snapshot file"
+    },
+    {
+      "path": "freeze/supplied-calendar/expected-outcome.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 922,
+      "sha256": "35870e0499599e34e417432a08ac9540f37a3b4bd7003fa6fddc4311f002d781",
+      "note": "identity and digest chain of the Python-frozen snapshot"
+    },
+    {
+      "path": "freeze/missing-calendar/input.json",
+      "group": "freeze",
+      "role": "input",
+      "bytes": 155079,
+      "sha256": "a9412b651187ea5f315825d4aa7c25976bf7bf2e395e02d99af5e5f6508a24d3",
+      "note": "receipt frozen identically by Python and Rust"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/expectations.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/fundamentals.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/insider.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/macro.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/manifest.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 19343,
+      "sha256": "22b3aaea5134f635311135746f7e640703418f5f53ea25cbe54a7cadc0c44972",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/market.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 137347,
+      "sha256": "3c5583dcfcc6c301977655847a0ec21ac91df012d8b5d27430c0b052127ff3be",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/news.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/options.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/expectations.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/fundamentals.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/insider.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/macro.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/market.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 137347,
+      "sha256": "3c5583dcfcc6c301977655847a0ec21ac91df012d8b5d27430c0b052127ff3be",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/news.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/options.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/sec.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/raw/short_volume.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/sec.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected/short_volume.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "Python-frozen missing-calendar snapshot file"
+    },
+    {
+      "path": "freeze/missing-calendar/expected-outcome.json",
+      "group": "freeze",
+      "role": "reference",
+      "bytes": 922,
+      "sha256": "4f5de12f746b05603e8779e8496186fd3ef4ac5576c39912f5b4bcf55416a070",
+      "note": "identity and digest chain of the Python-frozen snapshot"
+    },
+    {
+      "path": "check-market/complete-window-enforce-true/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211643,
+      "sha256": "1dfdbb2205d633512a51971269b94f4008b6b84a9d972401f4063960c237de43",
+      "note": "complete-window-enforce-true"
+    },
+    {
+      "path": "check-market/complete-window-enforce-true/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 2778,
+      "sha256": "9b69df133b85b10bbd55cd1e9fd617845ed45602103ce9641bd675b9929f1847",
+      "note": "data_checks.check_market output on the frozen snapshot block"
+    },
+    {
+      "path": "check-market/complete-window-enforce-false/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211644,
+      "sha256": "f693a6fa013cc532861359bbca297dce434cd518e9a0e7c76ae7120cec087aa9",
+      "note": "complete-window-enforce-false"
+    },
+    {
+      "path": "check-market/complete-window-enforce-false/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 1815,
+      "sha256": "62f124559d57b8804611088e8da3ce7837c834982ae17d663c53e7a3fa523aea",
+      "note": "data_checks.check_market output on the frozen snapshot block"
+    },
+    {
+      "path": "check-market/missing-calendar-enforce-true/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 144849,
+      "sha256": "aaed3118a91e27583a1ad4af995533e94b1897aa68e6b4f20355d94ba7e0e5a0",
+      "note": "missing-calendar-enforce-true"
+    },
+    {
+      "path": "check-market/missing-calendar-enforce-true/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 3210,
+      "sha256": "98d77c735b4e715546a6ffb8716aff3182eddf6ac61e4764b6250621a133f5ec",
+      "note": "data_checks.check_market output on the frozen snapshot block"
+    },
+    {
+      "path": "check-market/missing-calendar-enforce-false/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 144850,
+      "sha256": "b6d40aa619f51e2509c2df36cd294895a5f765a8c5e7301f8fe4349a7601ba59",
+      "note": "missing-calendar-enforce-false"
+    },
+    {
+      "path": "check-market/missing-calendar-enforce-false/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 2118,
+      "sha256": "70aa58c204adfcccdb0e7025e537de5755d6bfa1f7cd5942b8361beaf3a76299",
+      "note": "data_checks.check_market output on the frozen snapshot block"
+    },
+    {
+      "path": "check-market/not-closed/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211644,
+      "sha256": "7055b83f9debcc6ab4665dc7fab94d3d13f938f37cec8b8828e30d15ecf971e5",
+      "note": "not-closed"
+    },
+    {
+      "path": "check-market/not-closed/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 2894,
+      "sha256": "619637873b76ac8a469d93afc48d3558d1feb671cdf00f39a4ab2c5687d50436",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/price-basis-unverified/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211650,
+      "sha256": "d77f08734c851cd0caf2beb2e1874d2db453766bf3b3ea816a02c65e359499f8",
+      "note": "price-basis-unverified"
+    },
+    {
+      "path": "check-market/price-basis-unverified/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 3047,
+      "sha256": "12c250740330d54b6b2c4725c0ce644d18ae09a82579da0d8388d6bf1312c82c",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/source-identity-conflict/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211645,
+      "sha256": "7ce0e830371b774b10d90fb22dab95a26d4cfa2f2395840797bfb470668644bf",
+      "note": "source-identity-conflict"
+    },
+    {
+      "path": "check-market/source-identity-conflict/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 2917,
+      "sha256": "dc0b6115377be823a66686b62bb1ce9fdfad514fe484379ff56742dee3ac02fd",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/frequency-unverified/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211644,
+      "sha256": "7a29c4a6a1458e14cd58762edf05058c03b6fda6d61b64314a942a916097ac3a",
+      "note": "frequency-unverified"
+    },
+    {
+      "path": "check-market/frequency-unverified/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 2917,
+      "sha256": "5c1a065a22b0fbafdb61c661186268afb7ea1e19dab3322ed7ea7e3c6cc71d13",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/missing-provenance/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211605,
+      "sha256": "08d59fef4804002f19b4ea465199d759cc65dbf579eee4e5d66078c771d78bf5",
+      "note": "missing-provenance"
+    },
+    {
+      "path": "check-market/missing-provenance/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 2872,
+      "sha256": "546b3146b383445f963bf69e2aa3611d992b3d7c36e3be716d105cbc20931c49",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/stale-source-timestamp/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211638,
+      "sha256": "0f674ca15516412350797c3638df03c263155814d3c36152bc8a03b06b46b367",
+      "note": "stale-source-timestamp"
+    },
+    {
+      "path": "check-market/stale-source-timestamp/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 3013,
+      "sha256": "947140a70eb436e01312c07c2b1d60330d5edb506956f4ec6c5ebefd4e9f9e8a",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/window-conflict/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211643,
+      "sha256": "8310348de58ed457f97b1f22862a600dcd38095755501e394eddbeb9e1db2f8b",
+      "note": "window-conflict"
+    },
+    {
+      "path": "check-market/window-conflict/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 3048,
+      "sha256": "af086e45c7441dadcbac1eb9fe1b37638f6566e36bd48177c97f30b54815ce69",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/duplicate-bar/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211643,
+      "sha256": "abbc36a000b89afec74aff987d504bb026e994b846c1b0a8c7936fd3e9e5ea84",
+      "note": "duplicate-bar"
+    },
+    {
+      "path": "check-market/duplicate-bar/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 3151,
+      "sha256": "07f488ab6efb7ab7d109ada662da002b66e37dd70364a0edc5ebaddcc085d402",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/extreme-move/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211643,
+      "sha256": "df4e0a7e0e218ab82300ba179cd268b47c83e44dc439cb0d7341b0792104d4a8",
+      "note": "extreme-move"
+    },
+    {
+      "path": "check-market/extreme-move/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 2975,
+      "sha256": "5753fcfdbf71ff7b318abef54aa55968f1921e049de4dc504fddb429938f04ef",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/missing-calendar-block/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 179493,
+      "sha256": "a7ee51e3d3151bf5f60181ad803d0fe08b373688c25479678b8bf7c6583c2c70",
+      "note": "missing-calendar-block"
+    },
+    {
+      "path": "check-market/missing-calendar-block/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 3207,
+      "sha256": "6cc29a2a9d966064110506bde9937f2f6b07170e1942feaccab02417d5d3493b",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "check-market/price-conflict/input.json",
+      "group": "check-market",
+      "role": "input",
+      "bytes": 211893,
+      "sha256": "267ca3dc338f596a1b9cd1f78879a6f3851a57b3eca86b89cfee03329f868293",
+      "note": "price-conflict"
+    },
+    {
+      "path": "check-market/price-conflict/expected.json",
+      "group": "check-market",
+      "role": "reference",
+      "bytes": 2927,
+      "sha256": "a1d72bfde784ebfebfe1e8a081a7d003d740245d22386924e76b1857e4f474c8",
+      "note": "mutation must produce the recorded reason codes"
+    },
+    {
+      "path": "gate/reason-policy.json",
+      "group": "gate",
+      "role": "reference",
+      "bytes": 15721,
+      "sha256": "a7c536f73e60f29e5a75850cee0fd4e44f5652b73dbda7229bc5062a87e9a23c",
+      "note": "reason_policy() for every catalog code plus an unknown code (fails closed)"
+    },
+    {
+      "path": "gate/classify.json",
+      "group": "gate",
+      "role": "reference",
+      "bytes": 6045,
+      "sha256": "b13e360072d3db01fa2bb455d1d74bd7b76f34c6334a18877d416894810ffe00",
+      "note": "classify_reasons + reporting_status: dedup order, fatal/warning/info split, strategy-only warnings"
+    },
+    {
+      "path": "gate/analysis-status.json",
+      "group": "gate",
+      "role": "reference",
+      "bytes": 1330,
+      "sha256": "94cd5bb5ccd73e5d81a454cc1379bdce146b3b19820e62d88d1bce8fbe25de65",
+      "note": "analysis_status derives from stage outcomes only"
+    },
+    {
+      "path": "gate/report-eligibility.json",
+      "group": "gate",
+      "role": "reference",
+      "bytes": 3361,
+      "sha256": "957656b4d046f5cdcac8002421204cb4f659f3526d234060a67bb287c26af533",
+      "note": "compatibility helper: probability vs direction vs trading signal"
+    },
+    {
+      "path": "gate/telemetry.json",
+      "group": "gate",
+      "role": "reference",
+      "bytes": 847,
+      "sha256": "8756291ce9979fce46acc3af2a4adf0364d92d35b0604202ee3712150ff164a0",
+      "note": "compatibility helper: aggregate rates with Python round(x, 4)"
+    },
+    {
+      "path": "adapter/complete-market/expected.json",
+      "group": "adapter",
+      "role": "reference",
+      "bytes": 4856,
+      "sha256": "bd21a5643d5983a599171f27de1e1707327d1c97ba88fe4f7073fed02bf7fd0d",
+      "note": "StockDataAdapter.make_receipt output, fixed captured_at"
+    },
+    {
+      "path": "adapter/failed-provider/expected.json",
+      "group": "adapter",
+      "role": "reference",
+      "bytes": 3875,
+      "sha256": "c472b6ee1a0ffff38f2cb01c0f4ffb87396264c09f26c12a931d054a90e45d39",
+      "note": "StockDataAdapter.make_receipt output, fixed captured_at"
+    },
+    {
+      "path": "adapter/unavailable-domain/expected.json",
+      "group": "adapter",
+      "role": "reference",
+      "bytes": 3913,
+      "sha256": "68c871ba51b2b662c71b4becaf80cd651d61c2d85fae6d0d0c861fb63989b5db",
+      "note": "StockDataAdapter.make_receipt output, fixed captured_at"
+    },
+    {
+      "path": "adapter/explicit-failed/expected.json",
+      "group": "adapter",
+      "role": "reference",
+      "bytes": 3836,
+      "sha256": "218ab0329cb56cb65d44652d13dd35df2e0e8f75fcf9be3c35eeac98aeef771b",
+      "note": "StockDataAdapter.make_receipt output, fixed captured_at"
+    },
+    {
+      "path": "adapter/partial-domain/expected.json",
+      "group": "adapter",
+      "role": "reference",
+      "bytes": 3990,
+      "sha256": "707bc3f78b44f13d623e81ff2cec161c26007b456bbc4916e9316db541793f82",
+      "note": "StockDataAdapter.make_receipt output, fixed captured_at"
+    },
+    {
+      "path": "adapter/action-and-credentials/expected.json",
+      "group": "adapter",
+      "role": "reference",
+      "bytes": 4014,
+      "sha256": "5678da2d97108046c669ea21cbb4447daa4762259b1e502fff23afe3b629822a",
+      "note": "StockDataAdapter.make_receipt output, fixed captured_at"
+    },
+    {
+      "path": "adapter/asof-from-provenance/expected.json",
+      "group": "adapter",
+      "role": "reference",
+      "bytes": 4337,
+      "sha256": "2f0964d4bf4d5d03e7f80fbdae83a1aaae51d103f9c23ed3b6e4893ab4a00308",
+      "note": "missing request as-of resolves to the collector's recorded as-of, not adapt time"
+    },
+    {
+      "path": "adapter/request.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 117,
+      "sha256": "2e9e005741b431dae338de25939acfa074e3a9355f1c10627e29f4087fb083c6",
+      "note": "base request"
+    },
+    {
+      "path": "adapter/provenance-request.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 83,
+      "sha256": "dfbd81be90694583d7f41c23771616230ef476d9a533053576e07dc75e9b2c55",
+      "note": "request without as-of"
+    },
+    {
+      "path": "adapter/cases.json",
+      "group": "adapter",
+      "role": "manifest",
+      "bytes": 138,
+      "sha256": "1d51732fdb27f678ce8385a027ddd56f28f82d5c41b3fdc7431c2f1605a3bdc3",
+      "note": "case names and their market response are embedded in expected.json"
+    },
+    {
+      "path": "adapter/complete-market/input.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 527,
+      "sha256": "61240dc659c5d2a1f8746c220c9a6515ee815f37e7f8f9a4a55be409ae2a40f8",
+      "note": "complete-market"
+    },
+    {
+      "path": "adapter/failed-provider/input.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 101,
+      "sha256": "2477d74f3b6ac6066ea848fa6d7e5f6c484147b483210f4841905339d5bb853c",
+      "note": "failed-provider"
+    },
+    {
+      "path": "adapter/unavailable-domain/input.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 71,
+      "sha256": "84b14d896d9bfc6d81db5ae3f36b5ee90de2a8e66d2cbd3aab83d4f8da434b49",
+      "note": "unavailable-domain"
+    },
+    {
+      "path": "adapter/explicit-failed/input.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 74,
+      "sha256": "3773b315c603265fed1d23868e68bae294dc619ba4c1c60bd4bbc0d7cd4d525b",
+      "note": "explicit-failed"
+    },
+    {
+      "path": "adapter/partial-domain/input.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 116,
+      "sha256": "2858b1a0de8a23ecbd1bb5d4d2238826be6fa9ce177e4e4f5da71009403e177c",
+      "note": "partial-domain"
+    },
+    {
+      "path": "adapter/action-and-credentials/input.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 406,
+      "sha256": "619c60a930f71862ccea34ec3eea59e946def613775b15920989624eae5ac6f1",
+      "note": "action-and-credentials"
+    },
+    {
+      "path": "adapter/asof-from-provenance/input.json",
+      "group": "adapter",
+      "role": "input",
+      "bytes": 271,
+      "sha256": "180eeaa4bf0a39450ef9f3ec862ba4c7e32ce88584e78e178e566d0175f24230",
+      "note": "provenance case"
+    },
+    {
+      "path": "json/plain-object/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 13,
+      "sha256": "d3626ac30a87e6f7a6428233b3c68299976865fa5508e4267c5415c76af7a772",
+      "note": "sorted key order is part of the digest"
+    },
+    {
+      "path": "json/plain-object/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 23,
+      "sha256": "dd6841067dcb55a636629b56cb45722d09c6a354f92a5b54183cea3b61b9a1e9",
+      "note": "sorted key order is part of the digest"
+    },
+    {
+      "path": "json/plain-object/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 23,
+      "sha256": "dd6841067dcb55a636629b56cb45722d09c6a354f92a5b54183cea3b61b9a1e9",
+      "note": "sorted key order is part of the digest"
+    },
+    {
+      "path": "json/plain-object/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "89d019d09e17af4510eeb56cd3dbd7b6ad0fbe2511ff36b6a55a3e4d01e7493a",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/plain-object/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "89d019d09e17af4510eeb56cd3dbd7b6ad0fbe2511ff36b6a55a3e4d01e7493a",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/unicode-chinese/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 52,
+      "sha256": "de6838000f3e7aa2035dcade08edd16c77e42d5a9c6b25a38092cb57c9c7a5c4",
+      "note": "UTF-8 stays literal in canonical bytes"
+    },
+    {
+      "path": "json/unicode-chinese/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 62,
+      "sha256": "c728bcdc19d200a81091977493dd3b49123287a89e3c627fa91d7dba3f687387",
+      "note": "UTF-8 stays literal in canonical bytes"
+    },
+    {
+      "path": "json/unicode-chinese/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 62,
+      "sha256": "c728bcdc19d200a81091977493dd3b49123287a89e3c627fa91d7dba3f687387",
+      "note": "UTF-8 stays literal in canonical bytes"
+    },
+    {
+      "path": "json/unicode-chinese/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "b796240090e01290d220630c73277191d39dd7cec8c50be8ddcf8a77006bd311",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/unicode-chinese/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "ad445358e3acf57caddbc1d6f6e25a544e529e183fe40693068d768aeb2f2c49",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/unicode-emoji/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 25,
+      "sha256": "3ce71ff03aa00c9d1f16ebe70a7591d409d2b15e23fe0cd60ed69ea803f7f8be",
+      "note": "4-byte UTF-8 survives both profiles"
+    },
+    {
+      "path": "json/unicode-emoji/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 31,
+      "sha256": "5219fd4cf10aafb9a83ea25793bb376880acb5bb078528938b5f78ce8c5a9397",
+      "note": "4-byte UTF-8 survives both profiles"
+    },
+    {
+      "path": "json/unicode-emoji/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 31,
+      "sha256": "5219fd4cf10aafb9a83ea25793bb376880acb5bb078528938b5f78ce8c5a9397",
+      "note": "4-byte UTF-8 survives both profiles"
+    },
+    {
+      "path": "json/unicode-emoji/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "2b449e9ebefe8c78ab0234ca2912fff3c8d9c35cbfae1f66d78cd0d46f0b2b84",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/unicode-emoji/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "316a0cf8b9a93bc1b5d1fa060a821f456240ac8f718e3ce44e84e09ae1d44df7",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/backslash-and-quote/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 31,
+      "sha256": "7f5035f0195c8476ed83fad62eabb1f53ca24fc989457b471fabb84fb9b5bca0",
+      "note": "escaping differences are visible"
+    },
+    {
+      "path": "json/backslash-and-quote/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 37,
+      "sha256": "b8638ff7a48c219f918e57da8d2d7d09cca3c7d14d8efc14272fb5c730b8024c",
+      "note": "escaping differences are visible"
+    },
+    {
+      "path": "json/backslash-and-quote/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 37,
+      "sha256": "b8638ff7a48c219f918e57da8d2d7d09cca3c7d14d8efc14272fb5c730b8024c",
+      "note": "escaping differences are visible"
+    },
+    {
+      "path": "json/backslash-and-quote/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "b352e580db4765034b72da73b8f989b77f15b963c6149c487fc1a8435f1a9f60",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/backslash-and-quote/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "b352e580db4765034b72da73b8f989b77f15b963c6149c487fc1a8435f1a9f60",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/control-and-newline/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 28,
+      "sha256": "7aa504eb4a846978e40a99cd584c2ce45523612cf317be9884b2b052af84da6c",
+      "note": "\\n and \\t escaping"
+    },
+    {
+      "path": "json/control-and-newline/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 34,
+      "sha256": "76e0c7a9ca824b41552073c89a2fd13ea61cc36b54f877edbc010e8e45a256cc",
+      "note": "\\n and \\t escaping"
+    },
+    {
+      "path": "json/control-and-newline/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 34,
+      "sha256": "76e0c7a9ca824b41552073c89a2fd13ea61cc36b54f877edbc010e8e45a256cc",
+      "note": "\\n and \\t escaping"
+    },
+    {
+      "path": "json/control-and-newline/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "8ba88c3893adb0490c62c72890e7f18d0cea9ffff4a0928d888c970d1963c940",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/control-and-newline/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "8ba88c3893adb0490c62c72890e7f18d0cea9ffff4a0928d888c970d1963c940",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/int-vs-float/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 32,
+      "sha256": "28cdbfcaeae32723839a0d4909b13cfd3d033ec40828b3715a2e583cbd37832b",
+      "note": "1 and 1.0 must stay distinct"
+    },
+    {
+      "path": "json/int-vs-float/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 46,
+      "sha256": "62794be47c02f56ff1723c27599efc2cbacea37c355ab7fb9c93e8bf637bbd42",
+      "note": "1 and 1.0 must stay distinct"
+    },
+    {
+      "path": "json/int-vs-float/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 46,
+      "sha256": "62794be47c02f56ff1723c27599efc2cbacea37c355ab7fb9c93e8bf637bbd42",
+      "note": "1 and 1.0 must stay distinct"
+    },
+    {
+      "path": "json/int-vs-float/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "6f64676a38cbdca0064a3bc896b288b7be7eb9728fd628cfabba681036cc17b4",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/int-vs-float/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "6f64676a38cbdca0064a3bc896b288b7be7eb9728fd628cfabba681036cc17b4",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/negative-zero/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 12,
+      "sha256": "313ced45c5061347c26ca1288910a4f80cbd4f3c93e988cb8bb00d1cbab5cd86",
+      "note": "Python prints -0.0; a rewrite must not fold it to 0.0"
+    },
+    {
+      "path": "json/negative-zero/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 18,
+      "sha256": "cf5ed713738ab51a4b7b8515cba4145ec693868cc5dc01808d50fc70eabdec64",
+      "note": "Python prints -0.0; a rewrite must not fold it to 0.0"
+    },
+    {
+      "path": "json/negative-zero/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 18,
+      "sha256": "cf5ed713738ab51a4b7b8515cba4145ec693868cc5dc01808d50fc70eabdec64",
+      "note": "Python prints -0.0; a rewrite must not fold it to 0.0"
+    },
+    {
+      "path": "json/negative-zero/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "7e29ef2ac044481a4eae788d41135b403110924741b191863c1487591430738e",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/negative-zero/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "7e29ef2ac044481a4eae788d41135b403110924741b191863c1487591430738e",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/exponent/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 27,
+      "sha256": "d47891a95ccb12f8056557557f64c50a8268364af66375a286cd002537398544",
+      "note": "exponent formatting is Python-specific"
+    },
+    {
+      "path": "json/exponent/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 37,
+      "sha256": "9713abaecdd479270dca8d2f1209aca2d1aa427f96dc90eb8a6515a3a6f2d5c1",
+      "note": "exponent formatting is Python-specific"
+    },
+    {
+      "path": "json/exponent/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 37,
+      "sha256": "9713abaecdd479270dca8d2f1209aca2d1aa427f96dc90eb8a6515a3a6f2d5c1",
+      "note": "exponent formatting is Python-specific"
+    },
+    {
+      "path": "json/exponent/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "5cab65a2e28b45f6f04280ca07ea716b9c08caf1923e0ae2c95360e2e46c228f",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/exponent/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "5cab65a2e28b45f6f04280ca07ea716b9c08caf1923e0ae2c95360e2e46c228f",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/large-integer/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 38,
+      "sha256": "d3afcde0129b0b1c6f30ff1257fd80e689bc646dbf1e6185a0f2b204d58a04b9",
+      "note": "arbitrary precision integer"
+    },
+    {
+      "path": "json/large-integer/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 44,
+      "sha256": "082776b5c351c681f8df125ae8f98e1d8b597cea9f05c71cf072a6ac389faf6e",
+      "note": "arbitrary precision integer"
+    },
+    {
+      "path": "json/large-integer/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 44,
+      "sha256": "082776b5c351c681f8df125ae8f98e1d8b597cea9f05c71cf072a6ac389faf6e",
+      "note": "arbitrary precision integer"
+    },
+    {
+      "path": "json/large-integer/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "1b71728813d612597fb89e55505576baba0e6eb70c380591e24f08dc9936d758",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/large-integer/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "1b71728813d612597fb89e55505576baba0e6eb70c380591e24f08dc9936d758",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/null-vs-missing/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 63,
+      "sha256": "ee74d5526d8cbabf4821601420191be7a994e671b89f79f1ce9d0d0c5049b7ad",
+      "note": "null/false/0/empty/missing are five states"
+    },
+    {
+      "path": "json/null-vs-missing/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 81,
+      "sha256": "28e06981e8e94e1cb5bf6aa8e0ce8805222768ae9946f3388bac7d2980b1129a",
+      "note": "null/false/0/empty/missing are five states"
+    },
+    {
+      "path": "json/null-vs-missing/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 81,
+      "sha256": "28e06981e8e94e1cb5bf6aa8e0ce8805222768ae9946f3388bac7d2980b1129a",
+      "note": "null/false/0/empty/missing are five states"
+    },
+    {
+      "path": "json/null-vs-missing/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "1dfa94c33d1741dd02f332f70805a6d2440693150db66f9bdac41f875bf1d231",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/null-vs-missing/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "1dfa94c33d1741dd02f332f70805a6d2440693150db66f9bdac41f875bf1d231",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/nested-order/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 53,
+      "sha256": "c20ffed92d2dd33389d8706ca4a9085eaf3778c64234ba9c2736f5830a1257de",
+      "note": "nested sorting and array order preservation"
+    },
+    {
+      "path": "json/nested-order/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 146,
+      "sha256": "6713956b7a90ea9562d4486be6d365fdde1a09df5eb647e5dee6fb05af401b06",
+      "note": "nested sorting and array order preservation"
+    },
+    {
+      "path": "json/nested-order/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 146,
+      "sha256": "6713956b7a90ea9562d4486be6d365fdde1a09df5eb647e5dee6fb05af401b06",
+      "note": "nested sorting and array order preservation"
+    },
+    {
+      "path": "json/nested-order/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "8edab8d59cc236396e55bd3e06d1ea36fc72ca882a6dd8160efa5284f18529e1",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/nested-order/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "8edab8d59cc236396e55bd3e06d1ea36fc72ca882a6dd8160efa5284f18529e1",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/array-of-objects/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 73,
+      "sha256": "2164bf8a34237b9ca2d904cc07b133a7af19d3bb212864346b09be98a35ac624",
+      "note": "list order is semantic, never sorted"
+    },
+    {
+      "path": "json/array-of-objects/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 111,
+      "sha256": "fa5016462bf913b1059da2c11fc7858ee32e981c799d920728cc9a001f306326",
+      "note": "list order is semantic, never sorted"
+    },
+    {
+      "path": "json/array-of-objects/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 111,
+      "sha256": "fa5016462bf913b1059da2c11fc7858ee32e981c799d920728cc9a001f306326",
+      "note": "list order is semantic, never sorted"
+    },
+    {
+      "path": "json/array-of-objects/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "eadc42579d8939fac21c69a21a8b7dcac13ff059f1b60d2fd52eb020d719934e",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/array-of-objects/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "eadc42579d8939fac21c69a21a8b7dcac13ff059f1b60d2fd52eb020d719934e",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/bool-not-int/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 23,
+      "sha256": "4e6974ed18e1043acf09dfa8648e7a169bd9d4048d3c67740768609a75ef542c",
+      "note": "true is not 1"
+    },
+    {
+      "path": "json/bool-not-int/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 33,
+      "sha256": "e0cc6ea5a75ce8a4d214724849512f843878ab1bed8322387e6728144f271f72",
+      "note": "true is not 1"
+    },
+    {
+      "path": "json/bool-not-int/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 33,
+      "sha256": "e0cc6ea5a75ce8a4d214724849512f843878ab1bed8322387e6728144f271f72",
+      "note": "true is not 1"
+    },
+    {
+      "path": "json/bool-not-int/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "598778a25b29a3059996c45b44a56ef085eea0557f76d36772dd48c7be36d834",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/bool-not-int/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "598778a25b29a3059996c45b44a56ef085eea0557f76d36772dd48c7be36d834",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/empty-containers/canonical.bin",
+      "group": "json",
+      "role": "reference",
+      "bytes": 19,
+      "sha256": "7c557880ceed861401b04be6735c9708e326427e072562fd259da6f6a2612b96",
+      "note": "empty containers keep their type"
+    },
+    {
+      "path": "json/empty-containers/input.json",
+      "group": "json",
+      "role": "input",
+      "bytes": 29,
+      "sha256": "002ecc6e5bf66919e309d27f0bb8bee757435a5d8ee99b01ac12d949754f089d",
+      "note": "empty containers keep their type"
+    },
+    {
+      "path": "json/empty-containers/readable.json",
+      "group": "json",
+      "role": "reference",
+      "bytes": 29,
+      "sha256": "002ecc6e5bf66919e309d27f0bb8bee757435a5d8ee99b01ac12d949754f089d",
+      "note": "empty containers keep their type"
+    },
+    {
+      "path": "json/empty-containers/stage-digest.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "f23c6d4f1c23d8102fa8466b5976de00bf6d2481a8a22faa5a8ceb7d4cd59229",
+      "note": "stage digest profile: sort_keys, compact, default=str, ensure_ascii=True"
+    },
+    {
+      "path": "json/empty-containers/ledger-sha256.txt",
+      "group": "json",
+      "role": "reference",
+      "bytes": 65,
+      "sha256": "f23c6d4f1c23d8102fa8466b5976de00bf6d2481a8a22faa5a8ceb7d4cd59229",
+      "note": "ledger event profile: sort_keys, compact, default=str, ensure_ascii=False"
+    },
+    {
+      "path": "json/_rejections/rejected.json",
+      "group": "json",
+      "role": "error",
+      "bytes": 405,
+      "sha256": "5dc3e8ad99abae19fe7dcb9190edea691011dedd9b5f11037e8663e57808bca4",
+      "note": "non-finite numbers are rejected, not silently serialized"
+    },
+    {
+      "path": "request/us-forecast-default/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 23,
+      "sha256": "92278ffc2d8134a4cc990498619823c59b12bab05435d8be1e586ca6524e51a7",
+      "note": "market/horizon/mode/intent/asset_type defaults"
+    },
+    {
+      "path": "request/us-forecast-default/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 2491,
+      "sha256": "21b3d4bed1caa2e8a6086854e6950d11ddfe91d5aace80418769f48033e5f8b2",
+      "note": "market/horizon/mode/intent/asset_type defaults"
+    },
+    {
+      "path": "request/hk-forecast-explicit/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 87,
+      "sha256": "4e6bde450d5ceb3646c86ae6f60791b6b63902d483cbf6e9b1a6994d5d5427c9",
+      "note": "HK symbol shape"
+    },
+    {
+      "path": "request/hk-forecast-explicit/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 2494,
+      "sha256": "d3db6466a024877439e37e4bd93f4575e55764f3dbad464e625c1a3d8069d920",
+      "note": "HK symbol shape"
+    },
+    {
+      "path": "request/etf-descriptive-20d/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 92,
+      "sha256": "18de81d2ac099bb74c13cd1d5fe6b4ea8d1cd932ab6ed6e5937796663442081a",
+      "note": "descriptive keeps 20D"
+    },
+    {
+      "path": "request/etf-descriptive-20d/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 148,
+      "sha256": "1fd7e8b2883d5c246753f204f194dcc6968f549b1f2bff1aad3de39009310d44",
+      "note": "descriptive keeps 20D"
+    },
+    {
+      "path": "request/factor-research-1d/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 71,
+      "sha256": "d1361f9a7cf2f6f4b10da12c7b3134d279bedb6bf708c45d080f3c17ddd4c588",
+      "note": "factor research keeps 1D"
+    },
+    {
+      "path": "request/factor-research-1d/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 154,
+      "sha256": "1979cc5b5dcc853b8753f888e79a85a8e0f7dd85ea753768dbe95a109a5e36e6",
+      "note": "factor research keeps 1D"
+    },
+    {
+      "path": "request/with-asof-utc/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 55,
+      "sha256": "9b4b1867d731a8c7dff174069e95bee4b1d3a6163aecc36af25213f53d57c895",
+      "note": "Z-normalized to +00:00 then back to Z"
+    },
+    {
+      "path": "request/with-asof-utc/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 2507,
+      "sha256": "06c02c5c941ea50d9acea472d99a55d31d9c1cfea6c67f9d527e5beb120271ba",
+      "note": "Z-normalized to +00:00 then back to Z"
+    },
+    {
+      "path": "request/with-asof-offset/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 60,
+      "sha256": "00f4ae29b1c3654ee84c90b0c052dbd4825679e2842746fe0864ec9ce8a79a99",
+      "note": "offsets convert to UTC"
+    },
+    {
+      "path": "request/with-asof-offset/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 2507,
+      "sha256": "06c02c5c941ea50d9acea472d99a55d31d9c1cfea6c67f9d527e5beb120271ba",
+      "note": "offsets convert to UTC"
+    },
+    {
+      "path": "request/with-instrument/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 216,
+      "sha256": "093dfef7852d85f0d12603fcd39b3cab6ed0579d40565dbeae5f97f1f07bb5bc",
+      "note": "instrument with declared benchmark"
+    },
+    {
+      "path": "request/with-instrument/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 2684,
+      "sha256": "67d81ad63a7e2be6dc12047c0136200f2c87d8ac6428ef1856a610739a14302e",
+      "note": "instrument with declared benchmark"
+    },
+    {
+      "path": "request/with-declared-window/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 126,
+      "sha256": "7b6bce7392ee11e63a42fe891b8a78b5afcebf7fd61bfb37d0ea804a5e75d4c1",
+      "note": "explicit window is preserved"
+    },
+    {
+      "path": "request/with-declared-window/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 2594,
+      "sha256": "fd54bcf338069bf88fd5e5b0cdb6617e6ae820726177706ed122cc8e9ad67cbd",
+      "note": "explicit window is preserved"
+    },
+    {
+      "path": "request/strict-mode-index/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 69,
+      "sha256": "015e7c0401fb4ff3f166a189c74286f05c852dab3c82aeca55a31a8c44161db1",
+      "note": "index symbol and strict mode"
+    },
+    {
+      "path": "request/strict-mode-index/expected.json",
+      "group": "request",
+      "role": "reference",
+      "bytes": 2488,
+      "sha256": "dc9824c3643fe595a1d4599dde4b862c48b7afc5a32d78cd9facb1ab41a6e350",
+      "note": "index symbol and strict mode"
+    },
+    {
+      "path": "request/forecast-1d/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 64,
+      "sha256": "02ab9d0abc1d069434af3f18f1bfd21c4a2b465e8096a566821342d4b5b4ff98",
+      "note": "UNSUPPORTED_FORECAST_HORIZON"
+    },
+    {
+      "path": "request/forecast-1d/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 221,
+      "sha256": "cb64c8e7a51b952489f9790f6a207781e84bf45e7356988a0c166f2f5be28bcb",
+      "note": "UNSUPPORTED_FORECAST_HORIZON"
+    },
+    {
+      "path": "request/forecast-20d/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 65,
+      "sha256": "22b085bd9f20c8a650989c8f5cd98c861affcf3a1af6635a145be0828a5e32e7",
+      "note": "UNSUPPORTED_FORECAST_HORIZON"
+    },
+    {
+      "path": "request/forecast-20d/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 223,
+      "sha256": "e25e01c6f8bcff09ad663bdba22d593e51d597f449e8f80bb34a8bb795b578bc",
+      "note": "UNSUPPORTED_FORECAST_HORIZON"
+    },
+    {
+      "path": "request/unknown-field/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 41,
+      "sha256": "d9485eb3f3c622e124adb1b922ce0cc9dea56f3525d35f2e01e082c7159b101c",
+      "note": "unsupported request fields"
+    },
+    {
+      "path": "request/unknown-field/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 173,
+      "sha256": "36591ce913326bd2f2eb680a2226195ed0bdefd806b4a389de38637f8407be97",
+      "note": "unsupported request fields"
+    },
+    {
+      "path": "request/ticker-not-string/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 20,
+      "sha256": "1478abf6504678a9dad42d88c1d6585e4f7835b89dc532d995202491facdba45",
+      "note": "request.ticker must be a string"
+    },
+    {
+      "path": "request/ticker-not-string/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 177,
+      "sha256": "7fed87c3d3cf8e079b812361c2448533526d7ac34b562f68210a31a6730134b7",
+      "note": "request.ticker must be a string"
+    },
+    {
+      "path": "request/ticker-bad-chars/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 26,
+      "sha256": "c4d571654af914bc915eae81f8586477cd4eb8baf7e65904ace088ff730e6474",
+      "note": "supported stock/index symbol characters"
+    },
+    {
+      "path": "request/ticker-bad-chars/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 216,
+      "sha256": "26acd887ba6cdffdd8b6f147059dfe140074fb68fe014112359559827bcd5e4e",
+      "note": "supported stock/index symbol characters"
+    },
+    {
+      "path": "request/market-unknown/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 39,
+      "sha256": "30aceeb33ba57afc569ee775cade8b1eeeff5864891c353350ab4c0c9f49e110",
+      "note": "request.market must be US or HK"
+    },
+    {
+      "path": "request/market-unknown/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 174,
+      "sha256": "d23798f361be635419d3a9a1c0bdbd6e7ad61b57523a0b2ea6e22ac2c0a795d0",
+      "note": "request.market must be US or HK"
+    },
+    {
+      "path": "request/horizon-unknown/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 40,
+      "sha256": "f83b55ea174543f85255aaeb7d739103699620ccaec77207dd7ee1703d036659",
+      "note": "request.horizon must be one of 1D, 5D, 20D"
+    },
+    {
+      "path": "request/horizon-unknown/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 197,
+      "sha256": "2565ca5c448f2972a7479888fd86e7bca05858edb3a2dbaab636cf845fede9ad",
+      "note": "request.horizon must be one of 1D, 5D, 20D"
+    },
+    {
+      "path": "request/asof-without-timezone/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 54,
+      "sha256": "6b57a94ec47aa2ca6ae91006f8599236ec6a36da9430782062ea88206805f50b",
+      "note": "timestamp must include a timezone"
+    },
+    {
+      "path": "request/asof-without-timezone/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 208,
+      "sha256": "a0f05054ee3b071a48b975cf9a1d3737c0502dfd915a6d6ce63e930715f9dc6c",
+      "note": "timestamp must include a timezone"
+    },
+    {
+      "path": "request/intent-bool/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 39,
+      "sha256": "8cb515970604ee0c83616c5109baf08fa05184c4ad81ba828cf2271a15b74cca",
+      "note": "intent must be one of"
+    },
+    {
+      "path": "request/intent-bool/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 206,
+      "sha256": "62c352c1f95593b9e33c889085898d0f412404eb68c284eb8dcbe0346f9544a7",
+      "note": "intent must be one of"
+    },
+    {
+      "path": "request/history-reversed/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 99,
+      "sha256": "97cc58954c07dd3791df7f1d9bd1545af692ec428a15900eb01ce600f948ed09",
+      "note": "history window is reversed"
+    },
+    {
+      "path": "request/history-reversed/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 174,
+      "sha256": "346ca39803b157d18cd055e0c64ae86d54e26d929f40b6becd40ae738918d844",
+      "note": "history window is reversed"
+    },
+    {
+      "path": "request/history-conflict/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 107,
+      "sha256": "3a7c3759664a72cfe8e5590532ab8e69605488caa92151008a5ef143044d2482",
+      "note": "conflicting request history window"
+    },
+    {
+      "path": "request/history-conflict/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 182,
+      "sha256": "6077857087d15d4aed2f299753f9dbaf91835c4d0218284654d7ad4dff67b05d",
+      "note": "conflicting request history window"
+    },
+    {
+      "path": "request/policy-mismatch/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 80,
+      "sha256": "a7a291f676b9bf18a2a06de09b3bfb36d645c612179a6dbbda7866d7b4caeceb",
+      "note": "POLICY_VERSION_MISMATCH"
+    },
+    {
+      "path": "request/policy-mismatch/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 205,
+      "sha256": "971ed6559a0e6b5913e28609822b5dcb02676b0fba30150d8c2fd53790110b0b",
+      "note": "POLICY_VERSION_MISMATCH"
+    },
+    {
+      "path": "request/resolved-ticker-mismatch/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 74,
+      "sha256": "e99412e6b50eefe0e0d3a5e29c01978ddbae1c93bb60504c24d942f56b9b69eb",
+      "note": "resolved instrument differs"
+    },
+    {
+      "path": "request/resolved-ticker-mismatch/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 196,
+      "sha256": "29f505f74da42988cfd333c1e8b2b88d0a606e59571f52e00ce764e160353eaf",
+      "note": "resolved instrument differs"
+    },
+    {
+      "path": "request/benchmark-equals-ticker/input.json",
+      "group": "request",
+      "role": "input",
+      "bytes": 66,
+      "sha256": "f374bc4923614870e3eee1f5b913b4b237e8dfedd7d4b9ec68d2b9692abbf6c8",
+      "note": "benchmark must differ"
+    },
+    {
+      "path": "request/benchmark-equals-ticker/expected-error.json",
+      "group": "request",
+      "role": "error",
+      "bytes": 198,
+      "sha256": "92e830d480925176821a918c3f71d12eedc4f6f0641b30e41e03e5bd9869fb6a",
+      "note": "benchmark must differ"
+    },
+    {
+      "path": "calendar/xnys-dst-spring/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 1551,
+      "sha256": "6fce9313219c15f9fcb367af7086f56d65e26a1d5e8a3a75943d784599a69f46",
+      "note": "US DST spring-forward inside the window"
+    },
+    {
+      "path": "calendar/xnys-dst-fall/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 1546,
+      "sha256": "10e72c8b12927297f28a6aa85bd4735c4821df8a8218645945317d04fd9a6432",
+      "note": "US DST fall-back inside the window"
+    },
+    {
+      "path": "calendar/xnys-early-close-thanksgiving/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 887,
+      "sha256": "747bad665e11609f43dcf4ca37a09500d4b6a27d6e10c039b36e3f0b0e6bf937",
+      "note": "half session after Thanksgiving"
+    },
+    {
+      "path": "calendar/xnys-year-boundary/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 1125,
+      "sha256": "b3c02df933832dd8ad98972ae6669b3a99162b1af7e7d83b5aac0112913f2606",
+      "note": "crosses a year boundary"
+    },
+    {
+      "path": "calendar/xnys-leap-day/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 875,
+      "sha256": "5b7285b291e1531537bce66c34e38e8e99061e5f156a87a5ae096b8c91364b12",
+      "note": "leap day 2028-02-29"
+    },
+    {
+      "path": "calendar/xnys-holiday-shutdown/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 558,
+      "sha256": "fe027b5ab18c7b80719e88705eb1a591bb43802fc0c8726495366d175007e9da",
+      "note": "Juneteenth holiday then reopen"
+    },
+    {
+      "path": "calendar/xhkg-golden-week/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 1049,
+      "sha256": "a2dc136db13f6236fc6be4532f432c1ee729d1750fe8c3d43a5e4eac047f9910",
+      "note": "HK National Day closure cluster"
+    },
+    {
+      "path": "calendar/xhkg-lunar-new-year/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 879,
+      "sha256": "ba1458e6c9b6e4eb1e7bc1d41142dce1a58b214767b09425711cd4eda578f881",
+      "note": "HK Lunar New Year closure"
+    },
+    {
+      "path": "calendar/xhkg-typhoon-suspension/sessions.json",
+      "group": "calendar",
+      "role": "reference",
+      "bytes": 846,
+      "sha256": "0832b8b33e554b2fdaff319a0182a110304ce76eb34892e7e3c349d898f3f968",
+      "note": "HK severe-weather suspension is not fully modelled by the calendar library"
+    },
+    {
+      "path": "calendar/_generator.json",
+      "group": "calendar",
+      "role": "input",
+      "bytes": 354,
+      "sha256": "ae47bf7b80a939a545661be5faa4a050ce9e73769783c8408862fa11d1e661df",
+      "note": "calendar resource provenance"
+    },
+    {
+      "path": "snapshot/complete-window/expectations.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/fundamentals.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/insider.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/macro.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/manifest.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 53948,
+      "sha256": "dfa417e2451ed4371b9b44b4799b451ef22868bcf0644b9df46c55af644c93b0",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/market.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 201645,
+      "sha256": "299ff019f892c37a4bbb1cb9e7f18ba74e01ce0e95a90385affa55afffcbf2ce",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/news.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/options.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/expectations.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/fundamentals.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/insider.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/macro.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/market.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 201645,
+      "sha256": "299ff019f892c37a4bbb1cb9e7f18ba74e01ce0e95a90385affa55afffcbf2ce",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/news.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/options.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/sec.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/raw/short_volume.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/sec.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/short_volume.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/complete-window/expected-outcome.json",
+      "group": "snapshot",
+      "role": "reference",
+      "bytes": 971,
+      "sha256": "f5257b65ba478712fc0a0e51047c8dd80cb51905dae5830c0b604703bbc7acbd",
+      "note": "complete-window"
+    },
+    {
+      "path": "snapshot/missing-calendar/expectations.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/fundamentals.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/insider.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/macro.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/manifest.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 45920,
+      "sha256": "aa242d55b3f6005a4fab146b055401bfd4919e0bc1d7f0e470f988c42ca1228b",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/market.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 137347,
+      "sha256": "3c5583dcfcc6c301977655847a0ec21ac91df012d8b5d27430c0b052127ff3be",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/news.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/options.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/expectations.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/fundamentals.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/insider.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/macro.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/market.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 137347,
+      "sha256": "3c5583dcfcc6c301977655847a0ec21ac91df012d8b5d27430c0b052127ff3be",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/news.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/options.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/sec.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/raw/short_volume.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/sec.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/short_volume.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 76,
+      "sha256": "9868f1b8aa0e72f3e8299afcc457540ec0715b15621e4d4f7a3bc4559756eb64",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/missing-calendar/expected-outcome.json",
+      "group": "snapshot",
+      "role": "reference",
+      "bytes": 1036,
+      "sha256": "96f7dbc9461ca5a62c81b1034bb4ed7e3b2f39e067efd9538fc8650aa2dc5323",
+      "note": "missing-calendar"
+    },
+    {
+      "path": "snapshot/total-return-basis/expected-outcome.json",
+      "group": "snapshot",
+      "role": "error",
+      "bytes": 227,
+      "sha256": "43a400b9829e2191591c2822bb5204c0f7f7e177bdc67e9c32325f8fae1fc5b0",
+      "note": "total-return-basis: legacy freeze rejection"
+    },
+    {
+      "path": "snapshot/dividend-adjusted-basis/expected-outcome.json",
+      "group": "snapshot",
+      "role": "error",
+      "bytes": 257,
+      "sha256": "4fae5c4c083608b3ce21f1ef9db6c0faea3e040915838f5865cbf049299319ee",
+      "note": "dividend-adjusted-basis: legacy freeze rejection"
+    },
+    {
+      "path": "snapshot/literal-split-adjusted/expected-outcome.json",
+      "group": "snapshot",
+      "role": "error",
+      "bytes": 231,
+      "sha256": "62cb090f1d2e668105a8f08099fc63c294678c66ff19c2200271d80bcfc5316e",
+      "note": "literal-split-adjusted: legacy freeze rejection"
+    },
+    {
+      "path": "snapshot/_domains.json",
+      "group": "snapshot",
+      "role": "input",
+      "bytes": 222,
+      "sha256": "221f37c2890a2cebaca5032a11b8dbbc46e37e91933352f631df76d8c9ea78d8",
+      "note": ""
+    },
+    {
+      "path": "gateway/registry.json",
+      "group": "gateway",
+      "role": "reference",
+      "bytes": 31505,
+      "sha256": "e77a625cb483f77166e6415d3a2edfb347954c29e5ff66ae3457b0da9ed36208",
+      "note": "frozen function/parameter matrix: 56 entries, membership compared as a set"
+    },
+    {
+      "path": "gateway/registry-count.json",
+      "group": "gateway",
+      "role": "reference",
+      "bytes": 18,
+      "sha256": "8f8a2baf0643427a9a03ea8d7a1ec91c8c491e7238568ab10776a611993a4466",
+      "note": "expected 56 registered functions"
+    },
+    {
+      "path": "security/redaction.json",
+      "group": "security",
+      "role": "reference",
+      "bytes": 19492,
+      "sha256": "38a0402a7744a01ca5ed7c99b5aa6e40ca46e287e8212b0c82f47271d1a72933",
+      "note": "redact_text/bounded_text/markdown_text reference outputs from security.py"
+    },
+    {
+      "path": "security/safe-url.json",
+      "group": "security",
+      "role": "reference",
+      "bytes": 3469,
+      "sha256": "30c6311d9574d3a77d4800863848c57dd6004d0ed3854fd0c840cb6c94d47d17",
+      "note": "safe_url: userinfo/non-http/sensitive query/control characters are rejected or redacted"
+    },
+    {
+      "path": "security/sanitize.json",
+      "group": "security",
+      "role": "reference",
+      "bytes": 1212,
+      "sha256": "9389632cc68b821e152110b6236b6e99b74408293505ac6a8a4831e6a6f7fdf1",
+      "note": "sanitize_data: credential keys masked, action fields dropped, strings redacted"
+    },
+    {
+      "path": "security/provider-failed.json",
+      "group": "security",
+      "role": "reference",
+      "bytes": 1083,
+      "sha256": "b67cb66d9aef664bce86d200875ba29027330cab9c3876d2e95c5d3d26b74731",
+      "note": "provider_failed: status/error/isError nested detection"
+    }
+  ],
+  "provenance": {
+    "synthetic": "Synthetic series only prove deterministic behaviour; they are not market evidence.",
+    "calendar": "Real session schedules from the installed pinned exchange_calendars build.",
+    "differences": "Rust differences require an ADR and input evidence; expected values are never edited to pass."
+  }
+}

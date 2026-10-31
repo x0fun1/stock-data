@@ -1,0 +1,7 @@
+{
+  "case": "horizon-unknown",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "request.horizon must be one of 1D, 5D, 20D",
+  "contains": "request.horizon must be one of 1D, 5D, 20D"
+}

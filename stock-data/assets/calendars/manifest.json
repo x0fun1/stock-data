@@ -1,0 +1,76 @@
+{
+  "resource_schema": "2.0",
+  "completion_rule_version": "cas_latest_end_v1",
+  "generated_by": "tools/refactor/build_calendars.py",
+  "generated_at_utc": "2026-10-31T17:52:37Z",
+  "generator": {
+    "library": "exchange_calendars",
+    "version": "4.13.2",
+    "python_version": "3.13.7"
+  },
+  "requested_range": {
+    "start": "2000-01-01",
+    "end": "2030-12-31"
+  },
+  "anchor_session": "2000-01-03",
+  "markets": [
+    {
+      "market": "US",
+      "calendar": "XNYS",
+      "file": "US.sessions.json",
+      "coverage_start": "2000-01-03",
+      "coverage_end": "2030-12-31",
+      "session_count": 7794,
+      "anchor_session": "2000-01-03",
+      "anchor_present": true,
+      "completion_rule_version": "cas_latest_end_v1",
+      "verified_session_count": 7794,
+      "unverified_session_count": 0,
+      "unverified_scope_ids": [
+        "provider-publication-latency",
+        "official-full-range-audit"
+      ],
+      "sha256": "1841a226a92c4600a3e90eda0bc70eddd582ec5f24532bdbbfdc809931ca62cc",
+      "bytes": 1039389
+    },
+    {
+      "market": "HK",
+      "calendar": "XHKG",
+      "file": "HK.sessions.json",
+      "coverage_start": "2000-01-03",
+      "coverage_end": "2030-12-31",
+      "session_count": 7643,
+      "anchor_session": "2000-01-03",
+      "anchor_present": true,
+      "completion_rule_version": "cas_latest_end_v1",
+      "verified_session_count": 7441,
+      "unverified_session_count": 202,
+      "unverified_scope_ids": [
+        "hk-historical-closing-auction-2008",
+        "hk-cas-per-security-eligibility",
+        "provider-publication-latency",
+        "official-full-range-audit"
+      ],
+      "sha256": "60905347398b71b249c23d16343910f07f10c8e23d0b8e14e70567c6b2c4b7fd",
+      "bytes": 1439634
+    }
+  ],
+  "compatibility": {
+    "library_verified_requires_schema": "2.0",
+    "readable_schemas": [
+      "1.0",
+      "2.0"
+    ],
+    "schema_1_0_rule": "readable for diagnostics only: sessions carry only close_at, so completion semantics are unverified and the runtime must not produce library_verified, calendar_verified latest closes or a formal 5-session probability from it",
+    "snapshot_calendar_rule": "a frozen session_calendar block without completion metadata is unverified for markets with a closing-auction regime (HK: complete_at is treated as unknown and those sessions are skipped); for US the sourced no-extension rule makes close_at the completion boundary, so no offset is assumed and no metadata is required",
+    "missing_complete_at_rule": "null complete_at = unverified; the session is skipped when resolving the latest complete close. The runtime never adds an assumed offset to close_at"
+  },
+  "notes": {
+    "close_at": "UTC continuous-trading close instants from the pinned library; DST and half sessions are already resolved",
+    "auction_end_at": "latest official auction-completion boundary; null when no closing-auction regime applies or the historical boundary is unverified",
+    "complete_at": "earliest confirmable complete-daily-bar instant; null = unverified and skipped by the latest-complete-close resolver",
+    "provenance": "the digest proves content identity and the completion provenance points at the captured official sources; it is not an official full-range exchange audit",
+    "phase": "the sampling anchor is required to be inside the covered range; otherwise phase is unanchored",
+    "target": "coverage must extend at least five sessions past the newest decision date used at run time"
+  }
+}

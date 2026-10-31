@@ -1,0 +1,216 @@
+{
+  "classify": [
+    {
+      "text": "Company raises guidance after record revenue and beats estimates",
+      "hint": null,
+      "event_type": "GUIDANCE",
+      "direction": "positive",
+      "opinion_score": 1.0,
+      "matched_topics": [
+        "guidance"
+      ]
+    },
+    {
+      "text": "Analyst downgrade sends shares lower after revenue decline",
+      "hint": null,
+      "event_type": "ANALYST_REVISION",
+      "direction": "negative",
+      "opinion_score": -1.0,
+      "matched_topics": []
+    },
+    {
+      "text": "Company denies reports of a lawsuit",
+      "hint": null,
+      "event_type": "LEGAL",
+      "direction": "unknown",
+      "opinion_score": null,
+      "matched_topics": []
+    },
+    {
+      "text": "No. 1 vendor wins contract, no comment on margin",
+      "hint": null,
+      "event_type": "UNCLASSIFIED",
+      "direction": "positive",
+      "opinion_score": 1.0,
+      "matched_topics": []
+    },
+    {
+      "text": "Reportedly mulls acquisition of rival",
+      "hint": null,
+      "event_type": "MERGER_ACQUISITION",
+      "direction": "unknown",
+      "opinion_score": null,
+      "matched_topics": []
+    },
+    {
+      "text": "Unconfirmed rumour about a buyback circulates",
+      "hint": null,
+      "event_type": "BUYBACK",
+      "direction": "unknown",
+      "opinion_score": null,
+      "matched_topics": []
+    },
+    {
+      "text": "公司上调指引并超预期，利好股价",
+      "hint": null,
+      "event_type": "UNCLASSIFIED",
+      "direction": "positive",
+      "opinion_score": 1.0,
+      "matched_topics": []
+    },
+    {
+      "text": "公司下调指引，调查尚未结束",
+      "hint": null,
+      "event_type": "UNCLASSIFIED",
+      "direction": "negative",
+      "opinion_score": -1.0,
+      "matched_topics": []
+    },
+    {
+      "text": "Company appoints new CEO",
+      "hint": "MANAGEMENT_CHANGE_2026",
+      "event_type": "MANAGEMENT",
+      "direction": "unknown",
+      "opinion_score": null,
+      "matched_topics": []
+    },
+    {
+      "text": "Quarterly results beat expectations",
+      "hint": "earnings_beat",
+      "event_type": "EARNINGS",
+      "direction": "unknown",
+      "opinion_score": null,
+      "matched_topics": []
+    },
+    {
+      "text": "Something entirely unrelated happened",
+      "hint": "UNKNOWN_KIND",
+      "event_type": "UNCLASSIFIED",
+      "direction": "unknown",
+      "opinion_score": null,
+      "matched_topics": []
+    },
+    {
+      "text": "Board authorises share repurchase program and dividend increase",
+      "hint": null,
+      "event_type": "BUYBACK",
+      "direction": "positive",
+      "opinion_score": 1.0,
+      "matched_topics": []
+    },
+    {
+      "text": "SEC investigation opened; company neither confirms nor denies",
+      "hint": null,
+      "event_type": "REGULATORY",
+      "direction": "unknown",
+      "opinion_score": null,
+      "matched_topics": []
+    },
+    {
+      "text": "Positive demand outlook but competitive pressure intensifies",
+      "hint": null,
+      "event_type": "GUIDANCE",
+      "direction": "positive",
+      "opinion_score": 1.0,
+      "matched_topics": [
+        "demand"
+      ]
+    }
+  ],
+  "event_text": "A B C D",
+  "lexicon": {
+    "version": "news_keyword_en_zh_v1",
+    "languages": [
+      "en",
+      "zh"
+    ],
+    "coverage_note": "deterministic English/Chinese keyword screening; other languages and paraphrases are under-classified and surface as unclassified records",
+    "event_kinds": [
+      "EARNINGS",
+      "GUIDANCE",
+      "ANALYST_REVISION",
+      "PRODUCT",
+      "MERGER_ACQUISITION",
+      "BUYBACK",
+      "DIVIDEND",
+      "CAPITAL_RAISE",
+      "REGULATORY",
+      "LEGAL",
+      "MANAGEMENT",
+      "INSIDER",
+      "SUPPLY_CHAIN",
+      "COMPETITION",
+      "MACRO"
+    ],
+    "topic_terms": [
+      "AI",
+      "data center",
+      "demand",
+      "guidance",
+      "earnings",
+      "rates",
+      "regulation",
+      "China",
+      "supply",
+      "product"
+    ]
+  },
+  "decay": {
+    "us_same_day": {
+      "age_sessions": 6,
+      "half_life_sessions": 30.0,
+      "time_decay": 0.8705505632961241
+    },
+    "us_late_close": {
+      "age_sessions": 6,
+      "half_life_sessions": 30.0,
+      "time_decay": 0.8705505632961241
+    },
+    "hk_boundary": {
+      "age_sessions": 5,
+      "half_life_sessions": 30.0,
+      "time_decay": 0.8908987181403393
+    },
+    "policy_override": {
+      "age_sessions": 6,
+      "half_life_sessions": 10.0,
+      "time_decay": 0.6597539553864471
+    },
+    "default_override": {
+      "age_sessions": 6,
+      "half_life_sessions": 12.0,
+      "time_decay": 0.7071067811865476
+    },
+    "no_override_1d": {
+      "age_sessions": 6,
+      "half_life_sessions": 30.0,
+      "time_decay": 0.8705505632961241
+    },
+    "half_lives": {
+      "earnings_default": 30.0,
+      "policy_earnings": 10.0,
+      "policy_default": 7.0,
+      "horizon_20d": 30.0
+    },
+    "invalid_policy_errors": [
+      "news half-life values must be finite positive session counts",
+      "news half-life values must be finite positive session counts"
+    ]
+  },
+  "contracts": {
+    "horizons": [
+      {
+        "label": "1D",
+        "sessions": 1
+      },
+      {
+        "label": "5D",
+        "sessions": 5
+      },
+      {
+        "label": "20D",
+        "sessions": 20
+      }
+    ]
+  }
+}

@@ -1,0 +1,83 @@
+{
+  "ticker": "MU",
+  "market": "US",
+  "horizon": "5D",
+  "asof": null,
+  "mode": "standard",
+  "intent": "forecast",
+  "asset_type": "unknown",
+  "policy": {
+    "policy_version": "fixed_52w_5d_v1",
+    "history_calendar_days": 364,
+    "horizon_sessions": 5,
+    "horizon_label": "5D",
+    "window_closed": "right",
+    "target_version": "split_adjusted_price_direction_5d_v1",
+    "model_versions": {
+      "quant": "quant_drift_shrinkage_v2",
+      "factor": "factor_restricted_two_honest_v1",
+      "ml": "ml_compact_daily_v1",
+      "factor_backtest": "factor_backtest_5d_descriptive_v1"
+    },
+    "feature_versions": {
+      "quant": "roc20_v1",
+      "factor": "factor_bucket_v1",
+      "ml": "compact_v1",
+      "factor_backtest": "factor_diagnostic_v1"
+    },
+    "production_paths": [
+      "quant"
+    ],
+    "shadow_paths": [
+      "factor",
+      "ml"
+    ],
+    "diagnostic_paths": [
+      "factor_backtest"
+    ],
+    "nonoverlap_gap_sessions": 6,
+    "min_valid_oos_nonoverlap": 12,
+    "min_prospective_nonoverlap": 30,
+    "price_basis": "split_adjusted",
+    "price_basis_source": "provider_declared_split_adjusted_close",
+    "target_price_basis": {
+      "split_adjusted": true,
+      "dividend_adjusted": false,
+      "evidence_status": "declared_by_provider_not_independently_verified",
+      "dividend_flip_bias": "negative_on_dividend_payers; label_flip_rate_disclosed_not_corrected"
+    },
+    "estimator": {
+      "type": "causal_drift_shrinkage",
+      "version": "drift_shrinkage_v2",
+      "k": 50,
+      "mu_annual": 0.06,
+      "vol_window_sessions": 250,
+      "max_history_sessions": 250,
+      "roc_role": "disclosure_only"
+    },
+    "evidence_floors": {
+      "min_replay_effective_samples": 12,
+      "min_replay_observations": 30,
+      "min_prospective_nonoverlap": 30,
+      "prospective_floor_retained": true,
+      "primary_evidence": "in_window_causal_prefix_replay_with_block_bootstrap",
+      "independent_holdout": "not_available_inside_a_single_52_week_window",
+      "prospective_recording_grace_hours": 12
+    },
+    "coverage_rule": {
+      "expected_sessions_source": "resolved_exchange_calendar",
+      "observed_sessions_source": "frozen_bars",
+      "declaration_is_not_evidence": true,
+      "unverified_calendar_cannot_claim_complete": true
+    },
+    "sampling_anchor_session": "2000-01-03",
+    "sampling_modulus": 6,
+    "sampling_role": "throttle_only_not_qualification",
+    "calibration_policy": "disabled_by_policy"
+  },
+  "history_window": {
+    "start": "2025-10-24",
+    "end": "2026-10-23",
+    "selection": "policy"
+  }
+}

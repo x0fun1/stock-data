@@ -1,0 +1,17 @@
+[
+  {
+    "case": "nan",
+    "error_type": "ValueError",
+    "error": "Out of range float values are not JSON compliant: nan"
+  },
+  {
+    "case": "infinity",
+    "error_type": "ValueError",
+    "error": "Out of range float values are not JSON compliant: inf"
+  },
+  {
+    "case": "neg-infinity",
+    "error_type": "ValueError",
+    "error": "Out of range float values are not JSON compliant: -inf"
+  }
+]

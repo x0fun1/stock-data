@@ -1,0 +1,7 @@
+{
+  "case": "history-reversed",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "request history window is reversed",
+  "contains": "history window is reversed"
+}

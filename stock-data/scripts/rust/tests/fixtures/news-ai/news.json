@@ -1,0 +1,756 @@
+{
+  "valid": {
+    "schema_version": "1.0",
+    "basis": "headline_level_ai_screen_v1",
+    "lean_id": "ai_lean_0a9b63cf1fa4",
+    "model": {
+      "id": "host-model",
+      "prompt_sha256": "abc123",
+      "generated_at_utc": "2026-01-05T20:00:00Z"
+    },
+    "candidate_count": 3,
+    "items": [
+      {
+        "news_id": "event-1",
+        "lean": "bullish",
+        "reason": "beats and raises",
+        "evidence_grade": "reported_event",
+        "headline": "Company beats estimates",
+        "source": "Reuters",
+        "published_at": "2026-01-05T12:00:00Z",
+        "url": "https://example.com/a",
+        "ticker_relevance": "direct",
+        "record_kind": "event",
+        "eligible_evidence": true,
+        "target_relevance": "direct",
+        "importance": "major",
+        "relevance_basis": "headline_states_ticker",
+        "display_only": true
+      },
+      {
+        "news_id": "event-2",
+        "lean": "mixed",
+        "reason": "target raised but uncertain",
+        "evidence_grade": "unclear",
+        "headline": "Analyst raises target price",
+        "source": "Some Blog",
+        "published_at": "2026-01-05T13:00:00Z",
+        "url": null,
+        "ticker_relevance": "not_explicitly_matched",
+        "record_kind": "event",
+        "eligible_evidence": false,
+        "target_relevance": "indirect",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      },
+      {
+        "news_id": "opinion-1",
+        "lean": "neutral",
+        "reason": "no directional claim",
+        "evidence_grade": "unclear",
+        "headline": "Poster says stock looks strong",
+        "source": "StockTwits",
+        "published_at": "2026-01-05T14:00:00Z",
+        "url": "https://example.com/o",
+        "ticker_relevance": "direct",
+        "record_kind": "opinion",
+        "eligible_evidence": true,
+        "target_relevance": "unclear",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      }
+    ]
+  },
+  "candidates": [
+    {
+      "news_id": "event-1",
+      "record_kind": "event",
+      "headline": "Company beats estimates",
+      "source": "Reuters",
+      "published_at": "2026-01-05T12:00:00Z",
+      "url": "https://example.com/a",
+      "ticker_relevance": "direct",
+      "eligible_evidence": true,
+      "first_published_at": "2026-01-05T12:00:00Z"
+    },
+    {
+      "news_id": "event-2",
+      "record_kind": "event",
+      "headline": "Analyst raises target price",
+      "source": "Some Blog",
+      "published_at": "2026-01-05T13:00:00Z",
+      "url": null,
+      "ticker_relevance": "not_explicitly_matched",
+      "eligible_evidence": false,
+      "first_published_at": "2026-01-05T13:00:00Z"
+    },
+    {
+      "news_id": "opinion-1",
+      "record_kind": "opinion",
+      "headline": "Poster says stock looks strong",
+      "source": "StockTwits",
+      "published_at": "2026-01-05T14:00:00Z",
+      "url": "https://example.com/o",
+      "ticker_relevance": "direct",
+      "eligible_evidence": true
+    }
+  ],
+  "block": {
+    "status": "assessed",
+    "basis": "headline_level_ai_screen_v1",
+    "layer": "host_supplied_headline_lean_v1",
+    "reason": null,
+    "model": {
+      "id": "host-model",
+      "prompt_sha256": "abc123",
+      "generated_at_utc": "2026-01-05T20:00:00Z"
+    },
+    "lean_id": "ai_lean_0a9b63cf1fa4",
+    "display_only": true,
+    "probability_effect": "none: lean never enters aggregation, confidence, cross-validation or Quant P(up)",
+    "coverage": {
+      "candidate_count": 3,
+      "assessed_count": 3,
+      "unassessed_count": 0,
+      "label_counts": {
+        "bullish": 1,
+        "bearish": 0,
+        "mixed": 1,
+        "neutral_or_unclear": 1
+      },
+      "direct_count": 1,
+      "direct_label_counts": {
+        "bullish": 1,
+        "bearish": 0,
+        "mixed": 0,
+        "neutral": 0,
+        "unclear": 0
+      }
+    },
+    "items": [
+      {
+        "news_id": "event-1",
+        "lean": "bullish",
+        "reason": "beats and raises",
+        "evidence_grade": "reported_event",
+        "headline": "Company beats estimates",
+        "source": "Reuters",
+        "published_at": "2026-01-05T12:00:00Z",
+        "url": "https://example.com/a",
+        "ticker_relevance": "direct",
+        "record_kind": "event",
+        "eligible_evidence": true,
+        "target_relevance": "direct",
+        "importance": "major",
+        "relevance_basis": "headline_states_ticker",
+        "display_only": true
+      },
+      {
+        "news_id": "event-2",
+        "lean": "mixed",
+        "reason": "target raised but uncertain",
+        "evidence_grade": "unclear",
+        "headline": "Analyst raises target price",
+        "source": "Some Blog",
+        "published_at": "2026-01-05T13:00:00Z",
+        "url": null,
+        "ticker_relevance": "not_explicitly_matched",
+        "record_kind": "event",
+        "eligible_evidence": false,
+        "target_relevance": "indirect",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      },
+      {
+        "news_id": "opinion-1",
+        "lean": "neutral",
+        "reason": "no directional claim",
+        "evidence_grade": "unclear",
+        "headline": "Poster says stock looks strong",
+        "source": "StockTwits",
+        "published_at": "2026-01-05T14:00:00Z",
+        "url": "https://example.com/o",
+        "ticker_relevance": "direct",
+        "record_kind": "opinion",
+        "eligible_evidence": true,
+        "target_relevance": "unclear",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      }
+    ],
+    "major_direct_items": [
+      {
+        "news_id": "event-1",
+        "lean": "bullish",
+        "reason": "beats and raises",
+        "evidence_grade": "reported_event",
+        "headline": "Company beats estimates",
+        "source": "Reuters",
+        "published_at": "2026-01-05T12:00:00Z",
+        "url": "https://example.com/a",
+        "ticker_relevance": "direct",
+        "record_kind": "event",
+        "eligible_evidence": true,
+        "target_relevance": "direct",
+        "importance": "major",
+        "relevance_basis": "headline_states_ticker",
+        "display_only": true
+      }
+    ],
+    "bullish": [
+      {
+        "news_id": "event-1",
+        "lean": "bullish",
+        "reason": "beats and raises",
+        "evidence_grade": "reported_event",
+        "headline": "Company beats estimates",
+        "source": "Reuters",
+        "published_at": "2026-01-05T12:00:00Z",
+        "url": "https://example.com/a",
+        "ticker_relevance": "direct",
+        "record_kind": "event",
+        "eligible_evidence": true,
+        "target_relevance": "direct",
+        "importance": "major",
+        "relevance_basis": "headline_states_ticker",
+        "display_only": true
+      }
+    ],
+    "bearish": [],
+    "mixed": [
+      {
+        "news_id": "event-2",
+        "lean": "mixed",
+        "reason": "target raised but uncertain",
+        "evidence_grade": "unclear",
+        "headline": "Analyst raises target price",
+        "source": "Some Blog",
+        "published_at": "2026-01-05T13:00:00Z",
+        "url": null,
+        "ticker_relevance": "not_explicitly_matched",
+        "record_kind": "event",
+        "eligible_evidence": false,
+        "target_relevance": "indirect",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      }
+    ],
+    "neutral_or_unclear": [
+      {
+        "news_id": "opinion-1",
+        "lean": "neutral",
+        "reason": "no directional claim",
+        "evidence_grade": "unclear",
+        "headline": "Poster says stock looks strong",
+        "source": "StockTwits",
+        "published_at": "2026-01-05T14:00:00Z",
+        "url": "https://example.com/o",
+        "ticker_relevance": "direct",
+        "record_kind": "opinion",
+        "eligible_evidence": true,
+        "target_relevance": "unclear",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      }
+    ],
+    "limitations": [
+      "Lean is a headline-level AI judgement by the host model, not a calibrated sentiment model and not an event fact.",
+      "Several provider feeds supply headlines without body text; a lean cannot verify the underlying report.",
+      "Headline judgements and importance are qualitative; repeated coverage may describe the same underlying event.",
+      "Some judged records did not carry explicit ticker evidence in the headline; relevance rests on the provider query symbol and stays unverified."
+    ]
+  },
+  "block_with_warnings": {
+    "status": "partial",
+    "basis": "headline_level_ai_screen_v1",
+    "layer": "host_supplied_headline_lean_v1",
+    "reason": "some items unassessed",
+    "model": {
+      "id": "host-model",
+      "prompt_sha256": "abc123",
+      "generated_at_utc": "2026-01-05T20:00:00Z"
+    },
+    "lean_id": "ai_lean_0a9b63cf1fa4",
+    "display_only": true,
+    "probability_effect": "none: lean never enters aggregation, confidence, cross-validation or Quant P(up)",
+    "coverage": {
+      "candidate_count": 3,
+      "assessed_count": 3,
+      "unassessed_count": 0,
+      "label_counts": {
+        "bullish": 1,
+        "bearish": 0,
+        "mixed": 1,
+        "neutral_or_unclear": 1
+      },
+      "direct_count": 1,
+      "direct_label_counts": {
+        "bullish": 1,
+        "bearish": 0,
+        "mixed": 0,
+        "neutral": 0,
+        "unclear": 0
+      }
+    },
+    "items": [
+      {
+        "news_id": "event-1",
+        "lean": "bullish",
+        "reason": "beats and raises",
+        "evidence_grade": "reported_event",
+        "headline": "Company beats estimates",
+        "source": "Reuters",
+        "published_at": "2026-01-05T12:00:00Z",
+        "url": "https://example.com/a",
+        "ticker_relevance": "direct",
+        "record_kind": "event",
+        "eligible_evidence": true,
+        "target_relevance": "direct",
+        "importance": "major",
+        "relevance_basis": "headline_states_ticker",
+        "display_only": true
+      },
+      {
+        "news_id": "event-2",
+        "lean": "mixed",
+        "reason": "target raised but uncertain",
+        "evidence_grade": "unclear",
+        "headline": "Analyst raises target price",
+        "source": "Some Blog",
+        "published_at": "2026-01-05T13:00:00Z",
+        "url": null,
+        "ticker_relevance": "not_explicitly_matched",
+        "record_kind": "event",
+        "eligible_evidence": false,
+        "target_relevance": "indirect",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      },
+      {
+        "news_id": "opinion-1",
+        "lean": "neutral",
+        "reason": "no directional claim",
+        "evidence_grade": "unclear",
+        "headline": "Poster says stock looks strong",
+        "source": "StockTwits",
+        "published_at": "2026-01-05T14:00:00Z",
+        "url": "https://example.com/o",
+        "ticker_relevance": "direct",
+        "record_kind": "opinion",
+        "eligible_evidence": true,
+        "target_relevance": "unclear",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      }
+    ],
+    "major_direct_items": [
+      {
+        "news_id": "event-1",
+        "lean": "bullish",
+        "reason": "beats and raises",
+        "evidence_grade": "reported_event",
+        "headline": "Company beats estimates",
+        "source": "Reuters",
+        "published_at": "2026-01-05T12:00:00Z",
+        "url": "https://example.com/a",
+        "ticker_relevance": "direct",
+        "record_kind": "event",
+        "eligible_evidence": true,
+        "target_relevance": "direct",
+        "importance": "major",
+        "relevance_basis": "headline_states_ticker",
+        "display_only": true
+      }
+    ],
+    "bullish": [
+      {
+        "news_id": "event-1",
+        "lean": "bullish",
+        "reason": "beats and raises",
+        "evidence_grade": "reported_event",
+        "headline": "Company beats estimates",
+        "source": "Reuters",
+        "published_at": "2026-01-05T12:00:00Z",
+        "url": "https://example.com/a",
+        "ticker_relevance": "direct",
+        "record_kind": "event",
+        "eligible_evidence": true,
+        "target_relevance": "direct",
+        "importance": "major",
+        "relevance_basis": "headline_states_ticker",
+        "display_only": true
+      }
+    ],
+    "bearish": [],
+    "mixed": [
+      {
+        "news_id": "event-2",
+        "lean": "mixed",
+        "reason": "target raised but uncertain",
+        "evidence_grade": "unclear",
+        "headline": "Analyst raises target price",
+        "source": "Some Blog",
+        "published_at": "2026-01-05T13:00:00Z",
+        "url": null,
+        "ticker_relevance": "not_explicitly_matched",
+        "record_kind": "event",
+        "eligible_evidence": false,
+        "target_relevance": "indirect",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      }
+    ],
+    "neutral_or_unclear": [
+      {
+        "news_id": "opinion-1",
+        "lean": "neutral",
+        "reason": "no directional claim",
+        "evidence_grade": "unclear",
+        "headline": "Poster says stock looks strong",
+        "source": "StockTwits",
+        "published_at": "2026-01-05T14:00:00Z",
+        "url": "https://example.com/o",
+        "ticker_relevance": "direct",
+        "record_kind": "opinion",
+        "eligible_evidence": true,
+        "target_relevance": "unclear",
+        "importance": "routine",
+        "relevance_basis": "source_recorded",
+        "display_only": true
+      }
+    ],
+    "limitations": [
+      "Lean is a headline-level AI judgement by the host model, not a calibrated sentiment model and not an event fact.",
+      "Several provider feeds supply headlines without body text; a lean cannot verify the underlying report.",
+      "Headline judgements and importance are qualitative; repeated coverage may describe the same underlying event.",
+      "Some judged records did not carry explicit ticker evidence in the headline; relevance rests on the provider query symbol and stays unverified."
+    ],
+    "warnings": [
+      "lean coverage is partial"
+    ]
+  },
+  "block_invalid": {
+    "status": "invalid",
+    "basis": "headline_level_ai_screen_v1",
+    "layer": "host_supplied_headline_lean_v1",
+    "reason": "host artifact rejected",
+    "model": null,
+    "lean_id": null,
+    "display_only": true,
+    "probability_effect": "none: lean never enters aggregation, confidence, cross-validation or Quant P(up)",
+    "coverage": {
+      "candidate_count": 3,
+      "assessed_count": 0,
+      "unassessed_count": 3,
+      "label_counts": {
+        "bullish": 0,
+        "bearish": 0,
+        "mixed": 0,
+        "neutral_or_unclear": 0
+      },
+      "direct_count": 0,
+      "direct_label_counts": {
+        "bullish": 0,
+        "bearish": 0,
+        "mixed": 0,
+        "neutral": 0,
+        "unclear": 0
+      }
+    },
+    "items": [],
+    "major_direct_items": [],
+    "bullish": [],
+    "bearish": [],
+    "mixed": [],
+    "neutral_or_unclear": [],
+    "limitations": [
+      "Lean is a headline-level AI judgement by the host model, not a calibrated sentiment model and not an event fact.",
+      "Several provider feeds supply headlines without body text; a lean cannot verify the underlying report.",
+      "Headline judgements and importance are qualitative; repeated coverage may describe the same underlying event."
+    ]
+  },
+  "block_empty": {
+    "status": "not_supplied",
+    "basis": "headline_level_ai_screen_v1",
+    "layer": "host_supplied_headline_lean_v1",
+    "reason": null,
+    "model": null,
+    "lean_id": null,
+    "display_only": true,
+    "probability_effect": "none: lean never enters aggregation, confidence, cross-validation or Quant P(up)",
+    "coverage": {
+      "candidate_count": 0,
+      "assessed_count": 0,
+      "unassessed_count": 0,
+      "label_counts": {
+        "bullish": 0,
+        "bearish": 0,
+        "mixed": 0,
+        "neutral_or_unclear": 0
+      },
+      "direct_count": 0,
+      "direct_label_counts": {
+        "bullish": 0,
+        "bearish": 0,
+        "mixed": 0,
+        "neutral": 0,
+        "unclear": 0
+      }
+    },
+    "items": [],
+    "major_direct_items": [],
+    "bullish": [],
+    "bearish": [],
+    "mixed": [],
+    "neutral_or_unclear": [],
+    "limitations": [
+      "Lean is a headline-level AI judgement by the host model, not a calibrated sentiment model and not an event fact.",
+      "Several provider feeds supply headlines without body text; a lean cannot verify the underlying report.",
+      "Headline judgements and importance are qualitative; repeated coverage may describe the same underlying event."
+    ]
+  },
+  "candidates_from_records": [
+    {
+      "news_id": "opinion-1",
+      "record_kind": "opinion",
+      "headline": "Strong",
+      "summary": "s",
+      "source": "StockTwits",
+      "published_at": "2026-01-05T14:00:00Z",
+      "url": "https://example.com/o",
+      "direction": "positive",
+      "event_type": null,
+      "ticker_relevance": null,
+      "eligible_evidence": true,
+      "exclusion_reasons": null
+    },
+    {
+      "news_id": "event-1",
+      "record_kind": "event",
+      "headline": "Company beats estimates",
+      "summary": "s",
+      "source": "Reuters",
+      "published_at": "2026-01-05T12:00:00Z",
+      "url": "https://example.com/a",
+      "direction": "positive",
+      "event_type": "EARNINGS",
+      "ticker_relevance": "direct",
+      "eligible_evidence": true,
+      "exclusion_reasons": []
+    },
+    {
+      "news_id": "unclassified-1",
+      "record_kind": "unclassified",
+      "headline": "Mystery",
+      "summary": "s",
+      "source": "Blog",
+      "published_at": "2026-01-04T09:00:00Z",
+      "url": null,
+      "direction": "unknown",
+      "event_type": null,
+      "ticker_relevance": "indirect",
+      "eligible_evidence": false,
+      "exclusion_reasons": [
+        "unclassified"
+      ]
+    }
+  ],
+  "candidates_limited": [
+    {
+      "news_id": "opinion-1",
+      "record_kind": "opinion",
+      "headline": "Strong",
+      "summary": "s",
+      "source": "StockTwits",
+      "published_at": "2026-01-05T14:00:00Z",
+      "url": "https://example.com/o",
+      "direction": "positive",
+      "event_type": null,
+      "ticker_relevance": null,
+      "eligible_evidence": true,
+      "exclusion_reasons": null
+    },
+    {
+      "news_id": "event-1",
+      "record_kind": "event",
+      "headline": "Company beats estimates",
+      "summary": "s",
+      "source": "Reuters",
+      "published_at": "2026-01-05T12:00:00Z",
+      "url": "https://example.com/a",
+      "direction": "positive",
+      "event_type": "EARNINGS",
+      "ticker_relevance": "direct",
+      "eligible_evidence": true,
+      "exclusion_reasons": []
+    }
+  ],
+  "attached": {
+    "major_events": [
+      {
+        "event_id": "event-1",
+        "headline": "Company beats estimates",
+        "ai_lean": "bullish",
+        "ai_lean_reason": "beats and raises",
+        "ai_lean_evidence_grade": "reported_event"
+      },
+      {
+        "event_id": "missing",
+        "headline": "no lean"
+      }
+    ],
+    "opinion_records": [
+      {
+        "opinion_id": "opinion-1",
+        "headline": "Strong",
+        "ai_lean": "neutral",
+        "ai_lean_reason": "no directional claim",
+        "ai_lean_evidence_grade": "unclear"
+      }
+    ],
+    "background_records": [
+      {
+        "event_id": "unclassified-1"
+      }
+    ]
+  },
+  "errors": {
+    "not_object": "ai assessment must be a JSON object",
+    "schema": "ai assessment schema_version must be '1.0'",
+    "schema_unknown_field": "ai assessment has unsupported field(s): extra",
+    "ticker": "ai assessment ticker does not match the analyzed ticker",
+    "asof": "ai assessment as-of does not match the snapshot as-of",
+    "bad_basis": "ai assessment basis must be 'headline_level_ai_screen_v1' when supplied",
+    "model_not_object": "ai assessment model must be an object",
+    "model_unknown": "ai assessment model has unsupported field(s): extra",
+    "items_empty": "ai assessment items must be a non-empty array",
+    "items_not_array": "ai assessment items must be a non-empty array",
+    "unknown_id": "ai assessment item 0 references unknown news id 'ghost'",
+    "duplicate": "ai assessment repeats news id 'event-1'",
+    "bad_lean": "ai assessment item 0 lean must be one of bullish, bearish, mixed, neutral, unclear",
+    "bad_grade": "ai assessment item 0 evidence_grade must be one of reported_event, analyst_opinion, headline_only, rumour, unclear",
+    "bad_relevance": "ai assessment item 0 target_relevance must be one of direct, indirect, unrelated, unclear",
+    "bad_importance": "ai assessment item 0 importance must be one of major, routine",
+    "forbidden_reason": "ai assessment item 0 reason contains Quant vocabulary 'probability'; the lean layer must not carry Quant fields",
+    "forbidden_headline": "ai assessment item 0 headline contains Quant vocabulary 'consensus'; the lean layer must not carry Quant fields",
+    "headline_mismatch": "ai assessment item 0 headline does not match the analysed record; identity fields must be copied, not authored",
+    "source_mismatch": "ai assessment item 0 source does not match the analysed record; identity fields must be copied, not authored",
+    "url_mismatch": "ai assessment item 0 url does not match the analysed record; identity fields must be copied, not authored",
+    "published_mismatch": "ai assessment item 0 published_at does not match the analysed record",
+    "missing_reason": "ai assessment item 0 reason is required"
+  },
+  "constants": {
+    "schema_version": "1.0",
+    "basis": "headline_level_ai_screen_v1",
+    "layer": "host_supplied_headline_lean_v1",
+    "lean_labels": [
+      "bullish",
+      "bearish",
+      "mixed",
+      "neutral",
+      "unclear"
+    ],
+    "evidence_grades": [
+      "reported_event",
+      "analyst_opinion",
+      "headline_only",
+      "rumour",
+      "unclear"
+    ],
+    "target_relevance": [
+      "direct",
+      "indirect",
+      "unrelated",
+      "unclear"
+    ],
+    "importance": [
+      "major",
+      "routine"
+    ]
+  },
+  "lean_id_inputs": {
+    "assessment": {
+      "schema_version": "1.0",
+      "ticker": "SYN",
+      "asof_timestamp": "2026-01-05T21:00:00Z",
+      "basis": "headline_level_ai_screen_v1",
+      "model": {
+        "id": "host-model",
+        "prompt_sha256": "abc123",
+        "generated_at_utc": "2026-01-05T20:00:00Z"
+      },
+      "items": [
+        {
+          "news_id": "event-1",
+          "lean": "bullish",
+          "reason": "beats and raises",
+          "evidence_grade": "reported_event",
+          "headline": "Company beats estimates",
+          "source": "Reuters",
+          "published_at": "2026-01-05T12:00:00Z",
+          "url": "https://example.com/a",
+          "target_relevance": "direct",
+          "importance": "major",
+          "relevance_basis": "headline_states_ticker"
+        },
+        {
+          "news_id": "event-2",
+          "lean": "mixed",
+          "reason": "target raised but uncertain",
+          "target_relevance": "indirect"
+        },
+        {
+          "news_id": "opinion-1",
+          "lean": "neutral",
+          "reason": "no directional claim"
+        }
+      ]
+    },
+    "other_order": {
+      "items": [
+        {
+          "news_id": "event-1",
+          "lean": "bullish",
+          "reason": "beats and raises",
+          "evidence_grade": "reported_event",
+          "headline": "Company beats estimates",
+          "source": "Reuters",
+          "published_at": "2026-01-05T12:00:00Z",
+          "url": "https://example.com/a",
+          "target_relevance": "direct",
+          "importance": "major",
+          "relevance_basis": "headline_states_ticker"
+        },
+        {
+          "news_id": "event-2",
+          "lean": "mixed",
+          "reason": "target raised but uncertain",
+          "target_relevance": "indirect"
+        },
+        {
+          "news_id": "opinion-1",
+          "lean": "neutral",
+          "reason": "no directional claim"
+        }
+      ],
+      "model": {
+        "id": "host-model",
+        "prompt_sha256": "abc123",
+        "generated_at_utc": "2026-01-05T20:00:00Z"
+      },
+      "basis": "headline_level_ai_screen_v1",
+      "asof_timestamp": "2026-01-05T21:00:00Z",
+      "ticker": "SYN",
+      "schema_version": "1.0"
+    }
+  }
+}

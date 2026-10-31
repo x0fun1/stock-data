@@ -1,0 +1,1415 @@
+{
+  "inputs": {
+    "records": [
+      {
+        "decision_session": "2026-01-01",
+        "probability": 0.5131903458,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5920072331
+        }
+      },
+      {
+        "decision_session": "2026-02-02",
+        "probability": 0.7762968646,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4368876133
+        }
+      },
+      {
+        "decision_session": "2026-03-03",
+        "probability": 0.6596644627,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5612659601
+        }
+      },
+      {
+        "decision_session": "2026-04-04",
+        "probability": 0.5968298343,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.3830486147
+        }
+      },
+      {
+        "decision_session": "2026-05-05",
+        "probability": 0.2161620673,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4652513314
+        }
+      },
+      {
+        "decision_session": "2026-06-06",
+        "probability": 0.6478371177,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4257151303
+        }
+      },
+      {
+        "decision_session": "2026-07-07",
+        "probability": 0.5009616023,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4452305272
+        }
+      },
+      {
+        "decision_session": "2026-08-08",
+        "probability": 0.7077966855,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6335581744
+        }
+      },
+      {
+        "decision_session": "2026-09-09",
+        "probability": 0.4409545621,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6495341015
+        }
+      },
+      {
+        "decision_session": "2026-10-10",
+        "probability": 0.2373156748,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5937827001
+        }
+      },
+      {
+        "decision_session": "2026-11-11",
+        "probability": 0.7251899013,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.3952746441
+        }
+      },
+      {
+        "decision_session": "2026-12-12",
+        "probability": 0.6233411694,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5176675606
+        }
+      },
+      {
+        "decision_session": "2026-01-13",
+        "probability": 0.7731127174,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4130030028
+        }
+      },
+      {
+        "decision_session": "2026-02-14",
+        "probability": 0.5239780104,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.614736832
+        }
+      },
+      {
+        "decision_session": "2026-03-15",
+        "probability": 0.5832639086,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.442759859
+        }
+      },
+      {
+        "decision_session": "2026-04-16",
+        "probability": 0.2491183125,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6319328141
+        }
+      },
+      {
+        "decision_session": "2026-05-17",
+        "probability": 0.4844590827,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6488978548
+        }
+      },
+      {
+        "decision_session": "2026-06-18",
+        "probability": 0.2849642844,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5936612757
+        }
+      },
+      {
+        "decision_session": "2026-07-19",
+        "probability": 0.688026873,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6259925067
+        }
+      },
+      {
+        "decision_session": "2026-08-20",
+        "probability": 0.2107005899,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4616578525
+        }
+      },
+      {
+        "decision_session": "2026-09-21",
+        "probability": 0.231001396,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5756104501
+        }
+      },
+      {
+        "decision_session": "2026-10-22",
+        "probability": 0.4127850416,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6378515657
+        }
+      },
+      {
+        "decision_session": "2026-11-23",
+        "probability": 0.4248974081,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5823124774
+        }
+      },
+      {
+        "decision_session": "2026-12-24",
+        "probability": 0.7206732053,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4216839696
+        }
+      },
+      {
+        "decision_session": "2026-01-25",
+        "probability": 0.5340899745,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6372176541
+        }
+      },
+      {
+        "decision_session": "2026-02-26",
+        "probability": 0.5161506621,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4579123454
+        }
+      },
+      {
+        "decision_session": "2026-03-27",
+        "probability": 0.3603202152,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5859409078
+        }
+      },
+      {
+        "decision_session": "2026-04-01",
+        "probability": 0.315648501,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5311689291
+        }
+      },
+      {
+        "decision_session": "2026-05-02",
+        "probability": 0.5333278576,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5160442477
+        }
+      },
+      {
+        "decision_session": "2026-06-03",
+        "probability": 0.2776915621,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5475695408
+        }
+      },
+      {
+        "decision_session": "2026-07-04",
+        "probability": 0.7499175355,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4456636984
+        }
+      },
+      {
+        "decision_session": "2026-08-05",
+        "probability": 0.399243914,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6227122282
+        }
+      },
+      {
+        "decision_session": "2026-09-06",
+        "probability": 0.5470071157,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4317733139
+        }
+      },
+      {
+        "decision_session": "2026-10-07",
+        "probability": 0.2058580118,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5759808346
+        }
+      },
+      {
+        "decision_session": "2026-11-08",
+        "probability": 0.4088023991,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4901476713
+        }
+      },
+      {
+        "decision_session": "2026-12-09",
+        "probability": 0.3635017908,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5399305978
+        }
+      },
+      {
+        "decision_session": "2026-01-10",
+        "probability": 0.6373906904,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4429364262
+        }
+      },
+      {
+        "decision_session": "2026-02-11",
+        "probability": 0.245017891,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6460371585
+        }
+      },
+      {
+        "decision_session": "2026-03-12",
+        "probability": 0.7460246719,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.3561984165
+        }
+      },
+      {
+        "decision_session": "2026-04-13",
+        "probability": 0.5385108867,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5557994987
+        }
+      },
+      {
+        "decision_session": "2026-05-14",
+        "probability": 0.4418076492,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5694921418
+        }
+      },
+      {
+        "decision_session": "2026-06-15",
+        "probability": 0.7758891984,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5270439688
+        }
+      },
+      {
+        "decision_session": "2026-07-16",
+        "probability": 0.4349442997,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4086944468
+        }
+      },
+      {
+        "decision_session": "2026-08-17",
+        "probability": 0.3508510782,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.3952404455
+        }
+      },
+      {
+        "decision_session": "2026-09-18",
+        "probability": 0.2662446703,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4137169146
+        }
+      },
+      {
+        "decision_session": "2026-10-19",
+        "probability": 0.7052145733,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5110933892
+        }
+      },
+      {
+        "decision_session": "2026-11-20",
+        "probability": 0.6829614649,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6260557286
+        }
+      },
+      {
+        "decision_session": "2026-12-21",
+        "probability": 0.686470811,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.36483288
+        }
+      },
+      {
+        "decision_session": "2026-01-22",
+        "probability": 0.7555754412,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.3778376654
+        }
+      },
+      {
+        "decision_session": "2026-02-23",
+        "probability": 0.6625794589,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6016830606
+        }
+      },
+      {
+        "decision_session": "2026-03-24",
+        "probability": 0.5944708213,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4711048048
+        }
+      },
+      {
+        "decision_session": "2026-04-25",
+        "probability": 0.2450102413,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.3755460394
+        }
+      },
+      {
+        "decision_session": "2026-05-26",
+        "probability": 0.5819016232,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4225112905
+        }
+      },
+      {
+        "decision_session": "2026-06-27",
+        "probability": 0.5193694605,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4295681363
+        }
+      },
+      {
+        "decision_session": "2026-07-01",
+        "probability": 0.2980454496,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4385715016
+        }
+      },
+      {
+        "decision_session": "2026-08-02",
+        "probability": 0.634920075,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4960441208
+        }
+      },
+      {
+        "decision_session": "2026-09-03",
+        "probability": 0.4356618784,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4959447374
+        }
+      },
+      {
+        "decision_session": "2026-10-04",
+        "probability": 0.5323903132,
+        "target": 0,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5047003045
+        }
+      },
+      {
+        "decision_session": "2026-11-05",
+        "probability": 0.4670353744,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.6402157183
+        }
+      },
+      {
+        "decision_session": "2026-12-06",
+        "probability": 0.6510393078,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.4187183436
+        }
+      },
+      {
+        "decision_session": "2025-01-01",
+        "probability": true,
+        "target": 1,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5
+        }
+      },
+      {
+        "decision_session": "2025-01-02",
+        "probability": 0.5,
+        "target": null,
+        "probability_transform": {
+          "base_rate_at_origin": 0.5
+        }
+      },
+      {
+        "decision_session": "2025-01-03",
+        "probability": 0.5,
+        "target": 1
+      },
+      {
+        "decision_session": "2025-01-04",
+        "probability": 0.5,
+        "target": 1,
+        "causal_base_rate": 0.4
+      },
+      {
+        "decision_session": null,
+        "probability": 0.6,
+        "target": 0,
+        "causal_base_rate": 0.45
+      }
+    ],
+    "improvements": [
+      -0.0090531566,
+      -0.0867203311,
+      0.0184552786,
+      -0.1829731943,
+      0.2467018466,
+      0.1407333963,
+      0.0536084908,
+      0.3360619299,
+      -0.0027522044,
+      0.1471505083,
+      0.3578542663,
+      0.1335158433,
+      0.1677852615,
+      0.0207723879,
+      0.3988585948,
+      0.252869446,
+      -0.0179929654,
+      0.0133094331,
+      0.1549053822,
+      0.1111817722,
+      0.1139838174,
+      -0.0847464221,
+      0.1454216804,
+      0.2223682026,
+      0.2589948692,
+      0.0696281111,
+      0.0673346543,
+      0.1025544962,
+      0.1217519129,
+      0.0849558001,
+      -0.1927399786,
+      -0.0419436,
+      0.3926843062,
+      0.295792156,
+      0.0804238096,
+      0.2511867583,
+      -0.0732506169,
+      -0.0396971653,
+      0.1105776474,
+      0.2195769281,
+      -0.1834614942,
+      0.0830273287,
+      0.3436506076,
+      0.1673545072,
+      0.3958547567,
+      -0.1407874386,
+      0.3451609484,
+      0.3024387284,
+      -0.1843049133,
+      0.1219512917,
+      0.2555677694,
+      -0.066768398,
+      0.1895813735,
+      0.3103024933,
+      0.2763681224,
+      0.0568650497,
+      -0.1649921936,
+      0.1235032636,
+      -0.087152064,
+      0.1232207072
+    ]
+  },
+  "paired_rows": [
+    {
+      "decision_session": "2025-01-04",
+      "baseline_probability": 0.4,
+      "model_probability": 0.5,
+      "target": 1.0,
+      "baseline_squared_error": 0.36,
+      "model_squared_error": 0.25,
+      "improvement": 0.10999999999999999
+    },
+    {
+      "decision_session": "2026-01-01",
+      "baseline_probability": 0.5920072331,
+      "model_probability": 0.5131903458,
+      "target": 0.0,
+      "baseline_squared_error": 0.35047256404271776,
+      "model_squared_error": 0.2633643310223236,
+      "improvement": 0.08710823302039417
+    },
+    {
+      "decision_session": "2026-01-10",
+      "baseline_probability": 0.4429364262,
+      "model_probability": 0.6373906904,
+      "target": 0.0,
+      "baseline_squared_error": 0.19619267765482806,
+      "model_squared_error": 0.4062668922085886,
+      "improvement": -0.21007421455376052
+    },
+    {
+      "decision_session": "2026-01-13",
+      "baseline_probability": 0.4130030028,
+      "model_probability": 0.7731127174,
+      "target": 0.0,
+      "baseline_squared_error": 0.17057148032181682,
+      "model_squared_error": 0.5977032738056123,
+      "improvement": -0.4271317934837955
+    },
+    {
+      "decision_session": "2026-01-22",
+      "baseline_probability": 0.3778376654,
+      "model_probability": 0.7555754412,
+      "target": 0.0,
+      "baseline_squared_error": 0.14276130139492238,
+      "model_squared_error": 0.5708942473445746,
+      "improvement": -0.42813294594965223
+    },
+    {
+      "decision_session": "2026-01-25",
+      "baseline_probability": 0.6372176541,
+      "model_probability": 0.5340899745,
+      "target": 0.0,
+      "baseline_squared_error": 0.4060463386967072,
+      "model_squared_error": 0.2852521008614106,
+      "improvement": 0.12079423783529658
+    },
+    {
+      "decision_session": "2026-02-02",
+      "baseline_probability": 0.4368876133,
+      "model_probability": 0.7762968646,
+      "target": 1.0,
+      "baseline_squared_error": 0.3170955600549704,
+      "model_squared_error": 0.05004309278779072,
+      "improvement": 0.2670524672671797
+    },
+    {
+      "decision_session": "2026-02-11",
+      "baseline_probability": 0.6460371585,
+      "model_probability": 0.245017891,
+      "target": 1.0,
+      "baseline_squared_error": 0.12528969316275412,
+      "model_squared_error": 0.5699979849100878,
+      "improvement": -0.4447082917473337
+    },
+    {
+      "decision_session": "2026-02-14",
+      "baseline_probability": 0.614736832,
+      "model_probability": 0.5239780104,
+      "target": 1.0,
+      "baseline_squared_error": 0.14842770861739626,
+      "model_squared_error": 0.2265969345827425,
+      "improvement": -0.07816922596534623
+    },
+    {
+      "decision_session": "2026-02-23",
+      "baseline_probability": 0.6016830606,
+      "model_probability": 0.6625794589,
+      "target": 1.0,
+      "baseline_squared_error": 0.15865638421298328,
+      "model_squared_error": 0.11385262155621677,
+      "improvement": 0.04480376265676651
+    },
+    {
+      "decision_session": "2026-02-26",
+      "baseline_probability": 0.4579123454,
+      "model_probability": 0.5161506621,
+      "target": 1.0,
+      "baseline_squared_error": 0.29385902526972885,
+      "model_squared_error": 0.23411018178626833,
+      "improvement": 0.05974884348346052
+    },
+    {
+      "decision_session": "2026-03-03",
+      "baseline_probability": 0.5612659601,
+      "model_probability": 0.6596644627,
+      "target": 1.0,
+      "baseline_squared_error": 0.19248755776697482,
+      "model_squared_error": 0.11582827794927969,
+      "improvement": 0.07665927981769513
+    },
+    {
+      "decision_session": "2026-03-12",
+      "baseline_probability": 0.3561984165,
+      "model_probability": 0.7460246719,
+      "target": 1.0,
+      "baseline_squared_error": 0.4144804789171074,
+      "model_squared_error": 0.06450346728350266,
+      "improvement": 0.34997701163360473
+    },
+    {
+      "decision_session": "2026-03-15",
+      "baseline_probability": 0.442759859,
+      "model_probability": 0.5832639086,
+      "target": 1.0,
+      "baseline_squared_error": 0.31051657474169997,
+      "model_squared_error": 0.17366896987534916,
+      "improvement": 0.1368476048663508
+    },
+    {
+      "decision_session": "2026-03-24",
+      "baseline_probability": 0.4711048048,
+      "model_probability": 0.5944708213,
+      "target": 1.0,
+      "baseline_squared_error": 0.2797301275056462,
+      "model_squared_error": 0.16445391477709656,
+      "improvement": 0.11527621272854963
+    },
+    {
+      "decision_session": "2026-03-27",
+      "baseline_probability": 0.5859409078,
+      "model_probability": 0.3603202152,
+      "target": 1.0,
+      "baseline_squared_error": 0.17144493183348813,
+      "model_squared_error": 0.40919022708177427,
+      "improvement": -0.23774529524828614
+    },
+    {
+      "decision_session": "2026-04-01",
+      "baseline_probability": 0.5311689291,
+      "model_probability": 0.315648501,
+      "target": 0.0,
+      "baseline_squared_error": 0.28214043124124083,
+      "model_squared_error": 0.09963397618354702,
+      "improvement": 0.1825064550576938
+    },
+    {
+      "decision_session": "2026-04-04",
+      "baseline_probability": 0.3830486147,
+      "model_probability": 0.5968298343,
+      "target": 0.0,
+      "baseline_squared_error": 0.14672624122358907,
+      "model_squared_error": 0.35620585111056546,
+      "improvement": -0.2094796098869764
+    },
+    {
+      "decision_session": "2026-04-13",
+      "baseline_probability": 0.5557994987,
+      "model_probability": 0.5385108867,
+      "target": 0.0,
+      "baseline_squared_error": 0.3089130827551713,
+      "model_squared_error": 0.28999397509442026,
+      "improvement": 0.018919107660751056
+    },
+    {
+      "decision_session": "2026-04-16",
+      "baseline_probability": 0.6319328141,
+      "model_probability": 0.2491183125,
+      "target": 0.0,
+      "baseline_squared_error": 0.3993390815363452,
+      "model_squared_error": 0.06205993362284765,
+      "improvement": 0.3372791479134975
+    },
+    {
+      "decision_session": "2026-04-25",
+      "baseline_probability": 0.3755460394,
+      "model_probability": 0.2450102413,
+      "target": 0.0,
+      "baseline_squared_error": 0.14103482770902634,
+      "model_squared_error": 0.06003001834188422,
+      "improvement": 0.08100480936714212
+    },
+    {
+      "decision_session": "2026-05-02",
+      "baseline_probability": 0.5160442477,
+      "model_probability": 0.5333278576,
+      "target": 1.0,
+      "baseline_squared_error": 0.23421317018425894,
+      "model_squared_error": 0.21778288849220587,
+      "improvement": 0.016430281692053073
+    },
+    {
+      "decision_session": "2026-05-05",
+      "baseline_probability": 0.4652513314,
+      "model_probability": 0.2161620673,
+      "target": 1.0,
+      "baseline_squared_error": 0.28595613856947266,
+      "model_squared_error": 0.6144019047394098,
+      "improvement": -0.32844576616993715
+    },
+    {
+      "decision_session": "2026-05-14",
+      "baseline_probability": 0.5694921418,
+      "model_probability": 0.4418076492,
+      "target": 1.0,
+      "baseline_squared_error": 0.18533701597195135,
+      "model_squared_error": 0.3115787004916302,
+      "improvement": -0.12624168451967888
+    },
+    {
+      "decision_session": "2026-05-17",
+      "baseline_probability": 0.6488978548,
+      "model_probability": 0.4844590827,
+      "target": 1.0,
+      "baseline_squared_error": 0.12327271636404191,
+      "model_squared_error": 0.2657824374105255,
+      "improvement": -0.14250972104648357
+    },
+    {
+      "decision_session": "2026-05-26",
+      "baseline_probability": 0.4225112905,
+      "model_probability": 0.5819016232,
+      "target": 1.0,
+      "baseline_squared_error": 0.33349320959997536,
+      "model_squared_error": 0.17480625268279473,
+      "improvement": 0.15868695691718063
+    },
+    {
+      "decision_session": "2026-06-03",
+      "baseline_probability": 0.5475695408,
+      "model_probability": 0.2776915621,
+      "target": 1.0,
+      "baseline_squared_error": 0.2046933204119229,
+      "model_squared_error": 0.5217294794615381,
+      "improvement": -0.31703615904961524
+    },
+    {
+      "decision_session": "2026-06-06",
+      "baseline_probability": 0.4257151303,
+      "model_probability": 0.6478371177,
+      "target": 1.0,
+      "baseline_squared_error": 0.329803111566346,
+      "model_squared_error": 0.12401869566984368,
+      "improvement": 0.20578441589650232
+    },
+    {
+      "decision_session": "2026-06-15",
+      "baseline_probability": 0.5270439688,
+      "model_probability": 0.7758891984,
+      "target": 1.0,
+      "baseline_squared_error": 0.22368740744845533,
+      "model_squared_error": 0.05022565139379455,
+      "improvement": 0.1734617560546608
+    },
+    {
+      "decision_session": "2026-06-18",
+      "baseline_probability": 0.5936612757,
+      "model_probability": 0.2849642844,
+      "target": 1.0,
+      "baseline_squared_error": 0.16511115886575137,
+      "model_squared_error": 0.5112760745836041,
+      "improvement": -0.3461649157178528
+    },
+    {
+      "decision_session": "2026-06-27",
+      "baseline_probability": 0.4295681363,
+      "model_probability": 0.5193694605,
+      "target": 1.0,
+      "baseline_squared_error": 0.3253925111242554,
+      "model_squared_error": 0.23100571550006108,
+      "improvement": 0.0943867956241943
+    },
+    {
+      "decision_session": "2026-07-01",
+      "baseline_probability": 0.4385715016,
+      "model_probability": 0.2980454496,
+      "target": 0.0,
+      "baseline_squared_error": 0.19234496201567883,
+      "model_squared_error": 0.08883109002726615,
+      "improvement": 0.10351387198841268
+    },
+    {
+      "decision_session": "2026-07-04",
+      "baseline_probability": 0.4456636984,
+      "model_probability": 0.7499175355,
+      "target": 0.0,
+      "baseline_squared_error": 0.19861613207156614,
+      "model_squared_error": 0.5623763100503937,
+      "improvement": -0.36376017797882754
+    },
+    {
+      "decision_session": "2026-07-07",
+      "baseline_probability": 0.4452305272,
+      "model_probability": 0.5009616023,
+      "target": 0.0,
+      "baseline_squared_error": 0.19823022235078994,
+      "model_squared_error": 0.25096252697898336,
+      "improvement": -0.05273230462819342
+    },
+    {
+      "decision_session": "2026-07-16",
+      "baseline_probability": 0.4086944468,
+      "model_probability": 0.4349442997,
+      "target": 0.0,
+      "baseline_squared_error": 0.16703115084515802,
+      "model_squared_error": 0.1891765438415234,
+      "improvement": -0.022145392996365393
+    },
+    {
+      "decision_session": "2026-07-19",
+      "baseline_probability": 0.6259925067,
+      "model_probability": 0.688026873,
+      "target": 0.0,
+      "baseline_squared_error": 0.3918666184445495,
+      "model_squared_error": 0.4733809779701581,
+      "improvement": -0.08151435952560859
+    },
+    {
+      "decision_session": "2026-08-02",
+      "baseline_probability": 0.4960441208,
+      "model_probability": 0.634920075,
+      "target": 1.0,
+      "baseline_squared_error": 0.25397152818024504,
+      "model_squared_error": 0.13328335163800561,
+      "improvement": 0.12068817654223943
+    },
+    {
+      "decision_session": "2026-08-05",
+      "baseline_probability": 0.6227122282,
+      "model_probability": 0.399243914,
+      "target": 1.0,
+      "baseline_squared_error": 0.14234606274980885,
+      "model_squared_error": 0.3609078748660395,
+      "improvement": -0.21856181211623063
+    },
+    {
+      "decision_session": "2026-08-08",
+      "baseline_probability": 0.6335581744,
+      "model_probability": 0.7077966855,
+      "target": 1.0,
+      "baseline_squared_error": 0.13427961154906085,
+      "model_squared_error": 0.08538277700478593,
+      "improvement": 0.04889683454427492
+    },
+    {
+      "decision_session": "2026-08-17",
+      "baseline_probability": 0.3952404455,
+      "model_probability": 0.3508510782,
+      "target": 1.0,
+      "baseline_squared_error": 0.36573411875903844,
+      "model_squared_error": 0.42139432267410243,
+      "improvement": -0.05566020391506399
+    },
+    {
+      "decision_session": "2026-08-20",
+      "baseline_probability": 0.4616578525,
+      "model_probability": 0.2107005899,
+      "target": 1.0,
+      "baseline_squared_error": 0.28981226777491176,
+      "model_squared_error": 0.6229935587842079,
+      "improvement": -0.33318129100929617
+    },
+    {
+      "decision_session": "2026-09-03",
+      "baseline_probability": 0.4959447374,
+      "model_probability": 0.4356618784,
+      "target": 1.0,
+      "baseline_squared_error": 0.25407170775475496,
+      "model_squared_error": 0.3184775154910165,
+      "improvement": -0.06440580773626153
+    },
+    {
+      "decision_session": "2026-09-06",
+      "baseline_probability": 0.4317733139,
+      "model_probability": 0.5470071157,
+      "target": 1.0,
+      "baseline_squared_error": 0.32288156679618796,
+      "model_squared_error": 0.20520255322643313,
+      "improvement": 0.11767901356975483
+    },
+    {
+      "decision_session": "2026-09-09",
+      "baseline_probability": 0.6495341015,
+      "model_probability": 0.4409545621,
+      "target": 1.0,
+      "baseline_squared_error": 0.12282634601141229,
+      "model_squared_error": 0.31253180163680283,
+      "improvement": -0.18970545562539054
+    },
+    {
+      "decision_session": "2026-09-18",
+      "baseline_probability": 0.4137169146,
+      "model_probability": 0.2662446703,
+      "target": 1.0,
+      "baseline_squared_error": 0.34372785622614377,
+      "model_squared_error": 0.5383968838631558,
+      "improvement": -0.194669027637012
+    },
+    {
+      "decision_session": "2026-09-21",
+      "baseline_probability": 0.5756104501,
+      "model_probability": 0.231001396,
+      "target": 1.0,
+      "baseline_squared_error": 0.18010649006432458,
+      "model_squared_error": 0.5913588529539487,
+      "improvement": -0.4112523628896242
+    },
+    {
+      "decision_session": "2026-10-04",
+      "baseline_probability": 0.5047003045,
+      "model_probability": 0.5323903132,
+      "target": 0.0,
+      "baseline_squared_error": 0.25472239736239277,
+      "model_squared_error": 0.28343944558919404,
+      "improvement": -0.028717048226801267
+    },
+    {
+      "decision_session": "2026-10-07",
+      "baseline_probability": 0.5759808346,
+      "model_probability": 0.2058580118,
+      "target": 0.0,
+      "baseline_squared_error": 0.3317539218265126,
+      "model_squared_error": 0.04237752102224893,
+      "improvement": 0.28937640080426363
+    },
+    {
+      "decision_session": "2026-10-10",
+      "baseline_probability": 0.5937827001,
+      "model_probability": 0.2373156748,
+      "target": 0.0,
+      "baseline_squared_error": 0.35257789493804653,
+      "model_squared_error": 0.05631872950577935,
+      "improvement": 0.29625916543226716
+    },
+    {
+      "decision_session": "2026-10-19",
+      "baseline_probability": 0.5110933892,
+      "model_probability": 0.7052145733,
+      "target": 0.0,
+      "baseline_squared_error": 0.2612164524839427,
+      "model_squared_error": 0.49732759439470114,
+      "improvement": -0.23611114191075844
+    },
+    {
+      "decision_session": "2026-10-22",
+      "baseline_probability": 0.6378515657,
+      "model_probability": 0.4127850416,
+      "target": 0.0,
+      "baseline_squared_error": 0.40685461986594146,
+      "model_squared_error": 0.17039149056871375,
+      "improvement": 0.2364631292972277
+    },
+    {
+      "decision_session": "2026-11-05",
+      "baseline_probability": 0.6402157183,
+      "model_probability": 0.4670353744,
+      "target": 1.0,
+      "baseline_squared_error": 0.12944472935838494,
+      "model_squared_error": 0.2840512921409482,
+      "improvement": -0.15460656278256327
+    },
+    {
+      "decision_session": "2026-11-08",
+      "baseline_probability": 0.4901476713,
+      "model_probability": 0.4088023991,
+      "target": 1.0,
+      "baseline_squared_error": 0.25994939708081294,
+      "model_squared_error": 0.34951460330991563,
+      "improvement": -0.08956520622910269
+    },
+    {
+      "decision_session": "2026-11-11",
+      "baseline_probability": 0.3952746441,
+      "model_probability": 0.7251899013,
+      "target": 1.0,
+      "baseline_squared_error": 0.36569275606838164,
+      "model_squared_error": 0.07552059034750372,
+      "improvement": 0.2901721657208779
+    },
+    {
+      "decision_session": "2026-11-20",
+      "baseline_probability": 0.6260557286,
+      "model_probability": 0.6829614649,
+      "target": 1.0,
+      "baseline_squared_error": 0.13983431811287683,
+      "model_squared_error": 0.10051343273835395,
+      "improvement": 0.039320885374522885
+    },
+    {
+      "decision_session": "2026-11-23",
+      "baseline_probability": 0.5823124774,
+      "model_probability": 0.4248974081,
+      "target": 1.0,
+      "baseline_squared_error": 0.17446286653572549,
+      "model_squared_error": 0.330742991210098,
+      "improvement": -0.1562801246743725
+    },
+    {
+      "decision_session": "2026-12-06",
+      "baseline_probability": 0.4187183436,
+      "model_probability": 0.6510393078,
+      "target": 1.0,
+      "baseline_squared_error": 0.33788836406712774,
+      "model_squared_error": 0.12177356470070316,
+      "improvement": 0.21611479936642458
+    },
+    {
+      "decision_session": "2026-12-09",
+      "baseline_probability": 0.5399305978,
+      "model_probability": 0.3635017908,
+      "target": 1.0,
+      "baseline_squared_error": 0.21166385484066538,
+      "model_squared_error": 0.40512997031480696,
+      "improvement": -0.19346611547414158
+    },
+    {
+      "decision_session": "2026-12-12",
+      "baseline_probability": 0.5176675606,
+      "model_probability": 0.6233411694,
+      "target": 1.0,
+      "baseline_squared_error": 0.2326445820975547,
+      "model_squared_error": 0.14187187466895954,
+      "improvement": 0.09077270742859517
+    },
+    {
+      "decision_session": "2026-12-21",
+      "baseline_probability": 0.36483288,
+      "model_probability": 0.686470811,
+      "target": 1.0,
+      "baseline_squared_error": 0.4034372703290944,
+      "model_squared_error": 0.09830055235499775,
+      "improvement": 0.30513671797409664
+    },
+    {
+      "decision_session": "2026-12-24",
+      "baseline_probability": 0.4216839696,
+      "model_probability": 0.7206732053,
+      "target": 1.0,
+      "baseline_squared_error": 0.33444943101761376,
+      "model_squared_error": 0.07802345823737594,
+      "improvement": 0.2564259727802378
+    },
+    {
+      "decision_session": null,
+      "baseline_probability": 0.45,
+      "model_probability": 0.6,
+      "target": 0.0,
+      "baseline_squared_error": 0.2025,
+      "model_squared_error": 0.36,
+      "improvement": -0.15749999999999997
+    }
+  ],
+  "mean": [
+    null,
+    2.0,
+    0.5
+  ],
+  "brier": [
+    0.017500000000000005,
+    null
+  ],
+  "auc": {
+    "ties": [
+      1.0
+    ],
+    "one_class": [
+      null,
+      null
+    ],
+    "plain": 1.0
+  },
+  "effective_sample_size": [
+    11,
+    0,
+    10
+  ],
+  "block_lengths": [
+    [
+      6,
+      10,
+      25
+    ],
+    [
+      6
+    ],
+    [
+      3
+    ]
+  ],
+  "base_rate_standard_error": [
+    0.15,
+    null,
+    null
+  ],
+  "bootstrap": {
+    "estimated": {
+      "status": "estimated",
+      "block_length": 6,
+      "blocks": 55,
+      "observations": 60,
+      "mean": 0.11044182998333334,
+      "lower": 0.083884465615,
+      "upper": 0.1456344020683333,
+      "replicates": 100,
+      "seed": 11,
+      "method": "moving_block_bootstrap",
+      "interpretation": "overlapping labels remain correlated; this is an in-sample interval, not a future coverage guarantee"
+    },
+    "no_values": {
+      "status": "unavailable",
+      "reason": "NO_VALUES",
+      "block_length": 6
+    },
+    "insufficient": {
+      "status": "unavailable",
+      "reason": "INSUFFICIENT_BLOCKS",
+      "block_length": 6,
+      "blocks": 5,
+      "observations": 10
+    },
+    "degenerate": {
+      "status": "degenerate_zero_width",
+      "block_length": 6,
+      "blocks": 35,
+      "observations": 40,
+      "reason": "every resample reproduced the same mean"
+    }
+  },
+  "baseline_comparison": {
+    "default": {
+      "status": "estimated",
+      "observations": 62,
+      "effective_sample_size": 12,
+      "effective_sample_definition": "observations / horizon (5)",
+      "horizon_sessions": 5,
+      "brier_model": 0.2731647116890712,
+      "brier_causal_base_rate": 0.25296911816684275,
+      "brier_constant_half": 0.25,
+      "skill": {
+        "vs_causal_base_rate": -0.07983422509663285,
+        "vs_constant_half": -0.09265884675628477
+      },
+      "auc": 0.5063879210220673,
+      "mean_probability": 0.5069904514016129,
+      "observed_up_rate": 0.6612903225806451,
+      "base_rate_standard_error": 0.14432090851043247,
+      "intervals": [
+        {
+          "status": "estimated",
+          "block_length": 6,
+          "blocks": 57,
+          "observations": 62,
+          "mean": -0.02019559352222844,
+          "lower": -0.06691720455260804,
+          "upper": 0.02171310504126292,
+          "replicates": 2000,
+          "seed": 520052026,
+          "method": "moving_block_bootstrap",
+          "interpretation": "overlapping labels remain correlated; this is an in-sample interval, not a future coverage guarantee",
+          "primary": true
+        },
+        {
+          "status": "estimated",
+          "block_length": 10,
+          "blocks": 53,
+          "observations": 62,
+          "mean": -0.02019559352222844,
+          "lower": -0.06692931392361881,
+          "upper": 0.02442564573138042,
+          "replicates": 2000,
+          "seed": 520052026,
+          "method": "moving_block_bootstrap",
+          "interpretation": "overlapping labels remain correlated; this is an in-sample interval, not a future coverage guarantee",
+          "primary": false
+        },
+        {
+          "status": "estimated",
+          "block_length": 25,
+          "blocks": 38,
+          "observations": 62,
+          "mean": -0.02019559352222844,
+          "lower": -0.06561587761556996,
+          "upper": 3.432883194589269e-05,
+          "replicates": 2000,
+          "seed": 520052026,
+          "method": "moving_block_bootstrap",
+          "interpretation": "overlapping labels remain correlated; this is an in-sample interval, not a future coverage guarantee",
+          "primary": false
+        }
+      ],
+      "verdict": "insufficient_evidence",
+      "baselines": {
+        "causal_base_rate": "rate of matured 5D labels available at each origin (same row)",
+        "constant_half": "0.5 for every decision"
+      },
+      "evidence_source": "snapshot_bars_unclassified",
+      "evidence_source_note": "the frozen snapshot does not record whether its bars are synthetic; a report must declare the source, and synthetic bars may support process conclusions only, never an effectiveness conclusion",
+      "note": "skill is a relative Brier improvement; it is not a trading edge and ignores costs"
+    },
+    "custom_lengths": {
+      "status": "estimated",
+      "observations": 62,
+      "effective_sample_size": 12,
+      "effective_sample_definition": "observations / horizon (5)",
+      "horizon_sessions": 5,
+      "brier_model": 0.2731647116890712,
+      "brier_causal_base_rate": 0.25296911816684275,
+      "brier_constant_half": 0.25,
+      "skill": {
+        "vs_causal_base_rate": -0.07983422509663285,
+        "vs_constant_half": -0.09265884675628477
+      },
+      "auc": 0.5063879210220673,
+      "mean_probability": 0.5069904514016129,
+      "observed_up_rate": 0.6612903225806451,
+      "base_rate_standard_error": 0.14432090851043247,
+      "intervals": [
+        {
+          "status": "estimated",
+          "block_length": 6,
+          "blocks": 57,
+          "observations": 62,
+          "mean": -0.02019559352222844,
+          "lower": -0.06691720455260804,
+          "upper": 0.02171310504126292,
+          "replicates": 2000,
+          "seed": 520052026,
+          "method": "moving_block_bootstrap",
+          "interpretation": "overlapping labels remain correlated; this is an in-sample interval, not a future coverage guarantee",
+          "primary": true
+        }
+      ],
+      "verdict": "insufficient_evidence",
+      "baselines": {
+        "causal_base_rate": "rate of matured 5D labels available at each origin (same row)",
+        "constant_half": "0.5 for every decision"
+      },
+      "evidence_source": "snapshot_bars_unclassified",
+      "evidence_source_note": "the frozen snapshot does not record whether its bars are synthetic; a report must declare the source, and synthetic bars may support process conclusions only, never an effectiveness conclusion",
+      "note": "skill is a relative Brier improvement; it is not a trading edge and ignores costs"
+    },
+    "empty": {
+      "status": "unavailable",
+      "reason": "NO_MATURED_REPLAY_ROWS",
+      "observations": 0,
+      "effective_sample_size": 0,
+      "baselines": {
+        "causal_base_rate": null,
+        "constant_half": null
+      }
+    }
+  },
+  "power_curve": {
+    "default": [
+      {
+        "sample_size": 30,
+        "critical_successes": 20,
+        "alpha_one_sided": 0.05,
+        "power_by_true_rate": {
+          "0.55": 0.13504470288679246,
+          "0.60": 0.29147186122349666,
+          "0.63": 0.4166810451896879
+        }
+      },
+      {
+        "sample_size": 60,
+        "critical_successes": 37,
+        "alpha_one_sided": 0.05,
+        "power_by_true_rate": {
+          "0.55": 0.18214139834828572,
+          "0.60": 0.4511063893843984,
+          "0.63": 0.6396136021868516
+        }
+      },
+      {
+        "sample_size": 90,
+        "critical_successes": 54,
+        "alpha_one_sided": 0.05,
+        "power_by_true_rate": {
+          "0.55": 0.1986963482853571,
+          "0.60": 0.5456204044476307,
+          "0.63": 0.759037587585258
+        }
+      },
+      {
+        "sample_size": 120,
+        "critical_successes": 70,
+        "alpha_one_sided": 0.05,
+        "power_by_true_rate": {
+          "0.55": 0.2610367962213793,
+          "0.60": 0.6809906480947426,
+          "0.63": 0.8751520714995011
+        }
+      },
+      {
+        "sample_size": 250,
+        "critical_successes": 139,
+        "alpha_one_sided": 0.05,
+        "power_by_true_rate": {
+          "0.55": 0.45026280018911014,
+          "0.60": 0.9305839558375656,
+          "0.63": 0.9931401210222461
+        }
+      }
+    ],
+    "custom": [
+      {
+        "sample_size": 30,
+        "critical_successes": 20,
+        "alpha_one_sided": 0.05,
+        "power_by_true_rate": {
+          "0.55": 0.13504470288679246,
+          "0.63": 0.4166810451896879
+        }
+      },
+      {
+        "sample_size": 120,
+        "critical_successes": 70,
+        "alpha_one_sided": 0.05,
+        "power_by_true_rate": {
+          "0.55": 0.2610367962213793,
+          "0.63": 0.8751520714995011
+        }
+      }
+    ]
+  }
+}

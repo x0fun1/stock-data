@@ -1,0 +1,143 @@
+{
+  "decision": {
+    "applies_to": "this registered pool and this horizon only",
+    "rule": {
+      "A_better": "interval entirely above zero",
+      "B_better": "interval entirely below zero",
+      "indistinguishable": "interval contains zero (the expected outcome on this sample)"
+    },
+    "verdict": "indeterminate"
+  },
+  "limitations": [
+    "Both arms share the same 52-week window per symbol; this compares selection estimators, not added history.",
+    "The pool shares one market factor, so session-block resampling is the honest unit and the interval is wide by design.",
+    "Brier on ten to twenty forecasts per symbol is a coarse instrument; the pooled figure is what the decision uses.",
+    "No calibration, no trading cost and no position sizing are evaluated here."
+  ],
+  "per_symbol": [
+    {
+      "A_coverage": 6,
+      "A_factors": [
+        "momentum_60",
+        "volume_z20",
+        "realized_volatility_20"
+      ],
+      "A_prob_up": 0.6507936507936508,
+      "A_status": "partial",
+      "B_coverage": 7,
+      "B_factors": [
+        "momentum_60",
+        "reversal_1",
+        "range_position_20"
+      ],
+      "B_prob_up": 0.507936507936508,
+      "B_status": "partial",
+      "asset_type": "equity",
+      "bar_count": 260,
+      "brier_A": 0.27565814613377826,
+      "brier_B": 0.28134641161012747,
+      "common_dates": 6,
+      "delta_B_minus_A": 0.005688265476349208,
+      "symbol": "SYN00"
+    },
+    {
+      "A_coverage": 6,
+      "A_factors": [
+        "momentum_60",
+        "volume_z20",
+        "realized_volatility_20"
+      ],
+      "A_prob_up": 0.6507936507936508,
+      "A_status": "partial",
+      "B_coverage": 7,
+      "B_factors": [
+        "momentum_60",
+        "reversal_1",
+        "range_position_20"
+      ],
+      "B_prob_up": 0.507936507936508,
+      "B_status": "partial",
+      "asset_type": "equity",
+      "bar_count": 260,
+      "brier_A": 0.27565814613377826,
+      "brier_B": 0.28134641161012747,
+      "common_dates": 6,
+      "delta_B_minus_A": 0.005688265476349208,
+      "symbol": "SYN01"
+    },
+    {
+      "A_coverage": 6,
+      "A_factors": [
+        "momentum_60",
+        "volume_z20",
+        "realized_volatility_20"
+      ],
+      "A_prob_up": 0.6507936507936508,
+      "A_status": "partial",
+      "B_coverage": 7,
+      "B_factors": [
+        "momentum_60",
+        "reversal_1",
+        "range_position_20"
+      ],
+      "B_prob_up": 0.507936507936508,
+      "B_status": "partial",
+      "asset_type": "etf",
+      "bar_count": 260,
+      "brier_A": 0.27565814613377826,
+      "brier_B": 0.28134641161012747,
+      "common_dates": 6,
+      "delta_B_minus_A": 0.005688265476349208,
+      "symbol": "SYN02"
+    }
+  ],
+  "pool": {
+    "equities": 2,
+    "etfs": 1,
+    "shared_calendar": true,
+    "symbols": 3
+  },
+  "pooled": {
+    "brier_arm_A": 0.27565814613377826,
+    "brier_arm_B": 0.28134641161012747,
+    "delta_definition": "positive means the new rule scored worse",
+    "mean_per_session_delta_B_minus_A": 0.005688265476349233,
+    "scored_pairs_arm_A": 18,
+    "scored_pairs_arm_B": 18,
+    "session_block_interval": null,
+    "session_block_interval_status": "insufficient_samples",
+    "sessions_scored": 6
+  },
+  "preregistration": {
+    "arms": {
+      "A": "non_overlapping_point",
+      "B": "overlapping_block"
+    },
+    "bootstrap": {
+      "block_length": "horizon + 1",
+      "replicates": 500,
+      "seed": 0,
+      "unit": "session_block"
+    },
+    "coverage": "reported, never used to discard hard sessions from the score comparison",
+    "decision": {
+      "A_better": "interval entirely above zero",
+      "B_better": "interval entirely below zero",
+      "indistinguishable": "interval contains zero (the expected outcome on this sample)"
+    },
+    "default_if_indistinguishable": "keep the incumbent rule",
+    "horizon": "5D",
+    "pairing": "decision_session, only sessions where both arms produced a prediction",
+    "primary_metric": "mean_per_session_brier_delta_B_minus_A",
+    "question": "Does dependency-aware factor selection (overlapping labels with a moving-block interval plus a direction-stability requirement) change out-of-sample Brier versus the spaced point-estimate rule?"
+  },
+  "secondary_disclosure": {
+    "note": "Answers a different question than the registered test and is reported only so the reader can see whether the sign is stable across names.",
+    "symbol_cluster": {
+      "interval": null,
+      "observations": 3,
+      "status": "insufficient_samples"
+    },
+    "symbols_scored": 3
+  }
+}

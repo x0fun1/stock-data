@@ -1,0 +1,16 @@
+{
+  "analysis.json": "{\"kind\": \"analysis.json\"}",
+  "agent_summary.json": "{\"kind\": \"agent_summary.json\"}",
+  "news_result.json": "{\"kind\": \"news_result.json\"}",
+  "news_result.freeze.json": "{\"kind\": \"news_result.freeze.json\"}",
+  "audit.json": "{\"kind\": \"audit.json\"}",
+  "data.json": "{\"kind\": \"data.json\"}",
+  "request.json": "{\"kind\": \"request.json\"}",
+  "snapshot.json": "{\"kind\": \"snapshot.json\"}",
+  "researchers/quant.json": "{}",
+  "researchers/factor.json": "{}",
+  "researchers/ml.json": "{}",
+  "researchers/factor_backtest.json": "{}",
+  "report.md": "# frozen report\n",
+  "final_response.md": "fixed response\n"
+}

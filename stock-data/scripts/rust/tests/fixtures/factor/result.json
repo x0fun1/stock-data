@@ -1,0 +1,1614 @@
+{
+  "researcher_id": "factor",
+  "result_role": "forecast",
+  "ticker": "SYN",
+  "horizon": "5D",
+  "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+  "direction": "bullish",
+  "prob_up": 0.507936507936508,
+  "prob_down": 0.492063492063492,
+  "raw_probability": 0.507936507936508,
+  "calibrated_probability": null,
+  "reportable_probability": 0.507936507936508,
+  "expected_return": 0.31764860425782565,
+  "confidence": null,
+  "probability_source": "out_of_sample_factor_score_bucket_frequency",
+  "evidence": {
+    "positive": [
+      {
+        "family": "reversal",
+        "factor_name": "reversal_1",
+        "formula": "close[t] / close[t-1] - 1",
+        "training_rank_ic": -0.29759615384615384,
+        "training_direction": "negative",
+        "current_contribution": 0.5770796030434471
+      }
+    ],
+    "negative": [
+      {
+        "family": "momentum",
+        "factor_name": "momentum_60",
+        "formula": "close[t] / close[t-60] - 1",
+        "training_rank_ic": -0.3126311188811189,
+        "training_direction": "negative",
+        "current_contribution": -2.6538542879852804
+      },
+      {
+        "family": "trend",
+        "factor_name": "range_position_20",
+        "formula": "(close[t] - rolling_low20) / (rolling_high20 - rolling_low20)",
+        "training_rank_ic": -0.2593968531468531,
+        "training_direction": "negative",
+        "current_contribution": -0.7131387788317683
+      }
+    ]
+  },
+  "validation": {
+    "method": "52-week standard: training-segment factor selection + correlation pruning + rolling-origin matured-label bucket calibration with causal terciles",
+    "selected_factors": [
+      {
+        "factor_name": "momentum_60",
+        "family": "momentum",
+        "formula": "close[t] / close[t-60] - 1",
+        "lookback": 60,
+        "training_direction": "negative",
+        "current_contribution": -2.6538542879852804,
+        "training_rank_ic": -0.3126311188811189,
+        "coverage": 1.0
+      },
+      {
+        "factor_name": "reversal_1",
+        "family": "reversal",
+        "formula": "close[t] / close[t-1] - 1",
+        "lookback": 1,
+        "training_direction": "negative",
+        "current_contribution": 0.5770796030434471,
+        "training_rank_ic": -0.29759615384615384,
+        "coverage": 1.0
+      },
+      {
+        "factor_name": "range_position_20",
+        "family": "trend",
+        "formula": "(close[t] - rolling_low20) / (rolling_high20 - rolling_low20)",
+        "lookback": 20,
+        "training_direction": "negative",
+        "current_contribution": -0.7131387788317683,
+        "training_rank_ic": -0.2593968531468531,
+        "coverage": 1.0
+      }
+    ],
+    "factor_family_count": 3,
+    "factor_decay": {
+      "momentum_5": {
+        "family": "momentum",
+        "formula": "close[t] / close[t-5] - 1",
+        "horizons": {
+          "1D": {
+            "rank_ic": -0.16897233201581027,
+            "pearson_ic": -0.3600821842747088,
+            "ic_mean": -0.16897233201581027,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.002928579152007349,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.36363636363636365
+          },
+          "5D": {
+            "rank_ic": -0.43333333333333335,
+            "pearson_ic": -0.5244934481294646,
+            "ic_mean": -0.43333333333333335,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.03700378969481677,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.375
+          },
+          "20D": {
+            "rank_ic": -1.0,
+            "pearson_ic": -0.8734249133063989,
+            "ic_mean": -1.0,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.05737959912985313,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.5
+          }
+        }
+      },
+      "momentum_20": {
+        "family": "momentum",
+        "formula": "close[t] / close[t-20] - 1",
+        "horizons": {
+          "1D": {
+            "rank_ic": -0.3359683794466403,
+            "pearson_ic": -0.3138105169605768,
+            "ic_mean": -0.3359683794466403,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.013914106601777809,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.18181818181818182
+          },
+          "5D": {
+            "rank_ic": -0.16666666666666666,
+            "pearson_ic": -0.03735506227581787,
+            "ic_mean": -0.16666666666666666,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.0016712732489268523,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.5
+          },
+          "20D": {
+            "rank_ic": -0.5,
+            "pearson_ic": -0.1857526055757419,
+            "ic_mean": -0.5,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.026201416774127018,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.5
+          }
+        }
+      },
+      "momentum_60": {
+        "family": "momentum",
+        "formula": "close[t] / close[t-60] - 1",
+        "horizons": {
+          "1D": {
+            "rank_ic": -0.16304347826086957,
+            "pearson_ic": -0.038139207012003094,
+            "ic_mean": -0.16304347826086957,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.007932401900862196,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.13636363636363635
+          },
+          "5D": {
+            "rank_ic": -0.43333333333333335,
+            "pearson_ic": -0.24156410946091866,
+            "ic_mean": -0.43333333333333335,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.004714519846780119,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.125
+          },
+          "20D": {
+            "rank_ic": 0.5,
+            "pearson_ic": 0.21826656107159828,
+            "ic_mean": 0.5,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.026201416774127018,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.5
+          }
+        }
+      },
+      "reversal_1": {
+        "family": "reversal",
+        "formula": "close[t] / close[t-1] - 1",
+        "horizons": {
+          "1D": {
+            "rank_ic": -0.35276679841897235,
+            "pearson_ic": -0.32909074639757857,
+            "ic_mean": -0.35276679841897235,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.010875166388937485,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.45454545454545453
+          },
+          "5D": {
+            "rank_ic": -0.18333333333333332,
+            "pearson_ic": -0.16736701517588906,
+            "ic_mean": -0.18333333333333332,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.00353325118811737,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.5
+          },
+          "20D": {
+            "rank_ic": -0.5,
+            "pearson_ic": -0.21272577265180093,
+            "ic_mean": -0.5,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.026201416774127018,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.5
+          }
+        }
+      },
+      "trend_sma20": {
+        "family": "trend",
+        "formula": "close[t] / mean(close[t-19:t]) - 1",
+        "horizons": {
+          "1D": {
+            "rank_ic": -0.36363636363636365,
+            "pearson_ic": -0.4138052187972573,
+            "ic_mean": -0.36363636363636365,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.01007733383784284,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.36363636363636365
+          },
+          "5D": {
+            "rank_ic": -0.25,
+            "pearson_ic": -0.09391712561798797,
+            "ic_mean": -0.25,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.017526065365073618,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.375
+          },
+          "20D": {
+            "rank_ic": -0.5,
+            "pearson_ic": -0.1237206305158228,
+            "ic_mean": -0.5,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.026201416774127018,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.5
+          }
+        }
+      },
+      "realized_volatility_20": {
+        "family": "volatility",
+        "formula": "sample_std(log(close[j]/close[j-1]), j=t-18..t)",
+        "horizons": {
+          "1D": {
+            "rank_ic": -0.18972332015810275,
+            "pearson_ic": -0.16951101512993721,
+            "ic_mean": -0.18972332015810275,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.003011205706055131,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.2727272727272727
+          },
+          "5D": {
+            "rank_ic": 0.4,
+            "pearson_ic": 0.31480944938244443,
+            "ic_mean": 0.4,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.018333686146095318,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.25
+          },
+          "20D": {
+            "rank_ic": 0.5,
+            "pearson_ic": 0.09949247112126053,
+            "ic_mean": 0.5,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.031178182355726114,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 1.0
+          }
+        }
+      },
+      "volume_z20": {
+        "family": "volume",
+        "formula": "(volume[t] - mean(volume[t-19:t])) / sample_std(volume[t-19:t])",
+        "horizons": {
+          "1D": {
+            "rank_ic": 0.19466403162055335,
+            "pearson_ic": 0.2330319027664636,
+            "ic_mean": 0.19466403162055335,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.006151098780376318,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.22727272727272727
+          },
+          "5D": {
+            "rank_ic": 0.18333333333333332,
+            "pearson_ic": 0.20352848378120456,
+            "ic_mean": 0.18333333333333332,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.008368702847784681,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.5
+          },
+          "20D": {
+            "rank_ic": -0.5,
+            "pearson_ic": -0.47068187566495334,
+            "ic_mean": -0.5,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.026201416774127018,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.5
+          }
+        }
+      },
+      "range_position_20": {
+        "family": "trend",
+        "formula": "(close[t] - rolling_low20) / (rolling_high20 - rolling_low20)",
+        "horizons": {
+          "1D": {
+            "rank_ic": -0.4298418972332016,
+            "pearson_ic": -0.5099130983510447,
+            "ic_mean": -0.4298418972332016,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.014146462338323373,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.2727272727272727
+          },
+          "5D": {
+            "rank_ic": -0.03333333333333333,
+            "pearson_ic": -0.26041567385071623,
+            "ic_mean": -0.03333333333333333,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.0016712732489268523,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.5
+          },
+          "20D": {
+            "rank_ic": -0.5,
+            "pearson_ic": -0.5947389452957789,
+            "ic_mean": -0.5,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.026201416774127018,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.5
+          }
+        }
+      },
+      "close_location": {
+        "family": "trend",
+        "formula": "(2*close[t] - high[t] - low[t]) / (high[t] - low[t])",
+        "horizons": {
+          "1D": {
+            "rank_ic": null,
+            "pearson_ic": null,
+            "ic_mean": null,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.0,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.0
+          },
+          "5D": {
+            "rank_ic": null,
+            "pearson_ic": null,
+            "ic_mean": null,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.0,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.0
+          },
+          "20D": {
+            "rank_ic": null,
+            "pearson_ic": null,
+            "ic_mean": null,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.0,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.0
+          }
+        }
+      },
+      "overnight_gap": {
+        "family": "momentum",
+        "formula": "open[t] / close[t-1] - 1",
+        "horizons": {
+          "1D": {
+            "rank_ic": -0.35276679841897235,
+            "pearson_ic": -0.329090746397579,
+            "ic_mean": -0.35276679841897235,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.010875166388937485,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.45454545454545453
+          },
+          "5D": {
+            "rank_ic": -0.18333333333333332,
+            "pearson_ic": -0.16736701517588853,
+            "ic_mean": -0.18333333333333332,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.00353325118811737,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.5
+          },
+          "20D": {
+            "rank_ic": -0.5,
+            "pearson_ic": -0.21272577265179576,
+            "ic_mean": -0.5,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": -0.026201416774127018,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 0.5
+          }
+        }
+      },
+      "volume_return_corr20": {
+        "family": "volume",
+        "formula": "corr(return, volume_change) over 20 sessions",
+        "horizons": {
+          "1D": {
+            "rank_ic": 0.018774703557312252,
+            "pearson_ic": 0.14854083236834068,
+            "ic_mean": 0.018774703557312252,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.0053918845386486496,
+            "coverage": 1.0,
+            "sample_size": 23,
+            "top_quantile_turnover": 0.09090909090909091
+          },
+          "5D": {
+            "rank_ic": 0.06666666666666667,
+            "pearson_ic": 0.42605222068296295,
+            "ic_mean": 0.06666666666666667,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.016172408306904362,
+            "coverage": 1.0,
+            "sample_size": 9,
+            "top_quantile_turnover": 0.25
+          },
+          "20D": {
+            "rank_ic": 1.0,
+            "pearson_ic": 0.9986124586960308,
+            "ic_mean": 1.0,
+            "ic_std": null,
+            "icir": null,
+            "top_bottom_quantile_spread": 0.05737959912985313,
+            "coverage": 1.0,
+            "sample_size": 3,
+            "top_quantile_turnover": 1.0
+          }
+        }
+      }
+    },
+    "oos_factor_inference": {
+      "status": "insufficient_samples",
+      "universe_type": "single_security_time_series",
+      "method": "OOS Spearman IC; circular moving-block bootstrap percentile interval; circular-shift null diagnostic; Benjamini-Yekutieli FDR",
+      "p_value_method": "circular_shift_test_stationarity_assumption",
+      "p_adjustment_method": "Benjamini-Yekutieli FDR; conservative under arbitrary test dependence",
+      "trials": 11,
+      "tests_with_p_value": 0,
+      "sample_count": 18,
+      "horizon_sessions": 5,
+      "data_start": "2026-05-04",
+      "data_end": "2026-10-23",
+      "factor_selection_used_this_window": false,
+      "stationarity_assumption_validated": false,
+      "bootstrap_coverage_validated": false,
+      "market_regime_stability": "not_assessed_no_frozen_regime_definition",
+      "factors": {
+        "momentum_5": {
+          "family": "momentum",
+          "formula": "close[t] / close[t-5] - 1",
+          "oos_time_series_ic": -0.060887512899896794,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "momentum_20": {
+          "family": "momentum",
+          "formula": "close[t] / close[t-20] - 1",
+          "oos_time_series_ic": -0.11867905056759545,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "momentum_60": {
+          "family": "momentum",
+          "formula": "close[t] / close[t-60] - 1",
+          "oos_time_series_ic": -0.28792569659442724,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "reversal_1": {
+          "family": "reversal",
+          "formula": "close[t] / close[t-1] - 1",
+          "oos_time_series_ic": -0.4158926728586171,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "trend_sma20": {
+          "family": "trend",
+          "formula": "close[t] / mean(close[t-19:t]) - 1",
+          "oos_time_series_ic": -0.1702786377708978,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "realized_volatility_20": {
+          "family": "volatility",
+          "formula": "sample_std(log(close[j]/close[j-1]), j=t-18..t)",
+          "oos_time_series_ic": -0.29618163054695557,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "volume_z20": {
+          "family": "volume",
+          "formula": "(volume[t] - mean(volume[t-19:t])) / sample_std(volume[t-19:t])",
+          "oos_time_series_ic": -0.23632610939112483,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "range_position_20": {
+          "family": "trend",
+          "formula": "(close[t] - rolling_low20) / (rolling_high20 - rolling_low20)",
+          "oos_time_series_ic": -0.18266253869969037,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "close_location": {
+          "family": "trend",
+          "formula": "(2*close[t] - high[t] - low[t]) / (high[t] - low[t])",
+          "oos_time_series_ic": null,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "overnight_gap": {
+          "family": "momentum",
+          "formula": "open[t] / close[t-1] - 1",
+          "oos_time_series_ic": -0.4158926728586171,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        },
+        "volume_return_corr20": {
+          "family": "volume",
+          "formula": "corr(return, volume_change) over 20 sessions",
+          "oos_time_series_ic": -0.19711042311661506,
+          "observations": 18,
+          "data_start": "2026-05-04",
+          "data_end": "2026-10-23",
+          "block_bootstrap": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "interval": null,
+            "replicates": 0,
+            "block_length": 5,
+            "method": "circular_moving_block_bootstrap_percentile",
+            "coverage_validated": false
+          },
+          "null_test": {
+            "status": "insufficient_samples",
+            "observations": 18,
+            "p_value": null,
+            "permutations": 0,
+            "block_length": 5,
+            "method": "circular_shift_test_stationarity_assumption"
+          },
+          "partwise_ic": {
+            "first_half": null,
+            "second_half": null
+          },
+          "direction_consistent_across_halves": null,
+          "p_value": null,
+          "p_value_adjusted": null
+        }
+      }
+    },
+    "oos_forecasts": [
+      {
+        "decision_session": "2026-05-04",
+        "label_end_session": "2026-05-11",
+        "target": 1,
+        "probability": null,
+        "training_label_end_session": null,
+        "training_sample_count": 0,
+        "training_observation_count": 0,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-05-13",
+        "label_end_session": "2026-05-20",
+        "target": 0,
+        "probability": null,
+        "training_label_end_session": "2026-05-11",
+        "training_sample_count": 0,
+        "training_observation_count": 1,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-05-22",
+        "label_end_session": "2026-05-29",
+        "target": 0,
+        "probability": null,
+        "training_label_end_session": "2026-05-20",
+        "training_sample_count": 1,
+        "training_observation_count": 2,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-06-02",
+        "label_end_session": "2026-06-09",
+        "target": 1,
+        "probability": null,
+        "training_label_end_session": "2026-05-29",
+        "training_sample_count": 2,
+        "training_observation_count": 3,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-06-11",
+        "label_end_session": "2026-06-18",
+        "target": 1,
+        "probability": null,
+        "training_label_end_session": "2026-06-09",
+        "training_sample_count": 2,
+        "training_observation_count": 4,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-06-22",
+        "label_end_session": "2026-06-29",
+        "target": 1,
+        "probability": null,
+        "training_label_end_session": "2026-06-18",
+        "training_sample_count": 2,
+        "training_observation_count": 5,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-07-01",
+        "label_end_session": "2026-07-08",
+        "target": 0,
+        "probability": null,
+        "training_label_end_session": "2026-06-29",
+        "training_sample_count": 3,
+        "training_observation_count": 6,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-07-10",
+        "label_end_session": "2026-07-17",
+        "target": 0,
+        "probability": null,
+        "training_label_end_session": "2026-07-08",
+        "training_sample_count": 4,
+        "training_observation_count": 7,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-07-21",
+        "label_end_session": "2026-07-28",
+        "target": 1,
+        "probability": null,
+        "training_label_end_session": "2026-07-17",
+        "training_sample_count": 4,
+        "training_observation_count": 8,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-07-30",
+        "label_end_session": "2026-08-06",
+        "target": 1,
+        "probability": null,
+        "training_label_end_session": "2026-07-28",
+        "training_sample_count": 4,
+        "training_observation_count": 9,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-08-10",
+        "label_end_session": "2026-08-17",
+        "target": 0,
+        "probability": null,
+        "training_label_end_session": "2026-08-06",
+        "training_sample_count": 5,
+        "training_observation_count": 10,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-08-19",
+        "label_end_session": "2026-08-26",
+        "target": 1,
+        "probability": 0.5858585858585859,
+        "training_label_end_session": "2026-08-17",
+        "training_sample_count": 6,
+        "training_observation_count": 11,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-08-28",
+        "label_end_session": "2026-09-04",
+        "target": 1,
+        "probability": 0.5555555555555556,
+        "training_label_end_session": "2026-08-26",
+        "training_sample_count": 6,
+        "training_observation_count": 12,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-09-08",
+        "label_end_session": "2026-09-15",
+        "target": 1,
+        "probability": 0.576923076923077,
+        "training_label_end_session": "2026-09-04",
+        "training_sample_count": 6,
+        "training_observation_count": 13,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-09-17",
+        "label_end_session": "2026-09-24",
+        "target": 1,
+        "probability": 0.6165413533834587,
+        "training_label_end_session": "2026-09-15",
+        "training_sample_count": 7,
+        "training_observation_count": 14,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-09-28",
+        "label_end_session": "2026-10-05",
+        "target": 0,
+        "probability": 0.6842105263157895,
+        "training_label_end_session": "2026-09-24",
+        "training_sample_count": 7,
+        "training_observation_count": 15,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-10-07",
+        "label_end_session": "2026-10-14",
+        "target": 0,
+        "probability": 0.625,
+        "training_label_end_session": "2026-10-05",
+        "training_sample_count": 8,
+        "training_observation_count": 16,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      },
+      {
+        "decision_session": "2026-10-16",
+        "label_end_session": "2026-10-23",
+        "target": 0,
+        "probability": 0.5529411764705883,
+        "training_label_end_session": "2026-10-14",
+        "training_sample_count": 8,
+        "training_observation_count": 17,
+        "target_definition": "close[t+5] / close[t] - 1 > 0"
+      }
+    ],
+    "oos_evaluable_samples": 18,
+    "oos_predictions": 7,
+    "oos_coverage": 0.3888888888888889,
+    "oos_abstain_rate": 0.6111111111111112,
+    "target_definition": "close[t+5] / close[t] - 1 > 0",
+    "candidate_factor_count": 11,
+    "selection_label_count": 65,
+    "evaluation_mode": "rolling_origin_matured_labels",
+    "evaluation_predictions": 18,
+    "calibration_label_capacity": 28,
+    "calibration_observations": 28,
+    "calibration_bucket_counts": {
+      "low": 14,
+      "high": 14
+    },
+    "calibration_bucket_raw_probabilities": {
+      "low": 0.42857142857142855,
+      "high": 0.35714285714285715
+    },
+    "calibration_bucket_cut_points": {
+      "low": -0.4851874069163884,
+      "high": null
+    },
+    "bucket_cuts_recomputed_from_matured_scores": true,
+    "calibration_base_rate": 0.39285714285714285,
+    "honest_calibration_candidate": {
+      "used_for_reported_probability": true,
+      "status": "candidate_available",
+      "reason": "post_selection_labels_available",
+      "selection_boundary_session": "2026-04-27",
+      "observations": 18,
+      "bucket_counts": {
+        "low": 9,
+        "high": 9
+      },
+      "probability": 0.507936507936508
+    },
+    "probability_shrinkage": {
+      "prior_observations": 12,
+      "bucket_weight": 0.5384615384615384,
+      "base_rate": 0.5882352941176471,
+      "base_rate_scope": "matured_labels_available_at_decision",
+      "segment_prevalence": 0.39285714285714285,
+      "segment_prevalence_scope": "descriptive_full_segment_not_used_for_probability"
+    },
+    "holdout_predictions": 7,
+    "holdout_brier": 0.2656559400811164,
+    "holdout_base_rate_brier": 0.26239898593430966,
+    "holdout_start_session": "2026-04-27",
+    "factor_correlation_threshold": 0.85,
+    "leakage_audit": {
+      "features_use_data_through_decision_close_only": true,
+      "future_returns_used_only_as_labels": true,
+      "selection_precedes_calibration_and_holdout": true,
+      "calibration_reuses_selection_labels": true,
+      "selection_reused_label_count": 9,
+      "cross_boundary_label_count": 1,
+      "post_selection_label_count": 18,
+      "calibration_labels_non_overlapping": true,
+      "calibration_labels_matured_before_each_decision": true,
+      "oos_inference_did_not_select_or_modify_probability": true
+    },
+    "diagnostics_label_end_exclusive": 130,
+    "sample_feasibility": {
+      "status": "budget_possible_not_guaranteed_by_factor_scores",
+      "window_standard": "52_weeks_of_daily_bars",
+      "minimum_bucket_observations": 6,
+      "required_calibration_observations_for_predeclared_buckets": 12,
+      "bucket_mode": "two",
+      "minimum_selection_labels": 10,
+      "selection_label_capacity": 11,
+      "max_matured_non_overlapping_label_capacity": 33,
+      "calibration_available": 28,
+      "calibration_observations_with_complete_factor_scores": 28,
+      "calibration_bucket_counts": {
+        "low": 14,
+        "high": 14
+      },
+      "all_current_buckets_meet_minimum": true,
+      "estimated_minimum_daily_bars": 240,
+      "estimated_minimum_calendar_weeks": 48.0,
+      "additional_daily_bars_at_current_history_length": 0,
+      "estimate_assumptions": "52-week standard: fixed chronological selection segment, 60-session feature warm-up, H+1-session label spacing, labels matured by the decision bar, and the predeclared bucket count times 6 observations; score ties and missing factors can increase the requirement",
+      "requested_window_preserved": true,
+      "selection_labels_reused_for_calibration": 9,
+      "cross_boundary_calibration_labels": 1,
+      "post_selection_calibration_labels": 18,
+      "calibration_reuses_selection_labels": true,
+      "minimum_holdout_predictions": 10
+    },
+    "probabilistic_scores": {
+      "brier": 0.2656559400811164,
+      "base_rate_brier": 0.26239898593430966,
+      "brier_skill_vs_base_rate": -0.012412220783589945,
+      "log_loss": 0.7278162260115864,
+      "base_rate_log_loss": 0.7198882298634972,
+      "calibration_slope": -1.1724064444122249,
+      "calibration_intercept": 1.049040157677824,
+      "calibration_slope_method": "ols_of_outcome_on_logit_probability_diagnostic_only",
+      "calibration_slope_is_logistic_calibration_slope": false,
+      "paired_common_samples": 7,
+      "brier_difference_model_minus_base": 0.0032569541468067914,
+      "brier_difference_interval": null,
+      "brier_difference_interval_status": "insufficient_samples",
+      "block_length": 1,
+      "block_length_basis": "one_record_because_labels_do_not_overlap",
+      "minimum_session_gap": 7,
+      "baseline": "same_date_historical_base_rate",
+      "comparison_sample_matched": true,
+      "scored_predictions": 7,
+      "base_rate_scored_predictions": 7
+    },
+    "sample_diagnostics": {
+      "bar_count": 260,
+      "feature_warmup_sessions": 60,
+      "horizon_sessions": 5,
+      "decision_dates": 200,
+      "raw_sample_count": 195,
+      "matured_sample_count": 195,
+      "nonoverlap_sample_count": 28,
+      "nonoverlap_count_basis": "anchored_phase",
+      "effective_sample_size_estimate": 39.0,
+      "effective_sample_size_kind": "approximation_only_raw_over_horizon",
+      "sample_coverage": 0.975,
+      "overlapping_observations_are_independent": false,
+      "note": "The non-overlapping count is the conservative figure and is never larger than the effective estimate; raw divided by horizon approximates dependence but is not a measured effective sample size."
+    },
+    "selection": {
+      "metric": "overlapping_block",
+      "profile": "restricted",
+      "pool_observations": 65,
+      "spaced_observations": 11,
+      "minimum_abs_rank_ic": 0.02,
+      "minimum_sign_consistency": 0.6666666666666666,
+      "max_factors": 3,
+      "max_factors_per_family": 1,
+      "max_abs_correlation": 0.85,
+      "multiple_testing": {
+        "method": "benjamini_yekutieli_arbitrary_dependence",
+        "tested_candidates": 10,
+        "adjusted": {
+          "momentum_5": 1.0,
+          "momentum_20": 1.0,
+          "momentum_60": 1.0,
+          "reversal_1": 0.30198773448773447,
+          "trend_sma20": 1.0,
+          "realized_volatility_20": 1.0,
+          "volume_z20": 1.0,
+          "range_position_20": 1.0,
+          "close_location": null,
+          "overnight_gap": 0.30198773448773447,
+          "volume_return_corr20": 1.0
+        },
+        "used_as_selection_gate": false,
+        "note": "Adjusted p-values are disclosure only; selection still requires out-of-sample evidence."
+      },
+      "candidates": {
+        "momentum_5": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": -0.28924825174825175,
+          "direction": "negative",
+          "interval": [
+            -0.6132203398517236,
+            0.012662228986975357
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": false,
+          "subwindow_ics": [
+            0.21688311688311687,
+            -0.587012987012987,
+            -0.5879446640316206
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 0.6666666666666666,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "momentum_20": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": -0.09187062937062937,
+          "direction": "negative",
+          "interval": [
+            -0.40493530046427073,
+            0.18579424306092285
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": false,
+          "subwindow_ics": [
+            -0.13116883116883116,
+            -0.274025974025974,
+            -0.25790513833992096
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 1.0,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "momentum_60": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": -0.3126311188811189,
+          "direction": "negative",
+          "interval": [
+            -0.6294468436515583,
+            -0.02831511894085257
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": true,
+          "subwindow_ics": [
+            -0.7441558441558441,
+            -0.2623376623376623,
+            -0.7104743083003953
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 1.0,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "reversal_1": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": -0.29759615384615384,
+          "direction": "negative",
+          "interval": [
+            -0.45374339835455213,
+            -0.17851619978682487
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": true,
+          "subwindow_ics": [
+            -0.3116883116883117,
+            -0.2727272727272727,
+            -0.3290513833992095
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 1.0,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "trend_sma20": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": -0.22250874125874126,
+          "direction": "negative",
+          "interval": [
+            -0.626242519572987,
+            0.10759769255727533
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": false,
+          "subwindow_ics": [
+            0.21428571428571427,
+            -0.6649350649350649,
+            -0.5424901185770751
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 0.6666666666666666,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "realized_volatility_20": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": 0.15034965034965034,
+          "direction": "positive",
+          "interval": [
+            -0.24672340936443915,
+            0.48305553968178905
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": false,
+          "subwindow_ics": [
+            0.6428571428571429,
+            -0.10909090909090909,
+            0.2964426877470356
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 0.6666666666666666,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "volume_z20": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": 0.16551573426573427,
+          "direction": "positive",
+          "interval": [
+            -0.02922499014594807,
+            0.33896393832344096
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": false,
+          "subwindow_ics": [
+            0.18051948051948052,
+            -0.09220779220779221,
+            0.35375494071146246
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 0.6666666666666666,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "range_position_20": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": -0.2593968531468531,
+          "direction": "negative",
+          "interval": [
+            -0.6453195977033993,
+            0.06441631220125862
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": false,
+          "subwindow_ics": [
+            0.12077922077922078,
+            -0.7116883116883117,
+            -0.3922924901185771
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 0.6666666666666666,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "close_location": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "not_assessed",
+          "rank_ic": null,
+          "interval": null,
+          "sign_consistency": null,
+          "direction": "unknown",
+          "reason": "rank_ic_undefined",
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": false,
+          "stability_reason": "insufficient_selection_evidence"
+        },
+        "overnight_gap": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": -0.29759615384615384,
+          "direction": "negative",
+          "interval": [
+            -0.45374339835455213,
+            -0.17851619978682487
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": true,
+          "subwindow_ics": [
+            -0.3116883116883117,
+            -0.2727272727272727,
+            -0.3290513833992095
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 1.0,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        },
+        "volume_return_corr20": {
+          "method": "overlapping_block_rank_ic",
+          "observations": 65,
+          "non_overlapping_equivalent": 10,
+          "block_length": 6,
+          "requested_indices": 65,
+          "status": "assessed",
+          "rank_ic": 0.2144230769230769,
+          "direction": "positive",
+          "interval": [
+            -0.15520800292268164,
+            0.5204432425886132
+          ],
+          "interval_status": "exploratory",
+          "interval_replicates": 500,
+          "interval_excludes_zero": false,
+          "subwindow_ics": [
+            0.7389610389610389,
+            0.12467532467532468,
+            0.045454545454545456
+          ],
+          "valid_subwindow_count": 3,
+          "sign_consistency": 1.0,
+          "overlap_treated_as_dependence": true,
+          "coverage_validated": false,
+          "applied_rule": "overlapping_block",
+          "stability_would_pass": true,
+          "stability_reason": "cleared_rank_ic_and_stability"
+        }
+      },
+      "rejected": [
+        {
+          "factor": "overnight_gap",
+          "reason": "family_limit",
+          "family": "momentum"
+        },
+        {
+          "factor": "momentum_5",
+          "reason": "family_limit",
+          "family": "momentum"
+        }
+      ],
+      "overlap_treated_as_dependence": true
+    },
+    "sampling": {
+      "selection": {
+        "method": "legacy_spacing_selection_segment",
+        "candidate_phase_window_independent": false,
+        "final_membership_window_independent": false,
+        "reason": "selection_segment_density_ceiling_equals_label_floor",
+        "segment_sessions": 65,
+        "labels_legacy": 11,
+        "labels_if_anchored": 9,
+        "label_floor": 10,
+        "anchored_kept": false
+      },
+      "holdout": {
+        "method": "absolute_weekday_phase_then_session_gap",
+        "phase": 0,
+        "weekday_step": 7,
+        "required_session_gap": 6,
+        "candidates": 18,
+        "kept": 18,
+        "dropped_for_overlap": 0,
+        "weekday_ordinal_ignores_exchange_holidays": true,
+        "candidate_phase_window_independent": true,
+        "final_membership_window_independent": false
+      },
+      "calibration": {
+        "method": "absolute_weekday_phase_then_session_gap",
+        "phase": 0,
+        "weekday_step": 7,
+        "required_session_gap": 6,
+        "candidates": 28,
+        "kept": 28,
+        "dropped_for_overlap": 0,
+        "weekday_ordinal_ignores_exchange_holidays": true,
+        "candidate_phase_window_independent": true,
+        "final_membership_window_independent": false
+      },
+      "phase_rule": "weekday_ordinal_mod_horizon_plus_two",
+      "mode": "anchored",
+      "bucket_defining_segments_candidate_phase_window_independent": true,
+      "bucket_defining_segments_final_membership_window_independent": false,
+      "selection_segment_candidate_phase_window_independent": false,
+      "selection_segment_final_membership_window_independent": false
+    },
+    "bucket_mode": "two",
+    "selection_profile": "restricted",
+    "qualification": {
+      "route": "shadow_candidate",
+      "route_reason": "post_selection_bucket_budget_met",
+      "checks": {
+        "post_selection_labels": 18,
+        "bucket_counts": {
+          "low": 9,
+          "high": 9
+        },
+        "minimum_per_bucket": 6
+      },
+      "production_eligible": false,
+      "shadow_only": true,
+      "legacy_probability_available": true,
+      "unqualified_estimate_retained": false
+    }
+  },
+  "data_used": [
+    "daily raw OHLCV"
+  ],
+  "warnings": [
+    "Returns are gross close-to-close observations; this factor path does not model execution, spreads, slippage or fees.",
+    "Factor calibration uses only the 52-week daily-bar standard and never widens the window automatically to buy samples.",
+    "The rolling-origin evaluation has fewer than 10 matured-label factor predictions."
+  ],
+  "status": "partial"
+}

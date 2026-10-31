@@ -1,0 +1,2492 @@
+{
+  "generated_from": "stock-data/scripts/global_stock_data.py",
+  "note": "envelopes exclude fetched_at_utc; <OUTPUT>/<INPUT> are normalized paths; the nondeterministic --list tail is sorted",
+  "cases": [
+    {
+      "argv": [
+        "--list"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "list",
+        "data": [
+          {
+            "function": "analyst_estimates",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "calc_boll",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "klines",
+                "required": true,
+                "type": "list[dict]"
+              },
+              {
+                "name": "period",
+                "required": false,
+                "type": "int",
+                "default": 20
+              },
+              {
+                "name": "num_std",
+                "required": false,
+                "type": "float",
+                "default": 2.0
+              }
+            ]
+          },
+          {
+            "function": "calc_kdj",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "klines",
+                "required": true,
+                "type": "list[dict]"
+              },
+              {
+                "name": "n",
+                "required": false,
+                "type": "int",
+                "default": 9
+              },
+              {
+                "name": "m1",
+                "required": false,
+                "type": "int",
+                "default": 3
+              },
+              {
+                "name": "m2",
+                "required": false,
+                "type": "int",
+                "default": 3
+              }
+            ]
+          },
+          {
+            "function": "calc_ma",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "klines",
+                "required": true,
+                "type": "list[dict]"
+              },
+              {
+                "name": "periods",
+                "required": false,
+                "type": "list[int] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "calc_macd",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "klines",
+                "required": true,
+                "type": "list[dict]"
+              },
+              {
+                "name": "fast",
+                "required": false,
+                "type": "int",
+                "default": 12
+              },
+              {
+                "name": "slow",
+                "required": false,
+                "type": "int",
+                "default": 26
+              },
+              {
+                "name": "signal",
+                "required": false,
+                "type": "int",
+                "default": 9
+              }
+            ]
+          },
+          {
+            "function": "calc_rsi",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "klines",
+                "required": true,
+                "type": "list[dict]"
+              },
+              {
+                "name": "periods",
+                "required": false,
+                "type": "list[int] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "cboe_quote",
+            "source": "CBOE",
+            "parameters": [
+              {
+                "name": "ticker",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "cftc_cot",
+            "source": "CFTC",
+            "parameters": [
+              {
+                "name": "limit",
+                "required": false,
+                "type": "int",
+                "default": 20
+              },
+              {
+                "name": "market_contains",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "chain_summary",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "contracts",
+                "required": true,
+                "type": "list[dict]"
+              }
+            ]
+          },
+          {
+            "function": "daily_filings",
+            "source": "SEC EDGAR",
+            "parameters": [
+              {
+                "name": "date",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "forms",
+                "required": false,
+                "type": "list[str] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "earnings_calendar",
+            "source": "Nasdaq",
+            "parameters": [
+              {
+                "name": "date",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "filter_expiry",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "chain",
+                "required": true,
+                "type": "dict"
+              },
+              {
+                "name": "expiry",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "dte_max",
+                "required": false,
+                "type": "int | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "financial_statements_eastmoney",
+            "source": "Eastmoney datacenter",
+            "parameters": [
+              {
+                "name": "secucode",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "statement",
+                "required": false,
+                "type": "str",
+                "default": "balance"
+              },
+              {
+                "name": "page_size",
+                "required": false,
+                "type": "int",
+                "default": 200
+              }
+            ]
+          },
+          {
+            "function": "financial_statements_yahoo",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "quarterly",
+                "required": false,
+                "type": "bool",
+                "default": false
+              }
+            ]
+          },
+          {
+            "function": "frame_ranking",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "frame",
+                "required": true,
+                "type": "dict"
+              },
+              {
+                "name": "top",
+                "required": false,
+                "type": "int",
+                "default": 20
+              },
+              {
+                "name": "ascending",
+                "required": false,
+                "type": "bool",
+                "default": false
+              }
+            ]
+          },
+          {
+            "function": "frame_screen",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "frame",
+                "required": true,
+                "type": "dict"
+              },
+              {
+                "name": "min_value",
+                "required": false,
+                "type": "float | None",
+                "default": null
+              },
+              {
+                "name": "max_value",
+                "required": false,
+                "type": "float | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "fulltext_search",
+            "source": "SEC EDGAR",
+            "parameters": [
+              {
+                "name": "query",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "forms",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "date_from",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "date_to",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "limit",
+                "required": false,
+                "type": "int",
+                "default": 20
+              }
+            ]
+          },
+          {
+            "function": "fund_flow_daily",
+            "source": "Eastmoney push2his",
+            "parameters": [
+              {
+                "name": "ticker_or_code",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "secid_prefix",
+                "required": false,
+                "type": "int",
+                "default": 105
+              },
+              {
+                "name": "limit",
+                "required": false,
+                "type": "int",
+                "default": 100
+              }
+            ]
+          },
+          {
+            "function": "hk_stock_quote_sina",
+            "source": "Sina",
+            "parameters": [
+              {
+                "name": "code",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "hk_stock_quote_tencent",
+            "source": "Tencent",
+            "parameters": [
+              {
+                "name": "code",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "institutional_holders",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "key_indicators_eastmoney",
+            "source": "Eastmoney datacenter",
+            "parameters": [
+              {
+                "name": "secucode",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "page_size",
+                "required": false,
+                "type": "int",
+                "default": 4
+              }
+            ]
+          },
+          {
+            "function": "key_statistics",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "market_frame",
+            "source": "SEC EDGAR",
+            "parameters": [
+              {
+                "name": "tag",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "year",
+                "required": true,
+                "type": "int"
+              },
+              {
+                "name": "quarter",
+                "required": false,
+                "type": "int | None",
+                "default": null
+              },
+              {
+                "name": "unit",
+                "required": false,
+                "type": "str",
+                "default": "USD"
+              },
+              {
+                "name": "instant",
+                "required": false,
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "market_stock_list",
+            "source": "Eastmoney push2",
+            "parameters": [
+              {
+                "name": "market",
+                "required": false,
+                "type": "str",
+                "default": "us_nasdaq"
+              },
+              {
+                "name": "sort_field",
+                "required": false,
+                "type": "str",
+                "default": "f3"
+              },
+              {
+                "name": "sort_desc",
+                "required": false,
+                "type": "bool",
+                "default": true
+              },
+              {
+                "name": "page",
+                "required": false,
+                "type": "int",
+                "default": 1
+              },
+              {
+                "name": "page_size",
+                "required": false,
+                "type": "int",
+                "default": 20
+              }
+            ]
+          },
+          {
+            "function": "options_chain",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "expiration",
+                "required": false,
+                "type": "int | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "options_chain_cboe",
+            "source": "CBOE",
+            "parameters": [
+              {
+                "name": "ticker",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "parse_osi",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "sec_filings",
+            "source": "SEC EDGAR",
+            "parameters": [
+              {
+                "name": "cik",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "form_type",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "sec_xbrl_facts",
+            "source": "SEC EDGAR",
+            "parameters": [
+              {
+                "name": "cik",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "metrics",
+                "required": false,
+                "type": "list[str] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "short_volume_all",
+            "source": "FINRA Reg SHO",
+            "parameters": [
+              {
+                "name": "date",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "market",
+                "required": false,
+                "type": "str",
+                "default": "CNMS"
+              }
+            ]
+          },
+          {
+            "function": "short_volume_ranking",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "snapshot",
+                "required": true,
+                "type": "dict"
+              },
+              {
+                "name": "min_total",
+                "required": false,
+                "type": "float",
+                "default": 1000000
+              },
+              {
+                "name": "top",
+                "required": false,
+                "type": "int",
+                "default": 20
+              }
+            ]
+          },
+          {
+            "function": "short_volume_symbol",
+            "source": "FINRA Reg SHO",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "days",
+                "required": false,
+                "type": "int",
+                "default": 5
+              },
+              {
+                "name": "market",
+                "required": false,
+                "type": "str",
+                "default": "CNMS"
+              }
+            ]
+          },
+          {
+            "function": "stock_kline_yahoo",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "interval",
+                "required": false,
+                "type": "str",
+                "default": "1d"
+              },
+              {
+                "name": "range_",
+                "required": false,
+                "type": "str",
+                "default": "6mo"
+              },
+              {
+                "name": "include_metadata",
+                "required": false,
+                "type": "bool",
+                "default": false
+              }
+            ]
+          },
+          {
+            "function": "stock_quote_eastmoney",
+            "source": "Eastmoney push2",
+            "parameters": [
+              {
+                "name": "ticker_or_code",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "secid_prefix",
+                "required": false,
+                "type": "int",
+                "default": 105
+              }
+            ]
+          },
+          {
+            "function": "stock_search",
+            "source": "Eastmoney search",
+            "parameters": [
+              {
+                "name": "keyword",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "count",
+                "required": false,
+                "type": "int",
+                "default": 10
+              }
+            ]
+          },
+          {
+            "function": "ticker_to_cik",
+            "source": "SEC EDGAR",
+            "parameters": [
+              {
+                "name": "ticker",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "treasury_yield_curve",
+            "source": "US Treasury",
+            "parameters": [
+              {
+                "name": "year",
+                "required": false,
+                "type": "int | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "unusual_activity",
+            "source": "local",
+            "parameters": [
+              {
+                "name": "contracts",
+                "required": true,
+                "type": "list[dict]"
+              },
+              {
+                "name": "min_volume",
+                "required": false,
+                "type": "int",
+                "default": 500
+              },
+              {
+                "name": "vol_oi_min",
+                "required": false,
+                "type": "float",
+                "default": 1.0
+              }
+            ]
+          },
+          {
+            "function": "us_stock_kline_sina",
+            "source": "Sina",
+            "parameters": [
+              {
+                "name": "ticker",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "num",
+                "required": false,
+                "type": "int",
+                "default": 120
+              }
+            ]
+          },
+          {
+            "function": "us_stock_quote_sina",
+            "source": "Sina",
+            "parameters": [
+              {
+                "name": "ticker",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "us_stock_quote_tencent",
+            "source": "Tencent",
+            "parameters": [
+              {
+                "name": "ticker",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "yahoo_analysis",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "modules",
+                "required": false,
+                "type": "list[str] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "yahoo_earnings",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "modules",
+                "required": false,
+                "type": "list[str] | None",
+                "default": null
+              },
+              {
+                "name": "limit",
+                "required": false,
+                "type": "int",
+                "default": 12
+              }
+            ]
+          },
+          {
+            "function": "yahoo_financials",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "frequency",
+                "required": false,
+                "type": "str",
+                "default": "yearly"
+              },
+              {
+                "name": "statements",
+                "required": false,
+                "type": "list[str] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "yahoo_funds",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "modules",
+                "required": false,
+                "type": "list[str] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "yahoo_history",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "start",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "end",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "period",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "interval",
+                "required": false,
+                "type": "str",
+                "default": "1d"
+              },
+              {
+                "name": "price_basis",
+                "required": false,
+                "type": "str",
+                "default": "provider"
+              },
+              {
+                "name": "prepost",
+                "required": false,
+                "type": "bool",
+                "default": false
+              },
+              {
+                "name": "repair",
+                "required": false,
+                "type": "bool",
+                "default": false
+              },
+              {
+                "name": "timeout",
+                "required": false,
+                "type": "float",
+                "default": 15
+              }
+            ]
+          },
+          {
+            "function": "yahoo_history_batch",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbols",
+                "required": true,
+                "type": "list[str]"
+              },
+              {
+                "name": "start",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "end",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "period",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              },
+              {
+                "name": "interval",
+                "required": false,
+                "type": "str",
+                "default": "1d"
+              },
+              {
+                "name": "price_basis",
+                "required": false,
+                "type": "str",
+                "default": "provider"
+              },
+              {
+                "name": "prepost",
+                "required": false,
+                "type": "bool",
+                "default": false
+              },
+              {
+                "name": "repair",
+                "required": false,
+                "type": "bool",
+                "default": false
+              },
+              {
+                "name": "timeout",
+                "required": false,
+                "type": "float",
+                "default": 15
+              },
+              {
+                "name": "concurrency",
+                "required": false,
+                "type": "int",
+                "default": 1
+              }
+            ]
+          },
+          {
+            "function": "yahoo_holders",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "modules",
+                "required": false,
+                "type": "list[str] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "yahoo_options",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "expiration",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "yahoo_profile",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              }
+            ]
+          },
+          {
+            "function": "yahoo_quote",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "fields",
+                "required": false,
+                "type": "list[str] | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "yahoo_quote_summary",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "modules",
+                "required": true,
+                "type": "list[str]"
+              }
+            ]
+          },
+          {
+            "function": "yahoo_screen",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "query",
+                "required": true,
+                "type": "dict"
+              },
+              {
+                "name": "query_type",
+                "required": false,
+                "type": "str",
+                "default": "equity"
+              },
+              {
+                "name": "size",
+                "required": false,
+                "type": "int",
+                "default": 25
+              },
+              {
+                "name": "max_pages",
+                "required": false,
+                "type": "int",
+                "default": 1
+              },
+              {
+                "name": "max_results",
+                "required": false,
+                "type": "int",
+                "default": 250
+              }
+            ]
+          },
+          {
+            "function": "yahoo_search",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "query",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "count",
+                "required": false,
+                "type": "int",
+                "default": 8
+              },
+              {
+                "name": "lookup_type",
+                "required": false,
+                "type": "str | None",
+                "default": null
+              }
+            ]
+          },
+          {
+            "function": "yahoo_statistics",
+            "source": "Yahoo Finance",
+            "parameters": [
+              {
+                "name": "symbol",
+                "required": true,
+                "type": "str"
+              },
+              {
+                "name": "valuation",
+                "required": false,
+                "type": "bool",
+                "default": false
+              }
+            ]
+          }
+        ]
+      },
+      "list_order_normalized": true
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_ma",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}]}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_ma",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 102,
+            "ma5": null,
+            "ma10": null,
+            "ma20": null,
+            "ma60": null,
+            "ema12": 102,
+            "ema26": 102
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101,
+            "ma5": null,
+            "ma10": null,
+            "ma20": null,
+            "ma60": null,
+            "ema12": 101.8462,
+            "ema26": 101.9259
+          },
+          {
+            "date": "2026-01-06",
+            "close": 104,
+            "ma5": null,
+            "ma10": null,
+            "ma20": null,
+            "ma60": null,
+            "ema12": 102.1775,
+            "ema26": 102.0796
+          },
+          {
+            "date": "2026-01-07",
+            "close": 105,
+            "ma5": null,
+            "ma10": null,
+            "ma20": null,
+            "ma60": null,
+            "ema12": 102.6117,
+            "ema26": 102.2959
+          },
+          {
+            "date": "2026-01-08",
+            "close": 103,
+            "ma5": 103.0,
+            "ma10": null,
+            "ma20": null,
+            "ma60": null,
+            "ema12": 102.6715,
+            "ema26": 102.348
+          },
+          {
+            "date": "2026-01-09",
+            "close": 101,
+            "ma5": 102.8,
+            "ma10": null,
+            "ma20": null,
+            "ma60": null,
+            "ema12": 102.4143,
+            "ema26": 102.2482
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_ma",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"close\": 100.5}, {\"date\": \"2026-01-05\", \"close\": 101.25}, {\"date\": \"2026-01-06\", \"close\": 99.75}, {\"date\": \"2026-01-07\", \"close\": 102.0}], \"periods\": [2]}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_ma",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 100.5,
+            "ma2": null,
+            "ema12": 100.5,
+            "ema26": 100.5
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101.25,
+            "ma2": 100.875,
+            "ema12": 100.6154,
+            "ema26": 100.5556
+          },
+          {
+            "date": "2026-01-06",
+            "close": 99.75,
+            "ma2": 100.5,
+            "ema12": 100.4822,
+            "ema26": 100.4959
+          },
+          {
+            "date": "2026-01-07",
+            "close": 102.0,
+            "ma2": 100.875,
+            "ema12": 100.7157,
+            "ema26": 100.6073
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_ma",
+        "--params-json",
+        "{\"klines\": []}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "empty",
+        "source": "local",
+        "function": "calc_ma",
+        "data": []
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_ma",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"close\": \"x\"}]}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "calc_ma",
+        "error_type": "ValueError",
+        "error_message": "Candle 0 has missing or invalid close."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_ma",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"periods\": []}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "calc_ma",
+        "error_type": "ValueError",
+        "error_message": "periods must be a nonempty list of positive integers."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_ma",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"periods\": [0]}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "calc_ma",
+        "error_type": "ValueError",
+        "error_message": "periods must be a positive integer no larger than 10000."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_macd",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}]}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_macd",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 102,
+            "dif": 0,
+            "dea": 0,
+            "macd_hist": 0
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101,
+            "dif": -0.0798,
+            "dea": -0.016,
+            "macd_hist": -0.1277
+          },
+          {
+            "date": "2026-01-06",
+            "close": 104,
+            "dif": 0.098,
+            "dea": 0.0068,
+            "macd_hist": 0.1823
+          },
+          {
+            "date": "2026-01-07",
+            "close": 105,
+            "dif": 0.3159,
+            "dea": 0.0686,
+            "macd_hist": 0.4945
+          },
+          {
+            "date": "2026-01-08",
+            "close": 103,
+            "dif": 0.3234,
+            "dea": 0.1196,
+            "macd_hist": 0.4076
+          },
+          {
+            "date": "2026-01-09",
+            "close": 101,
+            "dif": 0.1661,
+            "dea": 0.1289,
+            "macd_hist": 0.0744
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_macd",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"close\": 100.5}, {\"date\": \"2026-01-05\", \"close\": 101.25}, {\"date\": \"2026-01-06\", \"close\": 99.75}, {\"date\": \"2026-01-07\", \"close\": 102.0}], \"fast\": 2, \"slow\": 3, \"signal\": 2}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_macd",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 100.5,
+            "dif": 0.0,
+            "dea": 0.0,
+            "macd_hist": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101.25,
+            "dif": 0.125,
+            "dea": 0.0833,
+            "macd_hist": 0.0833
+          },
+          {
+            "date": "2026-01-06",
+            "close": 99.75,
+            "dif": -0.1458,
+            "dea": -0.0694,
+            "macd_hist": -0.1528
+          },
+          {
+            "date": "2026-01-07",
+            "close": 102.0,
+            "dif": 0.2326,
+            "dea": 0.1319,
+            "macd_hist": 0.2013
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_macd",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"fast\": 0}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "calc_macd",
+        "error_type": "ValueError",
+        "error_message": "fast must be a positive integer no larger than 10000."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_rsi",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"periods\": [3]}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_rsi",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 102,
+            "rsi3": null
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101,
+            "rsi3": null
+          },
+          {
+            "date": "2026-01-06",
+            "close": 104,
+            "rsi3": null
+          },
+          {
+            "date": "2026-01-07",
+            "close": 105,
+            "rsi3": 80.0
+          },
+          {
+            "date": "2026-01-08",
+            "close": 103,
+            "rsi3": 66.67
+          },
+          {
+            "date": "2026-01-09",
+            "close": 101,
+            "rsi3": 20.0
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_kdj",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"n\": 3}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_kdj",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 102,
+            "k": null,
+            "d": null,
+            "j": null
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101,
+            "k": null,
+            "d": null,
+            "j": null
+          },
+          {
+            "date": "2026-01-06",
+            "close": 104,
+            "k": 61.11,
+            "d": 53.7,
+            "j": 75.93
+          },
+          {
+            "date": "2026-01-07",
+            "close": 105,
+            "k": 68.52,
+            "d": 58.64,
+            "j": 88.27
+          },
+          {
+            "date": "2026-01-08",
+            "close": 103,
+            "k": 59.96,
+            "d": 59.08,
+            "j": 61.73
+          },
+          {
+            "date": "2026-01-09",
+            "close": 101,
+            "k": 44.74,
+            "d": 54.3,
+            "j": 25.61
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_kdj",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"close\": 1.0}], \"n\": 3}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "calc_kdj",
+        "error_type": "ValueError",
+        "error_message": "Candle 0 has missing or invalid high."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_boll",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"period\": 3, \"num_std\": 1.5}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_boll",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 102,
+            "upper": null,
+            "middle": null,
+            "lower": null,
+            "bandwidth": null
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101,
+            "upper": null,
+            "middle": null,
+            "lower": null,
+            "bandwidth": null
+          },
+          {
+            "date": "2026-01-06",
+            "close": 104,
+            "upper": 104.2042,
+            "middle": 102.3333,
+            "lower": 100.4625,
+            "bandwidth": 3.66
+          },
+          {
+            "date": "2026-01-07",
+            "close": 105,
+            "upper": 105.8828,
+            "middle": 103.3333,
+            "lower": 100.7838,
+            "bandwidth": 4.93
+          },
+          {
+            "date": "2026-01-08",
+            "close": 103,
+            "upper": 105.2247,
+            "middle": 104.0,
+            "lower": 102.7753,
+            "bandwidth": 2.36
+          },
+          {
+            "date": "2026-01-09",
+            "close": 101,
+            "upper": 105.4495,
+            "middle": 103.0,
+            "lower": 100.5505,
+            "bandwidth": 4.76
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_boll",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"num_std\": -1}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "calc_boll",
+        "error_type": "ValueError",
+        "error_message": "num_std must be a finite nonnegative number."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "parse_osi",
+        "--params-json",
+        "{\"symbol\": \"AAPL250620C00150000\"}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "parse_osi",
+        "data": {
+          "expiry": "2025-06-20",
+          "type": "call",
+          "strike": 150.0
+        }
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "parse_osi",
+        "--params-json",
+        "{\"symbol\": \"NVDA1250620C00012000\"}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "parse_osi",
+        "data": {
+          "expiry": "2025-06-20",
+          "type": "call",
+          "strike": 12.0
+        }
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "parse_osi",
+        "--params-json",
+        "{\"symbol\": \"NOT-AN-OSI\"}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "empty",
+        "source": "local",
+        "function": "parse_osi",
+        "data": {}
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "filter_expiry",
+        "--params-json",
+        "{\"chain\": {\"ticker\": \"AAPL\", \"timestamp\": \"2026-01-09T20:00:00Z\", \"spot\": 100.0, \"contracts\": [{\"symbol\": \"AAPL250620C00150000\", \"expiry\": \"2025-06-20\", \"type\": \"call\", \"strike\": 150.0, \"bid\": 1.2, \"ask\": 1.3, \"volume\": 1200, \"open_interest\": 400, \"iv\": 0.25, \"delta\": 0.5}, {\"symbol\": \"AAPL250620P00140000\", \"expiry\": \"2025-06-20\", \"type\": \"put\", \"strike\": 140.0, \"bid\": 0.9, \"ask\": 1.0, \"volume\": 800, \"open_interest\": 1600, \"iv\": 0.3, \"delta\": -0.4}, {\"symbol\": \"AAPL250718C00160000\", \"expiry\": \"2025-07-18\", \"type\": \"call\", \"strike\": 160.0, \"bid\": 0.5, \"ask\": 0.6, \"volume\": 300, \"open_interest\": 500, \"iv\": null, \"delta\": 0.2}, {\"symbol\": \"AAPL250718P00130000\", \"expiry\": \"2025-07-18\", \"type\": \"put\", \"strike\": 130.0, \"bid\": 0.4, \"ask\": 0.5, \"volume\": 100, \"open_interest\": 0, \"iv\": 0.4, \"delta\": -0.1}]}, \"expiry\": \"2025-06-20\"}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "filter_expiry",
+        "data": [
+          {
+            "symbol": "AAPL250620C00150000",
+            "expiry": "2025-06-20",
+            "type": "call",
+            "strike": 150.0,
+            "bid": 1.2,
+            "ask": 1.3,
+            "volume": 1200,
+            "open_interest": 400,
+            "iv": 0.25,
+            "delta": 0.5
+          },
+          {
+            "symbol": "AAPL250620P00140000",
+            "expiry": "2025-06-20",
+            "type": "put",
+            "strike": 140.0,
+            "bid": 0.9,
+            "ask": 1.0,
+            "volume": 800,
+            "open_interest": 1600,
+            "iv": 0.3,
+            "delta": -0.4
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "filter_expiry",
+        "--params-json",
+        "{\"chain\": {\"ticker\": \"AAPL\", \"timestamp\": \"2026-01-09T20:00:00Z\", \"spot\": 100.0, \"contracts\": [{\"symbol\": \"AAPL250620C00150000\", \"expiry\": \"2025-06-20\", \"type\": \"call\", \"strike\": 150.0, \"bid\": 1.2, \"ask\": 1.3, \"volume\": 1200, \"open_interest\": 400, \"iv\": 0.25, \"delta\": 0.5}, {\"symbol\": \"AAPL250620P00140000\", \"expiry\": \"2025-06-20\", \"type\": \"put\", \"strike\": 140.0, \"bid\": 0.9, \"ask\": 1.0, \"volume\": 800, \"open_interest\": 1600, \"iv\": 0.3, \"delta\": -0.4}, {\"symbol\": \"AAPL250718C00160000\", \"expiry\": \"2025-07-18\", \"type\": \"call\", \"strike\": 160.0, \"bid\": 0.5, \"ask\": 0.6, \"volume\": 300, \"open_interest\": 500, \"iv\": null, \"delta\": 0.2}, {\"symbol\": \"AAPL250718P00130000\", \"expiry\": \"2025-07-18\", \"type\": \"put\", \"strike\": 130.0, \"bid\": 0.4, \"ask\": 0.5, \"volume\": 100, \"open_interest\": 0, \"iv\": 0.4, \"delta\": -0.1}]}}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "filter_expiry",
+        "data": [
+          {
+            "symbol": "AAPL250620C00150000",
+            "expiry": "2025-06-20",
+            "type": "call",
+            "strike": 150.0,
+            "bid": 1.2,
+            "ask": 1.3,
+            "volume": 1200,
+            "open_interest": 400,
+            "iv": 0.25,
+            "delta": 0.5
+          },
+          {
+            "symbol": "AAPL250620P00140000",
+            "expiry": "2025-06-20",
+            "type": "put",
+            "strike": 140.0,
+            "bid": 0.9,
+            "ask": 1.0,
+            "volume": 800,
+            "open_interest": 1600,
+            "iv": 0.3,
+            "delta": -0.4
+          },
+          {
+            "symbol": "AAPL250718C00160000",
+            "expiry": "2025-07-18",
+            "type": "call",
+            "strike": 160.0,
+            "bid": 0.5,
+            "ask": 0.6,
+            "volume": 300,
+            "open_interest": 500,
+            "iv": null,
+            "delta": 0.2
+          },
+          {
+            "symbol": "AAPL250718P00130000",
+            "expiry": "2025-07-18",
+            "type": "put",
+            "strike": 130.0,
+            "bid": 0.4,
+            "ask": 0.5,
+            "volume": 100,
+            "open_interest": 0,
+            "iv": 0.4,
+            "delta": -0.1
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "filter_expiry",
+        "--params-json",
+        "{\"chain\": {\"ticker\": \"AAPL\", \"timestamp\": \"2026-01-09T20:00:00Z\", \"spot\": 100.0, \"contracts\": [{\"symbol\": \"AAPL250620C00150000\", \"expiry\": \"2025-06-20\", \"type\": \"call\", \"strike\": 150.0, \"bid\": 1.2, \"ask\": 1.3, \"volume\": 1200, \"open_interest\": 400, \"iv\": 0.25, \"delta\": 0.5}, {\"symbol\": \"AAPL250620P00140000\", \"expiry\": \"2025-06-20\", \"type\": \"put\", \"strike\": 140.0, \"bid\": 0.9, \"ask\": 1.0, \"volume\": 800, \"open_interest\": 1600, \"iv\": 0.3, \"delta\": -0.4}, {\"symbol\": \"AAPL250718C00160000\", \"expiry\": \"2025-07-18\", \"type\": \"call\", \"strike\": 160.0, \"bid\": 0.5, \"ask\": 0.6, \"volume\": 300, \"open_interest\": 500, \"iv\": null, \"delta\": 0.2}, {\"symbol\": \"AAPL250718P00130000\", \"expiry\": \"2025-07-18\", \"type\": \"put\", \"strike\": 130.0, \"bid\": 0.4, \"ask\": 0.5, \"volume\": 100, \"open_interest\": 0, \"iv\": 0.4, \"delta\": -0.1}]}, \"expiry\": \"20-6-2\"}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "filter_expiry",
+        "error_type": "ValueError",
+        "error_message": "expiry has an invalid date format or value."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "unusual_activity",
+        "--params-json",
+        "{\"contracts\": [{\"symbol\": \"AAPL250620C00150000\", \"expiry\": \"2025-06-20\", \"type\": \"call\", \"strike\": 150.0, \"bid\": 1.2, \"ask\": 1.3, \"volume\": 1200, \"open_interest\": 400, \"iv\": 0.25, \"delta\": 0.5}, {\"symbol\": \"AAPL250620P00140000\", \"expiry\": \"2025-06-20\", \"type\": \"put\", \"strike\": 140.0, \"bid\": 0.9, \"ask\": 1.0, \"volume\": 800, \"open_interest\": 1600, \"iv\": 0.3, \"delta\": -0.4}, {\"symbol\": \"AAPL250718C00160000\", \"expiry\": \"2025-07-18\", \"type\": \"call\", \"strike\": 160.0, \"bid\": 0.5, \"ask\": 0.6, \"volume\": 300, \"open_interest\": 500, \"iv\": null, \"delta\": 0.2}, {\"symbol\": \"AAPL250718P00130000\", \"expiry\": \"2025-07-18\", \"type\": \"put\", \"strike\": 130.0, \"bid\": 0.4, \"ask\": 0.5, \"volume\": 100, \"open_interest\": 0, \"iv\": 0.4, \"delta\": -0.1}]}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "unusual_activity",
+        "data": [
+          {
+            "symbol": "AAPL250620C00150000",
+            "expiry": "2025-06-20",
+            "type": "call",
+            "strike": 150.0,
+            "bid": 1.2,
+            "ask": 1.3,
+            "volume": 1200,
+            "open_interest": 400,
+            "iv": 0.25,
+            "delta": 0.5,
+            "vol_oi_ratio": 3.0
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "unusual_activity",
+        "--params-json",
+        "{\"contracts\": [{\"symbol\": \"AAPL250620C00150000\", \"expiry\": \"2025-06-20\", \"type\": \"call\", \"strike\": 150.0, \"bid\": 1.2, \"ask\": 1.3, \"volume\": 1200, \"open_interest\": 400, \"iv\": 0.25, \"delta\": 0.5}, {\"symbol\": \"AAPL250620P00140000\", \"expiry\": \"2025-06-20\", \"type\": \"put\", \"strike\": 140.0, \"bid\": 0.9, \"ask\": 1.0, \"volume\": 800, \"open_interest\": 1600, \"iv\": 0.3, \"delta\": -0.4}, {\"symbol\": \"AAPL250718C00160000\", \"expiry\": \"2025-07-18\", \"type\": \"call\", \"strike\": 160.0, \"bid\": 0.5, \"ask\": 0.6, \"volume\": 300, \"open_interest\": 500, \"iv\": null, \"delta\": 0.2}, {\"symbol\": \"AAPL250718P00130000\", \"expiry\": \"2025-07-18\", \"type\": \"put\", \"strike\": 130.0, \"bid\": 0.4, \"ask\": 0.5, \"volume\": 100, \"open_interest\": 0, \"iv\": 0.4, \"delta\": -0.1}], \"min_volume\": 0}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "unusual_activity",
+        "error_type": "ValueError",
+        "error_message": "min_volume must be a positive integer no larger than 10000."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "chain_summary",
+        "--params-json",
+        "{\"contracts\": [{\"symbol\": \"AAPL250620C00150000\", \"expiry\": \"2025-06-20\", \"type\": \"call\", \"strike\": 150.0, \"bid\": 1.2, \"ask\": 1.3, \"volume\": 1200, \"open_interest\": 400, \"iv\": 0.25, \"delta\": 0.5}, {\"symbol\": \"AAPL250620P00140000\", \"expiry\": \"2025-06-20\", \"type\": \"put\", \"strike\": 140.0, \"bid\": 0.9, \"ask\": 1.0, \"volume\": 800, \"open_interest\": 1600, \"iv\": 0.3, \"delta\": -0.4}, {\"symbol\": \"AAPL250718C00160000\", \"expiry\": \"2025-07-18\", \"type\": \"call\", \"strike\": 160.0, \"bid\": 0.5, \"ask\": 0.6, \"volume\": 300, \"open_interest\": 500, \"iv\": null, \"delta\": 0.2}, {\"symbol\": \"AAPL250718P00130000\", \"expiry\": \"2025-07-18\", \"type\": \"put\", \"strike\": 130.0, \"bid\": 0.4, \"ask\": 0.5, \"volume\": 100, \"open_interest\": 0, \"iv\": 0.4, \"delta\": -0.1}]}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "chain_summary",
+        "data": {
+          "call_volume": 1500.0,
+          "put_volume": 900.0,
+          "put_call_volume_ratio": 0.6,
+          "call_oi": 900.0,
+          "put_oi": 1600.0,
+          "put_call_oi_ratio": 1.7777777777777777,
+          "volume_weighted_iv": 0.2761904761904762,
+          "volume_weighted_delta_proxy_shares": 33000.0,
+          "delta_proxy_contract_multiplier": 100,
+          "delta_proxy_note": "Volume proxy; trade direction and position ownership are unknown.",
+          "contracts_total": 4,
+          "contracts_traded": 4,
+          "contracts_missing_volume": 0,
+          "contracts_missing_open_interest": 0,
+          "contracts_missing_iv": 1,
+          "contracts_missing_delta": 0
+        }
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "chain_summary",
+        "--params-json",
+        "{\"contracts\": []}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "chain_summary",
+        "data": {
+          "call_volume": null,
+          "put_volume": null,
+          "put_call_volume_ratio": null,
+          "call_oi": null,
+          "put_oi": null,
+          "put_call_oi_ratio": null,
+          "volume_weighted_iv": null,
+          "volume_weighted_delta_proxy_shares": null,
+          "delta_proxy_contract_multiplier": 100,
+          "delta_proxy_note": "Volume proxy; trade direction and position ownership are unknown.",
+          "contracts_total": 0,
+          "contracts_traded": 0,
+          "contracts_missing_volume": 0,
+          "contracts_missing_open_interest": 0,
+          "contracts_missing_iv": 0,
+          "contracts_missing_delta": 0
+        }
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "short_volume_ranking",
+        "--params-json",
+        "{\"snapshot\": {\"date\": \"2026-01-09\", \"market\": \"CNMS\", \"data\": {\"AAA\": {\"total\": 2000000, \"ratio\": 0.62}, \"BBB\": {\"total\": 500000, \"ratio\": 0.9}, \"CCC\": {\"total\": 1200000, \"ratio\": 0.55}, \"DDD\": {\"total\": 3000000, \"ratio\": null}}}}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "short_volume_ranking",
+        "data": [
+          {
+            "symbol": "AAA",
+            "total": 2000000,
+            "ratio": 0.62
+          },
+          {
+            "symbol": "CCC",
+            "total": 1200000,
+            "ratio": 0.55
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "short_volume_ranking",
+        "--params-json",
+        "{\"snapshot\": {\"date\": \"2026-01-09\", \"market\": \"CNMS\", \"data\": {\"AAA\": {\"total\": 2000000, \"ratio\": 0.62}, \"BBB\": {\"total\": 500000, \"ratio\": 0.9}, \"CCC\": {\"total\": 1200000, \"ratio\": 0.55}, \"DDD\": {\"total\": 3000000, \"ratio\": null}}}, \"min_total\": 1000000, \"top\": 2}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "short_volume_ranking",
+        "data": [
+          {
+            "symbol": "AAA",
+            "total": 2000000,
+            "ratio": 0.62
+          },
+          {
+            "symbol": "CCC",
+            "total": 1200000,
+            "ratio": 0.55
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "short_volume_ranking",
+        "--params-json",
+        "{\"snapshot\": {\"data\": {}}}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "empty",
+        "source": "local",
+        "function": "short_volume_ranking",
+        "data": []
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "frame_ranking",
+        "--params-json",
+        "{\"frame\": {\"tag\": \"Revenues\", \"unit\": \"USD\", \"data\": [{\"cik\": 1, \"entity\": \"A\", \"value\": 120.0, \"end\": \"2026-03-31\"}, {\"cik\": 2, \"entity\": \"B\", \"value\": 130.0, \"end\": \"2026-03-31\"}, {\"cik\": 3, \"entity\": \"C\", \"value\": 125.0, \"end\": \"2026-03-31\"}, {\"cik\": 5, \"entity\": \"E\", \"value\": 118.0, \"end\": \"2026-03-31\"}]}}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "frame_ranking",
+        "data": [
+          {
+            "cik": 2,
+            "entity": "B",
+            "value": 130.0,
+            "end": "2026-03-31"
+          },
+          {
+            "cik": 3,
+            "entity": "C",
+            "value": 125.0,
+            "end": "2026-03-31"
+          },
+          {
+            "cik": 1,
+            "entity": "A",
+            "value": 120.0,
+            "end": "2026-03-31"
+          },
+          {
+            "cik": 5,
+            "entity": "E",
+            "value": 118.0,
+            "end": "2026-03-31"
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "frame_ranking",
+        "--params-json",
+        "{\"frame\": {\"tag\": \"Revenues\", \"unit\": \"USD\", \"data\": [{\"cik\": 1, \"entity\": \"A\", \"value\": 120.0, \"end\": \"2026-03-31\"}, {\"cik\": 2, \"entity\": \"B\", \"value\": 130.0, \"end\": \"2026-03-31\"}, {\"cik\": 3, \"entity\": \"C\", \"value\": 125.0, \"end\": \"2026-03-31\"}, {\"cik\": 5, \"entity\": \"E\", \"value\": 118.0, \"end\": \"2026-03-31\"}]}, \"top\": 2, \"ascending\": true}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "frame_ranking",
+        "data": [
+          {
+            "cik": 5,
+            "entity": "E",
+            "value": 118.0,
+            "end": "2026-03-31"
+          },
+          {
+            "cik": 1,
+            "entity": "A",
+            "value": 120.0,
+            "end": "2026-03-31"
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "frame_screen",
+        "--params-json",
+        "{\"frame\": {\"tag\": \"Revenues\", \"unit\": \"USD\", \"data\": [{\"cik\": 1, \"entity\": \"A\", \"value\": 120.0, \"end\": \"2026-03-31\"}, {\"cik\": 2, \"entity\": \"B\", \"value\": 130.0, \"end\": \"2026-03-31\"}, {\"cik\": 3, \"entity\": \"C\", \"value\": 125.0, \"end\": \"2026-03-31\"}, {\"cik\": 5, \"entity\": \"E\", \"value\": 118.0, \"end\": \"2026-03-31\"}]}, \"min_value\": 122}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "frame_screen",
+        "data": [
+          {
+            "cik": 2,
+            "entity": "B",
+            "value": 130.0,
+            "end": "2026-03-31"
+          },
+          {
+            "cik": 3,
+            "entity": "C",
+            "value": 125.0,
+            "end": "2026-03-31"
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "frame_screen",
+        "--params-json",
+        "{\"frame\": {\"tag\": \"Revenues\", \"unit\": \"USD\", \"data\": [{\"cik\": 1, \"entity\": \"A\", \"value\": 120.0, \"end\": \"2026-03-31\"}, {\"cik\": 2, \"entity\": \"B\", \"value\": 130.0, \"end\": \"2026-03-31\"}, {\"cik\": 3, \"entity\": \"C\", \"value\": 125.0, \"end\": \"2026-03-31\"}, {\"cik\": 5, \"entity\": \"E\", \"value\": 118.0, \"end\": \"2026-03-31\"}]}, \"max_value\": 125}"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "frame_screen",
+        "data": [
+          {
+            "cik": 1,
+            "entity": "A",
+            "value": 120.0,
+            "end": "2026-03-31"
+          },
+          {
+            "cik": 3,
+            "entity": "C",
+            "value": 125.0,
+            "end": "2026-03-31"
+          },
+          {
+            "cik": 5,
+            "entity": "E",
+            "value": 118.0,
+            "end": "2026-03-31"
+          }
+        ]
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "frame_ranking",
+        "--params-json",
+        "{\"frame\": {\"tag\": \"Revenues\", \"unit\": \"USD\", \"data\": [{\"cik\": 1, \"entity\": \"A\", \"value\": 120.0, \"end\": \"2026-03-31\"}, {\"cik\": 2, \"entity\": \"B\", \"value\": 130.0, \"end\": \"2026-03-31\"}, {\"cik\": 3, \"entity\": \"C\", \"value\": 125.0, \"end\": \"2026-03-31\"}, {\"cik\": 4, \"entity\": \"D\", \"value\": null, \"end\": \"2026-03-31\"}]}}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "frame_ranking",
+        "error_type": "TypeError",
+        "error_message": "'<' not supported between instances of 'float' and 'NoneType'"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "frame_ranking",
+        "--params-json",
+        "{\"frame\": {\"tag\": \"Revenues\", \"unit\": \"USD\", \"data\": [{\"cik\": 1, \"entity\": \"A\", \"value\": 120.0, \"end\": \"2026-03-31\"}, {\"cik\": 2, \"entity\": \"B\", \"value\": 130.0, \"end\": \"2026-03-31\"}, {\"cik\": 3, \"entity\": \"C\", \"value\": 125.0, \"end\": \"2026-03-31\"}, {\"cik\": 4, \"entity\": \"D\", \"value\": null, \"end\": \"2026-03-31\"}]}, \"ascending\": true}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "frame_ranking",
+        "error_type": "TypeError",
+        "error_message": "'<' not supported between instances of 'NoneType' and 'float'"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "frame_screen",
+        "--params-json",
+        "{\"frame\": {\"tag\": \"Revenues\", \"unit\": \"USD\", \"data\": [{\"cik\": 1, \"entity\": \"A\", \"value\": 120.0, \"end\": \"2026-03-31\"}, {\"cik\": 2, \"entity\": \"B\", \"value\": 130.0, \"end\": \"2026-03-31\"}, {\"cik\": 3, \"entity\": \"C\", \"value\": 125.0, \"end\": \"2026-03-31\"}, {\"cik\": 4, \"entity\": \"D\", \"value\": null, \"end\": \"2026-03-31\"}]}, \"min_value\": 122}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "frame_screen",
+        "error_type": "TypeError",
+        "error_message": "'>=' not supported between instances of 'NoneType' and 'int'"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "frame_screen",
+        "--params-json",
+        "{\"frame\": {\"tag\": \"Revenues\", \"unit\": \"USD\", \"data\": [{\"cik\": 1, \"entity\": \"A\", \"value\": 120.0, \"end\": \"2026-03-31\"}, {\"cik\": 2, \"entity\": \"B\", \"value\": 130.0, \"end\": \"2026-03-31\"}, {\"cik\": 3, \"entity\": \"C\", \"value\": 125.0, \"end\": \"2026-03-31\"}, {\"cik\": 4, \"entity\": \"D\", \"value\": null, \"end\": \"2026-03-31\"}]}, \"max_value\": 125}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "frame_screen",
+        "error_type": "TypeError",
+        "error_message": "'<=' not supported between instances of 'NoneType' and 'int'"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "__no_such_function__"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": null,
+        "function": "__no_such_function__",
+        "error_type": "ValueError",
+        "error_message": "Function is not in the allowed list; use --list."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "parse_osi"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "parse_osi",
+        "error_type": "ValueError",
+        "error_message": "Invalid function parameters: missing a required argument: 'symbol'"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "parse_osi",
+        "--params-json",
+        "{\"symbol\": 42}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "parse_osi",
+        "error_type": "ValueError",
+        "error_message": "Parameter symbol must have type str."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "parse_osi",
+        "--params-json",
+        "{\"symbol\": \"AAPL\", \"extra\": 1}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "parse_osi",
+        "error_type": "ValueError",
+        "error_message": "Invalid function parameters: got an unexpected keyword argument 'extra'"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "parse_osi",
+        "--params-json",
+        "{not json"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "parse_osi",
+        "error_type": "JSONDecodeError",
+        "error_message": "Expecting property name enclosed in double quotes: line 1 column 2 (char 1)"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "parse_osi",
+        "--params-json",
+        "[]"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "parse_osi",
+        "error_type": "ValueError",
+        "error_message": "Parameters must be a JSON object."
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_ma",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"bogus\": 1}"
+      ],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": "local",
+        "function": "calc_ma",
+        "error_type": "ValueError",
+        "error_message": "Invalid function parameters: got an unexpected keyword argument 'bogus'"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [],
+      "exit": 1,
+      "envelope": {
+        "status": "error",
+        "source": null,
+        "function": null,
+        "error_type": "ValueError",
+        "error_message": "one of the arguments --list --function is required"
+      },
+      "list_order_normalized": false
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_boll",
+        "--params-json",
+        "{\"klines\": [{\"date\": \"2026-01-02\", \"open\": 100, \"high\": 103, \"low\": 99, \"close\": 102, \"volume\": 1000}, {\"date\": \"2026-01-05\", \"open\": 102, \"high\": 104, \"low\": 101, \"close\": 101, \"volume\": 1200}, {\"date\": \"2026-01-06\", \"open\": 101, \"high\": 105, \"low\": 100, \"close\": 104, \"volume\": 900}, {\"date\": \"2026-01-07\", \"open\": 104, \"high\": 106, \"low\": 103, \"close\": 105, \"volume\": 1100}, {\"date\": \"2026-01-08\", \"open\": 105, \"high\": 107, \"low\": 102, \"close\": 103, \"volume\": 1300}, {\"date\": \"2026-01-09\", \"open\": 103, \"high\": 104, \"low\": 100, \"close\": 101, \"volume\": 700}], \"period\": 3}",
+        "--output",
+        "<OUTPUT>"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_boll",
+        "envelope_file": "<OUTPUT>",
+        "record_count": 6
+      },
+      "envelope_file_value": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_boll",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 102,
+            "upper": null,
+            "middle": null,
+            "lower": null,
+            "bandwidth": null
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101,
+            "upper": null,
+            "middle": null,
+            "lower": null,
+            "bandwidth": null
+          },
+          {
+            "date": "2026-01-06",
+            "close": 104,
+            "upper": 104.8278,
+            "middle": 102.3333,
+            "lower": 99.8389,
+            "bandwidth": 4.88
+          },
+          {
+            "date": "2026-01-07",
+            "close": 105,
+            "upper": 106.7327,
+            "middle": 103.3333,
+            "lower": 99.934,
+            "bandwidth": 6.58
+          },
+          {
+            "date": "2026-01-08",
+            "close": 103,
+            "upper": 105.633,
+            "middle": 104.0,
+            "lower": 102.367,
+            "bandwidth": 3.14
+          },
+          {
+            "date": "2026-01-09",
+            "close": 101,
+            "upper": 106.266,
+            "middle": 103.0,
+            "lower": 99.734,
+            "bandwidth": 6.34
+          }
+        ]
+      }
+    },
+    {
+      "argv": [
+        "--function",
+        "calc_ma",
+        "--params-file",
+        "<INPUT>"
+      ],
+      "exit": 0,
+      "envelope": {
+        "status": "success",
+        "source": "local",
+        "function": "calc_ma",
+        "data": [
+          {
+            "date": "2026-01-02",
+            "close": 102,
+            "ma2": null,
+            "ema12": 102,
+            "ema26": 102
+          },
+          {
+            "date": "2026-01-05",
+            "close": 101,
+            "ma2": 101.5,
+            "ema12": 101.8462,
+            "ema26": 101.9259
+          },
+          {
+            "date": "2026-01-06",
+            "close": 104,
+            "ma2": 102.5,
+            "ema12": 102.1775,
+            "ema26": 102.0796
+          },
+          {
+            "date": "2026-01-07",
+            "close": 105,
+            "ma2": 104.5,
+            "ema12": 102.6117,
+            "ema26": 102.2959
+          },
+          {
+            "date": "2026-01-08",
+            "close": 103,
+            "ma2": 104.0,
+            "ema12": 102.6715,
+            "ema26": 102.348
+          },
+          {
+            "date": "2026-01-09",
+            "close": 101,
+            "ma2": 102.0,
+            "ema12": 102.4143,
+            "ema26": 102.2482
+          }
+        ]
+      }
+    }
+  ]
+}

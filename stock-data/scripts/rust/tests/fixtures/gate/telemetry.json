@@ -1,0 +1,37 @@
+[
+  {
+    "rows": [],
+    "result": {
+      "sample_count": 0,
+      "prediction_availability_rate": null,
+      "abstain_rate": null,
+      "degraded_rate": null,
+      "pass_rate": null,
+      "scope": "no samples"
+    }
+  },
+  {
+    "rows": [
+      {
+        "prediction_available": true,
+        "reporting_status": "pass"
+      },
+      {
+        "prediction_available": false,
+        "reporting_status": "veto"
+      },
+      {
+        "prediction_available": true,
+        "reporting_status": "degraded"
+      }
+    ],
+    "result": {
+      "sample_count": 3,
+      "prediction_availability_rate": 0.6667,
+      "abstain_rate": 0.3333,
+      "degraded_rate": 0.3333,
+      "pass_rate": 0.3333,
+      "scope": "per-analysis records supplied by caller; not a cross-ticker reliability claim unless sample_count covers that batch"
+    }
+  }
+]

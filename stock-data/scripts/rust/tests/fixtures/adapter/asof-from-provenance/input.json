@@ -1,0 +1,15 @@
+{
+  "market": {
+    "status": "success",
+    "source": "selfcheck-feed",
+    "data": {
+      "bars": [],
+      "symbol": "SYN",
+      "frequency": "1d",
+      "adjustment": "provider"
+    },
+    "collection_provenance": {
+      "asof": "2026-10-23T21:00:00Z"
+    }
+  }
+}

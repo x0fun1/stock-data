@@ -1,0 +1,7 @@
+{
+  "case": "ticker-not-string",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "request.ticker must be a string",
+  "contains": "request.ticker must be a string"
+}

@@ -1,0 +1,14 @@
+[package]
+name = "sd-audit"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+description = "Independent audit (E) that recomputes labels, base rates and volatility without the production estimator."
+
+[dependencies]
+sd-core = { workspace = true }
+sd-news = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }

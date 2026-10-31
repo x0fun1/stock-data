@@ -1,0 +1,14 @@
+{
+  "domains": [
+    "market",
+    "fundamentals",
+    "expectations",
+    "news",
+    "insider",
+    "options",
+    "short_volume",
+    "sec",
+    "macro"
+  ],
+  "note": "every frozen snapshot must carry these domains"
+}

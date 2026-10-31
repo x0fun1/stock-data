@@ -1,0 +1,7 @@
+{
+  "case": "intent-bool",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "request.intent must be one of ['descriptive', 'factor_research', 'forecast']",
+  "contains": "intent must be one of"
+}

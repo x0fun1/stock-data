@@ -1,0 +1,7 @@
+{
+  "case": "ticker-bad-chars",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "request.ticker must use supported stock/index symbol characters",
+  "contains": "supported stock/index symbol characters"
+}

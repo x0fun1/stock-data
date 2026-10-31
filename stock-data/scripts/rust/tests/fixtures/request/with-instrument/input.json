@@ -1,0 +1,13 @@
+{
+  "ticker": "MU",
+  "instrument": {
+    "resolved_ticker": "MU",
+    "provider_symbols": {
+      "yahoo": "MU"
+    },
+    "source": "gateway",
+    "currency": "USD",
+    "unit": "USD",
+    "benchmark": "SPY"
+  }
+}

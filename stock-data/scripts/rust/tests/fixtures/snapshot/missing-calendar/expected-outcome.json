@@ -1,0 +1,33 @@
+{
+  "case": "missing-calendar",
+  "expectation": "accepted_with_warnings",
+  "outcome": "accepted",
+  "snapshot_id": "SYN_20261024T000000Z_5D_9e505ec4e6",
+  "schema_version": "1.3",
+  "policy_version": "fixed_52w_5d_v1",
+  "forecast_eligible": false,
+  "reporting_status": "veto",
+  "reason_codes": [
+    "SEVERE_MISSING_BARS",
+    "LATEST_CLOSE_SINGLE_PROVIDER",
+    "ADJUSTMENT_EVIDENCE_UNAVAILABLE",
+    "CORPORATE_ACTION_UNKNOWN",
+    "CALENDAR_UNVERIFIED",
+    "POINT_IN_TIME_UNVERIFIED",
+    "ASSET_TYPE_UNVERIFIED"
+  ],
+  "data_domains": {
+    "market": "partial",
+    "fundamentals": "unavailable",
+    "expectations": "unavailable",
+    "news": "unavailable",
+    "insider": "unavailable",
+    "options": "unavailable",
+    "short_volume": "unavailable",
+    "sec": "unavailable",
+    "macro": "unavailable"
+  },
+  "snapshot_content_sha256": "9e505ec4e6b67f6790cfca7c94c67b5717daca7f37a55286fb00e145113bccbe",
+  "manifest_sha256": "161a3667461750c59fdeb9a926f51cc3b29617a0aadedbdba8281d8f5cf8a28e",
+  "market_bar_count": 260
+}

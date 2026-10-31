@@ -1,0 +1,1757 @@
+{
+  "generated_from": "stock-data/scripts/global_stock_data.py",
+  "note": "SEC/FINRA/CBOE/Treasury/CFTC/Nasdaq cases with a scripted offline _provider_get; SEC_CONTACT/CBOE_AUTHORIZED are per-case",
+  "cases": [
+    {
+      "function": "ticker_to_cik",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://www.sec.gov/files/company_tickers.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyIwIjogeyJjaWtfc3RyIjogMzIwMTkzLCAidGlja2VyIjogIkFBUEwiLCAidGl0bGUiOiAiQXBwbGUgSW5jLiJ9LCAiMSI6IHsiY2lrX3N0ciI6IDc4OTAxOSwgInRpY2tlciI6ICJNU0ZUIiwgInRpdGxlIjogIk1pY3Jvc29mdCBDb3JwIn19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "ticker": "AAPL",
+        "cik": "0000320193",
+        "company": "Apple Inc."
+      }
+    },
+    {
+      "function": "ticker_to_cik",
+      "params": {
+        "ticker": "NONE"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://www.sec.gov/files/company_tickers.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyIwIjogeyJjaWtfc3RyIjogMzIwMTkzLCAidGlja2VyIjogIkFBUEwiLCAidGl0bGUiOiAiQXBwbGUgSW5jLiJ9LCAiMSI6IHsiY2lrX3N0ciI6IDc4OTAxOSwgInRpY2tlciI6ICJNU0ZUIiwgInRpdGxlIjogIk1pY3Jvc29mdCBDb3JwIn19"
+        }
+      ],
+      "ok": true,
+      "data": {}
+    },
+    {
+      "function": "ticker_to_cik",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "env": {},
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ConfigurationError",
+      "error_message": "Set SEC_CONTACT to a real company/name and contact email before SEC requests."
+    },
+    {
+      "function": "ticker_to_cik",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "env": {
+        "SEC_CONTACT": "Example Corp ops@example.com"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ConfigurationError",
+      "error_message": "Set SEC_CONTACT to a real company/name and contact email before SEC requests."
+    },
+    {
+      "function": "sec_filings",
+      "params": {
+        "cik": "320193"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://data.sec.gov/submissions/CIK0000320193.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJuYW1lIjogIkFwcGxlIEluYy4iLCAidGlja2VycyI6IFsiQUFQTCJdLCAiZmlsaW5ncyI6IHsicmVjZW50IjogeyJmb3JtIjogWyIxMC1LIiwgIjgtSyIsICIxMC1RIiwgIjQiXSwgImZpbGluZ0RhdGUiOiBbIjIwMjYtMDEtMDgiLCAiMjAyNi0wMS0wNiIsICIyMDI1LTEyLTE1IiwgIjIwMjUtMTItMDEiXSwgImFjY2Vzc2lvbk51bWJlciI6IFsiMDAwMDMyMDE5My0yNi0wMDAwMDEiLCAiMDAwMDMyMDE5My0yNi0wMDAwMDIiLCAiMDAwMDMyMDE5My0yNS0wMDAwMDMiLCAiMDAwMDMyMDE5My0yNS0wMDAwMDQiXSwgInByaW1hcnlEb2N1bWVudCI6IFsiYWFwbC0yMDI1MTIzMS5odG0iLCAiIiwgImFhcGwtMjAyNTA5MzAuaHRtIiwgIiJdLCAicHJpbWFyeURvY0Rlc2NyaXB0aW9uIjogWyIxMC1LIiwgIjgtSyIsICIxMC1RIiwgIkZPUk0gNCJdfX19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "company_name": "Apple Inc.",
+        "cik": "0000320193",
+        "ticker": "AAPL",
+        "filings": [
+          {
+            "form": "10-K",
+            "date": "2026-01-08",
+            "accession_number": "0000320193-26-000001",
+            "primary_document": "aapl-20251231.htm",
+            "description": "10-K",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000001/aapl-20251231.htm"
+          },
+          {
+            "form": "8-K",
+            "date": "2026-01-06",
+            "accession_number": "0000320193-26-000002",
+            "primary_document": "",
+            "description": "8-K",
+            "url": ""
+          },
+          {
+            "form": "10-Q",
+            "date": "2025-12-15",
+            "accession_number": "0000320193-25-000003",
+            "primary_document": "aapl-20250930.htm",
+            "description": "10-Q",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019325000003/aapl-20250930.htm"
+          },
+          {
+            "form": "4",
+            "date": "2025-12-01",
+            "accession_number": "0000320193-25-000004",
+            "primary_document": "",
+            "description": "FORM 4",
+            "url": ""
+          }
+        ]
+      }
+    },
+    {
+      "function": "sec_filings",
+      "params": {
+        "cik": "0000320193",
+        "form_type": "10-K"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://data.sec.gov/submissions/CIK0000320193.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJuYW1lIjogIkFwcGxlIEluYy4iLCAidGlja2VycyI6IFsiQUFQTCJdLCAiZmlsaW5ncyI6IHsicmVjZW50IjogeyJmb3JtIjogWyIxMC1LIiwgIjgtSyIsICIxMC1RIiwgIjQiXSwgImZpbGluZ0RhdGUiOiBbIjIwMjYtMDEtMDgiLCAiMjAyNi0wMS0wNiIsICIyMDI1LTEyLTE1IiwgIjIwMjUtMTItMDEiXSwgImFjY2Vzc2lvbk51bWJlciI6IFsiMDAwMDMyMDE5My0yNi0wMDAwMDEiLCAiMDAwMDMyMDE5My0yNi0wMDAwMDIiLCAiMDAwMDMyMDE5My0yNS0wMDAwMDMiLCAiMDAwMDMyMDE5My0yNS0wMDAwMDQiXSwgInByaW1hcnlEb2N1bWVudCI6IFsiYWFwbC0yMDI1MTIzMS5odG0iLCAiIiwgImFhcGwtMjAyNTA5MzAuaHRtIiwgIiJdLCAicHJpbWFyeURvY0Rlc2NyaXB0aW9uIjogWyIxMC1LIiwgIjgtSyIsICIxMC1RIiwgIkZPUk0gNCJdfX19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "company_name": "Apple Inc.",
+        "cik": "0000320193",
+        "ticker": "AAPL",
+        "filings": [
+          {
+            "form": "10-K",
+            "date": "2026-01-08",
+            "accession_number": "0000320193-26-000001",
+            "primary_document": "aapl-20251231.htm",
+            "description": "10-K",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/000032019326000001/aapl-20251231.htm"
+          }
+        ]
+      }
+    },
+    {
+      "function": "sec_filings",
+      "params": {
+        "cik": "abc"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "cik must contain 1 to 10 digits."
+    },
+    {
+      "function": "sec_xbrl_facts",
+      "params": {
+        "cik": "320193"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJlbnRpdHlOYW1lIjogIkFwcGxlIEluYy4iLCAiZmFjdHMiOiB7InVzLWdhYXAiOiB7IlJldmVudWVzIjogeyJsYWJlbCI6ICJSZXZlbnVlcyIsICJ1bml0cyI6IHsiVVNEIjogW3sic3RhcnQiOiAiMjAyNS0wMS0wMSIsICJlbmQiOiAiMjAyNS0wOS0zMCIsICJ2YWwiOiAxMDAwLCAiZm9ybSI6ICIxMC1RIiwgImZyYW1lIjogIkNZMjAyNVEzIiwgImFjY24iOiAiYS0yIiwgImZ5IjogMjAyNSwgImZwIjogIlEzIiwgImZpbGVkIjogIjIwMjUtMTEtMDEifSwgeyJzdGFydCI6ICIyMDI0LTAxLTAxIiwgImVuZCI6ICIyMDI0LTEyLTMxIiwgInZhbCI6IDkwMCwgImZvcm0iOiAiMTAtSyIsICJmcmFtZSI6ICJDWTIwMjQiLCAiYWNjbiI6ICJhLTEiLCAiZnkiOiAyMDI0LCAiZnAiOiAiRlkiLCAiZmlsZWQiOiAiMjAyNS0wMi0wMSJ9LCB7InN0YXJ0IjogIjIwMjQtMDEtMDEiLCAiZW5kIjogIjIwMjQtMDMtMzEiLCAidmFsIjogMjAwLCAiZm9ybSI6ICI4LUsiLCAiZnJhbWUiOiAiQ1kyMDI0UTEiLCAiYWNjbiI6ICJhLTAiLCAiZnkiOiAyMDI0LCAiZnAiOiAiUTEiLCAiZmlsZWQiOiAiMjAyNC0wNS0wMSJ9XX19LCAiQXNzZXRzIjogeyJsYWJlbCI6ICJBc3NldHMiLCAidW5pdHMiOiB7IlVTRCI6IFt7ImVuZCI6ICIyMDI0LTEyLTMxIiwgInZhbCI6IDUwMDAsICJmb3JtIjogIjEwLUsiLCAiYWNjbiI6ICJhLTEiLCAiZnkiOiAyMDI0LCAiZnAiOiAiRlkiLCAiZmlsZWQiOiAiMjAyNS0wMi0wMSJ9XX19fX19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "company": "Apple Inc.",
+        "total_metrics": 2,
+        "available_metrics": [
+          {
+            "name": "Revenues",
+            "label": "Revenues",
+            "units": [
+              "USD"
+            ]
+          },
+          {
+            "name": "Assets",
+            "label": "Assets",
+            "units": [
+              "USD"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "function": "sec_xbrl_facts",
+      "params": {
+        "cik": "320193",
+        "metrics": [
+          "Revenues",
+          "Assets"
+        ]
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJlbnRpdHlOYW1lIjogIkFwcGxlIEluYy4iLCAiZmFjdHMiOiB7InVzLWdhYXAiOiB7IlJldmVudWVzIjogeyJsYWJlbCI6ICJSZXZlbnVlcyIsICJ1bml0cyI6IHsiVVNEIjogW3sic3RhcnQiOiAiMjAyNS0wMS0wMSIsICJlbmQiOiAiMjAyNS0wOS0zMCIsICJ2YWwiOiAxMDAwLCAiZm9ybSI6ICIxMC1RIiwgImZyYW1lIjogIkNZMjAyNVEzIiwgImFjY24iOiAiYS0yIiwgImZ5IjogMjAyNSwgImZwIjogIlEzIiwgImZpbGVkIjogIjIwMjUtMTEtMDEifSwgeyJzdGFydCI6ICIyMDI0LTAxLTAxIiwgImVuZCI6ICIyMDI0LTEyLTMxIiwgInZhbCI6IDkwMCwgImZvcm0iOiAiMTAtSyIsICJmcmFtZSI6ICJDWTIwMjQiLCAiYWNjbiI6ICJhLTEiLCAiZnkiOiAyMDI0LCAiZnAiOiAiRlkiLCAiZmlsZWQiOiAiMjAyNS0wMi0wMSJ9LCB7InN0YXJ0IjogIjIwMjQtMDEtMDEiLCAiZW5kIjogIjIwMjQtMDMtMzEiLCAidmFsIjogMjAwLCAiZm9ybSI6ICI4LUsiLCAiZnJhbWUiOiAiQ1kyMDI0UTEiLCAiYWNjbiI6ICJhLTAiLCAiZnkiOiAyMDI0LCAiZnAiOiAiUTEiLCAiZmlsZWQiOiAiMjAyNC0wNS0wMSJ9XX19LCAiQXNzZXRzIjogeyJsYWJlbCI6ICJBc3NldHMiLCAidW5pdHMiOiB7IlVTRCI6IFt7ImVuZCI6ICIyMDI0LTEyLTMxIiwgInZhbCI6IDUwMDAsICJmb3JtIjogIjEwLUsiLCAiYWNjbiI6ICJhLTEiLCAiZnkiOiAyMDI0LCAiZnAiOiAiRlkiLCAiZmlsZWQiOiAiMjAyNS0wMi0wMSJ9XX19fX19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "company": "Apple Inc.",
+        "metrics": {
+          "Revenues": [
+            {
+              "start": "2025-01-01",
+              "end": "2025-09-30",
+              "val": 1000,
+              "form": "10-Q",
+              "frame": "CY2025Q3",
+              "accn": "a-2",
+              "fy": 2025,
+              "fp": "Q3",
+              "filed": "2025-11-01",
+              "unit": "USD"
+            },
+            {
+              "start": "2024-01-01",
+              "end": "2024-12-31",
+              "val": 900,
+              "form": "10-K",
+              "frame": "CY2024",
+              "accn": "a-1",
+              "fy": 2024,
+              "fp": "FY",
+              "filed": "2025-02-01",
+              "unit": "USD"
+            }
+          ],
+          "Assets": [
+            {
+              "start": null,
+              "end": "2024-12-31",
+              "val": 5000,
+              "form": "10-K",
+              "frame": null,
+              "accn": "a-1",
+              "fy": 2024,
+              "fp": "FY",
+              "filed": "2025-02-01",
+              "unit": "USD"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "function": "sec_xbrl_facts",
+      "params": {
+        "cik": "320193",
+        "metrics": []
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://data.sec.gov/api/xbrl/companyfacts/CIK0000320193.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 15.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJlbnRpdHlOYW1lIjogIkFwcGxlIEluYy4iLCAiZmFjdHMiOiB7InVzLWdhYXAiOiB7IlJldmVudWVzIjogeyJsYWJlbCI6ICJSZXZlbnVlcyIsICJ1bml0cyI6IHsiVVNEIjogW3sic3RhcnQiOiAiMjAyNS0wMS0wMSIsICJlbmQiOiAiMjAyNS0wOS0zMCIsICJ2YWwiOiAxMDAwLCAiZm9ybSI6ICIxMC1RIiwgImZyYW1lIjogIkNZMjAyNVEzIiwgImFjY24iOiAiYS0yIiwgImZ5IjogMjAyNSwgImZwIjogIlEzIiwgImZpbGVkIjogIjIwMjUtMTEtMDEifSwgeyJzdGFydCI6ICIyMDI0LTAxLTAxIiwgImVuZCI6ICIyMDI0LTEyLTMxIiwgInZhbCI6IDkwMCwgImZvcm0iOiAiMTAtSyIsICJmcmFtZSI6ICJDWTIwMjQiLCAiYWNjbiI6ICJhLTEiLCAiZnkiOiAyMDI0LCAiZnAiOiAiRlkiLCAiZmlsZWQiOiAiMjAyNS0wMi0wMSJ9LCB7InN0YXJ0IjogIjIwMjQtMDEtMDEiLCAiZW5kIjogIjIwMjQtMDMtMzEiLCAidmFsIjogMjAwLCAiZm9ybSI6ICI4LUsiLCAiZnJhbWUiOiAiQ1kyMDI0UTEiLCAiYWNjbiI6ICJhLTAiLCAiZnkiOiAyMDI0LCAiZnAiOiAiUTEiLCAiZmlsZWQiOiAiMjAyNC0wNS0wMSJ9XX19LCAiQXNzZXRzIjogeyJsYWJlbCI6ICJBc3NldHMiLCAidW5pdHMiOiB7IlVTRCI6IFt7ImVuZCI6ICIyMDI0LTEyLTMxIiwgInZhbCI6IDUwMDAsICJmb3JtIjogIjEwLUsiLCAiYWNjbiI6ICJhLTEiLCAiZnkiOiAyMDI0LCAiZnAiOiAiRlkiLCAiZmlsZWQiOiAiMjAyNS0wMi0wMSJ9XX19fX19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "company": "Apple Inc.",
+        "total_metrics": 2,
+        "available_metrics": [
+          {
+            "name": "Revenues",
+            "label": "Revenues",
+            "units": [
+              "USD"
+            ]
+          },
+          {
+            "name": "Assets",
+            "label": "Assets",
+            "units": [
+              "USD"
+            ]
+          }
+        ]
+      }
+    },
+    {
+      "function": "daily_filings",
+      "params": {
+        "date": "20260108"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260108.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGVzY3JpcHRpb246ICAgICAgICAgICBEYWlseSBJbmRleCBvZiBFREdBUiBEaXNzZW1pbmF0aW9uIEZlZWQKLS0tIC0tLSAtLS0KRm9ybSBUeXBlICAgQ29tcGFueSBOYW1lICAgICAgICAgICAgICAgICAgICAgICBDSUsgICAgICAgICBEYXRlIEZpbGVkICBGaWxlIE5hbWUKLS0tIC0tLSAtLS0KMTAtSyAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMS50eHQKOC1LICAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMi50eHQKMTAtSyAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMS50eHQK"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "date": "20260108",
+        "total": 4,
+        "by_form": {
+          "10-K": 2,
+          "Form Type": 1,
+          "8-K": 1
+        },
+        "filings": [
+          {
+            "form": "Form Type",
+            "form_label": "",
+            "company": "Company Name",
+            "cik": "CIK",
+            "date": "Date Filed",
+            "url": "https://www.sec.gov/Archives/File Name"
+          },
+          {
+            "form": "10-K",
+            "form_label": "年报",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000001.txt"
+          },
+          {
+            "form": "8-K",
+            "form_label": "重大事件",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000002.txt"
+          },
+          {
+            "form": "10-K",
+            "form_label": "年报",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000001.txt"
+          }
+        ]
+      }
+    },
+    {
+      "function": "daily_filings",
+      "params": {
+        "date": "20260108",
+        "forms": [
+          "8-K",
+          "10-K"
+        ]
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260108.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGVzY3JpcHRpb246ICAgICAgICAgICBEYWlseSBJbmRleCBvZiBFREdBUiBEaXNzZW1pbmF0aW9uIEZlZWQKLS0tIC0tLSAtLS0KRm9ybSBUeXBlICAgQ29tcGFueSBOYW1lICAgICAgICAgICAgICAgICAgICAgICBDSUsgICAgICAgICBEYXRlIEZpbGVkICBGaWxlIE5hbWUKLS0tIC0tLSAtLS0KMTAtSyAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMS50eHQKOC1LICAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMi50eHQKMTAtSyAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMS50eHQK"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "date": "20260108",
+        "total": 4,
+        "by_form": {
+          "10-K": 2,
+          "Form Type": 1,
+          "8-K": 1
+        },
+        "filings": [
+          {
+            "form": "10-K",
+            "form_label": "年报",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000001.txt"
+          },
+          {
+            "form": "8-K",
+            "form_label": "重大事件",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000002.txt"
+          },
+          {
+            "form": "10-K",
+            "form_label": "年报",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000001.txt"
+          }
+        ]
+      }
+    },
+    {
+      "function": "daily_filings",
+      "params": {},
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260109.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260108.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGVzY3JpcHRpb246ICAgICAgICAgICBEYWlseSBJbmRleCBvZiBFREdBUiBEaXNzZW1pbmF0aW9uIEZlZWQKLS0tIC0tLSAtLS0KRm9ybSBUeXBlICAgQ29tcGFueSBOYW1lICAgICAgICAgICAgICAgICAgICAgICBDSUsgICAgICAgICBEYXRlIEZpbGVkICBGaWxlIE5hbWUKLS0tIC0tLSAtLS0KMTAtSyAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMS50eHQKOC1LICAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMi50eHQKMTAtSyAgICAgICAgQXBwbGUgSW5jLiAgICAgICAgICAgICAgICAgICAgICAgICAzMjAxOTMgICAgICAyMDI2MDEwOCAgICBlZGdhci9kYXRhLzMyMDE5My8wMDAwMzIwMTkzLTI2LTAwMDAwMS50eHQK"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "date": "20260108",
+        "total": 4,
+        "by_form": {
+          "10-K": 2,
+          "Form Type": 1,
+          "8-K": 1
+        },
+        "filings": [
+          {
+            "form": "Form Type",
+            "form_label": "",
+            "company": "Company Name",
+            "cik": "CIK",
+            "date": "Date Filed",
+            "url": "https://www.sec.gov/Archives/File Name"
+          },
+          {
+            "form": "10-K",
+            "form_label": "年报",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000001.txt"
+          },
+          {
+            "form": "8-K",
+            "form_label": "重大事件",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000002.txt"
+          },
+          {
+            "form": "10-K",
+            "form_label": "年报",
+            "company": "Apple Inc.",
+            "cik": "320193",
+            "date": "20260108",
+            "url": "https://www.sec.gov/Archives/edgar/data/320193/0000320193-26-000001.txt"
+          }
+        ]
+      }
+    },
+    {
+      "function": "daily_filings",
+      "params": {},
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260109.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260108.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260107.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260106.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260105.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260102.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260101.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        }
+      ],
+      "ok": false,
+      "error_type": "DataNotAvailable",
+      "error_message": "未找到近 7 个工作日的 EDGAR 每日索引"
+    },
+    {
+      "function": "daily_filings",
+      "params": {
+        "date": "20260108"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260108.idx",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 403,
+          "reason": "Forbidden",
+          "encoding": null,
+          "body_b64": "eyJFcnJvciI6IHsiQ29kZSI6ICJBY2Nlc3NEZW5pZWQifX0="
+        }
+      ],
+      "ok": false,
+      "error_type": "HTTPError",
+      "error_message": "403 Client Error: Forbidden for url: https://www.sec.gov/Archives/edgar/daily-index/2026/QTR1/form.20260108.idx"
+    },
+    {
+      "function": "fulltext_search",
+      "params": {
+        "query": "\"HBM4\""
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://efts.sec.gov/LATEST/search-index",
+          "params": {
+            "q": "\"HBM4\"",
+            "from": "0",
+            "size": "20"
+          },
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJoaXRzIjogeyJ0b3RhbCI6IHsidmFsdWUiOiAyfSwgImhpdHMiOiBbeyJfaWQiOiAiYS0xIiwgIl9zb3VyY2UiOiB7InJvb3RfZm9ybSI6ICI4LUsiLCAiZGlzcGxheV9uYW1lcyI6IFsiQXBwbGUgSW5jLiAgKEFBUEwpICAoQ0lLIDAwMDAzMjAxOTMpIl0sICJmaWxlX2RhdGUiOiAiMjAyNi0wMS0wOCJ9fSwgeyJfaWQiOiAiYS0yIiwgIl9zb3VyY2UiOiB7InJvb3RfZm9ybSI6ICIxMC1LIiwgImRpc3BsYXlfbmFtZXMiOiBbIk1pY3Jvc29mdCBDb3JwICAoTVNGVCkiXSwgImZpbGVfZGF0ZSI6ICIyMDI2LTAxLTA2In19XX19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "total": 2,
+        "results": [
+          {
+            "form": "8-K",
+            "company": "Apple Inc.  (AAPL)  (CIK 0000320193)",
+            "filed": "2026-01-08",
+            "id": "a-1"
+          },
+          {
+            "form": "10-K",
+            "company": "Microsoft Corp  (MSFT)",
+            "filed": "2026-01-06",
+            "id": "a-2"
+          }
+        ]
+      }
+    },
+    {
+      "function": "fulltext_search",
+      "params": {
+        "query": "AI",
+        "forms": "8-K",
+        "date_from": "2025-01-01",
+        "date_to": "2025-06-30",
+        "limit": 5
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://efts.sec.gov/LATEST/search-index",
+          "params": {
+            "q": "AI",
+            "from": "0",
+            "size": "5",
+            "forms": "8-K",
+            "dateRange": "custom",
+            "startdt": "2025-01-01",
+            "enddt": "2025-06-30"
+          },
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJoaXRzIjogeyJ0b3RhbCI6IHsidmFsdWUiOiAyfSwgImhpdHMiOiBbeyJfaWQiOiAiYS0xIiwgIl9zb3VyY2UiOiB7InJvb3RfZm9ybSI6ICI4LUsiLCAiZGlzcGxheV9uYW1lcyI6IFsiQXBwbGUgSW5jLiAgKEFBUEwpICAoQ0lLIDAwMDAzMjAxOTMpIl0sICJmaWxlX2RhdGUiOiAiMjAyNi0wMS0wOCJ9fSwgeyJfaWQiOiAiYS0yIiwgIl9zb3VyY2UiOiB7InJvb3RfZm9ybSI6ICIxMC1LIiwgImRpc3BsYXlfbmFtZXMiOiBbIk1pY3Jvc29mdCBDb3JwICAoTVNGVCkiXSwgImZpbGVfZGF0ZSI6ICIyMDI2LTAxLTA2In19XX19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "total": 2,
+        "results": [
+          {
+            "form": "8-K",
+            "company": "Apple Inc.  (AAPL)  (CIK 0000320193)",
+            "filed": "2026-01-08",
+            "id": "a-1"
+          },
+          {
+            "form": "10-K",
+            "company": "Microsoft Corp  (MSFT)",
+            "filed": "2026-01-06",
+            "id": "a-2"
+          }
+        ]
+      }
+    },
+    {
+      "function": "fulltext_search",
+      "params": {
+        "query": "AI",
+        "date_from": "2025-06-30",
+        "date_to": "2025-01-01"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "date_from must not be after date_to."
+    },
+    {
+      "function": "market_frame",
+      "params": {
+        "tag": "营业收入",
+        "year": 2025
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://data.sec.gov/api/xbrl/frames/us-gaap/Revenues/USD/CY2025.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 45.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogW3siY2lrIjogMzIwMTkzLCAiZW50aXR5TmFtZSI6ICJBcHBsZSBJbmMuIiwgInZhbCI6IDEwMDAsICJlbmQiOiAiMjAyNS0wOS0zMCJ9XX0="
+        }
+      ],
+      "ok": true,
+      "data": {
+        "tag": "Revenues",
+        "period": "CY2025",
+        "unit": "USD",
+        "instant": false,
+        "count": 1,
+        "data": [
+          {
+            "cik": 320193,
+            "entity": "Apple Inc.",
+            "value": 1000,
+            "end": "2025-09-30"
+          }
+        ]
+      }
+    },
+    {
+      "function": "market_frame",
+      "params": {
+        "tag": "InventoryNet",
+        "year": 2025,
+        "quarter": 1
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://data.sec.gov/api/xbrl/frames/us-gaap/InventoryNet/USD/CY2025Q1.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 45.0
+        },
+        {
+          "url": "https://data.sec.gov/api/xbrl/frames/us-gaap/InventoryNet/USD/CY2025Q1I.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 45.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogW3siY2lrIjogMSwgImVudGl0eU5hbWUiOiAiQSIsICJ2YWwiOiA1LCAiZW5kIjogIjIwMjUtMDMtMzEifV19"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "tag": "InventoryNet",
+        "period": "CY2025Q1I",
+        "unit": "USD",
+        "instant": true,
+        "count": 1,
+        "data": [
+          {
+            "cik": 1,
+            "entity": "A",
+            "value": 5,
+            "end": "2025-03-31"
+          }
+        ]
+      }
+    },
+    {
+      "function": "market_frame",
+      "params": {
+        "tag": "Assets",
+        "year": 2025,
+        "quarter": 4,
+        "instant": true
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://data.sec.gov/api/xbrl/frames/us-gaap/Assets/USD/CY2025Q4I.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Acme Research data@acme.io",
+            "Accept-Encoding": "gzip, deflate"
+          },
+          "timeout": 45.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogW119"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "tag": "Assets",
+        "period": "CY2025Q4I",
+        "unit": "USD",
+        "instant": true,
+        "count": 0,
+        "data": []
+      }
+    },
+    {
+      "function": "market_frame",
+      "params": {
+        "tag": "Assets",
+        "year": 2025,
+        "quarter": 9
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "quarter must be 1, 2, 3, 4 or null."
+    },
+    {
+      "function": "short_volume_all",
+      "params": {
+        "date": "20260108"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://cdn.finra.org/equity/regsho/daily/CNMSshvol20260108.txt",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGF0ZXxTeW1ib2x8U2hvcnRWb2x1bWV8U2hvcnRFeGVtcHRWb2x1bWV8VG90YWxWb2x1bWV8TWFya2V0CjIwMjYwMTA4fEFBUEx8MTIwMHwxMDB8NDAwMHxDTk1TCjIwMjYwMTA4fE1TRlR8ODAwfDB8MjAwMHxDTk1TCjIwMjYwMTA4fEJBRHxiYWR8MHwxfENOTVMK"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "date": "20260108",
+        "market": "CNMS",
+        "count": 2,
+        "data": {
+          "AAPL": {
+            "short": 1200.0,
+            "short_exempt": 100.0,
+            "total": 4000.0,
+            "ratio": 0.3
+          },
+          "MSFT": {
+            "short": 800.0,
+            "short_exempt": 0.0,
+            "total": 2000.0,
+            "ratio": 0.4
+          }
+        }
+      }
+    },
+    {
+      "function": "short_volume_all",
+      "params": {},
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://cdn.finra.org/equity/regsho/daily/CNMSshvol20260109.txt",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://cdn.finra.org/equity/regsho/daily/CNMSshvol20260108.txt",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGF0ZXxTeW1ib2x8U2hvcnRWb2x1bWV8U2hvcnRFeGVtcHRWb2x1bWV8VG90YWxWb2x1bWV8TWFya2V0CjIwMjYwMTA4fEFBUEx8MTIwMHwxMDB8NDAwMHxDTk1TCjIwMjYwMTA4fE1TRlR8ODAwfDB8MjAwMHxDTk1TCjIwMjYwMTA4fEJBRHxiYWR8MHwxfENOTVMK"
+        }
+      ],
+      "ok": true,
+      "data": {
+        "date": "20260108",
+        "market": "CNMS",
+        "count": 2,
+        "data": {
+          "AAPL": {
+            "short": 1200.0,
+            "short_exempt": 100.0,
+            "total": 4000.0,
+            "ratio": 0.3
+          },
+          "MSFT": {
+            "short": 800.0,
+            "short_exempt": 0.0,
+            "total": 2000.0,
+            "ratio": 0.4
+          }
+        }
+      }
+    },
+    {
+      "function": "short_volume_all",
+      "params": {
+        "date": "20260108",
+        "market": "BAD"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "Unknown FINRA market."
+    },
+    {
+      "function": "short_volume_all",
+      "params": {
+        "date": "2026-01-08"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "date has an invalid date format or value."
+    },
+    {
+      "function": "short_volume_symbol",
+      "params": {
+        "symbol": "AAPL",
+        "days": 2
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://cdn.finra.org/equity/regsho/daily/CNMSshvol20260109.txt",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://cdn.finra.org/equity/regsho/daily/CNMSshvol20260108.txt",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        },
+        {
+          "url": "https://cdn.finra.org/equity/regsho/daily/CNMSshvol20260107.txt",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 404,
+          "reason": "Not Found",
+          "encoding": null,
+          "body_b64": ""
+        },
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGF0ZXxTeW1ib2x8U2hvcnRWb2x1bWV8U2hvcnRFeGVtcHRWb2x1bWV8VG90YWxWb2x1bWV8TWFya2V0CjIwMjYwMTA4fEFBUEx8MTIwMHwxMDB8NDAwMHxDTk1TCjIwMjYwMTA4fE1TRlR8ODAwfDB8MjAwMHxDTk1TCjIwMjYwMTA4fEJBRHxiYWR8MHwxfENOTVMK"
+        },
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGF0ZXxTeW1ib2x8U2hvcnRWb2x1bWV8U2hvcnRFeGVtcHRWb2x1bWV8VG90YWxWb2x1bWV8TWFya2V0CjIwMjYwMTA4fEFBUEx8MTIwMHwxMDB8NDAwMHxDTk1TCjIwMjYwMTA4fE1TRlR8ODAwfDB8MjAwMHxDTk1TCjIwMjYwMTA4fEJBRHxiYWR8MHwxfENOTVMK"
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "date": "20260108",
+          "short": 1200.0,
+          "short_exempt": 100.0,
+          "total": 4000.0,
+          "ratio": 0.3
+        },
+        {
+          "date": "20260107",
+          "short": 1200.0,
+          "short_exempt": 100.0,
+          "total": 4000.0,
+          "ratio": 0.3
+        }
+      ]
+    },
+    {
+      "function": "cboe_quote",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://cdn.cboe.com/api/global/delayed_quotes/quotes/AAPL.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogeyJjdXJyZW50X3ByaWNlIjogMTgyLjUsICJiaWQiOiAxODIuNCwgImFzayI6IDE4Mi42fX0="
+        }
+      ],
+      "ok": true,
+      "data": {
+        "current_price": 182.5,
+        "bid": 182.4,
+        "ask": 182.6
+      }
+    },
+    {
+      "function": "cboe_quote",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "env": {},
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [],
+      "responses": [],
+      "ok": false,
+      "error_type": "AuthorizationRequired",
+      "error_message": "CBOE retrieval requires existing authorization and CBOE_AUTHORIZED=1."
+    },
+    {
+      "function": "options_chain_cboe",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://cdn.cboe.com/api/global/delayed_quotes/options/AAPL.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJ0aW1lc3RhbXAiOiAiMjAyNi0wMS0wOVQyMDowMDowMFoiLCAiZGF0YSI6IHsiY3VycmVudF9wcmljZSI6IDE4Mi41LCAib3B0aW9ucyI6IFt7Im9wdGlvbiI6ICJBQVBMMjYwMTE2QzAwMTg1MDAwIiwgImJpZCI6IDIuMCwgImFzayI6IDIuMSwgInZvbHVtZSI6IDEwMCwgIm9wZW5faW50ZXJlc3QiOiA1MDAsICJpdiI6IDAuMjUsICJkZWx0YSI6IDAuNSwgImdhbW1hIjogMC4wMiwgInZlZ2EiOiAwLjEsICJ0aGV0YSI6IC0wLjA1LCAicmhvIjogMC4wMywgImxhc3RfdHJhZGVfcHJpY2UiOiAyLjA1fSwgeyJvcHRpb24iOiAiTk9ULU9TSSIsICJiaWQiOiAxLCAiYXNrIjogMSwgInZvbHVtZSI6IDEsICJvcGVuX2ludGVyZXN0IjogMX1dfX0="
+        }
+      ],
+      "ok": true,
+      "data": {
+        "ticker": "AAPL",
+        "timestamp": "2026-01-09T20:00:00Z",
+        "spot": 182.5,
+        "contracts": [
+          {
+            "symbol": "AAPL260116C00185000",
+            "expiry": "2026-01-16",
+            "type": "call",
+            "strike": 185.0,
+            "bid": 2.0,
+            "ask": 2.1,
+            "volume": 100.0,
+            "open_interest": 500.0,
+            "iv": 0.25,
+            "delta": 0.5,
+            "gamma": 0.02,
+            "vega": 0.1,
+            "theta": -0.05,
+            "rho": 0.03,
+            "last_trade_price": 2.05
+          }
+        ]
+      }
+    },
+    {
+      "function": "options_chain_cboe",
+      "params": {
+        "ticker": "AAPL"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://cdn.cboe.com/api/global/delayed_quotes/options/AAPL.json",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogeyJvcHRpb25zIjogW119fQ=="
+        }
+      ],
+      "ok": false,
+      "error_type": "DataNotAvailable",
+      "error_message": "AAPL 未返回任何期权合约 —— 该标的可能无期权，或不在 CBOE 覆盖范围（CBOE 仅覆盖美股）"
+    },
+    {
+      "function": "treasury_yield_curve",
+      "params": {
+        "year": 2026
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGF0ZSwxIE1vLDIgTW8sMyBNbyw0IE1vLDYgTW8sMSBZciwyIFlyLDMgWXIsNSBZciw3IFlyLDEwIFlyLDIwIFlyLDMwIFlyCjAxLzA5LzIwMjYsNC4xMCw0LjEyLDQuMTUsNC4xNyw0LjIwLDQuMjUsNC4zMCw0LjM1LDQuNDAsNC40NSw0LjUwLDQuNzAsNC44MAowMS8wOC8yMDI2LDQuMTEsNC4xMyw0LjE2LDQuMTgsNC4yMSw0LjI2LDQuMzEsNC4zNiw0LjQxLDQuNDYsNC41MSw0LjcxLDQuODEK"
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "Date": "01/09/2026",
+          "1 Mo": "4.10",
+          "2 Mo": "4.12",
+          "3 Mo": "4.15",
+          "4 Mo": "4.17",
+          "6 Mo": "4.20",
+          "1 Yr": "4.25",
+          "2 Yr": "4.30",
+          "3 Yr": "4.35",
+          "5 Yr": "4.40",
+          "7 Yr": "4.45",
+          "10 Yr": "4.50",
+          "20 Yr": "4.70",
+          "30 Yr": "4.80"
+        },
+        {
+          "Date": "01/08/2026",
+          "1 Mo": "4.11",
+          "2 Mo": "4.13",
+          "3 Mo": "4.16",
+          "4 Mo": "4.18",
+          "6 Mo": "4.21",
+          "1 Yr": "4.26",
+          "2 Yr": "4.31",
+          "3 Yr": "4.36",
+          "5 Yr": "4.41",
+          "7 Yr": "4.46",
+          "10 Yr": "4.51",
+          "20 Yr": "4.71",
+          "30 Yr": "4.81"
+        }
+      ]
+    },
+    {
+      "function": "treasury_yield_curve",
+      "params": {},
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/daily-treasury-rates.csv/2026/all?type=daily_treasury_yield_curve&field_tdr_date_value=2026&page&_format=csv",
+          "params": {},
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "RGF0ZSwxIE1vLDIgTW8sMyBNbyw0IE1vLDYgTW8sMSBZciwyIFlyLDMgWXIsNSBZciw3IFlyLDEwIFlyLDIwIFlyLDMwIFlyCjAxLzA5LzIwMjYsNC4xMCw0LjEyLDQuMTUsNC4xNyw0LjIwLDQuMjUsNC4zMCw0LjM1LDQuNDAsNC40NSw0LjUwLDQuNzAsNC44MAowMS8wOC8yMDI2LDQuMTEsNC4xMyw0LjE2LDQuMTgsNC4yMSw0LjI2LDQuMzEsNC4zNiw0LjQxLDQuNDYsNC41MSw0LjcxLDQuODEK"
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "Date": "01/09/2026",
+          "1 Mo": "4.10",
+          "2 Mo": "4.12",
+          "3 Mo": "4.15",
+          "4 Mo": "4.17",
+          "6 Mo": "4.20",
+          "1 Yr": "4.25",
+          "2 Yr": "4.30",
+          "3 Yr": "4.35",
+          "5 Yr": "4.40",
+          "7 Yr": "4.45",
+          "10 Yr": "4.50",
+          "20 Yr": "4.70",
+          "30 Yr": "4.80"
+        },
+        {
+          "Date": "01/08/2026",
+          "1 Mo": "4.11",
+          "2 Mo": "4.13",
+          "3 Mo": "4.16",
+          "4 Mo": "4.18",
+          "6 Mo": "4.21",
+          "1 Yr": "4.26",
+          "2 Yr": "4.31",
+          "3 Yr": "4.36",
+          "5 Yr": "4.41",
+          "7 Yr": "4.46",
+          "10 Yr": "4.51",
+          "20 Yr": "4.71",
+          "30 Yr": "4.81"
+        }
+      ]
+    },
+    {
+      "function": "cftc_cot",
+      "params": {
+        "limit": 2
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://publicreporting.cftc.gov/resource/6dca-aqww.json",
+          "params": {
+            "$limit": "2",
+            "$order": "report_date_as_yyyy_mm_dd DESC"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "W3siY29udHJhY3RfbWFya2V0X25hbWUiOiAiR09MRCAtIENPTU1PRElUWSBFWENIQU5HRSBJTkMuIiwgInJlcG9ydF9kYXRlX2FzX3l5eXlfbW1fZGQiOiAiMjAyNi0wMS0wNiJ9LCB7ImNvbnRyYWN0X21hcmtldF9uYW1lIjogIlNJTFZFUiAtIENPTU1PRElUWSBFWENIQU5HRSBJTkMuIiwgInJlcG9ydF9kYXRlX2FzX3l5eXlfbW1fZGQiOiAiMjAyNi0wMS0wNiJ9XQ=="
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "contract_market_name": "GOLD - COMMODITY EXCHANGE INC.",
+          "report_date_as_yyyy_mm_dd": "2026-01-06"
+        },
+        {
+          "contract_market_name": "SILVER - COMMODITY EXCHANGE INC.",
+          "report_date_as_yyyy_mm_dd": "2026-01-06"
+        }
+      ]
+    },
+    {
+      "function": "cftc_cot",
+      "params": {
+        "market_contains": "gold's"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://publicreporting.cftc.gov/resource/6dca-aqww.json",
+          "params": {
+            "$limit": "20",
+            "$order": "report_date_as_yyyy_mm_dd DESC",
+            "$where": "upper(contract_market_name) like upper('%gold''s%')"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "W3siY29udHJhY3RfbWFya2V0X25hbWUiOiAiR09MRCAtIENPTU1PRElUWSBFWENIQU5HRSBJTkMuIiwgInJlcG9ydF9kYXRlX2FzX3l5eXlfbW1fZGQiOiAiMjAyNi0wMS0wNiJ9LCB7ImNvbnRyYWN0X21hcmtldF9uYW1lIjogIlNJTFZFUiAtIENPTU1PRElUWSBFWENIQU5HRSBJTkMuIiwgInJlcG9ydF9kYXRlX2FzX3l5eXlfbW1fZGQiOiAiMjAyNi0wMS0wNiJ9XQ=="
+        }
+      ],
+      "ok": true,
+      "data": [
+        {
+          "contract_market_name": "GOLD - COMMODITY EXCHANGE INC.",
+          "report_date_as_yyyy_mm_dd": "2026-01-06"
+        },
+        {
+          "contract_market_name": "SILVER - COMMODITY EXCHANGE INC.",
+          "report_date_as_yyyy_mm_dd": "2026-01-06"
+        }
+      ]
+    },
+    {
+      "function": "earnings_calendar",
+      "params": {},
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://api.nasdaq.com/api/calendar/earnings",
+          "params": {
+            "date": "2026-01-09"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Accept": "application/json"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogeyJyb3dzIjogW3sic3ltYm9sIjogIkFBUEwiLCAibmFtZSI6ICJBcHBsZSBJbmMuIiwgInRpbWUiOiAidGltZS1hZnRlci1ob3VycyIsICJlcHNGb3JlY2FzdCI6ICIyLjEwIiwgIm1hcmtldENhcCI6ICIzMDAwMDAwMDAwMDAwIn0sIHsic3ltYm9sIjogIk1TRlQiLCAibmFtZSI6ICJNaWNyb3NvZnQgQ29ycCIsICJ0aW1lIjogInRpbWUtcHJlLW1hcmtldCIsICJlcHNGb3JlY2FzdCI6ICIzLjIwIiwgIm1hcmtldENhcCI6ICIyODAwMDAwMDAwMDAwIn1dfX0="
+        }
+      ],
+      "ok": true,
+      "data": {
+        "date": "2026-01-09",
+        "count": 2,
+        "rows": [
+          {
+            "symbol": "AAPL",
+            "name": "Apple Inc.",
+            "time": "time-after-hours",
+            "eps_forecast": "2.10",
+            "market_cap": "3000000000000"
+          },
+          {
+            "symbol": "MSFT",
+            "name": "Microsoft Corp",
+            "time": "time-pre-market",
+            "eps_forecast": "3.20",
+            "market_cap": "2800000000000"
+          }
+        ]
+      }
+    },
+    {
+      "function": "earnings_calendar",
+      "params": {
+        "date": "2026-01-08"
+      },
+      "env": {
+        "SEC_CONTACT": "Acme Research data@acme.io",
+        "CBOE_AUTHORIZED": "1"
+      },
+      "now": "2026-01-09T15:00:00Z",
+      "requests": [
+        {
+          "url": "https://api.nasdaq.com/api/calendar/earnings",
+          "params": {
+            "date": "2026-01-08"
+          },
+          "headers": {
+            "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36",
+            "Accept": "application/json"
+          },
+          "timeout": 30.0
+        }
+      ],
+      "responses": [
+        {
+          "status": 200,
+          "reason": "OK",
+          "encoding": null,
+          "body_b64": "eyJkYXRhIjogeyJyb3dzIjogW119fQ=="
+        }
+      ],
+      "ok": true,
+      "data": {
+        "date": "2026-01-08",
+        "count": 0,
+        "rows": []
+      }
+    }
+  ]
+}

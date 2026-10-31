@@ -1,8 +1,0 @@
-# Required gateway and Yahoo Finance collection dependencies.
-requests>=2.31,<3
--r requirements-yahoo.txt
-
-# Required for formal 5-session forecasts: verified exchange calendars (XNYS/XHKG).
-# Without it the runtime can only produce diagnostics (CALENDAR_UNVERIFIED), because
-# observed bar labels cannot certify that the fifth session exists or that a bar is missing.
-exchange_calendars>=4,<5

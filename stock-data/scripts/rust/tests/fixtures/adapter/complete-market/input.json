@@ -1,0 +1,23 @@
+{
+  "market": {
+    "status": "success",
+    "source": "selfcheck-feed",
+    "actual_source": "selfcheck-feed",
+    "currency": "USD",
+    "unit": "USD",
+    "adjustment": "provider",
+    "source_symbol": "SYN",
+    "frequency": "1d",
+    "source_timestamp": "2026-10-23T21:00:00Z",
+    "fetched_at_utc": "2026-10-23T21:00:00Z",
+    "last_bar_closed": true,
+    "data": {
+      "symbol": "SYN",
+      "frequency": "1d",
+      "adjustment": "provider",
+      "currency": "USD",
+      "unit": "USD",
+      "bars": []
+    }
+  }
+}

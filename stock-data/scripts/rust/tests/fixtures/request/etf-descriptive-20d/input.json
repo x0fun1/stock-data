@@ -1,0 +1,6 @@
+{
+  "ticker": "SPY",
+  "asset_type": "etf",
+  "intent": "descriptive",
+  "horizon": "20D"
+}

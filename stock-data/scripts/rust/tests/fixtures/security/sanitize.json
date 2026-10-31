@@ -1,0 +1,77 @@
+[
+  {
+    "case": "nested-secrets",
+    "input": {
+      "api_key": "x",
+      "password": {
+        "nested": 1
+      },
+      "ok": "Bearer abc123456789"
+    },
+    "output": {
+      "api_key": "[redacted]",
+      "password": "[redacted]",
+      "ok": "Bearer [redacted]"
+    }
+  },
+  {
+    "case": "action-fields",
+    "input": {
+      "next_actions": [
+        {
+          "cmd": "rm -rf /"
+        }
+      ],
+      "tool_calls": [
+        "x"
+      ],
+      "function_call": {
+        "a": 1
+      },
+      "keep": "v"
+    },
+    "output": {
+      "keep": "v"
+    }
+  },
+  {
+    "case": "lists",
+    "input": {
+      "list": [
+        {
+          "token": "t"
+        },
+        {
+          "plain": 1
+        }
+      ],
+      "crumb": "c"
+    },
+    "output": {
+      "list": [
+        {
+          "token": "[redacted]"
+        },
+        {
+          "plain": 1
+        }
+      ],
+      "crumb": "[redacted]"
+    }
+  },
+  {
+    "case": "scalars",
+    "input": {
+      "number": 1,
+      "bool": true,
+      "null": null,
+      "text": "https://x.test/?secret=1"
+    },
+    "output": {
+      "number": 1,
+      "bool": true,
+      "null": null,
+      "text": "https://x.test/?secret=[redacted]"
+    }
+  }
+]

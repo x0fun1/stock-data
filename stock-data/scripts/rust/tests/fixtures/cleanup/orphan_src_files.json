@@ -1,0 +1,8 @@
+{
+  "report.md": "kept",
+  "analysis.json": "{}",
+  ".report.md.abcdef123456.tmp": "scratch",
+  ".bad.tmp": "not a scratch name",
+  ".snap.abcdefgh/inner.json": "{}",
+  ".snap.abcdefgh/nested/deep.json": "{}"
+}

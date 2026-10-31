@@ -1,0 +1,931 @@
+{
+  "generated_from": "stock-data/scripts/yfinance_provider.py",
+  "note": "native route and compatibility fallback are stubbed; routing/preflight/circuit recorded",
+  "cases": [
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "return": {
+          "status": "success",
+          "data": {
+            "price": 101.5
+          }
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": true,
+      "data": {
+        "status": "success",
+        "data": {
+          "price": 101.5
+        }
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "return": {
+          "data": {
+            "raw": true
+          }
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": true,
+      "data": {
+        "data": {
+          "raw": true
+        }
+      }
+    },
+    {
+      "name": "yahoo_history",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "return": {
+          "status": "empty",
+          "data": null
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_history"
+      ],
+      "fallback_calls": [
+        {
+          "function": "yahoo_history",
+          "params": {
+            "symbol": "AAPL"
+          },
+          "reason": {
+            "category": "DataUnavailable",
+            "exception_type": "EmptyYahooResult"
+          },
+          "policy": true
+        }
+      ],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "fallback_used": true,
+        "data": {
+          "legacy": true
+        }
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "return": {
+          "status": "error",
+          "data": null,
+          "error": {
+            "category": "AccessDenied",
+            "exception_type": "YFRateLimitError"
+          }
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": [
+        "AccessDenied",
+        "Yahoo policy failure; legacy fallback is not permitted"
+      ],
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "AccessDenied",
+        "message": "Yahoo policy failure; legacy fallback is not permitted"
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "raise": {
+          "code": "DataUnavailable",
+          "message": "no data"
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [
+        {
+          "function": "yahoo_quote",
+          "params": {
+            "symbol": "AAPL"
+          },
+          "reason": {
+            "category": "DataUnavailable",
+            "exception_type": "GatewayError"
+          },
+          "policy": true
+        }
+      ],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "fallback_used": true,
+        "data": {
+          "legacy": true
+        }
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "raise": {
+          "code": "InvalidParameters",
+          "message": "Unsupported parameters or upstream signature"
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [
+        {
+          "function": "yahoo_quote",
+          "params": {
+            "symbol": "AAPL"
+          },
+          "reason": {
+            "category": "InvalidParameters",
+            "exception_type": "GatewayError"
+          },
+          "policy": true
+        }
+      ],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "fallback_used": true,
+        "data": {
+          "legacy": true
+        }
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "raise": {
+          "code": "InvalidParameters",
+          "message": "bad param"
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "bad param"
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "raise": {
+          "code": "RateLimited",
+          "message": "rate limited"
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": [
+        "RateLimited",
+        "Yahoo policy failure; legacy fallback is not permitted"
+      ],
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "RateLimited",
+        "message": "Yahoo policy failure; legacy fallback is not permitted"
+      }
+    },
+    {
+      "name": "yahoo_history_batch",
+      "params": {
+        "symbols": [
+          "AAPL",
+          "MSFT"
+        ]
+      },
+      "cache_dir_mode": "pathlike",
+      "native": {
+        "return": {
+          "status": "success",
+          "data": {
+            "price": 101.5
+          }
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_history_batch"
+      ],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<pathlike>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": true,
+      "data": {
+        "status": "success",
+        "data": {
+          "price": 101.5
+        }
+      }
+    },
+    {
+      "name": "yahoo_history_batch",
+      "params": {
+        "symbols": [
+          "S0",
+          "S1",
+          "S2",
+          "S3",
+          "S4",
+          "S5",
+          "S6",
+          "S7",
+          "S8",
+          "S9",
+          "S10"
+        ]
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Batch calls accept 1 to 10 symbols"
+      }
+    },
+    {
+      "name": "yahoo_history_batch",
+      "params": {
+        "symbols": [
+          "AAPL",
+          "AAPL"
+        ]
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Batch symbols must be distinct"
+      }
+    },
+    {
+      "name": "yahoo_history_batch",
+      "params": {
+        "symbols": [
+          "AAPL",
+          "0700.HK"
+        ]
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "US and HK batches must be separate calls"
+      }
+    },
+    {
+      "name": "yahoo_history_batch",
+      "params": {
+        "symbols": [
+          123
+        ]
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Invalid Yahoo symbol"
+      }
+    },
+    {
+      "name": "yahoo_history_batch",
+      "params": {
+        "symbols": [
+          "AAPL"
+        ],
+        "concurrency": 3
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Invalid concurrency or price basis"
+      }
+    },
+    {
+      "name": "yahoo_history",
+      "params": {
+        "period": "1mo"
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Invalid Yahoo symbol"
+      }
+    },
+    {
+      "name": "yahoo_history",
+      "params": {
+        "symbol": "AAPL",
+        "period": "7d"
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Unsupported period"
+      }
+    },
+    {
+      "name": "yahoo_history",
+      "params": {
+        "symbol": "AAPL",
+        "start": "2026-01-01"
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "start and end must be provided together"
+      }
+    },
+    {
+      "name": "yahoo_history",
+      "params": {
+        "symbol": "AAPL",
+        "period": "1mo",
+        "start": "2026-01-01",
+        "end": "2026-02-01"
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "period and start/end are mutually exclusive"
+      }
+    },
+    {
+      "name": "yahoo_history",
+      "params": {
+        "symbol": "AAPL",
+        "interval": "1m"
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Intraday queries require an explicit bounded window"
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "missing",
+      "native": {
+        "return": {
+          "status": "success",
+          "data": {
+            "price": 101.5
+          }
+        }
+      },
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": null,
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Explicit writable cache_dir required for Yahoo calls"
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "invalid",
+      "native": {
+        "return": {
+          "status": "success",
+          "data": {
+            "price": 101.5
+          }
+        }
+      },
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": null,
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "InvalidParameters",
+        "message": "Explicit writable cache_dir required for Yahoo calls"
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "return": {
+          "status": "success",
+          "data": {
+            "price": 101.5
+          }
+        }
+      },
+      "latched": [
+        "RateLimited",
+        "job latch"
+      ],
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": [
+        "RateLimited",
+        "job latch"
+      ],
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "RateLimited",
+        "message": "job latch"
+      }
+    },
+    {
+      "name": "yahoo_unknown",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": null,
+      "latched": null,
+      "native_calls": [],
+      "fallback_calls": [],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "legacy": true
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "UnsupportedCapability",
+        "message": "Unregistered Yahoo capability"
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "raise": {
+          "code": "UnsupportedCapability",
+          "message": "bad upstream"
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [
+        {
+          "function": "yahoo_quote",
+          "params": {
+            "symbol": "AAPL"
+          },
+          "reason": {
+            "category": "UnsupportedCapability",
+            "exception_type": "GatewayError"
+          },
+          "policy": true
+        }
+      ],
+      "fallback_spec": {
+        "raise": {
+          "code": "BudgetExceeded",
+          "message": "budget exhausted"
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": false,
+      "raised": {
+        "code": "BudgetExceeded",
+        "message": "budget exhausted"
+      }
+    },
+    {
+      "name": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "cache_dir_mode": "dir",
+      "native": {
+        "raise": {
+          "code": "DataUnavailable",
+          "message": "no data"
+        }
+      },
+      "latched": null,
+      "native_calls": [
+        "yahoo_quote"
+      ],
+      "fallback_calls": [
+        {
+          "function": "yahoo_quote",
+          "params": {
+            "symbol": "AAPL"
+          },
+          "reason": {
+            "category": "DataUnavailable",
+            "exception_type": "GatewayError"
+          },
+          "policy": true
+        }
+      ],
+      "fallback_spec": {
+        "return": {
+          "status": "partial",
+          "fallback_used": true,
+          "data": {
+            "v": 2
+          }
+        }
+      },
+      "cache_dir_value": "<dir>",
+      "latched_after": null,
+      "policy_blocked": null,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "fallback_used": true,
+        "data": {
+          "v": 2
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,1 @@
+price basis None is not the policy basis 'split_adjusted'; a dividend-reinvested series cannot serve the 5D price-direction target

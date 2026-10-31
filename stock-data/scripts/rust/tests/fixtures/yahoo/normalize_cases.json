@@ -1,0 +1,3704 @@
+{
+  "generated_from": "stock-data/scripts/yfinance_normalize.py",
+  "note": "history frames are the documented indexed row records; financial frames are columns+rows",
+  "cases": [
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "America/New_York",
+          "currency": "USD"
+        },
+        "price_basis": "provider",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": "2026-01-05T05:00:00Z",
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "America/New_York",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 100.0,
+              "high": 103.0,
+              "low": 99.5,
+              "close": 102.5,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": "2026-01-05T05:00:00Z",
+              "timestamp_utc": "2026-01-05T05:00:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "provider",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "invalid_bar_timestamp"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "America/New_York",
+          "currency": "USD"
+        },
+        "price_basis": "adjusted",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "adjusted",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "adjusted",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "Adj Close / Close applied to OHLC; volume unchanged",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": "2026-01-05T05:00:00Z",
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "America/New_York",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "adjusted",
+              "missing_fields": [],
+              "open": 98.78048780487805,
+              "high": 101.7439024390244,
+              "low": 98.28658536585365,
+              "close": 101.25,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": "2026-01-05T05:00:00Z",
+              "timestamp_utc": "2026-01-05T05:00:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "adjusted",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "adjusted",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null,
+              "adjustment_gap": "invalid_or_missing_adj_close_ratio"
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "adjusted_view_has_ratio_gaps",
+          "invalid_bar_timestamp"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [],
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "America/New_York",
+          "currency": "USD"
+        },
+        "price_basis": "provider",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": null,
+          "actions": [],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": []
+        },
+        "source_timestamp": null,
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "America/New_York",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [],
+          "history_window": {
+            "start": null,
+            "end": null,
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "Not/AZone",
+          "currency": "USD"
+        },
+        "price_basis": "provider",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": null,
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "Not/AZone",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": "Not/AZone",
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 100.0,
+              "high": 103.0,
+              "low": 99.5,
+              "close": 102.5,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": null,
+              "timestamp_utc": null,
+              "timezone": "Not/AZone",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": "Not/AZone",
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "provider",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "bar_timezone_unconfirmed",
+          "exchange_timezone_unconfirmed",
+          "invalid_bar_timestamp",
+          "invalid_exchange_timezone"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "Not/AZone",
+          "currency": "USD"
+        },
+        "price_basis": "adjusted",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "adjusted",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "adjusted",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "Adj Close / Close applied to OHLC; volume unchanged",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": null,
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "Not/AZone",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": "Not/AZone",
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "adjusted",
+              "missing_fields": [],
+              "open": 98.78048780487805,
+              "high": 101.7439024390244,
+              "low": 98.28658536585365,
+              "close": 101.25,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": null,
+              "timestamp_utc": null,
+              "timezone": "Not/AZone",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "adjusted",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": "Not/AZone",
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "adjusted",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null,
+              "adjustment_gap": "invalid_or_missing_adj_close_ratio"
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "adjusted_view_has_ratio_gaps",
+          "bar_timezone_unconfirmed",
+          "exchange_timezone_unconfirmed",
+          "invalid_bar_timestamp",
+          "invalid_exchange_timezone"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [],
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "Not/AZone",
+          "currency": "USD"
+        },
+        "price_basis": "provider",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": null,
+          "actions": [],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": []
+        },
+        "source_timestamp": null,
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "AAPL",
+          "exchangeTimezoneName": "Not/AZone",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [],
+          "history_window": {
+            "start": null,
+            "end": null,
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "exchange_timezone_unconfirmed",
+          "invalid_exchange_timezone"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {
+          "source_symbol": "AAPL",
+          "currency": "USD"
+        },
+        "price_basis": "provider",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": null,
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "source_symbol": "AAPL",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": null,
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 100.0,
+              "high": 103.0,
+              "low": 99.5,
+              "close": 102.5,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": null,
+              "timestamp_utc": null,
+              "timezone": null,
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": null,
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "provider",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "bar_timezone_unconfirmed",
+          "exchange_timezone_unconfirmed",
+          "invalid_bar_timestamp"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {
+          "source_symbol": "AAPL",
+          "currency": "USD"
+        },
+        "price_basis": "adjusted",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "adjusted",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "adjusted",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "Adj Close / Close applied to OHLC; volume unchanged",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": null,
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "source_symbol": "AAPL",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": null,
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "adjusted",
+              "missing_fields": [],
+              "open": 98.78048780487805,
+              "high": 101.7439024390244,
+              "low": 98.28658536585365,
+              "close": 101.25,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": null,
+              "timestamp_utc": null,
+              "timezone": null,
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "adjusted",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": null,
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "adjusted",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null,
+              "adjustment_gap": "invalid_or_missing_adj_close_ratio"
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "adjusted_view_has_ratio_gaps",
+          "bar_timezone_unconfirmed",
+          "exchange_timezone_unconfirmed",
+          "invalid_bar_timestamp"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [],
+        "metadata": {
+          "source_symbol": "AAPL",
+          "currency": "USD"
+        },
+        "price_basis": "provider",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "frequency": "1d",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": null,
+          "actions": [],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": []
+        },
+        "source_timestamp": null,
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "source_symbol": "AAPL",
+          "currency": "USD"
+        },
+        "data": {
+          "bars": [],
+          "history_window": {
+            "start": null,
+            "end": null,
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "exchange_timezone_unconfirmed"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {
+          "symbol": "0700.HK",
+          "exchangeTimezoneName": "Asia/Hong_Kong",
+          "currency": "HKD"
+        },
+        "price_basis": "provider",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "0700.HK",
+        "currency": "HKD",
+        "frequency": "1d",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": [
+            {
+              "date": "2026-01-03",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": "2026-01-04T16:00:00Z",
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "0700.HK",
+          "exchangeTimezoneName": "Asia/Hong_Kong",
+          "currency": "HKD"
+        },
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-03",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": "Asia/Hong_Kong",
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 100.0,
+              "high": 103.0,
+              "low": 99.5,
+              "close": 102.5,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": "2026-01-04T16:00:00Z",
+              "timestamp_utc": "2026-01-04T16:00:00Z",
+              "timezone": "Asia/Hong_Kong",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": "Asia/Hong_Kong",
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "provider",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-03",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "0700.HK",
+          "source_symbol": "0700.HK",
+          "currency": "HKD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "invalid_bar_timestamp"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {
+          "symbol": "0700.HK",
+          "exchangeTimezoneName": "Asia/Hong_Kong",
+          "currency": "HKD"
+        },
+        "price_basis": "adjusted",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "0700.HK",
+        "currency": "HKD",
+        "frequency": "1d",
+        "adjustment": "adjusted",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "adjusted",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "Adj Close / Close applied to OHLC; volume unchanged",
+          "ratios": [
+            {
+              "date": "2026-01-03",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": "2026-01-04T16:00:00Z",
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "0700.HK",
+          "exchangeTimezoneName": "Asia/Hong_Kong",
+          "currency": "HKD"
+        },
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-03",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": "Asia/Hong_Kong",
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "adjusted",
+              "missing_fields": [],
+              "open": 98.78048780487805,
+              "high": 101.7439024390244,
+              "low": 98.28658536585365,
+              "close": 101.25,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": "2026-01-04T16:00:00Z",
+              "timestamp_utc": "2026-01-04T16:00:00Z",
+              "timezone": "Asia/Hong_Kong",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "adjusted",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": "Asia/Hong_Kong",
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "adjusted",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null,
+              "adjustment_gap": "invalid_or_missing_adj_close_ratio"
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-03",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "0700.HK",
+          "source_symbol": "0700.HK",
+          "currency": "HKD",
+          "frequency": "1d"
+        },
+        "warnings": [
+          "adjusted_view_has_ratio_gaps",
+          "invalid_bar_timestamp"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [],
+        "metadata": {
+          "symbol": "0700.HK",
+          "exchangeTimezoneName": "Asia/Hong_Kong",
+          "currency": "HKD"
+        },
+        "price_basis": "provider",
+        "symbol": "AAPL",
+        "interval": "1d"
+      },
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": "AAPL",
+        "source_symbol": "0700.HK",
+        "currency": "HKD",
+        "frequency": "1d",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": null,
+          "actions": [],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": []
+        },
+        "source_timestamp": null,
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {
+          "symbol": "0700.HK",
+          "exchangeTimezoneName": "Asia/Hong_Kong",
+          "currency": "HKD"
+        },
+        "data": {
+          "bars": [],
+          "history_window": {
+            "start": null,
+            "end": null,
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "0700.HK",
+          "source_symbol": "0700.HK",
+          "currency": "HKD",
+          "frequency": "1d"
+        },
+        "warnings": [],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {},
+        "price_basis": "provider",
+        "symbol": null,
+        "interval": "1mo"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "actual_source": "Yahoo Finance",
+        "requested_symbol": null,
+        "source_symbol": null,
+        "currency": null,
+        "frequency": "1mo",
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": "2026-01-07",
+          "actions": [
+            {
+              "date": "2026-01-05",
+              "type": "dividend",
+              "kind": "dividends",
+              "value": 0.24
+            }
+          ],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": null,
+              "ratio": 1.0
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "source_timestamp": "2026-01-07T14:30:00Z",
+        "source_timestamp_semantics": "bar_label_utc",
+        "last_bar_closed": null,
+        "metadata": {},
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T19:30:00Z",
+              "timestamp_utc": "2026-01-02T19:30:00Z",
+              "timezone": null,
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 100.0,
+              "high": 103.0,
+              "low": 99.5,
+              "close": 102.5,
+              "dividends": 0.0,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": null,
+              "timestamp_utc": null,
+              "timezone": null,
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": 0.24,
+              "stock_splits": 0.0,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-07",
+              "timestamp": "2026-01-07T14:30:00Z",
+              "timestamp_utc": "2026-01-07T14:30:00Z",
+              "timezone": null,
+              "provider_ohlc": {
+                "open": null,
+                "high": null,
+                "low": null,
+                "close": null
+              },
+              "adj_close": null,
+              "volume": null,
+              "adjustment_ratio": null,
+              "price_basis": "provider",
+              "missing_fields": [
+                "open",
+                "high",
+                "low",
+                "close"
+              ],
+              "open": null,
+              "high": null,
+              "low": null,
+              "close": null,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-07",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": null,
+          "source_symbol": null,
+          "currency": null,
+          "frequency": "1mo"
+        },
+        "warnings": [
+          "bar_timezone_unconfirmed",
+          "exchange_timezone_unconfirmed",
+          "invalid_bar_timestamp"
+        ],
+        "native_payload_kind": "yfinance_processed_result_not_raw_http"
+      }
+    },
+    {
+      "kind": "history",
+      "input": {
+        "frame": [
+          {
+            "timestamp": "2026-01-02T14:30:00-05:00",
+            "Open": 100.0,
+            "High": 103.0,
+            "Low": 99.5,
+            "Close": 102.5,
+            "Adj Close": 101.25,
+            "Volume": 1000,
+            "Dividends": 0.0,
+            "Stock Splits": 0.0
+          },
+          {
+            "date": "2026-01-05",
+            "open": 102.5,
+            "high": 104.0,
+            "low": 101.0,
+            "close": 103.0,
+            "adj_close": 103.0,
+            "volume": 1200,
+            "Dividends": 0.24,
+            "Stock Splits": 0.0
+          },
+          {
+            "timestamp_epoch": 1767715200,
+            "Open": 103.0,
+            "High": 105.0,
+            "Low": 102.0,
+            "Close": 104.5,
+            "Adj Close": 104.5,
+            "Volume": 900,
+            "Stock Splits": 4.0
+          },
+          {
+            "timestamp": "2026-01-07T14:30:00Z",
+            "Open": null,
+            "High": null,
+            "Low": null,
+            "Close": null,
+            "Volume": null
+          },
+          {
+            "timestamp": "not-a-date",
+            "Close": 100.0
+          }
+        ],
+        "metadata": {},
+        "price_basis": "bad",
+        "symbol": null,
+        "interval": "1d"
+      },
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "price_basis must be provider or adjusted"
+    },
+    {
+      "kind": "batch",
+      "input": {
+        "frames": {
+          "A": [
+            {
+              "timestamp": "2026-01-02T14:30:00-05:00",
+              "Open": 100.0,
+              "Close": 101.0,
+              "Volume": 10
+            },
+            {
+              "timestamp": "2026-01-05T14:30:00-05:00",
+              "Open": 101.0,
+              "Close": 102.0,
+              "Volume": 11
+            }
+          ],
+          "B": [
+            {
+              "timestamp": "2026-01-02T14:30:00-05:00",
+              "Open": null,
+              "Close": null,
+              "Volume": null
+            },
+            {
+              "timestamp": "2026-01-05T14:30:00-05:00",
+              "Open": 200.0,
+              "Close": 201.0,
+              "Volume": 20
+            }
+          ]
+        },
+        "metadata": {
+          "A": {
+            "exchangeTimezoneName": "America/New_York",
+            "currency": "USD"
+          },
+          "B": {
+            "symbol": "B",
+            "currency": "USD"
+          }
+        },
+        "price_basis": "provider",
+        "interval": "1d",
+        "source_indices": null
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "symbols": {
+          "A": {
+            "status": "success",
+            "actual_source": "Yahoo Finance",
+            "requested_symbol": "A",
+            "source_symbol": null,
+            "currency": "USD",
+            "frequency": "1d",
+            "adjustment": "provider",
+            "adjustment_evidence": {
+              "source": "Yahoo Finance",
+              "price_basis": "provider",
+              "checked_through": "2026-01-05",
+              "actions": [],
+              "action_schema_version": "yahoo_actions_v2",
+              "action_coverage_confirmed": false,
+              "coverage_scope": "returned_bars_only",
+              "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+              "transformation": "none",
+              "ratios": [
+                {
+                  "date": "2026-01-02",
+                  "timestamp_utc": "2026-01-02T19:30:00Z",
+                  "ratio": null
+                },
+                {
+                  "date": "2026-01-05",
+                  "timestamp_utc": "2026-01-05T19:30:00Z",
+                  "ratio": null
+                }
+              ]
+            },
+            "source_timestamp": "2026-01-05T19:30:00Z",
+            "source_timestamp_semantics": "bar_label_utc",
+            "last_bar_closed": null,
+            "metadata": {
+              "exchangeTimezoneName": "America/New_York",
+              "currency": "USD"
+            },
+            "data": {
+              "bars": [
+                {
+                  "date": "2026-01-02",
+                  "timestamp": "2026-01-02T19:30:00Z",
+                  "timestamp_utc": "2026-01-02T19:30:00Z",
+                  "timezone": "America/New_York",
+                  "provider_ohlc": {
+                    "open": 100.0,
+                    "high": null,
+                    "low": null,
+                    "close": 101.0
+                  },
+                  "adj_close": null,
+                  "volume": 10,
+                  "adjustment_ratio": null,
+                  "price_basis": "provider",
+                  "missing_fields": [
+                    "high",
+                    "low"
+                  ],
+                  "open": 100.0,
+                  "high": null,
+                  "low": null,
+                  "close": 101.0,
+                  "dividends": null,
+                  "stock_splits": null,
+                  "capital_gains": null
+                },
+                {
+                  "date": "2026-01-05",
+                  "timestamp": "2026-01-05T19:30:00Z",
+                  "timestamp_utc": "2026-01-05T19:30:00Z",
+                  "timezone": "America/New_York",
+                  "provider_ohlc": {
+                    "open": 101.0,
+                    "high": null,
+                    "low": null,
+                    "close": 102.0
+                  },
+                  "adj_close": null,
+                  "volume": 11,
+                  "adjustment_ratio": null,
+                  "price_basis": "provider",
+                  "missing_fields": [
+                    "high",
+                    "low"
+                  ],
+                  "open": 101.0,
+                  "high": null,
+                  "low": null,
+                  "close": 102.0,
+                  "dividends": null,
+                  "stock_splits": null,
+                  "capital_gains": null
+                }
+              ],
+              "history_window": {
+                "start": "2026-01-02",
+                "end": "2026-01-05",
+                "selection_rule": "actual_returned_bars; closure not asserted"
+              },
+              "symbol": null,
+              "source_symbol": null,
+              "currency": "USD",
+              "frequency": "1d"
+            },
+            "warnings": [],
+            "native_payload_kind": "yfinance_processed_result_not_raw_http",
+            "alignment": {
+              "source_index_known": false,
+              "excluded_slots": [],
+              "null_origin": "source_or_batch_alignment_unconfirmed"
+            },
+            "bar_count": 2
+          },
+          "B": {
+            "status": "partial",
+            "actual_source": "Yahoo Finance",
+            "requested_symbol": "B",
+            "source_symbol": "B",
+            "currency": "USD",
+            "frequency": "1d",
+            "adjustment": "provider",
+            "adjustment_evidence": {
+              "source": "Yahoo Finance",
+              "price_basis": "provider",
+              "checked_through": "2026-01-05",
+              "actions": [],
+              "action_schema_version": "yahoo_actions_v2",
+              "action_coverage_confirmed": false,
+              "coverage_scope": "returned_bars_only",
+              "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+              "transformation": "none",
+              "ratios": [
+                {
+                  "date": "2026-01-02",
+                  "timestamp_utc": "2026-01-02T19:30:00Z",
+                  "ratio": null
+                },
+                {
+                  "date": "2026-01-05",
+                  "timestamp_utc": "2026-01-05T19:30:00Z",
+                  "ratio": null
+                }
+              ]
+            },
+            "source_timestamp": "2026-01-05T19:30:00Z",
+            "source_timestamp_semantics": "bar_label_utc",
+            "last_bar_closed": null,
+            "metadata": {
+              "symbol": "B",
+              "currency": "USD"
+            },
+            "data": {
+              "bars": [
+                {
+                  "date": "2026-01-02",
+                  "timestamp": "2026-01-02T19:30:00Z",
+                  "timestamp_utc": "2026-01-02T19:30:00Z",
+                  "timezone": null,
+                  "provider_ohlc": {
+                    "open": null,
+                    "high": null,
+                    "low": null,
+                    "close": null
+                  },
+                  "adj_close": null,
+                  "volume": null,
+                  "adjustment_ratio": null,
+                  "price_basis": "provider",
+                  "missing_fields": [
+                    "open",
+                    "high",
+                    "low",
+                    "close"
+                  ],
+                  "open": null,
+                  "high": null,
+                  "low": null,
+                  "close": null,
+                  "dividends": null,
+                  "stock_splits": null,
+                  "capital_gains": null
+                },
+                {
+                  "date": "2026-01-05",
+                  "timestamp": "2026-01-05T19:30:00Z",
+                  "timestamp_utc": "2026-01-05T19:30:00Z",
+                  "timezone": null,
+                  "provider_ohlc": {
+                    "open": 200.0,
+                    "high": null,
+                    "low": null,
+                    "close": 201.0
+                  },
+                  "adj_close": null,
+                  "volume": 20,
+                  "adjustment_ratio": null,
+                  "price_basis": "provider",
+                  "missing_fields": [
+                    "high",
+                    "low"
+                  ],
+                  "open": 200.0,
+                  "high": null,
+                  "low": null,
+                  "close": 201.0,
+                  "dividends": null,
+                  "stock_splits": null,
+                  "capital_gains": null
+                }
+              ],
+              "history_window": {
+                "start": "2026-01-02",
+                "end": "2026-01-05",
+                "selection_rule": "actual_returned_bars; closure not asserted"
+              },
+              "symbol": "B",
+              "source_symbol": "B",
+              "currency": "USD",
+              "frequency": "1d"
+            },
+            "warnings": [
+              "exchange_timezone_unconfirmed"
+            ],
+            "native_payload_kind": "yfinance_processed_result_not_raw_http",
+            "alignment": {
+              "source_index_known": false,
+              "excluded_slots": [],
+              "null_origin": "source_or_batch_alignment_unconfirmed"
+            },
+            "bar_count": 2
+          }
+        }
+      }
+    },
+    {
+      "kind": "batch",
+      "input": {
+        "frames": {
+          "A": [
+            {
+              "timestamp": "2026-01-02T14:30:00-05:00",
+              "Open": 100.0,
+              "Close": 101.0,
+              "Volume": 10
+            },
+            {
+              "timestamp": "2026-01-05T14:30:00-05:00",
+              "Open": 101.0,
+              "Close": 102.0,
+              "Volume": 11
+            }
+          ],
+          "B": [
+            {
+              "timestamp": "2026-01-02T14:30:00-05:00",
+              "Open": null,
+              "Close": null,
+              "Volume": null
+            },
+            {
+              "timestamp": "2026-01-05T14:30:00-05:00",
+              "Open": 200.0,
+              "Close": 201.0,
+              "Volume": 20
+            }
+          ]
+        },
+        "metadata": {
+          "A": {
+            "exchangeTimezoneName": "America/New_York",
+            "currency": "USD"
+          },
+          "B": {
+            "symbol": "B",
+            "currency": "USD"
+          }
+        },
+        "price_basis": "provider",
+        "interval": "1d",
+        "source_indices": {
+          "A": [
+            "2026-01-02T19:30:00+00:00",
+            "2026-01-05T19:30:00+00:00"
+          ]
+        }
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "symbols": {
+          "A": {
+            "status": "empty",
+            "actual_source": "Yahoo Finance",
+            "requested_symbol": "A",
+            "source_symbol": null,
+            "currency": "USD",
+            "frequency": "1d",
+            "adjustment": "provider",
+            "adjustment_evidence": {
+              "source": "Yahoo Finance",
+              "price_basis": "provider",
+              "checked_through": null,
+              "actions": [],
+              "action_schema_version": "yahoo_actions_v2",
+              "action_coverage_confirmed": false,
+              "coverage_scope": "returned_bars_only",
+              "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+              "transformation": "none",
+              "ratios": []
+            },
+            "source_timestamp": null,
+            "source_timestamp_semantics": "bar_label_utc",
+            "last_bar_closed": null,
+            "metadata": {
+              "exchangeTimezoneName": "America/New_York",
+              "currency": "USD"
+            },
+            "data": {
+              "bars": [],
+              "history_window": {
+                "start": null,
+                "end": null,
+                "selection_rule": "actual_returned_bars; closure not asserted"
+              },
+              "symbol": null,
+              "source_symbol": null,
+              "currency": "USD",
+              "frequency": "1d"
+            },
+            "warnings": [
+              "no_valid_prices; empty_reason_unconfirmed"
+            ],
+            "native_payload_kind": "yfinance_processed_result_not_raw_http",
+            "alignment": {
+              "source_index_known": true,
+              "excluded_slots": [
+                "2026-01-02T14:30:00-05:00",
+                "2026-01-05T14:30:00-05:00"
+              ],
+              "null_origin": "source"
+            },
+            "bar_count": 0
+          },
+          "B": {
+            "status": "partial",
+            "actual_source": "Yahoo Finance",
+            "requested_symbol": "B",
+            "source_symbol": "B",
+            "currency": "USD",
+            "frequency": "1d",
+            "adjustment": "provider",
+            "adjustment_evidence": {
+              "source": "Yahoo Finance",
+              "price_basis": "provider",
+              "checked_through": "2026-01-05",
+              "actions": [],
+              "action_schema_version": "yahoo_actions_v2",
+              "action_coverage_confirmed": false,
+              "coverage_scope": "returned_bars_only",
+              "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+              "transformation": "none",
+              "ratios": [
+                {
+                  "date": "2026-01-02",
+                  "timestamp_utc": "2026-01-02T19:30:00Z",
+                  "ratio": null
+                },
+                {
+                  "date": "2026-01-05",
+                  "timestamp_utc": "2026-01-05T19:30:00Z",
+                  "ratio": null
+                }
+              ]
+            },
+            "source_timestamp": "2026-01-05T19:30:00Z",
+            "source_timestamp_semantics": "bar_label_utc",
+            "last_bar_closed": null,
+            "metadata": {
+              "symbol": "B",
+              "currency": "USD"
+            },
+            "data": {
+              "bars": [
+                {
+                  "date": "2026-01-02",
+                  "timestamp": "2026-01-02T19:30:00Z",
+                  "timestamp_utc": "2026-01-02T19:30:00Z",
+                  "timezone": null,
+                  "provider_ohlc": {
+                    "open": null,
+                    "high": null,
+                    "low": null,
+                    "close": null
+                  },
+                  "adj_close": null,
+                  "volume": null,
+                  "adjustment_ratio": null,
+                  "price_basis": "provider",
+                  "missing_fields": [
+                    "open",
+                    "high",
+                    "low",
+                    "close"
+                  ],
+                  "open": null,
+                  "high": null,
+                  "low": null,
+                  "close": null,
+                  "dividends": null,
+                  "stock_splits": null,
+                  "capital_gains": null
+                },
+                {
+                  "date": "2026-01-05",
+                  "timestamp": "2026-01-05T19:30:00Z",
+                  "timestamp_utc": "2026-01-05T19:30:00Z",
+                  "timezone": null,
+                  "provider_ohlc": {
+                    "open": 200.0,
+                    "high": null,
+                    "low": null,
+                    "close": 201.0
+                  },
+                  "adj_close": null,
+                  "volume": 20,
+                  "adjustment_ratio": null,
+                  "price_basis": "provider",
+                  "missing_fields": [
+                    "high",
+                    "low"
+                  ],
+                  "open": 200.0,
+                  "high": null,
+                  "low": null,
+                  "close": 201.0,
+                  "dividends": null,
+                  "stock_splits": null,
+                  "capital_gains": null
+                }
+              ],
+              "history_window": {
+                "start": "2026-01-02",
+                "end": "2026-01-05",
+                "selection_rule": "actual_returned_bars; closure not asserted"
+              },
+              "symbol": "B",
+              "source_symbol": "B",
+              "currency": "USD",
+              "frequency": "1d"
+            },
+            "warnings": [
+              "exchange_timezone_unconfirmed"
+            ],
+            "native_payload_kind": "yfinance_processed_result_not_raw_http",
+            "alignment": {
+              "source_index_known": false,
+              "excluded_slots": [],
+              "null_origin": "source_or_batch_alignment_unconfirmed"
+            },
+            "bar_count": 2
+          }
+        }
+      }
+    },
+    {
+      "kind": "batch",
+      "input": {
+        "frames": {
+          "A": [],
+          "B": []
+        },
+        "metadata": {
+          "A": {
+            "exchangeTimezoneName": "America/New_York",
+            "currency": "USD"
+          },
+          "B": {
+            "symbol": "B",
+            "currency": "USD"
+          }
+        },
+        "price_basis": "provider",
+        "interval": "1d",
+        "source_indices": null
+      },
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "symbols": {
+          "A": {
+            "status": "empty",
+            "actual_source": "Yahoo Finance",
+            "requested_symbol": "A",
+            "source_symbol": null,
+            "currency": "USD",
+            "frequency": "1d",
+            "adjustment": "provider",
+            "adjustment_evidence": {
+              "source": "Yahoo Finance",
+              "price_basis": "provider",
+              "checked_through": null,
+              "actions": [],
+              "action_schema_version": "yahoo_actions_v2",
+              "action_coverage_confirmed": false,
+              "coverage_scope": "returned_bars_only",
+              "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+              "transformation": "none",
+              "ratios": []
+            },
+            "source_timestamp": null,
+            "source_timestamp_semantics": "bar_label_utc",
+            "last_bar_closed": null,
+            "metadata": {
+              "exchangeTimezoneName": "America/New_York",
+              "currency": "USD"
+            },
+            "data": {
+              "bars": [],
+              "history_window": {
+                "start": null,
+                "end": null,
+                "selection_rule": "actual_returned_bars; closure not asserted"
+              },
+              "symbol": null,
+              "source_symbol": null,
+              "currency": "USD",
+              "frequency": "1d"
+            },
+            "warnings": [
+              "no_valid_prices; empty_reason_unconfirmed"
+            ],
+            "native_payload_kind": "yfinance_processed_result_not_raw_http",
+            "alignment": {
+              "source_index_known": false,
+              "excluded_slots": [],
+              "null_origin": "source_or_batch_alignment_unconfirmed"
+            },
+            "bar_count": 0
+          },
+          "B": {
+            "status": "empty",
+            "actual_source": "Yahoo Finance",
+            "requested_symbol": "B",
+            "source_symbol": "B",
+            "currency": "USD",
+            "frequency": "1d",
+            "adjustment": "provider",
+            "adjustment_evidence": {
+              "source": "Yahoo Finance",
+              "price_basis": "provider",
+              "checked_through": null,
+              "actions": [],
+              "action_schema_version": "yahoo_actions_v2",
+              "action_coverage_confirmed": false,
+              "coverage_scope": "returned_bars_only",
+              "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+              "transformation": "none",
+              "ratios": []
+            },
+            "source_timestamp": null,
+            "source_timestamp_semantics": "bar_label_utc",
+            "last_bar_closed": null,
+            "metadata": {
+              "symbol": "B",
+              "currency": "USD"
+            },
+            "data": {
+              "bars": [],
+              "history_window": {
+                "start": null,
+                "end": null,
+                "selection_rule": "actual_returned_bars; closure not asserted"
+              },
+              "symbol": "B",
+              "source_symbol": "B",
+              "currency": "USD",
+              "frequency": "1d"
+            },
+            "warnings": [
+              "exchange_timezone_unconfirmed",
+              "no_valid_prices; empty_reason_unconfirmed"
+            ],
+            "native_payload_kind": "yfinance_processed_result_not_raw_http",
+            "alignment": {
+              "source_index_known": false,
+              "excluded_slots": [],
+              "null_origin": "source_or_batch_alignment_unconfirmed"
+            },
+            "bar_count": 0
+          }
+        }
+      }
+    },
+    {
+      "kind": "repair",
+      "input": {
+        "original": [
+          {
+            "timestamp": "2026-01-02",
+            "Open": 100.0,
+            "Close": 101.0,
+            "Volume": 10
+          },
+          {
+            "timestamp": "2026-01-05",
+            "Open": 101.0,
+            "Close": 102.0,
+            "Volume": 11
+          }
+        ],
+        "repaired": [
+          {
+            "timestamp": "2026-01-02",
+            "Open": 100.0,
+            "Close": 50.0,
+            "Volume": 10
+          },
+          {
+            "timestamp": "2026-01-06",
+            "Open": 50.5,
+            "Close": 51.0,
+            "Volume": 12
+          }
+        ],
+        "original_metadata": {
+          "currency": "USD"
+        },
+        "repaired_metadata": {
+          "currency": "USD"
+        }
+      },
+      "ok": true,
+      "data": {
+        "changed": true,
+        "differences": [
+          {
+            "index": "2026-01-02",
+            "field": "Close",
+            "before": 101.0,
+            "after": 50.0
+          },
+          {
+            "index": "2026-01-05",
+            "field": "Close",
+            "before": 102.0,
+            "after": null
+          },
+          {
+            "index": "2026-01-05",
+            "field": "Open",
+            "before": 101.0,
+            "after": null
+          },
+          {
+            "index": "2026-01-05",
+            "field": "Volume",
+            "before": 11,
+            "after": null
+          },
+          {
+            "index": "2026-01-05",
+            "field": "timestamp",
+            "before": "2026-01-05",
+            "after": null
+          },
+          {
+            "index": "2026-01-06",
+            "field": "Close",
+            "before": null,
+            "after": 51.0
+          },
+          {
+            "index": "2026-01-06",
+            "field": "Open",
+            "before": null,
+            "after": 50.5
+          },
+          {
+            "index": "2026-01-06",
+            "field": "Volume",
+            "before": null,
+            "after": 12
+          },
+          {
+            "index": "2026-01-06",
+            "field": "timestamp",
+            "before": null,
+            "after": "2026-01-06"
+          }
+        ],
+        "currency_before": "USD",
+        "currency_after": "USD",
+        "original": [
+          {
+            "timestamp": "2026-01-02",
+            "Open": 100.0,
+            "Close": 101.0,
+            "Volume": 10
+          },
+          {
+            "timestamp": "2026-01-05",
+            "Open": 101.0,
+            "Close": 102.0,
+            "Volume": 11
+          }
+        ],
+        "repaired": [
+          {
+            "timestamp": "2026-01-02",
+            "Open": 100.0,
+            "Close": 50.0,
+            "Volume": 10
+          },
+          {
+            "timestamp": "2026-01-06",
+            "Open": 50.5,
+            "Close": 51.0,
+            "Volume": 12
+          }
+        ]
+      }
+    },
+    {
+      "kind": "repair",
+      "input": {
+        "original": [
+          {
+            "timestamp": "2026-01-02",
+            "Open": 100.0,
+            "Close": 101.0,
+            "Volume": 10
+          },
+          {
+            "timestamp": "2026-01-05",
+            "Open": 101.0,
+            "Close": 102.0,
+            "Volume": 11
+          }
+        ],
+        "repaired": [
+          {
+            "timestamp": "2026-01-02",
+            "Open": 100.0,
+            "Close": 101.0,
+            "Volume": 10
+          },
+          {
+            "timestamp": "2026-01-05",
+            "Open": 101.0,
+            "Close": 102.0,
+            "Volume": 11
+          }
+        ],
+        "original_metadata": {
+          "currency": "USD"
+        },
+        "repaired_metadata": {
+          "currency": "EUR"
+        }
+      },
+      "ok": true,
+      "data": {
+        "changed": true,
+        "differences": [],
+        "currency_before": "USD",
+        "currency_after": "EUR",
+        "original": [
+          {
+            "timestamp": "2026-01-02",
+            "Open": 100.0,
+            "Close": 101.0,
+            "Volume": 10
+          },
+          {
+            "timestamp": "2026-01-05",
+            "Open": 101.0,
+            "Close": 102.0,
+            "Volume": 11
+          }
+        ],
+        "repaired": [
+          {
+            "timestamp": "2026-01-02",
+            "Open": 100.0,
+            "Close": 101.0,
+            "Volume": 10
+          },
+          {
+            "timestamp": "2026-01-05",
+            "Open": 101.0,
+            "Close": 102.0,
+            "Volume": 11
+          }
+        ]
+      }
+    },
+    {
+      "kind": "options",
+      "input": {
+        "chain": {
+          "calls": [
+            {
+              "strike": 100.0,
+              "lastPrice": 3.5,
+              "lastTradeDate": "2026-01-08T20:00:00Z",
+              "impliedVolatility": 0.25,
+              "inTheMoney": true
+            },
+            {
+              "strike": 110.0,
+              "lastPrice": null,
+              "lastTradeDate": null,
+              "impliedVolatility": null
+            }
+          ],
+          "puts": []
+        },
+        "expiration": "2026-01-16",
+        "underlying": 101.5
+      },
+      "ok": true,
+      "data": {
+        "expiration": "2026-01-16",
+        "underlying": 101.5,
+        "calls": [
+          {
+            "strike": 100.0,
+            "lastPrice": 3.5,
+            "lastTradeDate": "2026-01-08T20:00:00Z",
+            "impliedVolatility": 0.25,
+            "inTheMoney": true
+          },
+          {
+            "strike": 110.0,
+            "lastPrice": null,
+            "lastTradeDate": null,
+            "impliedVolatility": null
+          }
+        ],
+        "puts": [],
+        "warnings": [
+          "no_greeks_or_trade_direction_inferred"
+        ]
+      }
+    },
+    {
+      "kind": "financials",
+      "input": {
+        "statements": {
+          "income_statement": {
+            "columns": [
+              "2025-09-30",
+              "2024-09-30"
+            ],
+            "rows": [
+              {
+                "index": "Total Revenue",
+                "values": [
+                  1000.0,
+                  900.0
+                ]
+              },
+              {
+                "index": "Gross Profit",
+                "values": [
+                  500.0,
+                  450.0
+                ]
+              },
+              {
+                "index": "Empty Row",
+                "values": [
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "balance_sheet": {
+            "columns": [
+              "2025-09-30",
+              "2024-09-30"
+            ],
+            "rows": [
+              {
+                "index": "Total Revenue",
+                "values": [
+                  1000.0,
+                  900.0
+                ]
+              },
+              {
+                "index": "Gross Profit",
+                "values": [
+                  500.0,
+                  450.0
+                ]
+              },
+              {
+                "index": "Empty Row",
+                "values": [
+                  null,
+                  null
+                ]
+              }
+            ]
+          }
+        },
+        "frequency": "annual",
+        "currency": "USD"
+      },
+      "ok": true,
+      "data": {
+        "status": "success",
+        "statements": {
+          "income_statement": "success",
+          "balance_sheet": "success"
+        },
+        "records": [
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "annual",
+            "account": "Total Revenue",
+            "value": 1000.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "annual",
+            "account": "Total Revenue",
+            "value": 900.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "annual",
+            "account": "Gross Profit",
+            "value": 500.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "annual",
+            "account": "Gross Profit",
+            "value": 450.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "annual",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "annual",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2025-09-30",
+            "frequency": "annual",
+            "account": "Total Revenue",
+            "value": 1000.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2024-09-30",
+            "frequency": "annual",
+            "account": "Total Revenue",
+            "value": 900.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2025-09-30",
+            "frequency": "annual",
+            "account": "Gross Profit",
+            "value": 500.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2024-09-30",
+            "frequency": "annual",
+            "account": "Gross Profit",
+            "value": 450.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2025-09-30",
+            "frequency": "annual",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2024-09-30",
+            "frequency": "annual",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          }
+        ],
+        "currency": "USD",
+        "warnings": [
+          "period_end_is_not_disclosure_date",
+          "units_not_confirmed"
+        ]
+      }
+    },
+    {
+      "kind": "financials",
+      "input": {
+        "statements": {
+          "income_statement": {
+            "columns": [
+              "2025-09-30",
+              "2024-09-30"
+            ],
+            "rows": [
+              {
+                "index": "Total Revenue",
+                "values": [
+                  1000.0,
+                  900.0
+                ]
+              },
+              {
+                "index": "Gross Profit",
+                "values": [
+                  500.0,
+                  450.0
+                ]
+              },
+              {
+                "index": "Empty Row",
+                "values": [
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "balance_sheet": {
+            "columns": [
+              "2025-09-30",
+              "2024-09-30"
+            ],
+            "rows": [
+              {
+                "index": "Total Revenue",
+                "values": [
+                  1000.0,
+                  900.0
+                ]
+              },
+              {
+                "index": "Gross Profit",
+                "values": [
+                  500.0,
+                  450.0
+                ]
+              },
+              {
+                "index": "Empty Row",
+                "values": [
+                  null,
+                  null
+                ]
+              }
+            ]
+          }
+        },
+        "frequency": "quarterly",
+        "currency": "USD"
+      },
+      "ok": true,
+      "data": {
+        "status": "success",
+        "statements": {
+          "income_statement": "success",
+          "balance_sheet": "success"
+        },
+        "records": [
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "quarterly",
+            "account": "Total Revenue",
+            "value": 1000.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "quarterly",
+            "account": "Total Revenue",
+            "value": 900.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "quarterly",
+            "account": "Gross Profit",
+            "value": 500.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "quarterly",
+            "account": "Gross Profit",
+            "value": 450.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "quarterly",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "quarterly",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2025-09-30",
+            "frequency": "quarterly",
+            "account": "Total Revenue",
+            "value": 1000.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2024-09-30",
+            "frequency": "quarterly",
+            "account": "Total Revenue",
+            "value": 900.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2025-09-30",
+            "frequency": "quarterly",
+            "account": "Gross Profit",
+            "value": 500.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2024-09-30",
+            "frequency": "quarterly",
+            "account": "Gross Profit",
+            "value": 450.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2025-09-30",
+            "frequency": "quarterly",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "balance_sheet",
+            "period_end": "2024-09-30",
+            "frequency": "quarterly",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          }
+        ],
+        "currency": "USD",
+        "warnings": [
+          "period_end_is_not_disclosure_date",
+          "units_not_confirmed"
+        ]
+      }
+    },
+    {
+      "kind": "financials",
+      "input": {
+        "statements": {
+          "income_statement": {
+            "columns": [
+              "2025-09-30",
+              "2024-09-30"
+            ],
+            "rows": [
+              {
+                "index": "Total Revenue",
+                "values": [
+                  1000.0,
+                  900.0
+                ]
+              },
+              {
+                "index": "Gross Profit",
+                "values": [
+                  500.0,
+                  450.0
+                ]
+              },
+              {
+                "index": "Empty Row",
+                "values": [
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "balance_sheet": {
+            "columns": [
+              "2025-09-30",
+              "2024-09-30"
+            ],
+            "rows": [
+              {
+                "index": "Total Revenue",
+                "values": [
+                  1000.0,
+                  900.0
+                ]
+              },
+              {
+                "index": "Gross Profit",
+                "values": [
+                  500.0,
+                  450.0
+                ]
+              },
+              {
+                "index": "Empty Row",
+                "values": [
+                  null,
+                  null
+                ]
+              }
+            ]
+          }
+        },
+        "frequency": "ttm",
+        "currency": "USD"
+      },
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "statements": {
+          "income_statement": "success",
+          "balance_sheet": "unsupported"
+        },
+        "records": [
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "ttm",
+            "account": "Total Revenue",
+            "value": 1000.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "ttm",
+            "account": "Total Revenue",
+            "value": 900.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "ttm",
+            "account": "Gross Profit",
+            "value": 500.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "ttm",
+            "account": "Gross Profit",
+            "value": 450.0,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2025-09-30",
+            "frequency": "ttm",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          },
+          {
+            "statement": "income_statement",
+            "period_end": "2024-09-30",
+            "frequency": "ttm",
+            "account": "Empty Row",
+            "value": null,
+            "currency": "USD",
+            "unit": null,
+            "published_at": null,
+            "available_at": null
+          }
+        ],
+        "currency": "USD",
+        "warnings": [
+          "period_end_is_not_disclosure_date",
+          "units_not_confirmed"
+        ]
+      }
+    },
+    {
+      "kind": "financials",
+      "input": {
+        "statements": {
+          "income_statement": {
+            "columns": [
+              "2025-09-30",
+              "2024-09-30"
+            ],
+            "rows": [
+              {
+                "index": "Total Revenue",
+                "values": [
+                  1000.0,
+                  900.0
+                ]
+              },
+              {
+                "index": "Gross Profit",
+                "values": [
+                  500.0,
+                  450.0
+                ]
+              },
+              {
+                "index": "Empty Row",
+                "values": [
+                  null,
+                  null
+                ]
+              }
+            ]
+          },
+          "balance_sheet": {
+            "columns": [
+              "2025-09-30",
+              "2024-09-30"
+            ],
+            "rows": [
+              {
+                "index": "Total Revenue",
+                "values": [
+                  1000.0,
+                  900.0
+                ]
+              },
+              {
+                "index": "Gross Profit",
+                "values": [
+                  500.0,
+                  450.0
+                ]
+              },
+              {
+                "index": "Empty Row",
+                "values": [
+                  null,
+                  null
+                ]
+              }
+            ]
+          }
+        },
+        "frequency": "monthly",
+        "currency": null
+      },
+      "ok": false,
+      "error_type": "ValueError",
+      "error_message": "Unsupported financial frequency"
+    }
+  ]
+}

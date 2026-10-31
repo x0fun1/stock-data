@@ -172,7 +172,7 @@ components{risk_adjusted,regression_trend,relative_strength}, diagnostic_rank_ic
 
 ### 11.1 A/B 对照（已执行，协议 momentum-ab-v1）
 
-`stock-data/scripts/momentum_ab.py` 实现预登记协议，只做评估：不写 `prob_up`、不拟合权重、
+原生 `experiments momentum-ab`（历史实现见仓库 `legacy/python/momentum_ab.py`）实现预登记协议，只做评估：不写 `prob_up`、不拟合权重、
 不重标定尺度、不改聚合顺序。判定规则在看结果之前写进 `PREREGISTRATION` 并原样进入报告。
 
 - 信号 A = 裸 20 日 ROC（概率路径实际依赖的量）；信号 B = 冻结的 50/30/20 综合分。

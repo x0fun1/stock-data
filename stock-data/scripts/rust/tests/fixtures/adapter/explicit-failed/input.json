@@ -1,0 +1,6 @@
+{
+  "market": {
+    "status": "failed",
+    "error": "upstream 500"
+  }
+}

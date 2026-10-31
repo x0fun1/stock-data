@@ -1,0 +1,575 @@
+{
+  "magnitude": {
+    "severe": {
+      "band": "severe",
+      "observed_abs_return": 0.11,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "band_tolerance": 1e-09,
+      "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "boundary_major": {
+      "band": "major",
+      "observed_abs_return": 0.1,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "band_tolerance": 1e-09,
+      "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "major": {
+      "band": "major",
+      "observed_abs_return": 0.05,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "band_tolerance": 1e-09,
+      "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "moderate": {
+      "band": "moderate",
+      "observed_abs_return": 0.03,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "band_tolerance": 1e-09,
+      "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "boundary_minor": {
+      "band": "minor",
+      "observed_abs_return": 0.005,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "band_tolerance": 1e-09,
+      "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "negligible": {
+      "band": "negligible",
+      "observed_abs_return": 0.001,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "band_tolerance": 1e-09,
+      "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "none": {
+      "band": "not_assessed",
+      "observed_abs_return": null,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "warning": "no mature frozen session follows this event; magnitude is not assessed"
+    },
+    "intraday": {
+      "band": "not_assessed",
+      "observed_abs_return": 0.2,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "reaction_status": "intraday_daily_association",
+      "warning": "whole-session return includes pre-publication trading; the move is not attributable to the event window",
+      "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "unclassifiable": {
+      "band": "not_assessed",
+      "observed_abs_return": 0.02,
+      "thresholds": "single_instrument_absolute_return_bands",
+      "reaction_status": "not_classifiable",
+      "warning": "reaction direction is not classifiable; the impact band is not asserted",
+      "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+      "calibration_status": "heuristic_uncalibrated"
+    }
+  },
+  "patterns": {
+    "amplified": {
+      "pattern": "amplified",
+      "reason": "observed move relative to this symbol's own trailing return sigma",
+      "observed_abs_return": 0.4,
+      "trailing_sigma": 0.005987,
+      "trailing_sigma_observations": 9,
+      "ratio_to_trailing_sigma": 66.8148,
+      "baseline": "own_trailing_return_sigma_up_to_20_sessions",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "consistent": {
+      "pattern": "amplified",
+      "reason": "observed move relative to this symbol's own trailing return sigma",
+      "observed_abs_return": 0.2,
+      "trailing_sigma": 0.005987,
+      "trailing_sigma_observations": 9,
+      "ratio_to_trailing_sigma": 33.4074,
+      "baseline": "own_trailing_return_sigma_up_to_20_sessions",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "dampened": {
+      "pattern": "amplified",
+      "reason": "observed move relative to this symbol's own trailing return sigma",
+      "observed_abs_return": 0.05,
+      "trailing_sigma": 0.005987,
+      "trailing_sigma_observations": 9,
+      "ratio_to_trailing_sigma": 8.3518,
+      "baseline": "own_trailing_return_sigma_up_to_20_sessions",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "inverse": {
+      "pattern": "inverse",
+      "reason": "observed price direction opposes the event direction",
+      "observed_abs_return": 0.4,
+      "trailing_sigma": 0.005987,
+      "trailing_sigma_observations": 9,
+      "ratio_to_trailing_sigma": 66.8148,
+      "baseline": "own_trailing_return_sigma_up_to_20_sessions",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "intraday": {
+      "pattern": "not_assessed",
+      "reason": "whole-session window includes pre-publication trading",
+      "observed_abs_return": 0.4,
+      "trailing_sigma": 0.005987,
+      "trailing_sigma_observations": 9,
+      "ratio_to_trailing_sigma": 66.8148,
+      "baseline": "own_trailing_return_sigma_up_to_20_sessions",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "unclassifiable": {
+      "pattern": "not_assessed",
+      "reason": "no usable frozen market reaction",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "degenerate": {
+      "pattern": "not_assessed",
+      "reason": "insufficient trailing returns or a degenerate volatility baseline for a volatility ratio",
+      "trailing_sigma_observations": 9,
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "no_index": {
+      "pattern": "not_assessed",
+      "reason": "event session index unavailable in frozen bars",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "empty_closes": {
+      "pattern": "not_assessed",
+      "reason": "event session index unavailable in frozen bars",
+      "calibration_status": "heuristic_uncalibrated"
+    },
+    "trailing_sigma": {
+      "short": [
+        null,
+        0
+      ],
+      "tiny": [
+        null,
+        0
+      ]
+    }
+  },
+  "breadth": {
+    "MACRO": {
+      "declared_scope": "cross_asset_candidate",
+      "note": "macro or policy event may transmit beyond this ticker; not measured here",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    },
+    "EARNINGS": {
+      "declared_scope": "company_and_sector_candidate",
+      "note": "earnings, guidance or revision may transmit to a sector; not measured here",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    },
+    "GUIDANCE": {
+      "declared_scope": "company_and_sector_candidate",
+      "note": "earnings, guidance or revision may transmit to a sector; not measured here",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    },
+    "ANALYST_REVISION": {
+      "declared_scope": "company_and_sector_candidate",
+      "note": "earnings, guidance or revision may transmit to a sector; not measured here",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    },
+    "SUPPLY_CHAIN": {
+      "declared_scope": "sector_candidate",
+      "note": "industry or regulatory transmission is possible; not measured here",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    },
+    "COMPETITION": {
+      "declared_scope": "sector_candidate",
+      "note": "industry or regulatory transmission is possible; not measured here",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    },
+    "REGULATORY": {
+      "declared_scope": "sector_candidate",
+      "note": "industry or regulatory transmission is possible; not measured here",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    },
+    "PRODUCT": {
+      "declared_scope": "company_specific_candidate",
+      "note": "no declared transmission beyond the analysed ticker",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    },
+    "None": {
+      "declared_scope": "company_specific_candidate",
+      "note": "no declared transmission beyond the analysed ticker",
+      "observed_breadth": "not_assessed",
+      "observation_limit": "single_frozen_ticker_ohlcv_only"
+    }
+  },
+  "tiers": {
+    "empty": {
+      "tier": "unclassified_publisher",
+      "tier_meaning": "Publisher identity is absent or unrecognized; tier not asserted.",
+      "publishers": [],
+      "per_publisher": {},
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": null
+    },
+    "reuters": {
+      "tier": "tier2_major_financial_news",
+      "tier_meaning": "Major financial newsroom or wire service.",
+      "publishers": [
+        "Reuters"
+      ],
+      "per_publisher": {
+        "Reuters": "tier2_major_financial_news"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.0
+    },
+    "blog_contains_sec": {
+      "tier": "unclassified_publisher",
+      "tier_meaning": "Publisher identity is absent or unrecognized; tier not asserted.",
+      "publishers": [
+        "Security Finance Blog"
+      ],
+      "per_publisher": {
+        "Security Finance Blog": "unclassified_publisher"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 1.0
+    },
+    "wsj_with_article": {
+      "tier": "tier2_major_financial_news",
+      "tier_meaning": "Major financial newsroom or wire service.",
+      "publishers": [
+        "The Wall Street Journal"
+      ],
+      "per_publisher": {
+        "The Wall Street Journal": "tier2_major_financial_news"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.0
+    },
+    "domain_suffix": {
+      "tier": "tier2_major_financial_news",
+      "tier_meaning": "Major financial newsroom or wire service.",
+      "publishers": [
+        "Reuters.com"
+      ],
+      "per_publisher": {
+        "Reuters.com": "tier2_major_financial_news"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.0
+    },
+    "relay_suffix": {
+      "tier": "tier2_major_financial_news",
+      "tier_meaning": "Major financial newsroom or wire service.",
+      "publishers": [
+        "Reuters - Yahoo Finance"
+      ],
+      "per_publisher": {
+        "Reuters - Yahoo Finance": "tier2_major_financial_news"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.0
+    },
+    "some_blog_via_reuters": {
+      "tier": "unclassified_publisher",
+      "tier_meaning": "Publisher identity is absent or unrecognized; tier not asserted.",
+      "publishers": [
+        "Some Blog via Reuters"
+      ],
+      "per_publisher": {
+        "Some Blog via Reuters": "unclassified_publisher"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 1.0
+    },
+    "reuters_via_some_blog": {
+      "tier": "tier2_major_financial_news",
+      "tier_meaning": "Major financial newsroom or wire service.",
+      "publishers": [
+        "Reuters via Some Blog"
+      ],
+      "per_publisher": {
+        "Reuters via Some Blog": "tier2_major_financial_news"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.0
+    },
+    "symbol_authority": {
+      "tier": "tier2_major_financial_news",
+      "tier_meaning": "Major financial newsroom or wire service.",
+      "publishers": [
+        "AP News"
+      ],
+      "per_publisher": {
+        "AP News": "tier2_major_financial_news"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.0
+    },
+    "yahoo_domain": {
+      "tier": "tier4_analysis_and_aggregator",
+      "tier_meaning": "Analysis, commentary, or an aggregator relaying another publisher.",
+      "publishers": [
+        "finance.yahoo.com"
+      ],
+      "per_publisher": {
+        "finance.yahoo.com": "tier4_analysis_and_aggregator"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.0
+    },
+    "mixed_cluster": {
+      "tier": "unclassified_publisher",
+      "tier_meaning": "Publisher identity is absent or unrecognized; tier not asserted.",
+      "publishers": [
+        "AP News",
+        "Reuters",
+        "Some Blog"
+      ],
+      "per_publisher": {
+        "AP News": "tier2_major_financial_news",
+        "Reuters": "tier2_major_financial_news",
+        "Some Blog": "unclassified_publisher"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.3333
+    },
+    "duplicates": {
+      "tier": "tier2_major_financial_news",
+      "tier_meaning": "Major financial newsroom or wire service.",
+      "publishers": [
+        "Reuters"
+      ],
+      "per_publisher": {
+        "Reuters": "tier2_major_financial_news"
+      },
+      "selection_rule": "weakest_publisher_in_cluster",
+      "match_rule": "exact_normalized_alias_only",
+      "calibration_status": "heuristic_uncalibrated",
+      "rule_version": "publisher_tier_exact_alias_v1",
+      "unrecognized_ratio": 0.0
+    }
+  },
+  "assess": {
+    "positive_card": {
+      "magnitude": {
+        "band": "severe",
+        "observed_abs_return": 0.4,
+        "thresholds": "single_instrument_absolute_return_bands",
+        "band_tolerance": 1e-09,
+        "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+        "calibration_status": "heuristic_uncalibrated"
+      },
+      "pattern_comparison": {
+        "pattern": "amplified",
+        "reason": "observed move relative to this symbol's own trailing return sigma",
+        "observed_abs_return": 0.4,
+        "trailing_sigma": 0.005987,
+        "trailing_sigma_observations": 9,
+        "ratio_to_trailing_sigma": 66.8148,
+        "baseline": "own_trailing_return_sigma_up_to_20_sessions",
+        "calibration_status": "heuristic_uncalibrated"
+      },
+      "breadth_scope": {
+        "declared_scope": "company_and_sector_candidate",
+        "note": "earnings, guidance or revision may transmit to a sector; not measured here",
+        "observed_breadth": "not_assessed",
+        "observation_limit": "single_frozen_ticker_ohlcv_only"
+      },
+      "source_tier": {
+        "tier": "unclassified_publisher",
+        "tier_meaning": "Publisher identity is absent or unrecognized; tier not asserted.",
+        "publishers": [
+          "Reuters",
+          "Some Blog"
+        ],
+        "per_publisher": {
+          "Reuters": "tier2_major_financial_news",
+          "Some Blog": "unclassified_publisher"
+        },
+        "selection_rule": "weakest_publisher_in_cluster",
+        "match_rule": "exact_normalized_alias_only",
+        "calibration_status": "heuristic_uncalibrated",
+        "rule_version": "publisher_tier_exact_alias_v1",
+        "unrecognized_ratio": 0.5
+      },
+      "attribution_caveats": [
+        "Daily-bar association is temporal only; it does not establish that the headline caused the move.",
+        "Absence of magnitude is not evidence that the event was unimportant; it may be priced in, offset, or observed on the wrong session.",
+        "Conflicting same-session events cannot be separated in a single close-to-close return; do not attribute the whole move to one headline.",
+        "Recency is not importance; a low-magnitude event can still matter for a longer horizon than the observed session.",
+        "Multiple concurrent events are not separable here; treat any single-event attribution as one candidate explanation.",
+        "Publisher tier reflects an editorial label, not authentication, independence or factual accuracy of a specific claim."
+      ],
+      "composite_impact_score": "not_implemented",
+      "composite_impact_score_reason": "an uncalibrated pseudo-precise score is not produced by this runtime"
+    },
+    "intraday_macro": {
+      "magnitude": {
+        "band": "not_assessed",
+        "observed_abs_return": 0.12,
+        "thresholds": "single_instrument_absolute_return_bands",
+        "reaction_status": "intraday_daily_association",
+        "warning": "whole-session return includes pre-publication trading; the move is not attributable to the event window",
+        "basis": "frozen_daily_close_to_close_return_only; not an index, sector or intraday move",
+        "calibration_status": "heuristic_uncalibrated"
+      },
+      "pattern_comparison": {
+        "pattern": "not_assessed",
+        "reason": "whole-session window includes pre-publication trading",
+        "observed_abs_return": 0.12,
+        "trailing_sigma": 0.005987,
+        "trailing_sigma_observations": 9,
+        "ratio_to_trailing_sigma": 20.0444,
+        "baseline": "own_trailing_return_sigma_up_to_20_sessions",
+        "calibration_status": "heuristic_uncalibrated"
+      },
+      "breadth_scope": {
+        "declared_scope": "cross_asset_candidate",
+        "note": "macro or policy event may transmit beyond this ticker; not measured here",
+        "observed_breadth": "not_assessed",
+        "observation_limit": "single_frozen_ticker_ohlcv_only"
+      },
+      "source_tier": {
+        "tier": "tier1_official_primary",
+        "tier_meaning": "Official primary record: regulator, central bank, exchange or issuer filing.",
+        "publishers": [
+          "Federal Reserve"
+        ],
+        "per_publisher": {
+          "Federal Reserve": "tier1_official_primary"
+        },
+        "selection_rule": "weakest_publisher_in_cluster",
+        "match_rule": "exact_normalized_alias_only",
+        "calibration_status": "heuristic_uncalibrated",
+        "rule_version": "publisher_tier_exact_alias_v1",
+        "unrecognized_ratio": 0.0
+      },
+      "attribution_caveats": [
+        "Daily-bar association is temporal only; it does not establish that the headline caused the move.",
+        "Absence of magnitude is not evidence that the event was unimportant; it may be priced in, offset, or observed on the wrong session.",
+        "Conflicting same-session events cannot be separated in a single close-to-close return; do not attribute the whole move to one headline.",
+        "Recency is not importance; a low-magnitude event can still matter for a longer horizon than the observed session.",
+        "Multiple concurrent events are not separable here; treat any single-event attribution as one candidate explanation.",
+        "Publisher tier reflects an editorial label, not authentication, independence or factual accuracy of a specific claim."
+      ],
+      "composite_impact_score": "not_implemented",
+      "composite_impact_score_reason": "an uncalibrated pseudo-precise score is not produced by this runtime"
+    }
+  },
+  "tier_meanings": {
+    "tier1_official_primary": "Official primary record: regulator, central bank, exchange or issuer filing.",
+    "tier2_major_financial_news": "Major financial newsroom or wire service.",
+    "tier3_specialized_real_time": "Specialized or real-time market coverage.",
+    "tier4_analysis_and_aggregator": "Analysis, commentary, or an aggregator relaying another publisher.",
+    "unclassified_publisher": "Publisher identity is absent or unrecognized; tier not asserted."
+  },
+  "caveats": [
+    "Daily-bar association is temporal only; it does not establish that the headline caused the move.",
+    "Absence of magnitude is not evidence that the event was unimportant; it may be priced in, offset, or observed on the wrong session.",
+    "Conflicting same-session events cannot be separated in a single close-to-close return; do not attribute the whole move to one headline.",
+    "Recency is not importance; a low-magnitude event can still matter for a longer horizon than the observed session.",
+    "Multiple concurrent events are not separable here; treat any single-event attribution as one candidate explanation.",
+    "Publisher tier reflects an editorial label, not authentication, independence or factual accuracy of a specific claim."
+  ],
+  "constants": {
+    "bands": [
+      [
+        "severe",
+        0.1
+      ],
+      [
+        "major",
+        0.05
+      ],
+      [
+        "moderate",
+        0.02
+      ],
+      [
+        "minor",
+        0.005
+      ]
+    ],
+    "patterns": [
+      [
+        "amplified",
+        1.0
+      ],
+      [
+        "consistent",
+        0.5
+      ]
+    ],
+    "tolerance": 1e-09,
+    "minimum_sigma": 0.0001
+  },
+  "inputs": {
+    "closes": [
+      100.0,
+      100.4,
+      100.1,
+      100.8,
+      100.3,
+      101.2,
+      100.9,
+      101.5,
+      101.0,
+      101.9,
+      101.4,
+      102.3,
+      101.8,
+      102.6,
+      102.1,
+      103.0,
+      102.4,
+      103.3,
+      102.7,
+      103.6
+    ]
+  }
+}

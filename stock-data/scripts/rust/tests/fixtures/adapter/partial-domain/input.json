@@ -1,0 +1,9 @@
+{
+  "market": {
+    "status": "partial",
+    "source": "selfcheck-feed",
+    "data": {
+      "bars": []
+    }
+  }
+}

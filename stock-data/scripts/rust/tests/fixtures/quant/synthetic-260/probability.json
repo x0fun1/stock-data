@@ -1,0 +1,14 @@
+{
+  "prob_up": 0.5101224704595716,
+  "direction": "bullish",
+  "probability_source": "drift_shrunk_causal_base_rate",
+  "calibrated_probability": null,
+  "confidence": null,
+  "status": "success",
+  "warnings": [
+    "Returns are gross close-to-close observations; this baseline does not model execution, spreads, slippage or fees.",
+    "The replay ledger records daily predictions whose 5-session labels overlap; the effective sample size is the row count divided by 5, and records remain correlated.",
+    "ROC20 is retained as a disclosed state variable only; it no longer enters the probability.",
+    "The 5D target excludes cash dividends; a window spanning an ex-dividend date can flip a near-flat label downward."
+  ]
+}

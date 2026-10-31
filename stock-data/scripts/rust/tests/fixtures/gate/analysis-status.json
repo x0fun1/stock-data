@@ -1,0 +1,65 @@
+[
+  {
+    "may_report_direction": false,
+    "reporting_state": "pass",
+    "researcher_statuses": [
+      "success"
+    ],
+    "news_status": "complete",
+    "result": "abstain"
+  },
+  {
+    "may_report_direction": true,
+    "reporting_state": "veto",
+    "researcher_statuses": [
+      "success"
+    ],
+    "news_status": "complete",
+    "result": "complete_with_limitations"
+  },
+  {
+    "may_report_direction": true,
+    "reporting_state": "pass",
+    "researcher_statuses": [
+      "success"
+    ],
+    "news_status": "complete",
+    "result": "complete_with_limitations"
+  },
+  {
+    "may_report_direction": true,
+    "reporting_state": "degraded",
+    "researcher_statuses": [
+      "success"
+    ],
+    "news_status": "complete",
+    "result": "degraded"
+  },
+  {
+    "may_report_direction": true,
+    "reporting_state": "pass",
+    "researcher_statuses": [
+      "partial"
+    ],
+    "news_status": "complete",
+    "result": "complete_with_limitations"
+  },
+  {
+    "may_report_direction": true,
+    "reporting_state": "pass",
+    "researcher_statuses": [
+      "failed"
+    ],
+    "news_status": "complete",
+    "result": "degraded"
+  },
+  {
+    "may_report_direction": true,
+    "reporting_state": "pass",
+    "researcher_statuses": [
+      "success"
+    ],
+    "news_status": "partial",
+    "result": "degraded"
+  }
+]

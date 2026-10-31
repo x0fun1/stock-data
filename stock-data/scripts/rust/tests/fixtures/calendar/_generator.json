@@ -1,0 +1,11 @@
+{
+  "library": "exchange_calendars",
+  "version": "4.13.2",
+  "python_version": "3.13.7",
+  "generated_at_utc": "2026-10-30T17:32:01Z",
+  "anchors": {
+    "phases": "2000-01-03",
+    "note": "R03 verifies the phase anchor is covered"
+  },
+  "source_note": "Generated from the installed pinned calendar library; synthetic weekdays are never used here."
+}

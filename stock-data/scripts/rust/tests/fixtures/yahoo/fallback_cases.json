@@ -1,0 +1,1666 @@
+{
+  "generated_from": "stock-data/scripts/yahoo_compat_fallback.py",
+  "note": "scripted gateway with a fixed clock; envelopes/errors recorded verbatim",
+  "cases": [
+    {
+      "function": "yahoo_history",
+      "params": {
+        "symbol": "AAPL",
+        "period": "1mo"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "stock_kline_yahoo": {
+          "return": {
+            "bars": [
+              {
+                "date": "2026-01-02",
+                "timestamp_utc": "2026-01-02T14:30:00Z",
+                "Open": 100.0,
+                "High": 103.0,
+                "Low": 99.5,
+                "Close": 102.5,
+                "Volume": 1000
+              },
+              {
+                "date": "2026-01-05",
+                "timestamp_utc": "2026-01-05T14:30:00Z",
+                "Open": 102.5,
+                "High": 104.0,
+                "Low": 101.0,
+                "Close": 103.0,
+                "Volume": 1200
+              }
+            ],
+            "meta": {
+              "symbol": "AAPL",
+              "currency": "USD",
+              "exchangeTimezoneName": "America/New_York"
+            },
+            "adjclose": [
+              {
+                "adjclose": [
+                  101.25,
+                  103.0
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T14:30:00Z",
+              "timestamp_utc": "2026-01-02T14:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": 101.25,
+              "volume": 1000,
+              "adjustment_ratio": 0.9878048780487805,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 100.0,
+              "high": 103.0,
+              "low": 99.5,
+              "close": 102.5,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": "2026-01-05T14:30:00Z",
+              "timestamp_utc": "2026-01-05T14:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-05",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "unit": null,
+        "frequency": "1d",
+        "source_timestamp": "2026-01-05T14:30:00Z",
+        "source_timestamp_kind": "bar_label_not_trade_time",
+        "last_bar_closed": null,
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": "2026-01-05",
+          "actions": [],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T14:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": "2026-01-05T14:30:00Z",
+              "ratio": 1.0
+            }
+          ]
+        },
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "stock_kline_yahoo",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "Legacy chart fallback uses coarse range windows; date filtering does not prove complete requested coverage.",
+          "Legacy Yahoo source does not confirm unit or bar closure; existing gates remain in force."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "stock_kline_yahoo",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_history",
+      "params": {
+        "symbol": "AAPL",
+        "price_basis": "adjusted"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "stock_kline_yahoo": {
+          "return": {
+            "bars": [
+              {
+                "date": "2026-01-02",
+                "timestamp_utc": "2026-01-02T14:30:00Z",
+                "Open": 100.0,
+                "High": 103.0,
+                "Low": 99.5,
+                "Close": 102.5,
+                "Volume": 1000
+              },
+              {
+                "date": "2026-01-05",
+                "timestamp_utc": "2026-01-05T14:30:00Z",
+                "Open": 102.5,
+                "High": 104.0,
+                "Low": 101.0,
+                "Close": 103.0,
+                "Volume": 1200
+              }
+            ],
+            "meta": {
+              "symbol": "AAPL",
+              "currency": "USD",
+              "exchangeTimezoneName": "America/New_York"
+            },
+            "adjclose": null
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-02",
+              "timestamp": "2026-01-02T14:30:00Z",
+              "timestamp_utc": "2026-01-02T14:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 100.0,
+                "high": 103.0,
+                "low": 99.5,
+                "close": 102.5
+              },
+              "adj_close": null,
+              "volume": 1000,
+              "adjustment_ratio": null,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 100.0,
+              "high": 103.0,
+              "low": 99.5,
+              "close": 102.5,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp": "2026-01-05T14:30:00Z",
+              "timestamp_utc": "2026-01-05T14:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": null,
+              "volume": 1200,
+              "adjustment_ratio": null,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-02",
+            "end": "2026-01-05",
+            "selection_rule": "actual_returned_bars; closure not asserted"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "unit": null,
+        "frequency": "1d",
+        "source_timestamp": "2026-01-05T14:30:00Z",
+        "source_timestamp_kind": "bar_label_not_trade_time",
+        "last_bar_closed": null,
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": "2026-01-05",
+          "actions": [],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T14:30:00Z",
+              "ratio": null
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": "2026-01-05T14:30:00Z",
+              "ratio": null
+            }
+          ]
+        },
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "stock_kline_yahoo",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "Legacy chart fallback uses coarse range windows; date filtering does not prove complete requested coverage.",
+          "Legacy Yahoo source does not confirm unit or bar closure; existing gates remain in force.",
+          "Legacy chart response omitted adjusted-close values; provider OHLC basis retained."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "stock_kline_yahoo",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_history",
+      "params": {
+        "symbol": "AAPL",
+        "start": "2026-01-03",
+        "end": "2026-01-08"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "stock_kline_yahoo": {
+          "return": {
+            "bars": [
+              {
+                "date": "2026-01-02",
+                "timestamp_utc": "2026-01-02T14:30:00Z",
+                "Open": 100.0,
+                "High": 103.0,
+                "Low": 99.5,
+                "Close": 102.5,
+                "Volume": 1000
+              },
+              {
+                "date": "2026-01-05",
+                "timestamp_utc": "2026-01-05T14:30:00Z",
+                "Open": 102.5,
+                "High": 104.0,
+                "Low": 101.0,
+                "Close": 103.0,
+                "Volume": 1200
+              }
+            ],
+            "meta": {
+              "symbol": "AAPL",
+              "currency": "USD",
+              "exchangeTimezoneName": "America/New_York"
+            },
+            "adjclose": [
+              {
+                "adjclose": [
+                  101.25,
+                  103.0
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "bars": [
+            {
+              "date": "2026-01-05",
+              "timestamp": "2026-01-05T14:30:00Z",
+              "timestamp_utc": "2026-01-05T14:30:00Z",
+              "timezone": "America/New_York",
+              "provider_ohlc": {
+                "open": 102.5,
+                "high": 104.0,
+                "low": 101.0,
+                "close": 103.0
+              },
+              "adj_close": 103.0,
+              "volume": 1200,
+              "adjustment_ratio": 1.0,
+              "price_basis": "provider",
+              "missing_fields": [],
+              "open": 102.5,
+              "high": 104.0,
+              "low": 101.0,
+              "close": 103.0,
+              "dividends": null,
+              "stock_splits": null,
+              "capital_gains": null
+            }
+          ],
+          "history_window": {
+            "start": "2026-01-05",
+            "end": "2026-01-05",
+            "selection_rule": "legacy range window filtered to requested dates; coverage may be incomplete"
+          },
+          "symbol": "AAPL",
+          "source_symbol": "AAPL",
+          "currency": "USD",
+          "frequency": "1d"
+        },
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "source_symbol": "AAPL",
+        "currency": "USD",
+        "unit": null,
+        "frequency": "1d",
+        "source_timestamp": "2026-01-05T14:30:00Z",
+        "source_timestamp_kind": "bar_label_not_trade_time",
+        "last_bar_closed": null,
+        "adjustment": "provider",
+        "adjustment_evidence": {
+          "source": "Yahoo Finance",
+          "price_basis": "provider",
+          "checked_through": "2026-01-05",
+          "actions": [],
+          "action_schema_version": "yahoo_actions_v2",
+          "action_coverage_confirmed": false,
+          "coverage_scope": "returned_bars_only",
+          "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+          "transformation": "none",
+          "ratios": [
+            {
+              "date": "2026-01-02",
+              "timestamp_utc": "2026-01-02T14:30:00Z",
+              "ratio": 0.9878048780487805
+            },
+            {
+              "date": "2026-01-05",
+              "timestamp_utc": "2026-01-05T14:30:00Z",
+              "ratio": 1.0
+            }
+          ]
+        },
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "stock_kline_yahoo",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "Legacy chart fallback uses coarse range windows; date filtering does not prove complete requested coverage.",
+          "Legacy Yahoo source does not confirm unit or bar closure; existing gates remain in force."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "stock_kline_yahoo",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_history_batch",
+      "params": {
+        "symbols": [
+          "AAPL",
+          "MSFT"
+        ],
+        "period": "1mo"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "stock_kline_yahoo": {
+          "return": {
+            "bars": [
+              {
+                "date": "2026-01-02",
+                "timestamp_utc": "2026-01-02T14:30:00Z",
+                "Open": 100.0,
+                "High": 103.0,
+                "Low": 99.5,
+                "Close": 102.5,
+                "Volume": 1000
+              },
+              {
+                "date": "2026-01-05",
+                "timestamp_utc": "2026-01-05T14:30:00Z",
+                "Open": 102.5,
+                "High": 104.0,
+                "Low": 101.0,
+                "Close": 103.0,
+                "Volume": 1200
+              }
+            ],
+            "meta": {
+              "symbol": "AAPL",
+              "currency": "USD",
+              "exchangeTimezoneName": "America/New_York"
+            },
+            "adjclose": [
+              {
+                "adjclose": [
+                  101.25,
+                  103.0
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "policy_calls": 2,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "symbols": {
+            "AAPL": {
+              "status": "partial",
+              "data": {
+                "bars": [
+                  {
+                    "date": "2026-01-02",
+                    "timestamp": "2026-01-02T14:30:00Z",
+                    "timestamp_utc": "2026-01-02T14:30:00Z",
+                    "timezone": "America/New_York",
+                    "provider_ohlc": {
+                      "open": 100.0,
+                      "high": 103.0,
+                      "low": 99.5,
+                      "close": 102.5
+                    },
+                    "adj_close": 101.25,
+                    "volume": 1000,
+                    "adjustment_ratio": 0.9878048780487805,
+                    "price_basis": "provider",
+                    "missing_fields": [],
+                    "open": 100.0,
+                    "high": 103.0,
+                    "low": 99.5,
+                    "close": 102.5,
+                    "dividends": null,
+                    "stock_splits": null,
+                    "capital_gains": null
+                  },
+                  {
+                    "date": "2026-01-05",
+                    "timestamp": "2026-01-05T14:30:00Z",
+                    "timestamp_utc": "2026-01-05T14:30:00Z",
+                    "timezone": "America/New_York",
+                    "provider_ohlc": {
+                      "open": 102.5,
+                      "high": 104.0,
+                      "low": 101.0,
+                      "close": 103.0
+                    },
+                    "adj_close": 103.0,
+                    "volume": 1200,
+                    "adjustment_ratio": 1.0,
+                    "price_basis": "provider",
+                    "missing_fields": [],
+                    "open": 102.5,
+                    "high": 104.0,
+                    "low": 101.0,
+                    "close": 103.0,
+                    "dividends": null,
+                    "stock_splits": null,
+                    "capital_gains": null
+                  }
+                ],
+                "history_window": {
+                  "start": "2026-01-02",
+                  "end": "2026-01-05",
+                  "selection_rule": "actual_returned_bars; closure not asserted"
+                },
+                "symbol": "AAPL",
+                "source_symbol": "AAPL",
+                "currency": "USD",
+                "frequency": "1d"
+              },
+              "actual_source": "Yahoo Finance",
+              "fetched_at_utc": "2026-01-09T15:00:00Z",
+              "source_symbol": "AAPL",
+              "currency": "USD",
+              "unit": null,
+              "frequency": "1d",
+              "source_timestamp": "2026-01-05T14:30:00Z",
+              "source_timestamp_kind": "bar_label_not_trade_time",
+              "last_bar_closed": null,
+              "adjustment": "provider",
+              "adjustment_evidence": {
+                "source": "Yahoo Finance",
+                "price_basis": "provider",
+                "checked_through": "2026-01-05",
+                "actions": [],
+                "action_schema_version": "yahoo_actions_v2",
+                "action_coverage_confirmed": false,
+                "coverage_scope": "returned_bars_only",
+                "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+                "transformation": "none",
+                "ratios": [
+                  {
+                    "date": "2026-01-02",
+                    "timestamp_utc": "2026-01-02T14:30:00Z",
+                    "ratio": 0.9878048780487805
+                  },
+                  {
+                    "date": "2026-01-05",
+                    "timestamp_utc": "2026-01-05T14:30:00Z",
+                    "ratio": 1.0
+                  }
+                ]
+              },
+              "provider_library": "legacy_compat",
+              "provider_version": "stock-data gateway",
+              "fallback_attempted": true,
+              "fallback_used": true,
+              "fallback_route": "stock_kline_yahoo",
+              "fallback_reason": null,
+              "warnings": [
+                "Legacy chart fallback uses coarse range windows; date filtering does not prove complete requested coverage.",
+                "Legacy Yahoo source does not confirm unit or bar closure; existing gates remain in force."
+              ],
+              "provenance": {
+                "library": "legacy_compat",
+                "route": "stock_kline_yahoo",
+                "raw_http_payload_captured": false
+              }
+            },
+            "MSFT": {
+              "status": "partial",
+              "data": {
+                "bars": [
+                  {
+                    "date": "2026-01-02",
+                    "timestamp": "2026-01-02T14:30:00Z",
+                    "timestamp_utc": "2026-01-02T14:30:00Z",
+                    "timezone": "America/New_York",
+                    "provider_ohlc": {
+                      "open": 100.0,
+                      "high": 103.0,
+                      "low": 99.5,
+                      "close": 102.5
+                    },
+                    "adj_close": 101.25,
+                    "volume": 1000,
+                    "adjustment_ratio": 0.9878048780487805,
+                    "price_basis": "provider",
+                    "missing_fields": [],
+                    "open": 100.0,
+                    "high": 103.0,
+                    "low": 99.5,
+                    "close": 102.5,
+                    "dividends": null,
+                    "stock_splits": null,
+                    "capital_gains": null
+                  },
+                  {
+                    "date": "2026-01-05",
+                    "timestamp": "2026-01-05T14:30:00Z",
+                    "timestamp_utc": "2026-01-05T14:30:00Z",
+                    "timezone": "America/New_York",
+                    "provider_ohlc": {
+                      "open": 102.5,
+                      "high": 104.0,
+                      "low": 101.0,
+                      "close": 103.0
+                    },
+                    "adj_close": 103.0,
+                    "volume": 1200,
+                    "adjustment_ratio": 1.0,
+                    "price_basis": "provider",
+                    "missing_fields": [],
+                    "open": 102.5,
+                    "high": 104.0,
+                    "low": 101.0,
+                    "close": 103.0,
+                    "dividends": null,
+                    "stock_splits": null,
+                    "capital_gains": null
+                  }
+                ],
+                "history_window": {
+                  "start": "2026-01-02",
+                  "end": "2026-01-05",
+                  "selection_rule": "actual_returned_bars; closure not asserted"
+                },
+                "symbol": "AAPL",
+                "source_symbol": "AAPL",
+                "currency": "USD",
+                "frequency": "1d"
+              },
+              "actual_source": "Yahoo Finance",
+              "fetched_at_utc": "2026-01-09T15:00:00Z",
+              "source_symbol": "AAPL",
+              "currency": "USD",
+              "unit": null,
+              "frequency": "1d",
+              "source_timestamp": "2026-01-05T14:30:00Z",
+              "source_timestamp_kind": "bar_label_not_trade_time",
+              "last_bar_closed": null,
+              "adjustment": "provider",
+              "adjustment_evidence": {
+                "source": "Yahoo Finance",
+                "price_basis": "provider",
+                "checked_through": "2026-01-05",
+                "actions": [],
+                "action_schema_version": "yahoo_actions_v2",
+                "action_coverage_confirmed": false,
+                "coverage_scope": "returned_bars_only",
+                "coverage_note": "observed actions only, scoped to the returned bars; an empty list does not prove that no action occurred, and a provider omission is undetectable here. The freeze gate reconciles any listed split against the close-to-close step of the series",
+                "transformation": "none",
+                "ratios": [
+                  {
+                    "date": "2026-01-02",
+                    "timestamp_utc": "2026-01-02T14:30:00Z",
+                    "ratio": 0.9878048780487805
+                  },
+                  {
+                    "date": "2026-01-05",
+                    "timestamp_utc": "2026-01-05T14:30:00Z",
+                    "ratio": 1.0
+                  }
+                ]
+              },
+              "provider_library": "legacy_compat",
+              "provider_version": "stock-data gateway",
+              "fallback_attempted": true,
+              "fallback_used": true,
+              "fallback_route": "stock_kline_yahoo",
+              "fallback_reason": null,
+              "warnings": [
+                "Legacy chart fallback uses coarse range windows; date filtering does not prove complete requested coverage.",
+                "Legacy Yahoo source does not confirm unit or bar closure; existing gates remain in force."
+              ],
+              "provenance": {
+                "library": "legacy_compat",
+                "route": "stock_kline_yahoo",
+                "raw_http_payload_captured": false
+              }
+            }
+          }
+        },
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "stock_kline_yahoo",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used.",
+          "Legacy batch fallback performs bounded per-symbol compatibility calls."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "stock_kline_yahoo",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_options",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "options_chain": {
+          "return": {
+            "expiration_dates": [
+              1768511400,
+              1769116200
+            ],
+            "calls": [
+              {
+                "strike": 100.0
+              }
+            ],
+            "puts": [
+              {
+                "strike": 110.0
+              }
+            ],
+            "underlying_price": 101.5
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "expiration_dates": [
+            1768511400,
+            1769116200
+          ],
+          "calls": [
+            {
+              "strike": 100.0
+            }
+          ],
+          "puts": [
+            {
+              "strike": 110.0
+            }
+          ],
+          "underlying_price": 101.5
+        },
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "options_chain",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used.",
+          "Legacy option-chain field names and coverage differ from yfinance."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "options_chain",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_options",
+      "params": {
+        "symbol": "AAPL",
+        "expiration": "2026-01-16"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "options_chain": {
+          "return": {
+            "expiration_dates": [
+              1768511400,
+              1769116200
+            ],
+            "calls": [
+              {
+                "strike": 100.0
+              }
+            ],
+            "puts": [
+              {
+                "strike": 110.0
+              }
+            ],
+            "underlying_price": 101.5
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "error",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "fallback_attempted": true,
+        "fallback_used": false,
+        "fallback_route": "options_chain",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "error": {
+          "category": "LegacyFallbackFailed",
+          "exception_type": "ValueError",
+          "message": "Legacy compatibility fallback did not return data; details redacted."
+        },
+        "warnings": [
+          "yfinance request failed; automatic legacy fallback was attempted."
+        ]
+      }
+    },
+    {
+      "function": "yahoo_options",
+      "params": {
+        "symbol": "AAPL",
+        "expiration": "2026-02-20"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "options_chain": {
+          "return": {
+            "expiration_dates": [
+              1768511400,
+              1769116200
+            ],
+            "calls": [
+              {
+                "strike": 100.0
+              }
+            ],
+            "puts": [
+              {
+                "strike": 110.0
+              }
+            ],
+            "underlying_price": 101.5
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "error",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "fallback_attempted": true,
+        "fallback_used": false,
+        "fallback_route": "options_chain",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "error": {
+          "category": "LegacyFallbackFailed",
+          "exception_type": "ValueError",
+          "message": "Legacy compatibility fallback did not return data; details redacted."
+        },
+        "warnings": [
+          "yfinance request failed; automatic legacy fallback was attempted."
+        ]
+      }
+    },
+    {
+      "function": "yahoo_quote",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "yahoo_quote_summary": {
+          "return": {
+            "price": {
+              "regularMarketPrice": 101.5
+            }
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "price": {
+            "regularMarketPrice": 101.5
+          }
+        },
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "yahoo_quote_summary",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used.",
+          "Legacy quoteSummary structure is returned without the yfinance field projection."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "yahoo_quote_summary",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_profile",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "yahoo_quote_summary": {
+          "return": {
+            "assetProfile": {
+              "sector": "Technology"
+            }
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "assetProfile": {
+            "sector": "Technology"
+          }
+        },
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "yahoo_quote_summary",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used.",
+          "Legacy quoteSummary structure is returned without the yfinance field projection."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "yahoo_quote_summary",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_search",
+      "params": {
+        "query": "apple"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "stock_search": {
+          "return": {
+            "quotes": [
+              {
+                "symbol": "AAPL",
+                "name": "Apple Inc."
+              }
+            ],
+            "source": "eastmoney"
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "quotes": [
+            {
+              "symbol": "AAPL",
+              "name": "Apple Inc."
+            }
+          ],
+          "source": "eastmoney"
+        },
+        "actual_source": "Eastmoney search",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "stock_search",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used.",
+          "Search fallback uses the legacy Eastmoney search route."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "stock_search",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_search",
+      "params": {
+        "query": "apple",
+        "lookup_type": "equity"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {},
+      "policy_calls": 0,
+      "ok": true,
+      "data": {
+        "status": "error",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "fallback_attempted": true,
+        "fallback_used": false,
+        "fallback_route": null,
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "error": {
+          "category": "NoLegacyRoute",
+          "exception_type": "LookupError",
+          "message": "No semantically equivalent legacy compatibility route is registered."
+        },
+        "warnings": [
+          "Automatic legacy fallback was evaluated; no equivalent route is available."
+        ]
+      }
+    },
+    {
+      "function": "yahoo_screen",
+      "params": {
+        "query": "apple"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {},
+      "policy_calls": 0,
+      "ok": true,
+      "data": {
+        "status": "error",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "fallback_attempted": true,
+        "fallback_used": false,
+        "fallback_route": null,
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "error": {
+          "category": "NoLegacyRoute",
+          "exception_type": "LookupError",
+          "message": "No semantically equivalent legacy compatibility route is registered."
+        },
+        "warnings": [
+          "Automatic legacy fallback was evaluated; no equivalent route is available."
+        ]
+      }
+    },
+    {
+      "function": "yahoo_statistics",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "key_statistics": {
+          "return": {
+            "trailing_pe": 28.1
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "partial",
+        "data": {
+          "trailing_pe": 28.1
+        },
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "key_statistics",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "key_statistics",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_analysis",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "analyst_estimates": {
+          "return": {
+            "eps_trend": []
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "analyst_estimates",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "analyst_estimates",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_holders",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "reason": {
+        "category": "ProviderError",
+        "message": "provider failed"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "institutional_holders": {
+          "raise": {
+            "type": "RuntimeError",
+            "message": "boom"
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "error",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "fallback_attempted": true,
+        "fallback_used": false,
+        "fallback_route": "institutional_holders",
+        "fallback_reason": {
+          "category": "ProviderError",
+          "message": "provider failed"
+        },
+        "error": {
+          "category": "LegacyFallbackFailed",
+          "exception_type": "RuntimeError",
+          "message": "Legacy compatibility fallback did not return data; details redacted."
+        },
+        "warnings": [
+          "yfinance request failed; automatic legacy fallback was attempted."
+        ]
+      }
+    },
+    {
+      "function": "yahoo_financials",
+      "params": {
+        "symbol": "AAPL",
+        "frequency": "quarterly"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "financial_statements_yahoo": {
+          "return": {
+            "income": []
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "financial_statements_yahoo",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "financial_statements_yahoo",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_financials",
+      "params": {
+        "symbol": "AAPL",
+        "frequency": "trailing"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "financial_statements_yahoo": {
+          "return": {
+            "income": []
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "financial_statements_yahoo",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used.",
+          "Legacy compatibility route cannot provide a trailing-twelve-month statement."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "financial_statements_yahoo",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_earnings",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "yahoo_quote_summary": {
+          "return": {
+            "earnings": {}
+          }
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "yahoo_quote_summary",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used.",
+          "Legacy quoteSummary earnings fields have no module-level completeness guarantee."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "yahoo_quote_summary",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_funds",
+      "params": {
+        "symbol": "QQQ"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": null,
+      "gateway": {
+        "yahoo_quote_summary": {
+          "return": {}
+        }
+      },
+      "policy_calls": 1,
+      "ok": true,
+      "data": {
+        "status": "empty",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "provider_library": "legacy_compat",
+        "provider_version": "stock-data gateway",
+        "fallback_attempted": true,
+        "fallback_used": true,
+        "fallback_route": "yahoo_quote_summary",
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "warnings": [
+          "yfinance request failed; legacy compatibility route was used.",
+          "Legacy quoteSummary fund modules may be unavailable for this ticker."
+        ],
+        "provenance": {
+          "library": "legacy_compat",
+          "route": "yahoo_quote_summary",
+          "raw_http_payload_captured": false
+        }
+      }
+    },
+    {
+      "function": "yahoo_history_batch",
+      "params": {
+        "symbols": [
+          "A",
+          "B",
+          "C"
+        ],
+        "period": "1mo"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 2,
+      "circuit": null,
+      "gateway": {
+        "stock_kline_yahoo": {
+          "return": {
+            "bars": [
+              {
+                "date": "2026-01-02",
+                "timestamp_utc": "2026-01-02T14:30:00Z",
+                "Open": 100.0,
+                "High": 103.0,
+                "Low": 99.5,
+                "Close": 102.5,
+                "Volume": 1000
+              },
+              {
+                "date": "2026-01-05",
+                "timestamp_utc": "2026-01-05T14:30:00Z",
+                "Open": 102.5,
+                "High": 104.0,
+                "Low": 101.0,
+                "Close": 103.0,
+                "Volume": 1200
+              }
+            ],
+            "meta": {
+              "symbol": "AAPL",
+              "currency": "USD",
+              "exchangeTimezoneName": "America/New_York"
+            },
+            "adjclose": [
+              {
+                "adjclose": [
+                  101.25,
+                  103.0
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "policy_calls": 3,
+      "ok": false,
+      "raised": {
+        "code": "BudgetExceeded",
+        "message": "budget exhausted"
+      }
+    },
+    {
+      "function": "yahoo_history",
+      "params": {
+        "symbol": "AAPL"
+      },
+      "reason": {
+        "category": "DataUnavailable",
+        "message": "provider returned no data"
+      },
+      "policy_limit": 99,
+      "circuit": [
+        "RateLimited",
+        "rate limited"
+      ],
+      "gateway": {
+        "stock_kline_yahoo": {
+          "return": {
+            "bars": [
+              {
+                "date": "2026-01-02",
+                "timestamp_utc": "2026-01-02T14:30:00Z",
+                "Open": 100.0,
+                "High": 103.0,
+                "Low": 99.5,
+                "Close": 102.5,
+                "Volume": 1000
+              },
+              {
+                "date": "2026-01-05",
+                "timestamp_utc": "2026-01-05T14:30:00Z",
+                "Open": 102.5,
+                "High": 104.0,
+                "Low": 101.0,
+                "Close": 103.0,
+                "Volume": 1200
+              }
+            ],
+            "meta": {
+              "symbol": "AAPL",
+              "currency": "USD",
+              "exchangeTimezoneName": "America/New_York"
+            },
+            "adjclose": [
+              {
+                "adjclose": [
+                  101.25,
+                  103.0
+                ]
+              }
+            ]
+          }
+        }
+      },
+      "policy_calls": 0,
+      "ok": true,
+      "data": {
+        "status": "error",
+        "data": null,
+        "actual_source": "Yahoo Finance",
+        "fetched_at_utc": "2026-01-09T15:00:00Z",
+        "fallback_attempted": true,
+        "fallback_used": false,
+        "fallback_route": null,
+        "fallback_reason": {
+          "category": "DataUnavailable",
+          "message": "provider returned no data"
+        },
+        "error": {
+          "category": "RateLimited",
+          "exception_type": "JobCircuitOpen",
+          "message": "Yahoo job circuit is open; legacy fallback is not permitted."
+        },
+        "warnings": [
+          "Automatic legacy fallback was blocked by an open Yahoo job circuit."
+        ]
+      }
+    }
+  ]
+}

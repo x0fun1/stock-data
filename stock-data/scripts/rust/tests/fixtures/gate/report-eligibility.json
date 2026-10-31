@@ -1,0 +1,112 @@
+[
+  {
+    "consensus": {
+      "prob_up": 0.6,
+      "directional_edge_state": "insufficient_evidence"
+    },
+    "adversarial": {
+      "may_report_direction": true
+    },
+    "result": {
+      "probability_report": true,
+      "direction_report": true,
+      "trading_signal": false,
+      "trading_signal_reasons": [
+        "entry_basis_not_modelled",
+        "transaction_costs_not_modelled",
+        "no_independent_edge_vs_expanding_base_rate"
+      ],
+      "predictive_evidence_grade": "insufficient_oos_evidence",
+      "directional_edge_state": "insufficient_evidence",
+      "independent_edge_supported": false
+    }
+  },
+  {
+    "consensus": {
+      "reportable_probability": 0.6,
+      "directional_edge_state": "insufficient_evidence",
+      "directional_edge_supported": false
+    },
+    "adversarial": {
+      "may_report_direction": true
+    },
+    "result": {
+      "probability_report": true,
+      "direction_report": true,
+      "trading_signal": false,
+      "trading_signal_reasons": [
+        "entry_basis_not_modelled",
+        "transaction_costs_not_modelled",
+        "no_independent_edge_vs_expanding_base_rate"
+      ],
+      "predictive_evidence_grade": "insufficient_oos_evidence",
+      "directional_edge_state": "insufficient_evidence",
+      "independent_edge_supported": false
+    }
+  },
+  {
+    "consensus": {
+      "reportable_probability": 0.6,
+      "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+      "directional_edge_supported": true
+    },
+    "adversarial": {
+      "may_report_direction": true
+    },
+    "result": {
+      "probability_report": true,
+      "direction_report": true,
+      "trading_signal": false,
+      "trading_signal_reasons": [
+        "entry_basis_not_modelled",
+        "transaction_costs_not_modelled"
+      ],
+      "predictive_evidence_grade": "positive_skill_with_estimated_interval_excluding_zero",
+      "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+      "independent_edge_supported": true
+    }
+  },
+  {
+    "consensus": {
+      "reportable_probability": null,
+      "directional_edge_state": "insufficient_evidence"
+    },
+    "adversarial": {
+      "may_report_direction": false
+    },
+    "result": {
+      "probability_report": false,
+      "direction_report": false,
+      "trading_signal": false,
+      "trading_signal_reasons": [
+        "entry_basis_not_modelled",
+        "transaction_costs_not_modelled",
+        "no_independent_edge_vs_expanding_base_rate",
+        "probability_not_reportable",
+        "direction_not_reportable"
+      ],
+      "predictive_evidence_grade": "insufficient_oos_evidence",
+      "directional_edge_state": "insufficient_evidence",
+      "independent_edge_supported": false
+    }
+  },
+  {
+    "consensus": {},
+    "adversarial": {},
+    "result": {
+      "probability_report": false,
+      "direction_report": false,
+      "trading_signal": false,
+      "trading_signal_reasons": [
+        "entry_basis_not_modelled",
+        "transaction_costs_not_modelled",
+        "no_independent_edge_vs_expanding_base_rate",
+        "probability_not_reportable",
+        "direction_not_reportable"
+      ],
+      "predictive_evidence_grade": "insufficient_oos_evidence",
+      "directional_edge_state": "insufficient_evidence",
+      "independent_edge_supported": false
+    }
+  }
+]

@@ -1,0 +1,7 @@
+{
+  "case": "total-return-basis",
+  "expectation": "rejected",
+  "outcome": "rejected",
+  "error_type": "ValueError",
+  "error": "snapshot rejected: price basis None is not the required 'split_adjusted' split-adjusted close"
+}

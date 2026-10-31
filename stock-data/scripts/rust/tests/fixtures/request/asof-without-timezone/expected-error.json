@@ -1,0 +1,7 @@
+{
+  "case": "asof-without-timezone",
+  "error_type": "ValueError",
+  "code": null,
+  "message": "timestamp must include a timezone: '2026-10-23T21:00:00'",
+  "contains": "timestamp must include a timezone"
+}

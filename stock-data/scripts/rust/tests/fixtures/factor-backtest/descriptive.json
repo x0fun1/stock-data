@@ -1,0 +1,331 @@
+{
+  "researcher_id": "factor_backtest",
+  "result_role": "diagnostic",
+  "ticker": "SYN",
+  "horizon": "5D",
+  "snapshot_id": "SYN_20261024T000000Z_5D_00d9769e96",
+  "direction": "unavailable",
+  "prob_up": null,
+  "prob_down": null,
+  "raw_probability": null,
+  "calibrated_probability": null,
+  "reportable_probability": null,
+  "expected_return": null,
+  "confidence": null,
+  "probability_source": null,
+  "evidence": {
+    "positive": [],
+    "negative": []
+  },
+  "validation": {
+    "model_version": "factor_backtest_5d_descriptive_v1",
+    "method": "fixed-factor 5D time-series IC and forward-return diagnostics",
+    "universe_type": "single_security",
+    "signal_timing": "factor uses OHLCV through close[t]; label is close[t+5] / close[t] - 1",
+    "split": {
+      "training_fraction": 0.7,
+      "holdout_fraction": 0.3,
+      "holdout_start_session": "2026-07-08"
+    },
+    "non_overlapping_labels": true,
+    "minimum_holdout_observations": 20,
+    "horizons": [
+      "5D"
+    ],
+    "descriptive_only": true,
+    "information_coefficient": 0.08241758241758243,
+    "holdout_sample_count": 13,
+    "factor_metrics": {
+      "momentum_5": {
+        "family": "momentum",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": 0.1037593984962406,
+          "pearson_correlation": 0.1369538200720582,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": 0.018375786591105475,
+          "top_quantile_observations": 4,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.25824175824175827,
+          "pearson_correlation": -0.39658067184988743,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": -0.061158671717155555,
+          "top_quantile_observations": 6,
+          "bottom_quantile_observations": 1,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      },
+      "momentum_20": {
+        "family": "momentum",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": 0.11278195488721804,
+          "pearson_correlation": 0.17237722547239584,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": -0.0012127272754687002,
+          "top_quantile_observations": 4,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": 0.08241758241758243,
+          "pearson_correlation": 0.010303041769794404,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": null,
+          "top_quantile_observations": 9,
+          "bottom_quantile_observations": 0,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      },
+      "momentum_60": {
+        "family": "momentum",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.4857142857142857,
+          "pearson_correlation": -0.4832598759661215,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": -0.022126416522423004,
+          "top_quantile_observations": 4,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.2362637362637363,
+          "pearson_correlation": -0.26853233043258534,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": null,
+          "top_quantile_observations": 13,
+          "bottom_quantile_observations": 0,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      },
+      "momentum_1": {
+        "family": "momentum",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.1368421052631579,
+          "pearson_correlation": -0.037408209162104626,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": -0.0003922242258733166,
+          "top_quantile_observations": 4,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.30769230769230776,
+          "pearson_correlation": -0.3016140855878404,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": -0.0345762161845177,
+          "top_quantile_observations": 2,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      },
+      "trend_sma20": {
+        "family": "trend",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": 0.04661654135338346,
+          "pearson_correlation": 0.1211648260066245,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": 0.018849383496719857,
+          "top_quantile_observations": 4,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.05494505494505495,
+          "pearson_correlation": -0.09753740509718141,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": null,
+          "top_quantile_observations": 8,
+          "bottom_quantile_observations": 0,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      },
+      "range_position_20": {
+        "family": "trend",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.03609022556390978,
+          "pearson_correlation": 0.03052838766204741,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": 0.009304113113715845,
+          "top_quantile_observations": 4,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.2197802197802198,
+          "pearson_correlation": -0.1564646390420906,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": -0.0022028330736484497,
+          "top_quantile_observations": 8,
+          "bottom_quantile_observations": 1,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      },
+      "volume_z20": {
+        "family": "volume",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": 0.39849624060150374,
+          "pearson_correlation": 0.28231043228941677,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": 0.013097217362559588,
+          "top_quantile_observations": 4,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.3186813186813187,
+          "pearson_correlation": -0.42039761110583873,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": -0.048745669446429996,
+          "top_quantile_observations": 2,
+          "bottom_quantile_observations": 3,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      },
+      "overnight_gap": {
+        "family": "volatility",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.1368421052631579,
+          "pearson_correlation": -0.03740820916210321,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": -0.0003922242258733166,
+          "top_quantile_observations": 4,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": -0.30769230769230776,
+          "pearson_correlation": -0.30161408558784125,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": -0.0345762161845177,
+          "top_quantile_observations": 2,
+          "bottom_quantile_observations": 4,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      },
+      "close_location": {
+        "family": "volume",
+        "horizon": "5D",
+        "training": {
+          "status": "available",
+          "descriptive_only": false,
+          "observations": 20,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": null,
+          "pearson_correlation": null,
+          "mean_forward_return": -0.004045016917750577,
+          "top_minus_bottom_training_quantile_return": 0.0,
+          "top_quantile_observations": 20,
+          "bottom_quantile_observations": 20,
+          "ic_interpretation": "meets the predeclared observation floor"
+        },
+        "holdout": {
+          "status": "descriptive_only",
+          "descriptive_only": true,
+          "observations": 13,
+          "minimum_observations": 20,
+          "spearman_time_series_ic": null,
+          "pearson_correlation": null,
+          "mean_forward_return": 0.010214798187755631,
+          "top_minus_bottom_training_quantile_return": 0.0,
+          "top_quantile_observations": 13,
+          "bottom_quantile_observations": 13,
+          "ic_interpretation": "exploratory point estimate; no confirmatory conclusion below the 20-observation floor"
+        }
+      }
+    },
+    "leakage_audit": {
+      "features_use_data_through_decision_close_only": true,
+      "future_returns_used_only_as_labels": true,
+      "training_quantile_cutoffs_fixed_before_holdout": true,
+      "holdout_labels_non_overlapping": true
+    },
+    "full_cross_sectional_backtest": {
+      "status": "not_assessed",
+      "reason": "requires a multi-ticker factor panel, point-in-time universe and security masks"
+    }
+  },
+  "data_used": [
+    "daily split-adjusted OHLCV"
+  ],
+  "warnings": [
+    "Single-security 5-session IC/forward-return diagnostics only; not a cross-sectional Rank IC or portfolio backtest.",
+    "Descriptive evidence: this path never feeds the production probability, eligibility or model promotion.",
+    "Gross close-to-close diagnostics; no trades, funding, turnover costs or market impact are simulated.",
+    "No 5D holdout factor reached 20 observations; ICs remain exploratory."
+  ],
+  "status": "partial"
+}
