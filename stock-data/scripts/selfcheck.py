@@ -3934,6 +3934,70 @@ def check_t47_direction_claim_abstain() -> None:
         raise AssertionError("no probability must be unavailable")
 
 
+def check_t48_cross_validation_relations() -> None:
+    """FIX-02: deterministic Quant/News relations, no joint probability."""
+    from quant_research.cross_validation import cross_validate
+    from quant_research.report import render_final_response
+
+    def claimable_up() -> dict:
+        result = _fake_delivery_result("complete")
+        result["consensus"]["evidence"].update({
+            "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+            "directional_edge_replay_interval_excludes_zero": True,
+        })
+        return result
+
+    def news_assessed(major_bearish: int = 0, major_bullish: int = 0) -> dict:
+        major = (
+            [{"lean": "bearish", "headline": "cuts guidance", "url": "https://example.com/bad",
+              "reason": "指引下调"}] * major_bearish
+            + [{"lean": "bullish", "headline": "raises guidance", "url": "https://example.com/good",
+                "reason": "指引上调"}] * major_bullish
+        )
+        return {
+            "status": "complete",
+            "ai_lean": {
+                "status": "assessed",
+                "coverage": {"direct_label_counts": {
+                    "bullish": major_bullish, "bearish": major_bearish,
+                    "neutral": 0, "mixed": 0, "unclear": 0,
+                }},
+                "major_direct_items": major,
+            },
+        }
+
+    conflict = claimable_up()
+    before = conflict["consensus"]["prob_up"]
+    block = cross_validate(conflict["consensus"], news_assessed(major_bearish=1))
+    if block["relation"] != "conflicting":
+        raise AssertionError(f"a major direct bearish item against an up lean must conflict: {block}")
+    if block["quant_prob_up"] != before or block["joint_probability"] is not None:
+        raise AssertionError("cross-validation must not rewrite the probability or emit a joint one")
+    conflict["cross_validation"] = block
+    if "冲突" not in render_final_response(conflict):
+        raise AssertionError("the delivered text must name the conflict")
+    if "alignment" in block:
+        raise AssertionError("score-like alignment fields must not return")
+
+    aligned = claimable_up()
+    if cross_validate(aligned["consensus"], news_assessed(major_bullish=1))["relation"] != "aligned":
+        raise AssertionError("an up lean with major bullish news must be aligned")
+    absent = cross_validate(claimable_up()["consensus"], {"status": "not_assessed"})
+    if absent["relation"] != "news_not_assessed":
+        raise AssertionError(f"missing news must be disclosed, not silently aligned: {absent}")
+    both = cross_validate({"prob_up": None}, {"status": "not_assessed"})
+    if both["relation"] != "both_unavailable":
+        raise AssertionError(f"no Quant and no news must be both_unavailable: {both}")
+
+    analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
+    stages = {row["stage"]: row for row in payload["stages"]}
+    if stages["cross-validation"]["status"] == "not_applicable":
+        raise AssertionError("cross-validation must no longer be hard-coded not_applicable")
+    if payload["cross_validation"]["probability_unchanged"] is not True:
+        raise AssertionError("cross-validation must attest the probability is unchanged")
+
+
 RETIRED_CHECKS: dict[str, str] = {
     "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
     "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
@@ -4025,6 +4089,7 @@ CHECKS = [
     ("T44 documented versions match the runtime", check_t44_documented_versions_match_the_runtime),
     ("T45 compact profile and single viability block", check_t45_compact_profile_and_single_economic_viability),
     ("T47 direction claim abstain", check_t47_direction_claim_abstain),
+    ("T48 cross-validation relations", check_t48_cross_validation_relations),
     ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
     ("F39 forward ledger", check_f39_forward_ledger),

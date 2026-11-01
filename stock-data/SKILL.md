@@ -70,7 +70,7 @@ metadata: {version: "3.3.1", runtime: "0.23.0"}
 4. 常规预测先 `adapt`、`freeze`，然后运行 `news-candidates --snapshot-dir <冻结快照> --output <候选文件>`。宿主 AI 逐条阅读候选，写 `news_ai_assessment.json`，再运行 `analyze --snapshot-dir <同一快照> --news-ai-assessment <文件>`。有新闻时不得跳过 AI 步骤，也不得从规则词典的 `unknown` 充当最终事件判断。每条候选必须有一个判断；无法判断可标 `unclear`，但须写明原因。审计、调试或要求复现的研究保留 JSON。`pipeline` 仅用于已准备好同一快照候选 ID 的评估文件或无新闻运行。
 5. A/B/C/D 只读取同一冻结 snapshot。A 的当前预测与每条回放都由 `predict_at_origin()` 生成；每条记录保存完整 `probability_transform`（版本、基率起源与标签边界、`n_eff`、`k`、`mu`、`σ`、`p_vol`、匹配 origin、wins、observations、gap、horizon、policy/model/feature/target 版本），审计用**独立实现**从行情重算，不调用研究者代码。B 的 bucket 只使用选因子之后成熟的标签；C 每个 origin 日频重拟合；D 只做 5D 描述性 IC。D/E 不投概率票。
 6. 冻结快照后，宿主 AI 可先读取新闻候选并逐条判断；`analyze` 在 Quant 与审计完成后载入这份独立评估。NewsInput 只有独立新闻、同快照行情和源日历元数据，不接收 Quant；按 [news-analysis.md](references/news-analysis.md) 做 PIT、相关性、时效、去重、事件/观点分离与行情关联。宿主 AI 对每条候选给出 `lean`、理由、直接/间接相关性及重大程度；利多/利空数量只统计直接相关条目。重大利多/利空必须附原文 URL，无 URL 不列为重大。News 采集状态与 AI 覆盖状态分别披露，缺少 AI 评估时不得只写“已评估”。
-7. 两份结果冻结并校验后并列展示。News 的逐条判断、数量和重大消息是独立消息面结果，不与 Quant 作方向一致性计算。归因只能作为待验证解释。
+7. 两份结果冻结并校验后并列展示，并运行确定性交叉核验：`cross_validation.relation` 只能取 `aligned / conflicting / mixed_news / news_unclear / news_not_assessed / news_partial / quant_unavailable / both_unavailable`，以模板输出中文说明。冲突（如 Quant 可下偏上涨且存在重大直接利空、无重大直接利多）必须写“冲突”；新闻缺失必须写“新闻未评估”。不得计算 alignment 分数、联合概率或平均值，也不得让 News 改写 Quant 概率；归因只能作为待验证解释。
 8. 读取程序生成的 `final_response.md`；`agent_summary.json` 提供有界摘要，细节在 `report.md`。不得交付被排除路径概率或自行补数字。资格字段来自 `analysis.json.consensus` 的六个布尔值；不存在 `confidence_score`。
 9. 需要累积独立样本时，用 `--ledger <path>` 在冻结后写前向台账；`ledger-settle` 用后续快照结算第 5 个 session 的标签，`ledger-audit` 报告前向指标。台账 schema 3.0 在 run 目录之外、append-only，`cleanup-run` 不会删除；只有标签成熟前写入才是 `prospective_eligible`，历史补录只进回顾分组。详见 [forward-ledger.md](references/forward-ledger.md)。
 10. 将实际准备发送的完整文本保存为 UTF-8 Markdown，用 `validate-response` 校验。缺固定行、标的/窗口/时间不符、Quant 值被替换、新闻状态与冻结证据相反或缺阶段回执时拒绝交付。通过后再 `cleanup-run`，保留 `report.md`、`final_response.md` 和 `cleanup_receipt.txt`。
@@ -98,11 +98,13 @@ python stock-data/scripts/quant_research.py validate-response --analysis-dir <�
 验证：前缀回放N条（其中非重叠K条；有效样本≈E）；真实前向M条；覆盖率X%
 相对因果基率技能：数值；区间：[…]；Brier 模型… vs 基率… vs 常数0.5…；AUC …；有效样本≈E
 新闻：已采集（complete/partial；N 条警告；AI逐条已完成，覆盖A/B；直接相关利多X条、利空Y条、中性Z条、混合M条、不明U条；波动状态…） | 未提供
+综合：Quant=LEAN；News直接利多X条/利空Y条；关系=一致/冲突/新闻未评估/…；说明：…；禁止将两者平均为单一上涨概率
 ```
 
 - 不得改写为 `Quant Confidence`、`置信度评分`、`校准概率` 或任何 0–100 分数。
 - `上涨概率` 为 null 时不得展示影子路径概率来填空。
 - `direction_claim_status` 非 `claimable_*` 时，`模型倾向` 必须含 `abstain`，且不得出现未限定的“偏上涨/偏下跌”方向结论；上涨概率仅作诊断展示。
+- `综合` 行只描述关系，不得出现 `alignment` 分数、联合概率或“综合看涨”式混合结论；冲突必须显式写“冲突”。
 - `方向优势` 只有 `directional_edge_independent_supported = true` 时才可称“已支持”：需要 ≥30 条按时录入、锚定相位的前向记录，且其改善区间下界 > 0。窗口内回放区间下界 > 0 只能写成“仅回放区间下界大于0（非独立留出）”；回放上界 < 0 必须写“劣于纯基率”；含零或不可估计写“证据不足”。`consensus.evidence.prospective_unanchored` 非零时，前向非重叠数应视为不可用而不是 0。
 - `交易信号` 恒为不可；未建模入场、价差、滑点与费用。
 - 消息面必须给出逐条 AI 判断及全部候选覆盖数。每个重大利多/利空列出原文链接、发布时间和具体理由；无链接的新闻不得列为重大。宏观、同业或大盘标题只能列为间接相关，不计入 INTC 等标的的直接利多/利空数量。

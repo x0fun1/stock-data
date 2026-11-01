@@ -16,6 +16,11 @@ from .audit import audit
 from .audit import attach_news_observation
 from .consensus import build_consensus, forecast_assessment, redact_publishable_prediction
 from .contracts import researcher_result
+from .cross_validation import (
+    RELATION_BOTH_UNAVAILABLE,
+    RELATION_NEWS_NOT_ASSESSED,
+    cross_validate,
+)
 from .delivery import validate_response_text
 from .feasibility import build_timing
 from .forecast_policy import (
@@ -334,13 +339,31 @@ def run_analysis(
                if stage_status == "partial" else "news evidence unavailable or not assessed"
            ),
            run_id=run_id, snapshot_id=snapshot_id)
-    _stage(stages, "cross-validation", "not_applicable",
-           reason="news and Quant are reported independently; news never re-scores the production probability", run_id=run_id, snapshot_id=snapshot_id)
+    probability_before_cross_validation = consensus.get("prob_up")
+    cross_validation = cross_validate(consensus, news_result)
+    if consensus.get("prob_up") != probability_before_cross_validation:
+        raise ValueError("cross-validation must not change the frozen production probability")
+    cross_relation = cross_validation["relation"]
+    if cross_relation == RELATION_BOTH_UNAVAILABLE:
+        cross_status = "not_assessed"
+        cross_reason = "both Quant and news evidence are unavailable; no relation can be described"
+    elif cross_relation == RELATION_NEWS_NOT_ASSESSED:
+        cross_status = "not_assessed"
+        cross_reason = "news evidence is unavailable or not assessed; only the Quant side is reported"
+    elif news_status_label(news_status) == "partial":
+        cross_status = "partial"
+        cross_reason = "news coverage is partial; the relation is described on incomplete evidence"
+    else:
+        cross_status = "complete"
+        cross_reason = None
+    _stage(stages, "cross-validation", cross_status, payload=cross_validation,
+           reason=cross_reason, run_id=run_id, snapshot_id=snapshot_id)
     _stage(stages, "risk", "not_assessed",
            reason="returns are gross close-to-close observations; execution, spread, slippage and fees are not modelled", run_id=run_id, snapshot_id=snapshot_id)
 
     synthesis = build_synthesis({**run, "snapshot": report_manifest, "consensus": consensus,
-                                 "adversarial_audit": adversarial, "researchers": results}, news_result)
+                                 "adversarial_audit": adversarial, "researchers": results}, news_result,
+                                cross_validation)
     elapsed_seconds = round(time.perf_counter() - started, 3)
     final = {
         **run,
@@ -351,6 +374,7 @@ def run_analysis(
         "consensus": consensus,
         "adversarial_audit": adversarial,
         "news_result": news_result,
+        "cross_validation": cross_validation,
         "synthesis": synthesis,
         "analysis_status": _analysis_status(
             adversarial=adversarial, researchers=results, news_status=news_status,

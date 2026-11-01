@@ -18,7 +18,7 @@ from .consensus import direction_claim_is_claimable
 
 _INVISIBLE = re.compile(r"[\u200b-\u200f\u2060\ufeff]")
 _LEADING_MARKER = re.compile(r"^(?:(?:[-•*]|\(?\d{1,3}[.)、]|[①-⑳])\s*)+")
-LABELS = ("研究窗口", "预测目标", "上涨概率", "模型倾向", "方向优势", "生产路径", "验证", "相对因果基率技能", "新闻")
+LABELS = ("研究窗口", "预测目标", "上涨概率", "模型倾向", "方向优势", "生产路径", "验证", "相对因果基率技能", "新闻", "综合")
 FORBIDDEN = ("Quant Confidence", "置信度评分", "置信度支持度评分", "校准概率", "联合概率校准", "报告状态", "模型一致度", "概率区间", "OOS 预测证据等级")
 
 

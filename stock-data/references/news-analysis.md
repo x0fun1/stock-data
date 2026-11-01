@@ -98,7 +98,7 @@ Event confidence is at most medium, requiring at least three eligible event clus
 
 ## Synthesis and artifacts
 
-News emits no probability. Synthesis preserves reportable Quant P(up) and carries the AI News counts in a separate section. It does not compute alignment, divergence or a combined direction. The former deterministic cross-check fields remain available in the frozen News artifact as diagnostics, not as the user-facing headline judgment.
+News emits no probability. Synthesis preserves reportable Quant P(up) and carries the AI News counts in a separate section. `cross_validation.py` now describes the frozen relation deterministically (`aligned`, `conflicting`, `mixed_news`, `news_unclear`, `news_not_assessed`, `news_partial`, `quant_unavailable`, `both_unavailable`) using fixed Chinese templates. It computes no alignment score, no divergence score and no combined direction, and it never averages or calibrates the two sides. The former deterministic cross-check fields remain available in the frozen News artifact as diagnostics, not as the user-facing headline judgment.
 
 `news_result.json` and its freeze receipt retain detailed evidence. Default chat Summary is concise; `report.md` lists every assessed canonical headline and its source link when available. News and Quant are presented as separate sections. IC/bias/PBO/DSR/cost scope is reported in the standard/debug artifacts, not represented as completed strategy validation.
 
@@ -131,6 +131,6 @@ cost is a lost lean item; the benefit is that no Quant vocabulary can be smuggle
 through the News stage. Do not relax the list to admit a phrasing — extend the
 artifact schema instead.
 
-Separation. AI headlines are the user-facing News directional assessment. The deterministic event fields remain internal diagnostics. Synthesis displays Quant and News independently; it computes no alignment score or combined direction. A user-facing reply cites the original link behind every major bullish/bearish claim and states that title-level judgements are unverified against body text.
+Separation. AI headlines are the user-facing News directional assessment. The deterministic event fields remain internal diagnostics. Synthesis displays Quant and News independently and adds a deterministic relation block: a claimable Quant lean is compared with the AI's direct and major headlines; disagreement is written as `关系=冲突`, missing news as `新闻未评估`, and the block always states `禁止将两者平均为单一上涨概率`. No alignment score, joint probability or blended direction is computed. A user-facing reply cites the original link behind every major bullish/bearish claim and states that title-level judgements are unverified against body text.
 
 Price reaction is not independent confirmation. The reaction is computed from the same frozen OHLCV snapshot the Quant paths consume, so `price_reaction` reports `basis: frozen_snapshot_ohlcv`, `independence: not_independent_same_market_data` and the derived `confirmation` label. It is a consistency check on one dataset; it must never be described as a second, independent market agreeing with the news classification, and it never feeds a probability.

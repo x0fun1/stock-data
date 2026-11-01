@@ -45,7 +45,11 @@ def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
     return fields
 
 
-def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -> dict[str, Any]:
+def build_synthesis(
+    quant_result: dict[str, Any],
+    news_result: dict[str, Any],
+    cross_validation: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     quant = quant_result.get("consensus", {})
     snapshot = quant_result.get("snapshot", {})
     if snapshot and any(news_result.get(key) != snapshot.get(key) for key in ("ticker", "market", "horizon", "snapshot_id", "asof_timestamp")):
@@ -73,12 +77,18 @@ def build_synthesis(quant_result: dict[str, Any], news_result: dict[str, Any]) -
         "quant": fields,
         "quant_field_source": "quant_result.json.consensus",
         "economic_viability": viability,
-        "alignment": "NOT_COMPUTED",
+        "cross_validation": cross_validation or {
+            "relation": "both_unavailable",
+            "explanation_lines": ["量化与新闻均不可用，综合结论不可计算。"],
+            "probability_blending": "prohibited_in_v1",
+            "joint_probability": None,
+        },
+        "comparison_basis": "frozen_independent_sections_no_score",
         "quantitative_bias": fields["direction"],
+        "quant_direction_claim_status": fields.get("direction_claim_status"),
         "quant_prob_up": q_probability,
         "news_event_bias": None,
         "news_evidence_direction": None,
-        "alignment_basis": "independent_sections",
         "news_ai_status": ai.get("status"),
         "news_direct_label_counts": (ai.get("coverage") or {}).get("direct_label_counts"),
         "news_sentiment": "headline_ai" if ai.get("status") == "assessed" else "not_assessed",

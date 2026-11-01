@@ -191,6 +191,41 @@ def _major_news_lines(news: dict[str, Any], *, limit: int = 5) -> list[str]:
     return lines
 
 
+RELATION_LABELS = {
+    "aligned": "一致",
+    "conflicting": "冲突",
+    "mixed_news": "新闻内部混合",
+    "news_unclear": "新闻方向不明",
+    "news_not_assessed": "新闻未评估",
+    "news_partial": "新闻部分覆盖",
+    "quant_unavailable": "Quant方向不可用",
+    "both_unavailable": "两者均不可用",
+}
+
+
+def _cross_validation_block(result: dict[str, Any]) -> dict[str, Any]:
+    block = result.get("cross_validation")
+    if isinstance(block, dict) and block.get("relation"):
+        return block
+    synthesis = result.get("synthesis") or {}
+    block = synthesis.get("cross_validation")
+    return block if isinstance(block, dict) else {}
+
+
+def _cross_line(result: dict[str, Any]) -> str:
+    block = _cross_validation_block(result)
+    relation = str(block.get("relation") or "both_unavailable")
+    label = RELATION_LABELS.get(relation, relation)
+    direct = block.get("news_direct_counts") or {}
+    lines = block.get("explanation_lines") or []
+    detail = lines[0] if lines else "综合关系不可计算"
+    return (
+        f"综合：Quant={block.get('quant_lean') or 'unavailable'}；"
+        f"News直接利多{direct.get('bullish', 0)}条/利空{direct.get('bearish', 0)}条；"
+        f"关系={label}；说明：{detail}；禁止将两者平均为单一上涨概率"
+    )
+
+
 def _edge_line(result: dict[str, Any], *, prospective: int) -> str:
     consensus = result.get("consensus") or {}
     evidence = _evidence(result)
@@ -295,6 +330,7 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
         ),
         "relative_skill": skill_line,
         "news": _news_line(result),
+        "cross_validation": _cross_line(result),
     }
     return lines  # noqa: RET504 - the named mapping documents the delivery contract
 
@@ -350,6 +386,13 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 for row in consensus.get("shadow_predictions") or []
             ],
             "diagnostics": consensus.get("diagnostics") or {},
+            "cross_validation": {
+                "relation": _cross_validation_block(result).get("relation"),
+                "quant_lean": _cross_validation_block(result).get("quant_lean"),
+                "news_direct_counts": _cross_validation_block(result).get("news_direct_counts"),
+                "probability_blending": "prohibited_in_v1",
+                "joint_probability": None,
+            },
             "news": {
                 "status": (result.get("news_result") or {}).get("status"),
                 "state": news_status_label((result.get("news_result") or {}).get("status")),
@@ -361,7 +404,7 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "independent_of_quant": True,
             },
         },
-        "contract": {key: lines[key] for key in ("production_path", "validation", "relative_skill", "news", "directional_edge")},
+        "contract": {key: lines[key] for key in ("production_path", "validation", "relative_skill", "news", "cross_validation", "directional_edge")},
     }
 
 
@@ -397,6 +440,7 @@ def render_final_response(result: dict[str, Any], summary: dict[str, Any] | None
         lines["validation"],
         lines["relative_skill"],
         lines["news"],
+        lines["cross_validation"],
         "",
         "证据边界：",
         "- 概率语义：漂移收缩的因果基率估计；未校准，不可解释为真实涨跌频率",
@@ -498,6 +542,12 @@ def render_markdown(result: dict[str, Any]) -> str:
             out.append(f"- {item.get('published_at') or '时间未提供'}；{item.get('target_relevance') or 'unclear'}；"
                        f"{item.get('lean') or 'unclear'}；{item.get('importance') or 'routine'}；"
                        f"{_news_link(item)}；理由：{markdown_text(item.get('reason'), 400)}")
+    cross = _cross_validation_block(result)
+    out.extend(["", "## 综合交叉核验（非概率平均）", ""])
+    out.append(f"- {lines['cross_validation']}")
+    for explanation in cross.get("explanation_lines") or []:
+        out.append(f"- {explanation}")
+    out.append("- 关系字段不含分数；Quant 与 News 仍各自冻结，禁止联合概率或联合校准。")
     audit = result.get("adversarial_audit") or {}
     out.extend(["", "## 审计与限制", ""])
     out.append(f"- 审计状态：{audit.get('status')}；may_report_probability={audit.get('may_report_probability')}")
