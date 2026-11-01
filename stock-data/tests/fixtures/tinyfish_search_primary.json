@@ -1,0 +1,17 @@
+{
+  "query": "Alphabet announces third quarter 2026 results",
+  "results": [
+    {
+      "position": 1,
+      "site_name": "sec.gov",
+      "title": "Alphabet Inc. 8-K",
+      "snippet": "Fixture snippet; must not be stored.",
+      "url": "https://www.sec.gov/Archives/edgar/data/1652044/000165204426000041/0001652044-26-000041-index.htm",
+      "date": "2026-10-28",
+      "publisher": "SEC EDGAR"
+    }
+  ],
+  "total_results": 1,
+  "page": 0,
+  "_fixture_note": "TinyFish Search response shape from docs; the URL is a format fixture, not a verified live filing."
+}

@@ -1,0 +1,24 @@
+{
+  "results": [
+    {
+      "url": "https://www.bloomberg.com/news/articles/2026-10-29/alphabet-cloud-contract",
+      "final_url": "https://www.bloomberg.com/news/articles/2026-10-29/alphabet-cloud-contract",
+      "title": "Alphabet wins a new cloud contract",
+      "description": "Fixture description.",
+      "language": "en",
+      "format": "markdown",
+      "text": "FIXTURE FETCH BODY MUST NOT BE STORED"
+    },
+    {
+      "url": "https://www.wsj.com/tech/alphabet-cloud-agreement-2026",
+      "final_url": "https://www.wsj.com/tech/alphabet-cloud-agreement-2026",
+      "title": "Alphabet signs cloud agreement",
+      "description": "Fixture description.",
+      "language": "en",
+      "format": "markdown",
+      "text": "FIXTURE FETCH BODY MUST NOT BE STORED"
+    }
+  ],
+  "errors": [],
+  "_fixture_note": "TinyFish Fetch response shape from docs: results[url,final_url,title,description,language,format,text]/errors."
+}
