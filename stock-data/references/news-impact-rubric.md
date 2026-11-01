@@ -134,3 +134,22 @@ the honest answer to "was the news already in the price?"; it is not a forecast.
 ## Boundaries
 
 These grades are descriptive heuristics inside the News stage. They never produce a probability, never produce a direction conclusion, and never feed any score. They are descriptive context only.
+
+## strength_v1 (v4 news judgement)
+
+每条直接相关候选由宿主 AI 给出 `lean`（`bullish|bearish|neutral|mixed|unclear`）与 `reason`，可给出 `strength` 与 `event_type`。程序按以下固定规则复核；若 AI 声明的 `strength` 与规则结果不一致，整个评估被拒绝。规则版本固定为 `strength_v1`；看到结果后不得改规则，要改只能升版本号并记录原因。
+
+- **强**：同时满足 (a) 直接相关；(b) 来源为 `A_primary`，或核实状态为 `primary_confirmed` / `multi_source`，且 `verification_pit != post_hoc`；(c) 事件类型属于强事件表；(d) 标题或摘要含具体数量（金额、比例、日期、数量之一）。
+- **中**：直接相关，且满足 (b)，但事件类型属于中事件表，或属于强事件表却缺具体数量。
+- **弱**：间接相关；或核实状态为 `single_source` / `unverified` / `not_assessed`；或事件类型属于弱事件表。
+
+事件表维护在 [news-sources.json](news-sources.json) 的 `event_tables`。**事件表与“少于 5 条直接相关就标注样本过少”的阈值都是人为约定，没有统计依据，必须写进交付的“局限”。**
+
+`verification_pit=post_hoc` 的条目不得进入“强”档。`A_primary` 的发行人新闻稿属于发行人陈述，AI 判断须写明这一点。
+
+## 描述性矩阵
+
+- 输出 `lean × 强/中/弱` 条数矩阵，近 30 天与第 31–60 天分开。
+- 每类 lean 最强至多 3 条，按强度、再按发布时间由新到旧；每条必须有原文链接。
+- 直接相关条目少于 5 条时矩阵照列，但标注“样本过少，不作倾向性描述”，不输出整体性措辞。
+- 不输出概率、方向结论、综合分数或加权求和；`validate-response` 检测到这些模式时拒绝。

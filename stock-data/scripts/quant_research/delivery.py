@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import re
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -13,12 +14,15 @@ from .report import required_response_lines
 
 _INVISIBLE = re.compile(r"[\u200b-\u200f\u2060\ufeff]")
 _LEADING_MARKER = re.compile(r"^(?:(?:[-•*]|\(?\d{1,3}[.)、]|[①-⑳])\s*)+")
-LABELS = ("标的", "新闻窗口", "新闻", "交易信号")
+LABELS = ("分析时点", "标的", "新闻窗口", "来源状态", "候选", "核实", "AI 逐条判断", "汇总矩阵",
+          "重点条目", "披露类", "间接背景", "价格反应（描述）", "波动状态", "局限",
+          "参考链接（未抓取、未判断）", "交易信号", "新闻")
 FORBIDDEN = (
     "上涨" + "概率", "下跌" + "概率", "模型" + "倾向", "方向" + "优势",
     "综合" + "评分", "综合" + "看涨", "综合" + "看跌",
     "建议" + "买入", "建议" + "卖出", "买入" + "建议", "卖出" + "建议", "仓位" + "建议",
     "Quant " + "Confidence", "置信度" + "评分", "校准" + "概率",
+    "方向" + "结论", "看涨", "看跌", "买入", "卖出", "仓位", "加仓", "减仓",
 )
 
 
@@ -58,7 +62,7 @@ def validate_response_text(result: dict[str, Any], text: str) -> None:
         )
 
 
-def require_ai_news_coverage(news: dict[str, Any]) -> None:
+def _require_ai_news_coverage_legacy(news: dict[str, Any]) -> None:
     """Require a consistent per-headline AI review, and disclose partial coverage."""
 
     ai = news.get("ai_lean") or {}
@@ -103,6 +107,56 @@ def _validate_stages(result: dict[str, Any]) -> dict[str, Any]:
     return {"stage_count": len(stages), "order": [row["stage"] for row in stages]}
 
 
+def _validate_summary(summary: dict[str, Any]) -> None:
+    """Recompute the descriptive matrix and enforce the fixed strength rules."""
+    if not summary or summary.get("status") == "invalid":
+        raise ValueError(f"Final audit rejected: news summary is invalid: {summary.get('reason') if summary else 'missing'}")
+    direct = summary.get("direct_items") or []
+    matrices = summary.get("matrices") or {}
+    expected = {"recent_30_days": {}, "days_31_60": {}}
+    for bucket in expected:
+        expected[bucket] = {lean: {strength: 0 for strength in ("strong", "medium", "weak")}
+                            for lean in ("bullish", "bearish", "neutral", "mixed", "unclear")}
+    as_of = str(summary.get("as_of") or "")
+    try:
+        cutoff = datetime.fromisoformat(as_of.replace("Z", "+00:00")).astimezone(timezone.utc) - timedelta(days=30)
+    except ValueError:
+        cutoff = None
+    for row in direct:
+        bucket = "recent_30_days" if cutoff and str(row.get("published_at") or "") > cutoff.isoformat() else "days_31_60"
+        lean = row.get("lean") if row.get("lean") in expected[bucket] else "unclear"
+        strength = row.get("strength") if row.get("strength") in {"strong", "medium", "weak"} else "weak"
+        expected[bucket][lean][strength] += 1
+        if strength == "strong":
+            if str(row.get("verification_pit") or "") == "post_hoc":
+                raise ValueError("Final audit rejected: a post_hoc item cannot be rated strong")
+            if str(row.get("source_tier") or "") != "A_primary" and str(row.get("verification_status") or "") not in {"primary_confirmed", "multi_source"}:
+                raise ValueError("Final audit rejected: a strong item needs primary/multi-source evidence")
+            if not any(str(row.get("url") or "") for _ in [0]):
+                raise ValueError("Final audit rejected: a strong item needs an original URL")
+    if matrices != expected:
+        raise ValueError("Final audit rejected: summary matrix does not match the direct items")
+    for rows in (summary.get("top_items") or {}).values():
+        for row in rows:
+            if not row.get("url"):
+                raise ValueError("Final audit rejected: every key item needs an original URL")
+
+
+def require_ai_news_coverage(news: dict[str, Any], summary: dict[str, Any] | None = None) -> None:
+    if summary is not None:
+        coverage = summary.get("ai_coverage") or {}
+        status = coverage.get("status")
+        if status == "invalid":
+            raise ValueError("Final audit rejected: host AI assessment is invalid")
+        if status in {"assessed", "partial"}:
+            assessed = int(coverage.get("assessed_count") or 0)
+            direct = int(coverage.get("direct_count") or 0)
+            if status == "assessed" and assessed < direct:
+                raise ValueError("Final audit rejected: AI review does not cover every direct candidate")
+        return
+    _require_ai_news_coverage_legacy(news)
+
+
 def validate_final_response(analysis_dir: Path, response_file: Path) -> dict[str, Any]:
     result = json.loads((analysis_dir / "analysis.json").read_text(encoding="utf-8"))
     if not isinstance(result, dict):
@@ -111,7 +165,10 @@ def validate_final_response(analysis_dir: Path, response_file: Path) -> dict[str
     frozen_news, _news_receipt = load_frozen_result(analysis_dir / "news_result.json")
     if frozen_news != result.get("news_result"):
         raise ValueError("Final audit rejected: news_result.json does not match the frozen News stage")
-    require_ai_news_coverage(frozen_news)
+    summary = result.get("news_summary")
+    if summary is not None:
+        _validate_summary(summary)
+    require_ai_news_coverage(frozen_news, summary)
     validate_response_text(result, response_file.read_text(encoding="utf-8-sig"))
     snapshot = result.get("snapshot") or {}
     return {

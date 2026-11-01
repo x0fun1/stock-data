@@ -82,7 +82,7 @@ def _news_link(item: dict[str, Any]) -> str:
 def _major_news_lines(news: dict[str, Any], *, limit: int = 5) -> list[str]:
     ai = news.get("ai_lean") or {}
     if ai.get("status") not in {"assessed", "partial"}:
-        return ["- 重点条目：AI 逐条判断尚未完成"]
+        return ["- 条目标题尚未评估"]
     rows = ai.get("major_direct_items") or []
     lines = []
     for lean, label in (("bullish", "重点利多"), ("bearish", "重点利空")):
@@ -99,41 +99,54 @@ def _major_news_lines(news: dict[str, Any], *, limit: int = 5) -> list[str]:
 def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
     """The exact fixed lines checked by ``validate-response``."""
 
+    summary = result.get("news_summary") or {}
+    lines = summary.get("lines") or {}
+    if lines:
+        return dict(lines)
     start, end = news_window(result)
     snapshot = result.get("snapshot") or {}
     return {
         "ticker": f"标的：{snapshot.get('ticker') or '未知'} / {snapshot.get('market') or '未知'} / {snapshot.get('asset_type') or 'unknown'}",
         "news_window": f"新闻窗口：({start}, {end}]；PIT：published_at_only",
         "news": _news_line(result),
+        "limitations": "局限：标题与摘要级判断，未核验正文；历史 as-of 仅能保证 published_at <= as-of。",
         "trading_signal": "交易信号：不提供",
     }
 
 
 def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
     lines = required_response_lines(result)
+    summary_block = result.get("news_summary") or {}
     news = result.get("news_result") or {}
     ai = news.get("ai_lean") or {}
     coverage = ai.get("coverage") or {}
+    if summary_block.get("lines"):
+        headline_keys = ("analysis_time", "ticker", "news_window", "ai_assessment")
+        contract = dict(lines)
+    else:
+        headline_keys = ("news_window", "news")
+        contract = {"ticker": lines["ticker"], "news_window": lines["news_window"],
+                    "news": lines["news"], "trading_signal": lines["trading_signal"]}
     return {
         "schema": "agent-summary-4.0",
         "ticker": (result.get("snapshot") or {}).get("ticker"),
         "market": (result.get("snapshot") or {}).get("market"),
         "asof": (result.get("snapshot") or {}).get("asof_timestamp"),
-        "headline": {key: lines[key] for key in ("news_window", "news")},
+        "headline": {key: lines[key] for key in headline_keys if key in lines},
         "sections": {
             "news": {
                 "status": news.get("status"),
                 "state": news_status_label(news.get("status")),
                 "assessed": news_assessed(news.get("status")),
                 "warning_count": news.get("warning_count"),
-                "ai_assessment_status": ai.get("status"),
+                "ai_assessment_status": (summary_block.get("ai_coverage") or {}).get("status") or ai.get("status"),
                 "overall_direction": news.get("overall_direction"),
                 "direct_label_counts": coverage.get("direct_label_counts"),
                 "volatility_regime": (news.get("expected_volatility_regime") or {}).get("regime"),
+                "strength_version": summary_block.get("strength_version"),
             },
         },
-        "contract": {"ticker": lines["ticker"], "news_window": lines["news_window"],
-                     "news": lines["news"], "trading_signal": lines["trading_signal"]},
+        "contract": contract,
     }
 
 
@@ -149,18 +162,14 @@ def enforce_agent_summary_budget(summary: dict[str, Any], budget: int = AGENT_SU
 def render_final_response(result: dict[str, Any], summary: dict[str, Any] | None = None) -> str:
     del summary
     lines = required_response_lines(result)
+    if (result.get("news_summary") or {}).get("lines"):
+        return "\n".join(lines.values())
     blocks = [
         lines["ticker"],
         lines["news_window"],
         lines["news"],
+        lines["limitations"],
         lines["trading_signal"],
-        "",
-        "局限：",
-        "- 标题与摘要级判断，未核验正文。",
-        "- 历史 as-of 仅能保证 published_at <= as-of，不能重建当时可见性。",
-        "- 描述性价格反应只使用已走完的历史窗口，不构成方向预测。",
-        "",
-        "重点条目（AI 标题判断，未核验正文）：",
     ]
     blocks.extend(_major_news_lines(result.get("news_result") or {}))
     return "\n".join(blocks)
@@ -168,10 +177,19 @@ def render_final_response(result: dict[str, Any], summary: dict[str, Any] | None
 
 def render_markdown(result: dict[str, Any]) -> str:
     lines = required_response_lines(result)
+    summary_block = result.get("news_summary") or {}
     news = result.get("news_result") or {}
     snapshot = result.get("snapshot") or {}
     out = ["# Stock Data 新闻消息面报告", ""]
     out.extend(f"- {value}" for value in lines.values())
+    if summary_block.get("lines"):
+        out.extend(["", "## 描述性汇总", ""])
+        for name, matrix in (summary_block.get("matrices") or {}).items():
+            out.append(f"- {name}：{json.dumps(matrix, ensure_ascii=False)}")
+        for lean, rows in (summary_block.get("top_items") or {}).items():
+            for row in rows:
+                out.append(f"- {lean}：{_news_link(row)}；{row.get('event_type') or 'unclassified'}；"
+                           f"{row.get('strength') or 'weak'}；{markdown_text(row.get('reason'), 300)}")
     out.extend(["", "## 消息面", ""])
     out.append(f"- 状态：{news.get('status') or 'not_assessed'}（{news_status_label(news.get('status'))}）；"
                f"警告：{news.get('warning_count') if news.get('warning_count') is not None else len(news.get('warnings') or [])} 条")

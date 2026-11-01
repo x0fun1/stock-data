@@ -14,6 +14,7 @@ from . import __version__
 from .forecast_policy import POLICY_VERSION, REQUIRED_STAGES
 from .jsonio import write_json
 from .news import (
+    analyze_news,
     freeze_result,
     load_frozen_result,
     news_assessed,
@@ -21,6 +22,9 @@ from .news import (
     prepare_news_input,
     run_news,
 )
+from .news.ai_assessment import validate_ai_assessment
+from .news.contracts import NewsInput
+from .news.summary import analysis_time, build_summary, collector_candidates
 from .paths import safe_output_destination
 from .report import (
     build_agent_summary,
@@ -71,10 +75,39 @@ def _analysis_status(news_status: str) -> str:
     return "partial" if news_status_label(news_status) == "partial" else "complete"
 
 
+
+def _news_input_from_collection(snapshot_dir: Path, collected: dict[str, Any],
+                                manifest: dict[str, Any], market: dict[str, Any]) -> NewsInput:
+    status = str(collected.get("status") or "not_assessed")
+    news_status = status if status in {"complete", "partial", "empty"} else "unavailable"
+    calendar = market.get("session_calendar") or {}
+    return NewsInput(
+        ticker=manifest["ticker"],
+        market=manifest["market"],
+        horizon=manifest["horizon"],
+        asof_timestamp=manifest["asof_timestamp"],
+        snapshot_id=manifest["snapshot_id"],
+        news_status=news_status,
+        source_sentiment=None,
+        articles=tuple(dict(row) for row in collected.get("articles") or [] if isinstance(row, dict)),
+        bars=tuple(dict(row) for row in (market.get("data") or {}).get("bars") or [] if isinstance(row, dict)),
+        warnings=tuple(),
+        coverage={
+            "calendar_verification": (manifest.get("data_validation") or {}).get("calendar_verification", "unverified"),
+            "session_closes": {row["date"]: row["close_at"] for row in calendar.get("sessions") or []
+                               if isinstance(row, dict) and row.get("date") and row.get("close_at")},
+            "session_opens": {row["date"]: row["open_at"] for row in calendar.get("sessions") or []
+                              if isinstance(row, dict) and row.get("date") and row.get("open_at")},
+        },
+    )
+
+
 def run_analysis(
     snapshot_dir: Path, output_root: Path, news_policy: dict[str, Any] | None = None,
     *, on_analysis_created: Callable[[Path], None] | None = None,
     news_ai_assessment: dict[str, Any] | None = None,
+    news_collected: dict[str, Any] | None = None,
+    news_verification: dict[str, Any] | None = None,
     artifact_profile: str = "audit",
 ) -> Path:
     if artifact_profile not in {"audit", "compact"}:
@@ -130,13 +163,51 @@ def run_analysis(
     })
 
     news_result = None
+    news_summary = None
+    validated_ai = None
     frozen_path = snapshot_dir / "news_result.json"
     if frozen_path.is_file():
         try:
             news_result, _ = load_frozen_result(frozen_path)
         except ValueError:
             news_result = None
-    if news_result is None and news_policy is not None:
+    if news_collected is not None:
+        # Collector-driven path: deterministic News fields (reaction/volatility)
+        # are computed without the AI, then the host assessment is validated
+        # separately against the collector candidate ids.
+        payload = _news_input_from_collection(snapshot_dir, news_collected, manifest, market)
+        news_result = analyze_news(payload, news_policy, None)
+        freeze_result(frozen_path, news_result, result_name="news_result.json")
+        candidates = collector_candidates(news_collected, news_verification)
+        ai_status = "not_assessed"
+        ai_items: list[dict[str, Any]] = []
+        if news_ai_assessment is not None:
+            try:
+                validated_ai = validate_ai_assessment(
+                    news_ai_assessment, ticker=ticker,
+                    asof_timestamp=manifest["asof_timestamp"], candidates=candidates,
+                )
+                ai_items = validated_ai["items"]
+                direct_candidate_ids = {row["news_id"] for row in candidates
+                                        if row.get("ticker_relevance") == "direct"}
+                ai_status = ("assessed" if {row["news_id"] for row in ai_items} >= direct_candidate_ids
+                             else "partial")
+            except ValueError as exc:
+                ai_status = "invalid"
+                validated_ai = {"status": "invalid", "reason": str(exc)}
+        try:
+            news_summary = build_summary(
+                collected=news_collected,
+                verification=news_verification or {"items": [], "counts": {}, "tinyfish_status": "not_assessed"},
+                ai_items=ai_items, ai_status=ai_status, snapshot=report_manifest,
+                news_result=news_result, refs=__import__("json").loads(
+                    __import__("pathlib").Path(__file__).resolve().parent.parent.parent.joinpath(
+                        "references", "news-sources.json").read_text(encoding="utf-8")),
+                analysis_at=analysis_time(),
+            )
+        except ValueError as exc:
+            news_summary = {"status": "invalid", "reason": str(exc), "lines": {}}
+    elif news_result is None and news_policy is not None:
         payload = prepare_news_input(snapshot_dir)
         preview = None
         preview_path = snapshot_dir / "news_preview.json"
@@ -175,6 +246,10 @@ def run_analysis(
         "elapsed_seconds": elapsed_seconds,
         "snapshot": report_manifest,
         "news_result": news_result,
+        "news_summary": news_summary,
+        "news_collected": news_collected,
+        "news_verification": news_verification,
+        "ai_assessment": validated_ai,
         "analysis_status": _analysis_status(news_status),
         "reporting_status": reporting_status_for({"news_result": news_result}),
     }

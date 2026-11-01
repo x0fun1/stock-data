@@ -2,26 +2,61 @@
   "version": "1.0",
   "note": "Human-maintained source registry. New IR feeds require a person to verify robots.txt and a 200 response before adding; models must not add entries.",
   "source_tiers": {
-    "A_primary": ["sec.gov", "abc.xyz", "investor.nvidia.com", "nvidianews.nvidia.com"],
+    "A_primary": [
+      "sec.gov",
+      "abc.xyz",
+      "investor.nvidia.com",
+      "nvidianews.nvidia.com"
+    ],
     "B_media": [
-      "reuters.com", "bloomberg.com", "wsj.com", "ft.com", "cnbc.com", "apnews.com",
-      "barrons.com", "marketwatch.com", "theinformation.com", "nikkei.com", "scmp.com"
+      "reuters.com",
+      "bloomberg.com",
+      "wsj.com",
+      "ft.com",
+      "cnbc.com",
+      "apnews.com",
+      "barrons.com",
+      "marketwatch.com",
+      "theinformation.com",
+      "nikkei.com",
+      "scmp.com"
     ],
     "C_aggregator": [
-      "finance.yahoo.com", "seekingalpha.com", "benzinga.com", "investing.com",
-      "marketscreener.com", "stocktwits.com", "reddit.com"
+      "finance.yahoo.com",
+      "seekingalpha.com",
+      "benzinga.com",
+      "investing.com",
+      "marketscreener.com",
+      "stocktwits.com",
+      "reddit.com"
     ]
   },
   "ir_rss": {
     "GOOGL": [
-      {"url": "https://abc.xyz/rss/pressrelease.aspx", "name": "Alphabet IR", "crawl_delay_seconds": 10}
+      {
+        "url": "https://abc.xyz/rss/pressrelease.aspx",
+        "name": "Alphabet IR",
+        "crawl_delay_seconds": 10
+      }
     ],
     "GOOG": [
-      {"url": "https://abc.xyz/rss/pressrelease.aspx", "name": "Alphabet IR", "crawl_delay_seconds": 10}
+      {
+        "url": "https://abc.xyz/rss/pressrelease.aspx",
+        "name": "Alphabet IR",
+        "crawl_delay_seconds": 10
+      }
     ],
     "NVDA": [
-      {"url": "https://investor.nvidia.com/rss/pressrelease.aspx", "name": "NVIDIA Investor Relations", "crawl_delay_seconds": 10},
-      {"url": "https://nvidianews.nvidia.com/releases.xml", "name": "NVIDIA Newsroom", "crawl_delay_seconds": 10}
+      {
+        "url": "https://investor.nvidia.com/rss/pressrelease.aspx",
+        "name": "NVIDIA Investor Relations",
+        "crawl_delay_seconds": 10
+      },
+      {
+        "url": "https://nvidianews.nvidia.com/releases.xml",
+        "name": "NVIDIA Newsroom",
+        "crawl_delay_seconds": 10
+      }
     ]
   },
   "sec_forms": {
@@ -36,7 +71,10 @@
       "SC 13D": "beneficial ownership",
       "SC 13G": "beneficial ownership"
     },
-    "count_only": ["4", "144"]
+    "count_only": [
+      "4",
+      "144"
+    ]
   },
   "sec_items": {
     "1.01": "Entry into a Material Definitive Agreement",
@@ -59,5 +97,34 @@
   "reference_links": {
     "yahoo_finance_news": "https://finance.yahoo.com/quote/{ticker}/news/",
     "economist": "https://www.economist.com/"
+  },
+  "event_tables": {
+    "note": "Human-maintained convention, not a statistical estimate. Change only by bumping strength_v1.",
+    "strong": {
+      "earnings_results": "业绩与指引变化",
+      "guidance_change": "指引变化",
+      "merger_acquisition": "并购",
+      "divestiture": "处置/剥离",
+      "regulatory_action": "监管与诉讼裁决",
+      "major_contract": "重大合同",
+      "ceo_cfo_change": "CEO/CFO 变动",
+      "financing_issuance": "融资发行",
+      "buyback": "回购",
+      "major_product_launch": "重大产品发布",
+      "product_recall": "召回"
+    },
+    "medium": {
+      "analyst_rating": "评级调整",
+      "target_price": "目标价调整",
+      "ordinary_partnership": "一般合作",
+      "routine_product_update": "常规产品更新"
+    },
+    "weak": {
+      "commentary": "评论观点",
+      "repost": "转载重复",
+      "opinion": "观点"
+    },
+    "strength_version": "strength_v1",
+    "minimum_direct_items": 5
   }
 }

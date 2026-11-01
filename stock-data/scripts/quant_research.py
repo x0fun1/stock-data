@@ -20,6 +20,7 @@ from quant_research.cleanup import (
 from quant_research.contracts import normalize_request, utc_now
 from quant_research.delivery import validate_final_response
 from quant_research.news.pipeline import analyze_news, freeze_result, prepare_news_input
+from quant_research.news.summary import collector_candidates
 from quant_research.orchestrator import run_analysis
 from quant_research.paths import safe_output_destination
 from quant_research.retention import (
@@ -70,6 +71,8 @@ def main(argv: list[str] | None = None) -> int:
     news_candidates = commands.add_parser("news-candidates", help="export every canonical headline for host AI review before analyze")
     news_candidates.add_argument("--snapshot-dir", type=Path, required=True)
     news_candidates.add_argument("--output", type=Path, required=True)
+    news_candidates.add_argument("--collected", type=Path, help="news_collect.py output; export those candidates directly")
+    news_candidates.add_argument("--verification", type=Path, help="news_verify.py output to attach verification fields")
     news_candidates.add_argument(
         "--focus",
         choices=("all", "major"),
@@ -81,6 +84,8 @@ def main(argv: list[str] | None = None) -> int:
     analyze.add_argument("--output-root", type=Path, default=Path("runtime/research"))
     analyze.add_argument("--news-policy", type=Path, help="optional JSON event-type half-life policy for session-based decay")
     analyze.add_argument("--news-ai-assessment", type=Path, help="host-produced per-headline AI assessment")
+    analyze.add_argument("--news-collected", type=Path, help="news_collect.py output for the 60-day collector path")
+    analyze.add_argument("--news-verification", type=Path, help="news_verify.py output for the 60-day collector path")
     analyze.add_argument("--artifact-profile", choices=("audit", "compact"), default="audit",
                          help="audit retains the full analysis; compact keeps the same news artifacts without replay rows")
     pipeline = commands.add_parser("pipeline", help="compose request/adapt/freeze/analyze from already collected gateway DATA")
@@ -93,6 +98,8 @@ def main(argv: list[str] | None = None) -> int:
         help="optional JSON event-type half-life policy; pipeline runs News with the built-in defaults when omitted",
     )
     pipeline.add_argument("--news-ai-assessment", type=Path, help="host-produced per-headline AI assessment")
+    pipeline.add_argument("--news-collected", type=Path, help="news_collect.py output for the 60-day collector path")
+    pipeline.add_argument("--news-verification", type=Path, help="news_verify.py output for the 60-day collector path")
     pipeline.add_argument("--artifact-profile", choices=("audit", "compact"), default="audit",
                           help="audit retains the full analysis; compact keeps the same news artifacts without replay rows")
     pipeline_mode = pipeline.add_mutually_exclusive_group()
@@ -141,6 +148,25 @@ def main(argv: list[str] | None = None) -> int:
             location = freeze_snapshot(args.input, args.output_root)
             print(json.dumps({"status": "success", "snapshot_dir": str(location)}, ensure_ascii=False))
         elif args.command == "news-candidates":
+            if args.collected is not None:
+                collected = json.loads(args.collected.read_text(encoding="utf-8-sig"))
+                verification = (json.loads(args.verification.read_text(encoding="utf-8-sig"))
+                                if args.verification is not None else None)
+                rows = collector_candidates(collected, verification)
+                exported = rows
+                if args.focus == "major":
+                    exported = [row for row in rows if row.get("ticker_relevance") == "direct"]
+                _json_file(args.output, {
+                    "schema_version": "1.2", "ticker": collected.get("ticker"),
+                    "asof_timestamp": collected.get("as_of"), "focus": args.focus,
+                    "candidate_count": len(exported),
+                    "excluded_by_focus": len(rows) - len(exported),
+                    "items": exported,
+                })
+                print(json.dumps({"status": "success", "candidate_count": len(exported),
+                                  "excluded_by_focus": len(rows) - len(exported),
+                                  "output": str(args.output)}, ensure_ascii=False))
+                return 0
             news_input = prepare_news_input(args.snapshot_dir)
             result = analyze_news(news_input)
             # Persist the expensive deterministic result once; ``analyze`` reuses it when the
@@ -223,14 +249,21 @@ def main(argv: list[str] | None = None) -> int:
                 ai_assessment = json.loads(ai_assessment_path.read_text(encoding="utf-8-sig")) if ai_assessment_path else None
                 if ai_assessment is not None and not isinstance(ai_assessment, dict):
                     raise ValueError("news AI assessment file must contain a JSON object")
+                collected_path = getattr(args, "news_collected", None)
+                verification_path = getattr(args, "news_verification", None)
+                news_collected = json.loads(collected_path.read_text(encoding="utf-8-sig")) if collected_path else None
+                news_verification = json.loads(verification_path.read_text(encoding="utf-8-sig")) if verification_path else None
                 if owned_run is None:
                     location = run_analysis(snapshot_dir, output_root, policy, news_ai_assessment=ai_assessment,
+                                            news_collected=news_collected, news_verification=news_verification,
                                             artifact_profile=args.artifact_profile)
                 else:
                     location = run_analysis(
                         snapshot_dir, output_root, policy,
                         on_analysis_created=lambda path: update_run_workspace(owned_run, analysis_id=path.name),
                         news_ai_assessment=ai_assessment,
+                        news_collected=news_collected,
+                        news_verification=news_verification,
                         artifact_profile=args.artifact_profile,
                     )
                     update_run_workspace(owned_run, state="awaiting_cleanup")

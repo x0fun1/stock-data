@@ -27,7 +27,7 @@ from typing import Any
 from ..contracts import parse_timestamp
 from ..security import bounded_text, safe_url
 
-AI_ASSESSMENT_SCHEMA_VERSION = "1.0"
+AI_ASSESSMENT_SCHEMA_VERSION = "1.1"
 AI_LEAN_BASIS = "headline_level_ai_screen_v1"
 AI_LEAN_LAYER = "host_supplied_headline_lean_v1"
 
@@ -57,6 +57,10 @@ _ITEM_KEYS = {
     "relevance_basis",
     "target_relevance",
     "importance",
+    "strength",
+    "event_type",
+    "verification_status",
+    "evidence_urls",
 }
 _MODEL_KEYS = {"id", "prompt_sha256", "generated_at_utc"}
 
@@ -77,6 +81,8 @@ _FORBIDDEN_TOKENS = (
 
 TARGET_RELEVANCE = ("direct", "indirect", "unrelated", "unclear")
 IMPORTANCE = ("major", "routine")
+STRENGTHS = ("strong", "medium", "weak")
+VERIFICATION_STATUSES = ("primary_confirmed", "multi_source", "single_source", "unverified", "not_assessed")
 
 
 def _reject(message: str) -> None:
@@ -211,6 +217,26 @@ def validate_ai_assessment(
         importance = raw.get("importance", "routine")
         if importance not in IMPORTANCE:
             _reject(f"ai assessment item {position} importance must be one of {', '.join(IMPORTANCE)}")
+        strength = raw.get("strength")
+        if strength is not None and strength not in STRENGTHS:
+            _reject(f"ai assessment item {position} strength must be one of {', '.join(STRENGTHS)}")
+        verification_status = raw.get("verification_status")
+        if verification_status is not None and verification_status not in VERIFICATION_STATUSES:
+            _reject(f"ai assessment item {position} verification_status must be one of {', '.join(VERIFICATION_STATUSES)}")
+        event_type = _text(raw.get("event_type"), field=f"item {position} event_type", limit=60, required=False)
+        if event_type:
+            _scan_forbidden(event_type, field=f"item {position} event_type")
+        evidence_urls = raw.get("evidence_urls")
+        if evidence_urls is not None:
+            if not isinstance(evidence_urls, list) or len(evidence_urls) > 3:
+                _reject(f"ai assessment item {position} evidence_urls must be an array of at most 3 URLs")
+            cleaned = []
+            for url_value in evidence_urls:
+                safe = safe_url(_text(url_value, field=f"item {position} evidence_urls", limit=600))
+                if not safe:
+                    _reject(f"ai assessment item {position} evidence_urls contains an unsafe URL")
+                cleaned.append(safe)
+            evidence_urls = cleaned
         headline = _text(raw.get("headline"), field=f"item {position} headline", limit=_HEADLINE_LIMIT, required=False)
         reason = _text(raw.get("reason"), field=f"item {position} reason", limit=_REASON_LIMIT)
         source = _text(raw.get("source"), field=f"item {position} source", limit=120, required=False)
@@ -258,6 +284,12 @@ def validate_ai_assessment(
             "eligible_evidence": record.get("eligible_evidence"),
             "target_relevance": target_relevance,
             "importance": importance,
+            "strength": strength,
+            "event_type": event_type or record.get("event_type"),
+            "verification_status": verification_status or record.get("verification_status"),
+            "verification_pit": record.get("verification_pit"),
+            "source_tier": record.get("source_tier"),
+            "evidence_urls": evidence_urls or [],
             "relevance_basis": relevance_basis or "source_recorded",
             "display_only": True,
         })
