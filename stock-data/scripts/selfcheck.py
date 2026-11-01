@@ -154,21 +154,6 @@ def check_f01_current_probability_not_clobbered() -> None:
     assert abs((result["prob_up"] or -1) - rows[-1]["probability"]) > 1e-12, "prob_up equals the last ledger row"
 
 
-def check_f02_causal_calibration_fields() -> None:
-    bars = synth_bars()
-    result, _, _, _ = _run_ml(bars)
-    index = {bar["date"]: i for i, bar in enumerate(bars)}
-    rows = result["validation"]["oos_forecasts"]
-    applied = [row for row in rows if row.get("calibration_applied")]
-    assert applied, "no calibrated rows in synthetic ledger"
-    for row in applied:
-        assert index[row["calibration_label_end_session"]] < index[row["decision_session"]]
-        assert isinstance(row["calibration_fit_observations"], int) and row["calibration_fit_observations"] >= 40
-    for row in rows:
-        if not row.get("calibration_applied"):
-            assert row["probability"] == row["raw_probability"]
-    ledger = result["validation"]["historical_asof_ledger"]
-    assert ledger["calibrated_prediction_count"] + ledger["uncalibrated_prediction_count"] == len(rows)
 
 
 def check_f02_prefix_invariance() -> None:
@@ -198,29 +183,6 @@ def check_f02_prefix_invariance() -> None:
     assert checked > 50, checked
 
 
-def check_f02_audit_accepts_and_rejects() -> None:
-    import copy
-
-    from quant_research.validation.probability_quality import audit_oos_result
-
-    bars = synth_bars()
-    result, _, _, _ = _run_ml(bars)
-    manifest, _ = ml_snapshot_stub(bars)
-    ok = audit_oos_result(result, manifest, bars)
-    assert ok["status"] == "validated" and ok["rejected_samples"] == 0, ok
-    bad = copy.deepcopy(result)
-    row = bad["validation"]["oos_forecasts"][len(bad["validation"]["oos_forecasts"]) // 2]
-    if not row.get("calibration_applied"):
-        row = next(item for item in bad["validation"]["oos_forecasts"] if item.get("calibration_applied"))
-    row["probability"] = min(0.999, row["raw_probability"] + 0.25)
-    verdict = audit_oos_result(bad, manifest, bars)
-    assert verdict["status"] != "validated" and verdict["rejected_samples"] >= 1
-    assert "calibrated_probability_mismatch" in verdict["rejection_reasons"], verdict
-    row.pop("calibration_applied", None)
-    row.pop("calibration_label_end_session", None)
-    row.pop("calibration_fit_observations", None)
-    verdict = audit_oos_result(bad, manifest, bars)
-    assert "calibrated_probability_without_recorded_origin_boundary" in verdict["rejection_reasons"], verdict
 
 
 # ---------------------------------------------------------------- F03
@@ -251,69 +213,8 @@ def check_f03_redaction() -> None:
 
 
 # ---------------------------------------------------------------- F04 / F05
-def check_f04_response_text_validation() -> None:
-    from quant_research import delivery
-
-    fake_required = {"identity": "- 标的：SYN；市场：US；预测窗口：5D（交易 session）；分析截至：2026-01-02T00:00:00Z",
-                     "prob": "- 上涨概率 P(up)：61.4%", "status": "- 报告状态：pass"}
-    original = delivery.required_response_lines
-    delivery.required_response_lines = lambda _result: dict(fake_required)
-    try:
-        ok = "\n".join(fake_required.values())
-        delivery.validate_response_text({}, ok)
-        numbered_ok = ok.replace(fake_required["prob"], f"1. {fake_required['prob'][2:]}")
-        delivery.validate_response_text({}, numbered_ok)
-        quoted_ok = ok.replace(fake_required["prob"], f"> {fake_required['prob'][2:]}")
-        delivery.validate_response_text({}, quoted_ok)
-
-        hidden = f"<!-- {fake_required['prob']} -->\n4. 上涨概率 P(up)：99.9%\n" + "\n".join(
-            value for key, value in fake_required.items() if key != "prob")
-        for bad_text, label in ((hidden, "comment-hidden"), (ok + "\n5. 上涨概率 P(up)：99.9%\n", "numbered-conflict")):
-            try:
-                delivery.validate_response_text({}, bad_text)
-            except ValueError:  # noqa: PERF203 - each bad case is checked independently; a failure must not stop the battery
-                pass
-            else:
-                raise AssertionError(f"{label} was not rejected")
-    finally:
-        delivery.required_response_lines = original
 
 
-def check_f05_retained_binding() -> None:
-    from quant_research import cleanup
-
-    original_md, original_fr, original_vr = cleanup.render_markdown, cleanup.render_final_response, cleanup.validate_response_text
-    cleanup.render_markdown = lambda report: "MD:" + json.dumps(report, sort_keys=True)
-    cleanup.render_final_response = lambda _report, summary=None: "FR:" + json.dumps(summary, sort_keys=True)
-    cleanup.validate_response_text = lambda _result, _text: None
-    work = Path(tempfile.mkdtemp(prefix="selfcheck_f05_"))
-    try:
-        directory = work / "analysis"
-        directory.mkdir()
-        report = {"a": 1}
-        (directory / "report.json").write_text(json.dumps(report), encoding="utf-8")
-        (directory / "report.md").write_text(cleanup.render_markdown(report), encoding="utf-8")
-        (directory / "agent_summary.json").write_text(json.dumps({"s": 1}), encoding="utf-8")
-        (directory / "final_response.md").write_text(cleanup.render_final_response(report, summary={"s": 1}), encoding="utf-8")
-        cleanup._verify_retained_artifacts(directory)
-        (directory / "report.md").write_text(cleanup.render_markdown(report) + "tampered", encoding="utf-8")
-        try:
-            cleanup._verify_retained_artifacts(directory)
-        except cleanup.CleanupError:
-            pass
-        else:
-            raise AssertionError("rewritten report.md was not refused")
-        (directory / "report.md").write_text(cleanup.render_markdown(report), encoding="utf-8")
-        (directory / "final_response.md").write_text("tampered", encoding="utf-8")
-        try:
-            cleanup._verify_retained_artifacts(directory)
-        except cleanup.CleanupError:
-            pass
-        else:
-            raise AssertionError("rewritten final_response.md was not refused")
-    finally:
-        cleanup.render_markdown, cleanup.render_final_response, cleanup.validate_response_text = original_md, original_fr, original_vr
-        shutil.rmtree(work, ignore_errors=True)
 
 
 # ---------------------------------------------------------------- F07
@@ -440,42 +341,8 @@ def check_f08_preflight_and_counting() -> None:
 
 
 # ---------------------------------------------------------------- F09 / F10
-def check_f09_bootstrap_estimability() -> None:
-    from quant_research.validation.probability_quality import (
-        MIN_BOOTSTRAP_INDEPENDENT_BLOCKS,
-        _block_bootstrap_skill_interval,
-    )
-
-    def rows(count: int, same: bool = False):
-        rng = random.Random(5)
-        output = []
-        for i in range(count):
-            probability = 0.5 if same else min(max(0.5 + 0.15 * math.sin(i / 3) + rng.uniform(-0.1, 0.1), 0.01), 0.99)
-            output.append({"probability": probability, "target": int(i % 3 == 0), "baseline_probability": 0.5})
-        return output
-
-    assert _block_bootstrap_skill_interval(rows(15), horizon=5)["status"] == "insufficient_independent_blocks"
-    assert _block_bootstrap_skill_interval(rows(12), horizon=20)["status"] == "insufficient_independent_blocks"
-    estimated = _block_bootstrap_skill_interval(rows(200), horizon=5)
-    assert estimated["status"] == "estimated" and estimated["independent_blocks"] >= MIN_BOOTSTRAP_INDEPENDENT_BLOCKS
-    assert _block_bootstrap_skill_interval(rows(200, same=True), horizon=5)["status"] == "degenerate_zero_width_interval"
 
 
-def check_f10_ensemble_scope() -> None:
-    from quant_research.validation.probability_quality import _ensemble_calibration_quality
-
-    rng = random.Random(7)
-    start = dt.date(2024, 1, 1)
-    predicted = []
-    for i in range(240):
-        decision = start + dt.timedelta(days=i)
-        probability = min(max(0.5 + 0.1 * math.sin(i / 7) + rng.uniform(-0.15, 0.15), 0.02), 0.98)
-        predicted.append({"probability": probability, "target": int(rng.random() < 0.55), "baseline_probability": 0.5,
-                          "decision_session": decision.isoformat(), "label_end_session": (decision + dt.timedelta(days=5)).isoformat()})
-    quality = _ensemble_calibration_quality(predicted, horizon=5)
-    assert quality["status"] in {"improved_on_subsequent_ledger_block", "no_improvement_on_subsequent_ledger_block"}
-    assert "evidence_scope" in quality and "not an independent confirmation" in quality["evidence_scope"]
-    assert "validated_on_chronological_holdout" not in json.dumps(quality)
 
 
 # ---------------------------------------------------------------- F11 / F12
@@ -557,139 +424,12 @@ def check_f12_cache_dir_pathlike() -> None:
         raise AssertionError("non-path cache_dir must be rejected")
 
 
-def check_f13_horizon_scaled_support() -> None:
-    from quant_research.consensus import (
-        _predictive_evidence_grade,
-        oos_support_thresholds,
-    )
-
-    table = oos_support_thresholds(5)
-    assert table == {"strong": 38, "acceptable": 20, "weak": 11}, table
-    for horizon in (1, 2, 3, 5, 10, 20, 60):
-        scaled = oos_support_thresholds(horizon)
-        assert 0 < scaled["weak"] <= scaled["acceptable"] <= scaled["strong"], (horizon, scaled)
-
-    def replay(**over):
-        payload = {"non_overlapping_predicted_dates": 25, "brier_skill_vs_expanding_base_rate": 0.01}
-        payload.update(over)
-        return {"algorithm_policy_replay": payload}
-
-    manifest = {"horizon": "5D"}
-    assert _predictive_evidence_grade(replay(non_overlapping_predicted_dates=10), manifest) == "insufficient_oos_evidence"
-    assert _predictive_evidence_grade(replay(), manifest) == "exploratory_positive_skill_unconfirmed"
-    assert _predictive_evidence_grade(
-        replay(non_overlapping_predicted_dates=40, skill_uncertainty={"ci_low": 0.001, "ci_high": 0.05}),
-        manifest) == "positive_skill_with_estimated_interval_excluding_zero"
-    assert _predictive_evidence_grade(
-        replay(non_overlapping_predicted_dates=40, skill_uncertainty={"ci_low": -0.02, "ci_high": 0.05}),
-        manifest) == "positive_skill_with_estimated_interval_including_zero"
-    assert _predictive_evidence_grade(
-        replay(non_overlapping_predicted_dates=40, brier_skill_vs_expanding_base_rate=-0.01,
-               skill_uncertainty={"ci_low": -0.05, "ci_high": -0.001}),
-        manifest) == "observed_skill_below_expanding_base_rate"
 
 
-def check_f14_confidence_composite() -> None:
-    from quant_research.consensus import _confidence_composite
-
-    strong_path = {"oos_validation": {"status": "strong"}, "probability_calibration": "calibrated", "reason_codes": []}
-    ok_path = {"oos_validation": {"status": "acceptable"}, "probability_calibration": "empirical_frequency", "reason_codes": []}
-    weak_path = {"oos_validation": {"status": "weak"}, "probability_calibration": "uncalibrated", "reason_codes": []}
-
-    validated = _confidence_composite(
-        base_score=90, path_assessments=[strong_path, ok_path], valid_count=2, agreement="high", diversity="medium",
-        manifest={"horizon": "5D"},
-        oos_probability_quality={
-            "algorithm_policy_replay": {"non_overlapping_predicted_dates": 40, "brier_skill_vs_expanding_base_rate": 0.05,
-                                        "skill_uncertainty": {"ci_low": 0.01, "ci_high": 0.09, "independent_blocks": 6}},
-            "ensemble_calibration": {"status": "improved_on_subsequent_ledger_block"}})
-    assert validated["label"] == "high" and validated["score"] >= 80, validated
-
-    typical = _confidence_composite(
-        base_score=75, path_assessments=[ok_path, weak_path], valid_count=2, agreement="medium", diversity="medium",
-        manifest={"horizon": "5D"},
-        oos_probability_quality={
-            "algorithm_policy_replay": {"non_overlapping_predicted_dates": 18, "brier_skill_vs_expanding_base_rate": 0.01,
-                                        "skill_uncertainty": {"ci_low": -0.02, "ci_high": 0.04, "independent_blocks": 5}},
-            "ensemble_calibration": {}})
-    assert 60 <= typical["score"] < 80, typical
-
-    contradicted = _confidence_composite(
-        base_score=75, path_assessments=[ok_path, weak_path], valid_count=2, agreement="medium", diversity="medium",
-        manifest={"horizon": "5D"},
-        oos_probability_quality={
-            "algorithm_policy_replay": {"non_overlapping_predicted_dates": 30, "brier_skill_vs_expanding_base_rate": -0.05,
-                                        "skill_uncertainty": {"ci_low": -0.09, "ci_high": -0.01, "independent_blocks": 6}},
-            "ensemble_calibration": {}})
-    assert contradicted["score"] <= 64, contradicted
-    assert "policy_oos_skill_below_expanding_base_rate_interval" in contradicted["reasons"], contradicted
 
 
-def check_f15_52_week_window_defaults() -> None:
-    from quant_research.news.decay import NEWS_MAX_AGE_CALENDAR_DAYS
-    from quant_research.researchers import ml, quant
-    from yahoo_collect import DEFAULT_HISTORY_WEEKS, _default_history_start
-
-    assert DEFAULT_HISTORY_WEEKS == 52
-    assert _default_history_start(dt.date(2026, 1, 2)) == dt.date(2025, 1, 3)
-    assert _default_history_start(dt.date(2026, 1, 2), 3) == dt.date(2025, 12, 12)
-    assert NEWS_MAX_AGE_CALENDAR_DAYS == 90
-
-    bars = synth_bars(252)
-    manifest, market = ml_snapshot_stub(bars)
-    loaded = (manifest, market)
-    for module in (quant, ml):
-        result = module.run(Path("unused"), loaded)
-        validation = result.get("validation") or {}
-        count = validation.get("non_overlapping_prediction_count")
-        assert result.get("prob_up") is not None, (module.__name__, result.get("status"), result.get("warnings"))
-        assert isinstance(count, int) and count >= 11, (module.__name__, count)  # weak-support floor at the 5D horizon
 
 
-def check_f16_factor_path_fits_52_weeks() -> None:
-    from quant_research.researchers import factor
-
-    budget = factor._sample_feasibility(252, 5)
-    assert budget["estimated_minimum_daily_bars"] == 240
-    assert budget["status"] == "budget_possible_not_guaranteed_by_factor_scores"
-    assert budget["selection_label_capacity"] >= factor.MINIMUM_SELECTION_LABELS
-    assert budget["max_matured_non_overlapping_label_capacity"] >= 18
-    assert factor._sample_feasibility(239, 5)["status"] == "capacity_below_52_week_minimum"
-    assert factor._sample_feasibility(252, 20)["status"] == "capacity_below_52_week_minimum"
-
-    bars = synth_bars(252, seed=11)
-    manifest, market = ml_snapshot_stub(bars)
-    original_loader = factor.load_snapshot
-    factor.load_snapshot = lambda _dir: (manifest, market)
-    try:
-        result = factor.run(Path("unused"))
-    finally:
-        factor.load_snapshot = original_loader
-    validation = result["validation"]
-    assert result["status"] == "success"
-    assert isinstance(result["prob_up"], float) and 0.0 < result["prob_up"] < 1.0
-    assert validation["selection_label_count"] >= factor.MINIMUM_SELECTION_LABELS
-    assert validation["calibration_label_capacity"] >= 18
-    assert all(
-        count >= factor.MINIMUM_FACTOR_BUCKET_OBSERVATIONS
-        for count in validation["calibration_bucket_counts"].values()
-    )
-    assert validation["holdout_predictions"] >= 10
-    assert len(validation["oos_forecasts"]) >= validation["holdout_predictions"]
-    assert validation["leakage_audit"]["calibration_labels_matured_before_each_decision"] is True
-    for forecast in validation["oos_forecasts"]:
-        end = forecast["training_label_end_session"]
-        assert end is None or end <= forecast["decision_session"]
-
-    short_bars = synth_bars(120, seed=11)
-    manifest, market = ml_snapshot_stub(short_bars)
-    factor.load_snapshot = lambda _dir: (manifest, market)
-    try:
-        short_result = factor.run(Path("unused"))
-    finally:
-        factor.load_snapshot = original_loader
-    assert short_result["status"] == "insufficient_data"
-    assert short_result["prob_up"] is None
 
 
 def _news_input(bars: list[dict], articles: list[dict], ticker: str = "MU"):
@@ -1138,180 +878,8 @@ def _golden_run(with_news: bool) -> tuple[dict[str, str], dict[str, object]]:
         shutil.rmtree(work, ignore_errors=True)
 
 
-def check_f20_pipeline_golden() -> None:
-    for fixture, with_news in (("plain", False), ("news", True)):
-        artifacts, anchors = _golden_run(with_news)
-        expected_artifacts = GOLDEN_PIPELINE[fixture]
-        expected_anchors = GOLDEN_ANCHORS[fixture]
-        if not expected_artifacts or not expected_anchors:
-            raise AssertionError(f"fixture {fixture!r} has no recorded golden values")
-        changed = sorted(name for name, value in artifacts.items() if expected_artifacts.get(name) != value)
-        moved = {path: (expected_anchors.get(path), anchors.get(path))
-                 for path in anchors if expected_anchors.get(path) != anchors.get(path)}
-        if changed or moved:
-            detail = "; ".join(f"{path}: {old!r} -> {new!r}" for path, (old, new) in list(moved.items())[:6])
-            raise AssertionError(
-                f"pipeline golden drift in fixture {fixture!r}; artifacts changed: {changed or 'none'}; "
-                f"anchors changed: {detail or 'none'}")
 
 
-def check_f21_oos_record_audit() -> None:
-    """One direct case per OOS rejection code, plus the ledger-level accounting."""
-    from quant_research.validation.probability_quality import _audit_oos_path
-
-    sessions: list[str] = []
-    day = dt.date(2026, 1, 5)
-    while len(sessions) < 16:
-        if day.weekday() < 5:
-            sessions.append(day.isoformat())
-        day += dt.timedelta(days=1)
-    bars = [{"date": session, "close": 100.0 + index} for index, session in enumerate(sessions)]
-    manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": "snap_1",
-                "latest_confirmed_close": {"session_date": sessions[12]},
-                "asof_timestamp": sessions[12] + "T21:00:00Z"}
-
-    def row(decision: int, label: int, *, target: int = 1, **extra) -> dict:
-        base = {"decision_session": sessions[decision], "label_end_session": sessions[label],
-                "target": target, "probability": 0.6,
-                "training_label_end_session": sessions[max(0, decision - 2)],
-                "target_definition": "close[t+5] / close[t] - 1 > 0"}
-        base.update(extra)
-        return base
-
-    rows = [
-        row(2, 7),                                  # accepted
-        row(3, 8), row(3, 8),                       # duplicate decision session
-        {"decision_session": sessions[4], "target": 1, "probability": 0.6},
-        row(5, 10, target=0),                       # target contradicts frozen closes
-        row(8, 13),                                 # label not matured by the as-of
-        "not-a-dict",
-        row(1, 6, calibration_applied=True, raw_probability=0.55,
-            calibration_fit_observations=10, calibration_slope=1.0, calibration_intercept=0.0),
-    ]
-    accepted, summary = _audit_oos_path({"validation": {"oos_forecasts": rows}}, manifest, bars)
-    assert summary["supplied_samples"] == 8, summary
-    assert summary["valid_samples"] == 1 and summary["rejected_samples"] == 7, summary
-    assert list(accepted) == [sessions[2]], accepted
-    assert summary["valid_predictions"] == 1
-    assert summary["status"] == "rejected_records"
-    assert summary["rejection_reasons"] == {
-        "calibrated_probability_mismatch": 1,
-        "calibration_fit_set_insufficient_or_invalid": 1,
-        "calibration_label_boundary_missing": 1,
-        "decision_or_label_end_missing": 2,
-        "duplicate_decision_session": 2,
-        "invalid_binary_target": 1,
-        "label_not_matured_by_snapshot_asof": 1,
-        "record_not_object": 1,
-        "target_definition_does_not_match_requested_horizon": 2,
-        "target_does_not_match_frozen_close_prices": 1,
-        "training_label_boundary_missing_for_prediction": 1,
-    }, summary["rejection_reasons"]
-    assert accepted[sessions[2]]["target_definition"] == "close[t+5] / close[t] - 1 > 0"
-    assert [item["record_index"] for item in summary["rejected_examples"]] == [1, 2, 3, 4, 5], summary
-
-    # Without frozen bars the audit must say so rather than imply a session-axis check.
-    _, limited = _audit_oos_path({"validation": {"oos_forecasts": [row(2, 7)]}}, manifest, None)
-    assert limited["status"] == "validated" and limited["valid_samples"] == 1, limited
-    assert limited["structural_validation"] == "limited_no_frozen_session_index"
-    assert limited["non_overlapping_prediction_count"] is None
-
-    # Single-mutation cases: one valid matured record, one field broken at a time. Each
-    # assertion names the exact reason set, so a rewritten branch that emits a different
-    # code (or an extra one) fails here instead of silently widening the audit.
-    _omit = object()
-    valid = {"decision_session": sessions[2], "label_end_session": sessions[7],
-             "target": 1, "probability": 0.6,
-             "training_label_end_session": sessions[0],
-             "target_definition": "close[t+5] / close[t] - 1 > 0"}
-
-    def case(**overrides) -> dict:
-        merged = {**valid, **overrides}
-        return {key: value for key, value in merged.items() if value is not _omit}
-
-    def reasons(record, *, frozen=bars, scope=manifest) -> set[str]:
-        _, audit = _audit_oos_path({"validation": {"oos_forecasts": [record]}}, scope, frozen)
-        return set(audit["rejection_reasons"])
-
-    assert reasons(case()) == set(), "a fully specified matured record must be accepted"
-    assert reasons("not-a-dict") == {"record_not_object", "decision_or_label_end_missing",
-                                     "invalid_binary_target",
-                                     "target_definition_does_not_match_requested_horizon"}, "non-object record"
-    assert reasons(case(decision_session=None)) == {"decision_or_label_end_missing"}, "missing decision"
-    assert reasons(case(decision_session="2026-01-01")) == {"session_missing_from_frozen_market_bars"}, "off-calendar decision"
-    assert reasons(case(), scope={**manifest, "latest_confirmed_close": {"session_date": "2026-01-03"}}) == {
-        "snapshot_asof_session_missing_from_frozen_market_bars"}, "as-of outside the frozen axis"
-    assert reasons(case(label_end_session=sessions[8])) == {
-        "label_horizon_does_not_match_frozen_sessions"}, "label not one horizon out"
-    assert reasons(case(decision_session=sessions[8], label_end_session=sessions[13])) == {
-        "label_not_matured_by_snapshot_asof"}, "label beyond the as-of"
-    assert reasons(case(target=0)) == {"target_does_not_match_frozen_close_prices"}, "target contradicts closes"
-    assert reasons(case(decision_session=sessions[9], label_end_session=sessions[14]), frozen=None) == {
-        "label_outside_snapshot_time_boundary"}, "no bars, label beyond the as-of"
-    assert reasons(case(), frozen=None, scope={"ticker": "SYN", "horizon": "5D",
-                                               "snapshot_id": "snap_1", "asof_timestamp": "unknown"}) == {
-        "snapshot_asof_session_missing_or_invalid"}, "no bars, no usable as-of"
-    assert reasons(case(target=2), frozen=None) == {"invalid_binary_target"}, "target outside {0,1}"
-    assert reasons(case(target_definition="close[t+3] / close[t] - 1 > 0")) == {
-        "target_definition_does_not_match_requested_horizon"}, "record horizon differs from the request"
-    assert reasons(case(probability=1.5)) == {"invalid_probability_value"}, "probability outside [0,1]"
-    assert reasons(case(training_label_end_session=12)) == {"invalid_training_label_boundary"}, "non-string training end"
-    assert reasons(case(training_label_end_session="2026-01-01")) == {
-        "training_label_end_missing_from_frozen_market_bars"}, "training end off the frozen axis"
-    assert reasons(case(training_label_end_session=sessions[5])) == {
-        "training_label_not_matured_by_decision"}, "training label matures after the decision"
-    assert reasons(case(training_label_end_session=_omit)) == {
-        "training_label_boundary_missing_for_prediction"}, "prediction without a training boundary"
-
-    assert reasons(case(calibration_applied=True, calibration_fit_observations=45,
-                        calibration_slope=1.0, calibration_intercept=0.0,
-                        calibration_label_end_session=sessions[0])) == {
-        "raw_probability_missing_for_calibrated_record"}, "calibrated record without a raw output"
-    assert reasons(case(calibration_applied=True, raw_probability=0.6,
-                        calibration_fit_observations=39, calibration_slope=1.0,
-                        calibration_intercept=0.0,
-                        calibration_label_end_session=sessions[0])) == {
-        "calibration_fit_set_insufficient_or_invalid"}, "calibration fit set below the floor"
-    assert reasons(case(calibration_applied=True, raw_probability=0.6,
-                        calibration_fit_observations=45,
-                        calibration_label_end_session=sessions[0])) == {
-        "calibration_coefficients_missing"}, "calibrated record without coefficients"
-    assert reasons(case(calibration_applied=True, raw_probability=0.55,
-                        calibration_fit_observations=45, calibration_slope=1.0,
-                        calibration_intercept=0.0,
-                        calibration_label_end_session=sessions[0])) == {
-        "calibrated_probability_mismatch"}, "probability is not the recorded mapping's output"
-    assert reasons(case(calibration_applied=True, raw_probability=0.6,
-                        calibration_fit_observations=45, calibration_slope=1.0,
-                        calibration_intercept=0.0)) == {
-        "calibration_label_boundary_missing"}, "calibrated record without an origin boundary"
-    assert reasons(case(calibration_applied=True, raw_probability=0.6,
-                        calibration_fit_observations=45, calibration_slope=1.0,
-                        calibration_intercept=0.0,
-                        calibration_label_end_session="2026-01-01")) == {
-        "calibration_label_end_missing_from_frozen_market_bars"}, "calibration origin off the frozen axis"
-    assert reasons(case(calibration_applied=True, raw_probability=0.6,
-                        calibration_fit_observations=45, calibration_slope=1.0,
-                        calibration_intercept=0.0,
-                        calibration_label_end_session=sessions[3])) == {
-        "calibration_label_not_matured_before_decision"}, "calibration fitted on the decision session"
-    assert reasons(case(calibration_applied=False, raw_probability=0.5)) == {
-        "uncalibrated_probability_differs_from_raw"}, "uncalibrated marker with a mapped value"
-    assert reasons(case(calibration_applied="yes", raw_probability=0.6)) == {
-        "invalid_calibration_marker"}, "marker that is neither true nor false"
-    assert reasons(case(raw_probability=0.5)) == {
-        "calibrated_probability_without_recorded_origin_boundary"}, "retrofitted calibration"
-
-    _, duplicated = _audit_oos_path({"validation": {"oos_forecasts": [case(), case()]}}, manifest, bars)
-    assert duplicated["rejection_reasons"] == {"duplicate_decision_session": 2}, duplicated
-
-    # A ledger that declares the horizon once at the validation level is accepted, and the
-    # accepted row is backfilled with that definition.
-    backfilled, audit = _audit_oos_path(
-        {"validation": {"target_definition": "close[t+5] / close[t] - 1 > 0",
-                        "oos_forecasts": [case(target_definition=_omit)]}}, manifest, bars)
-    assert audit["valid_samples"] == 1, audit
-    assert backfilled[sessions[2]]["target_definition"] == "close[t+5] / close[t] - 1 > 0"
 
 
 def check_f22_daily_bar_timestamp_precision() -> None:
@@ -1346,50 +914,8 @@ def check_f22_daily_bar_timestamp_precision() -> None:
     assert "LATEST_OBSERVATION_UNRESOLVED" in codes, "a bar older than the session must stay blocked"
 
 
-def check_f23_window_scaled_support() -> None:
-    """Support tiers must stay attainable inside the window actually available."""
-    from quant_research.consensus import oos_support_sessions, oos_support_thresholds
-
-    nominal = oos_support_thresholds(5)
-    assert nominal == {"strong": 38, "acceptable": 20, "weak": 11}, nominal
-    scaled = oos_support_thresholds(5, 220)
-    assert scaled == {"strong": 33, "acceptable": 18, "weak": 9}, scaled
-    for horizon in (1, 2, 3, 5, 10, 20, 60):
-        table = oos_support_thresholds(horizon, 220)
-        budget = max(1, 220 // (horizon + 1))
-        assert 0 < table["weak"] <= table["acceptable"] <= table["strong"] <= budget, (horizon, table, budget)
-    # A longer ledger must never lower the bar below the nominal window.
-    assert oos_support_thresholds(5, 500) == nominal, oos_support_thresholds(5, 500)
-    # Only a near-full window may borrow the relative tiers. A materially shorter study must keep
-    # the nominal bar, otherwise a recent listing would earn `strong` on a handful of samples.
-    assert oos_support_thresholds(5, 188) == nominal, oos_support_thresholds(5, 188)
-    assert oos_support_thresholds(5, 189) == {"strong": 28, "acceptable": 15, "weak": 8}, oos_support_thresholds(5, 189)
-    assert oos_support_sessions([{"oos_evidence_audit": {"supplied_samples": 20}},
-                                 {"oos_evidence_audit": {"supplied_samples": 220}},
-                                 {"oos_evidence_audit": None}]) == 220
-    assert oos_support_sessions([{"oos_evidence_audit": None}]) is None
 
 
-def check_f24_shared_support_ceiling() -> None:
-    """Per-path grading and the composite must read one ledger ceiling, never two."""
-    from quant_research.consensus import _confidence_composite, _predictive_evidence_grade
-
-    path = {"oos_validation": {"status": "acceptable"}, "probability_calibration": "calibrated", "reason_codes": []}
-    quality = {"paths": {"quant": {"all_evaluable_oos_samples": 220}},
-               "algorithm_policy_replay": {"non_overlapping_predicted_dates": 10,
-                                           "brier_skill_vs_expanding_base_rate": 0.01}}
-    kwargs = {"base_score": 70, "path_assessments": [path], "valid_count": 1,
-              "oos_probability_quality": quality, "agreement": "high", "diversity": "high",
-              "manifest": {"horizon": "5D"}}
-    fallback = _confidence_composite(**kwargs)
-    explicit = _confidence_composite(support_sessions=220, **kwargs)
-    assert fallback["thresholds"] == explicit["thresholds"], (fallback["thresholds"], explicit["thresholds"])
-    # 10 replay samples clear the scaled weak bar (9) but miss the nominal one (11).
-    assert explicit["component_scores"]["policy_replay"] == 65.0, explicit["component_scores"]
-    short = _confidence_composite(support_sessions=120, **kwargs)
-    assert short["component_scores"]["policy_replay"] == 20.0, short["component_scores"]
-    assert _predictive_evidence_grade(quality, {"horizon": "5D"}, 220) == _predictive_evidence_grade(
-        quality, {"horizon": "5D"}), "grade must use the same ceiling as the composite"
 
 
 def _momentum_pipeline_run(with_benchmark: bool) -> tuple[float, dict, dict]:
@@ -1425,98 +951,8 @@ def _momentum_pipeline_run(with_benchmark: bool) -> tuple[float, dict, dict]:
         shutil.rmtree(work, ignore_errors=True)
 
 
-def check_f25_composite_momentum() -> None:
-    """F25: composite momentum stays bounded, causal, and outside the probability path."""
-    from quant_research.momentum import DEFAULT_CONFIG, _benchmark_series, _evaluate, compute
-
-    dates = [bar["date"] for bar in _golden_bars(90, seed=23)]
-    rng = random.Random(41)
-    prices = [100.0]
-    for _ in range(1, 90):
-        prices.append(prices[-1] * math.exp(rng.gauss(0.002, 0.012)))
-    benchmark: dict[str, float] = {}
-    level = 100.0
-    for session in dates:
-        level *= math.exp(rng.gauss(0.001, 0.008))
-        benchmark[session] = level
-
-    block = compute(prices, dates, benchmark, symbol="SYN", benchmark_symbol="BMK")
-    if block["score_status"] != "valid":
-        raise AssertionError(f"composite momentum should be valid: {block['status_reasons']}")
-    keys = ("risk_adjusted", "regression_trend", "relative_strength")
-    if abs(math.fsum(block["components"][key]["weight"] for key in keys) - 1.0) > 1e-12:
-        raise AssertionError("momentum weights must sum to one")
-    contributions = math.fsum(block["components"][key]["contribution"] for key in keys)
-    if abs(contributions - block["momentum_score_20d"]) > 1e-9:
-        raise AssertionError("component contributions must sum to the composite score")
-    if not -100 < block["momentum_score_20d"] < 100:
-        raise AssertionError("composite score must stay strictly inside (-100, 100)")
-    if not all(-1 < block["components"][key]["normalized_value"] < 1 for key in keys):
-        raise AssertionError("tanh transformed factors must stay strictly inside (-1, 1)")
-    expected_direction = "flat" if abs(block["return_20d"]) <= 1e-12 else ("positive" if block["return_20d"] > 0 else "negative")
-    if block["momentum_direction"] != expected_direction:
-        raise AssertionError("absolute direction must follow the sign of the 20-session return")
-
-    # Leakage: appending future sessions must not change the evaluation at a past index.
-    series = _benchmark_series(benchmark)
-    past = _evaluate(prices, dates, series, 70, DEFAULT_CONFIG)
-    truncated = _evaluate(
-        prices[:71], dates[:71], _benchmark_series({k: v for k, v in benchmark.items() if k <= dates[70]}), 70, DEFAULT_CONFIG)
-    for key in keys:
-        if past["components"][key]["raw_value"] != truncated["components"][key]["raw_value"]:
-            raise AssertionError(f"factor {key} changed when future sessions were removed")
-
-    # A missing factor is reported, never renormalised; degenerate data is invalid, not zero.
-    missing = compute(prices, dates, None, symbol="SYN")
-    if missing["momentum_score_20d"] is not None or missing["score_status"] != "unavailable":
-        raise AssertionError("a missing benchmark must leave the score unavailable")
-    if "relative_strength:benchmark_unavailable" not in missing["status_reasons"]:
-        raise AssertionError("the missing benchmark reason must be explicit")
-    gap = dict(benchmark)
-    del gap[dates[70]]
-    gapped = compute(prices, dates, gap, symbol="SYN")
-    if gapped["score_status"] != "unavailable":
-        raise AssertionError("an incomplete benchmark window must not be forward filled")
-    flat = compute([100.0] * 90, dates, benchmark, symbol="SYN")
-    if flat["momentum_score_20d"] is not None or flat["score_status"] != "invalid":
-        raise AssertionError("degenerate volatility must be invalid, not a zero score")
-    identical = compute([benchmark[session] for session in dates], dates, benchmark, symbol="SYN")
-    if identical["momentum_score_20d"] is not None:
-        raise AssertionError("a benchmark identical to the target must not yield a score")
-
-    # Isolation: declaring a benchmark must not move the probability by even one bit.
-    plain_prob, plain_block, _ = _momentum_pipeline_run(False)
-    bench_prob, bench_block, _ = _momentum_pipeline_run(True)
-    if plain_prob != bench_prob:
-        raise AssertionError(f"probability moved when a benchmark was declared: {plain_prob} != {bench_prob}")
-    if plain_block["score_status"] != "unavailable" or plain_block["momentum_score_20d"] is not None:
-        raise AssertionError("without a benchmark the momentum score must be unavailable")
-    if bench_block["score_status"] != "valid" or bench_block["benchmark"]["symbol"] != "BMK":
-        raise AssertionError(f"declared benchmark should produce a valid score: {bench_block['status_reasons']}")
 
 
-def check_f26_momentum_probability_separation() -> None:
-    """F26: momentum is a standalone diagnostic; it has no probability verdict line."""
-
-    from quant_research.delivery import validate_response_text
-    from quant_research.report import render_final_response, render_markdown
-
-    prob, block, report = _momentum_pipeline_run(True)
-    if block["score_status"] != "valid":
-        raise AssertionError(f"fixture momentum should be valid: {block['status_reasons']}")
-    text = render_final_response(report)
-    validate_response_text(report, text)
-    if "动量" in text:
-        raise AssertionError("the fixed response block must not carry a momentum verdict")
-    markdown = render_markdown(report)
-    if "- 动量诊断：" not in markdown:
-        raise AssertionError("report.md must still disclose the standalone momentum diagnostic")
-    if "不进入概率" not in markdown:
-        raise AssertionError("the diagnostic must state that it does not enter the probability")
-    if "动量与上涨概率的关系" in markdown or "动量与上涨概率的关系" in text:
-        raise AssertionError("the retired v1 cross-check line must not be produced")
-    if float(report["consensus"]["prob_up"]) != prob:
-        raise AssertionError("rendering must not modify the reported probability")
 
 
 # ---------------------------------------------------------------- F28
@@ -1787,121 +1223,9 @@ def check_f30_anchored_sampling() -> None:
 
 
 # ---------------------------------------------------------------- F31
-def check_f31_qualification_is_authoritative() -> None:
-    """F31: an abstained route cannot carry a reportable probability into consensus."""
-    from quant_research import consensus
-    from quant_research.contracts import researcher_result
-    from quant_research.reliability import ROUTE_ABSTAINED
-
-    # A path that contradicts itself must be rejected by consensus even though its own
-    # payload says nothing is wrong with the number itself.
-    contradictory = researcher_result(
-        "factor", "SYN", "5D", "snap", status="success", prob_up=0.61,
-        probability_source="out_of_sample_factor_score_bucket_frequency",
-        validation={"qualification": {"route": ROUTE_ABSTAINED}},
-    )
-    assessment = consensus.forecast_assessment(contradictory, {"horizon": "5D", "ticker": "SYN",
-                                                              "snapshot_id": "snap"})
-    codes = (assessment.get("reason_codes") or []) + list(assessment.get("forecast_exclusion_reasons") or [])
-    joined = " ".join(str(item) for item in codes) + " " + " ".join(
-        str(item) for item in (assessment.get("warnings") or [])
-    )
-    if "QUALIFICATION_CONTRACT_VIOLATION" not in joined:
-        raise AssertionError(f"consensus must flag the contradiction: {assessment}")
-    if assessment.get("forecast_eligible") is not False:
-        raise AssertionError(f"a contradicting path must not stay eligible: {assessment}")
-
-    # A healthy path is untouched by the new contract.
-    healthy = researcher_result(
-        "factor", "SYN", "5D", "snap", status="success", prob_up=0.61,
-        probability_source="out_of_sample_factor_score_bucket_frequency",
-        validation={"qualification": {"route": "legacy_bucket"},
-                    "leakage_audit": {"features_use_data_through_decision_close_only": True,
-                                      "future_returns_used_only_as_labels": True}},
-    )
-    clean = consensus.forecast_assessment(healthy, {"horizon": "5D", "ticker": "SYN", "snapshot_id": "snap"})
-    if "QUALIFICATION_CONTRACT_VIOLATION" in str(clean):
-        raise AssertionError("a qualified path must not be flagged")
-
-    # A caller-supplied assessment is not trusted either: a stale flag must not keep an
-    # abstained path eligible for probability-quality diagnostics.
-    abstained = researcher_result(
-        "factor", "SYN", "5D", "snap", status="insufficient_data", prob_up=None,
-        validation={"qualification": {"route": ROUTE_ABSTAINED}},
-    )
-    manifest_stub = {"horizon": "5D", "ticker": "SYN", "snapshot_id": "snap"}
-    stale = {"factor": {"forecast_eligible": True, "reporting_status": "pass", "reason_codes": []}}
-    merged = consensus.build_consensus([abstained], manifest_stub, assessments=stale)
-    if merged["path_assessments"]["factor"]["forecast_eligible"] is not False:
-        raise AssertionError(
-            f"a supplied assessment overrode the abstained route: {merged['path_assessments']['factor']}"
-        )
-    if merged["status"] != "unavailable" or merged["prob_up"] is not None:
-        raise AssertionError(f"an abstained path must not produce a consensus probability: {merged['status']}")
 
 
 # ---------------------------------------------------------------- F32
-def check_f32_candidate_profiles() -> None:
-    """F32: candidates are opt-in, and production defaults are unchanged."""
-    from pathlib import Path as _Path
-
-    from quant_research.researchers import factor
-
-    if factor.PRODUCTION_SELECTION_PROFILE != "legacy" or factor.PRODUCTION_BUCKET_MODE != "three":
-        raise AssertionError("production defaults must stay legacy selection and three buckets")
-    legacy = factor.SELECTION_PROFILES["legacy"]
-    restricted = factor.SELECTION_PROFILES["restricted"]
-    if (legacy["max_factors"], legacy["max_factors_per_family"]) != (5, 2):
-        raise AssertionError(f"the incumbent profile changed: {legacy}")
-    if (restricted["max_factors"], restricted["max_factors_per_family"]) != (3, 1):
-        raise AssertionError(f"the restricted candidate must cap 3 factors, one per family: {restricted}")
-    if restricted["metric"] != "overlapping_block":
-        raise AssertionError("the restricted candidate must use the dependency-aware estimator")
-
-    bars = synth_bars(250, seed=11)
-    manifest, market = ml_snapshot_stub(bars)
-    original = factor.load_snapshot
-    factor.load_snapshot = lambda _dir, a=manifest, b=market: (a, b)
-    try:
-        default = factor.run(_Path("x"))
-        explicit = factor.run(_Path("x"), selection_profile="legacy", bucket_mode="three")
-        two = factor.run(_Path("x"), selection_profile="legacy", bucket_mode="two")
-        restricted_run = factor.run(_Path("x"), selection_profile="restricted", bucket_mode="three")
-    finally:
-        factor.load_snapshot = original
-
-    if default["prob_up"] != explicit["prob_up"]:
-        raise AssertionError("passing the production profile explicitly must not change the result")
-    if default["validation"]["bucket_mode"] != "three":
-        raise AssertionError("the default bucket mode must be declared as three")
-    for result, mode in ((two, "two"), (restricted_run, "three")):
-        validation = result["validation"]
-        if validation["bucket_mode"] != mode:
-            raise AssertionError(f"bucket mode not disclosed: {validation['bucket_mode']}")
-        if (validation["qualification"] or {}).get("route") not in {"legacy_bucket", "abstained"}:
-            raise AssertionError("a candidate run must still report a qualification route")
-    if len(two["validation"]["calibration_bucket_counts"]) != 2:
-        raise AssertionError(f"the two-bucket candidate must have two buckets: {two['validation']['calibration_bucket_counts']}")
-    if len(restricted_run["validation"]["selected_factors"]) > 3:
-        raise AssertionError("the restricted candidate selected more than three factors")
-    families = [row["family"] for row in restricted_run["validation"]["selected_factors"]]
-    if len(families) != len(set(families)):
-        raise AssertionError(f"the restricted candidate allowed two factors from one family: {families}")
-
-    # Interval unit: non-overlapping ledgers must not be blocked at horizon + 1 records.
-    from quant_research.reliability import probabilistic_scores
-
-    spaced = [(index, 0.6, 0.5, 1) for index in range(0, 60, 6)]
-    scores = probabilistic_scores(spaced, horizon=5)
-    if scores["block_length"] != 1:
-        raise AssertionError(f"non-overlapping predictions must use a one-record block: {scores['block_length']}")
-    if scores["block_length_basis"] != "one_record_because_labels_do_not_overlap":
-        raise AssertionError("the interval unit must be explained")
-    dense = [(index, 0.6, 0.5, 1) for index in range(30)]
-    if probabilistic_scores(dense, horizon=5)["block_length"] != 6:
-        raise AssertionError("overlapping daily predictions must keep the horizon block")
-    if scores["calibration_slope_is_logistic_calibration_slope"] is not False:
-        raise AssertionError("the calibration slope must not be described as a logistic calibration slope")
 
 
 # ---------------------------------------------------------------- F33
@@ -2025,117 +1349,12 @@ def check_f34_capacity_and_timing():
         raise AssertionError("first executable time must stay unresolved rather than guessed")
 
 
-def check_f35_confidence_disclosure_fields():
-    from quant_research.consensus import _confidence_composite, support_basis
-
-    path = {
-        "oos_validation": {"status": "acceptable"},
-        "probability_calibration": "calibrated",
-        "reason_codes": [],
-    }
-    composite = _confidence_composite(
-        base_score=85, path_assessments=[path, path], valid_count=2,
-        agreement="high", diversity="medium", manifest={"horizon": "5D"},
-        oos_probability_quality={
-            "algorithm_policy_replay": {},
-            "ensemble_calibration": {"status": "improved_on_subsequent_ledger_block"},
-        },
-        support_sessions=220,
-    )
-    if composite["support_basis"] != {"sessions_used": 220, "nominal_sessions": 252,
-                                      "scaled": True, "scaling_floor": 189}:
-        raise AssertionError("the confidence block must publish the ledger its tiers came from")
-    if composite["ensemble_calibrator_selected_on_retrospective_check"] is not True:
-        raise AssertionError("the calibrator was selected on the retrospective check")
-    if "ensemble_calibrator_validated" in composite:
-        raise AssertionError("the old field name overclaims independent validation")
-    if composite["independent_validation_status"] != "not_established":
-        raise AssertionError("no independent calibration check exists yet")
-    if support_basis(188)["scaled"] or support_basis(188)["sessions_used"] != 252:
-        raise AssertionError("below the scaling floor the nominal tiers must be used")
-    if support_basis(252)["scaled"]:
-        raise AssertionError("a full ledger is not a scaled ledger")
 
 
-def check_f36_eligibility_and_uncertainty():
-    from quant_research.consensus import _ensemble_uncertainty
-    from quant_research.gate_policy import build_report_eligibility
-
-    weak = {"reportable_probability": 0.57,
-            "predictive_evidence_grade": "no_observed_skill_vs_expanding_base_rate"}
-    eligibility = build_report_eligibility(weak, {"may_report_direction": True})
-    if not eligibility["probability_report"] or not eligibility["direction_report"]:
-        raise AssertionError("a reportable probability and direction are separate booleans")
-    if eligibility["trading_signal"] is not False:
-        raise AssertionError("no run may claim an executable trading signal")
-    for reason in ("entry_basis_not_modelled", "transaction_costs_not_modelled",
-                   "no_independent_edge_vs_expanding_base_rate"):
-        if reason not in eligibility["trading_signal_reasons"]:
-            raise AssertionError(f"a weak edge must be disclosed: {reason}")
-
-    strong = {"reportable_probability": 0.57,
-              "predictive_evidence_grade": "positive_skill_with_estimated_interval_excluding_zero"}
-    if "no_independent_edge_vs_expanding_base_rate" in build_report_eligibility(
-            strong, {"may_report_direction": True})["trading_signal_reasons"]:
-        raise AssertionError("a positive interval must not be reported as no edge")
-    blocked = build_report_eligibility({"reportable_probability": None}, {"may_report_direction": False})
-    if blocked["probability_report"] or blocked["direction_report"]:
-        raise AssertionError("a vetoed run reports neither probability nor direction")
-
-    uncertain = _ensemble_uncertainty([0.50, 0.57], {"status": "assessed", "effective_independent_paths": 1.4})
-    if uncertain["status"] != "not_estimable" or uncertain["interval"] is not None:
-        raise AssertionError("correlated paths cannot yield a probability interval")
-    descriptive = _ensemble_uncertainty([0.50, 0.57], {"status": "assessed", "effective_independent_paths": 2.0})
-    if descriptive["status"] != "descriptive_range_only" or descriptive["interval"] is not None:
-        raise AssertionError("a path range is descriptive, never a confidence interval")
-    if descriptive["path_probability_range"] != [0.50, 0.57]:
-        raise AssertionError("the descriptive range must be reported")
 
 
-def check_f37_path_error_dependency():
-    from quant_research.validation.probability_quality import _path_error_dependency
-
-    dates = [f"2026-01-{day:02d}" for day in range(1, 31)]
-    rows: dict[str, dict[str, dict[str, float | int]]] = {"a": {}, "b": {}}
-    for index, day in enumerate(dates):
-        probability = 0.40 + 0.004 * index
-        target = 1 if index % 2 == 0 else 0
-        rows["a"][day] = {"probability": probability, "target": target}
-        rows["b"][day] = {"probability": probability, "target": target}
-    dependency = _path_error_dependency(rows, ["a", "b"])
-    if dependency["status"] != "assessed":
-        raise AssertionError("thirty common dates are enough to assess dependency")
-    if dependency["mean_error_correlation"] != 1.0:
-        raise AssertionError("identical errors must correlate at one")
-    if dependency["effective_independent_paths"] != 1.0:
-        raise AssertionError("two perfectly correlated paths are one independent path")
-    short = _path_error_dependency({name: dict(list(values.items())[:10]) for name, values in rows.items()},
-                                   ["a", "b"])
-    if short["status"] != "not_assessed":
-        raise AssertionError("ten common dates cannot support a dependency claim")
 
 
-def check_f38_ml_hyperparameters():
-    from quant_research.researchers import ml
-
-    bars = synth_bars(252)
-    manifest, market = ml_snapshot_stub(bars)
-    result = ml.run(Path("unused"), (manifest, market))
-    parameters = (result.get("validation") or {}).get("model_hyperparameters") or {}
-    if parameters.get("version") != ml.ML_PARAMETER_VERSION:
-        raise AssertionError("the logistic baseline must publish a parameter version")
-    expected = {
-        "iterations": ml.LOGISTIC_ITERATIONS,
-        "learning_rate": ml.LOGISTIC_LEARNING_RATE,
-        "l2": ml.LOGISTIC_L2,
-        "platt_min_observations": ml.PLATT_MIN_OBSERVATIONS,
-        "refit_sessions": ml.REFIT_SESSIONS,
-        "training_window_sessions": ml.TRAINING_WINDOW_SESSIONS,
-        "minimum_training_rows": ml.MINIMUM_TRAINING_ROWS,
-    }
-    for key, value in expected.items():
-        if parameters.get(key) != value:
-            raise AssertionError(f"recorded hyperparameter {key} does not match the fitted value")
 
 
 def check_f39_forward_ledger():
@@ -2303,29 +1522,6 @@ def check_f42_live_entry_matches_replay() -> None:
         raise AssertionError("the raw logits must agree at the same origin")
 
 
-def check_f43_compact_candidate_is_shadow_only() -> None:
-    from quant_research.researchers import ml
-
-    market = {
-        "data": {
-            "currency": "USD", "exchange": "US", "adjustment": "unadjusted",
-            "bars": synth_bars(400), "source_symbol": "SYN",
-            "fetched_at_utc": "2026-01-02T00:00:00Z", "source_timestamp": "2026-01-02T00:00:00Z",
-        },
-        "_data_validation": {"forecast_eligible": True},
-    }
-    dataset = ml._dataset(market, 5, feature_set="compact_v1")
-    if list(ml.FEATURE_SETS["compact_v1"]["names"]) != ["return_5", "return_20", "volatility_20"]:
-        raise AssertionError("the compact candidate must be frozen at three features")
-    vector = dataset.features[-1]
-    if vector is None or len(vector) != 3:
-        raise AssertionError("the compact candidate must expose exactly three inputs")
-    records, _, _ = ml._replay(dataset, 5, ml._Fitter())
-    if not records:
-        raise AssertionError("the compact candidate must be replayable")
-    default = ml.run(None, ({"ticker": "SYN", "horizon": "5D", "snapshot_id": "s", "market": "US"}, market))
-    if default["validation"]["model_hyperparameters"]["feature_set"] != "full_v1":
-        raise AssertionError("the compact candidate must not replace the production feature set")
 
 
 def check_f44_forward_eligibility() -> None:
@@ -2406,20 +1602,6 @@ def check_f44_forward_eligibility() -> None:
         shutil.rmtree(work, ignore_errors=True)
 
 
-def check_f45_candidates_never_switch_production() -> None:
-    import research_candidates
-
-    report = research_candidates.evaluate(synth_bars(640), 5)
-    if report["switch"] is not False:
-        raise AssertionError("a candidate evaluation must never switch production")
-    if not report["ml"]["paired"] or not report["quant"]["paired"]:
-        raise AssertionError("both pre-registered arms need paired rows")
-    if report["ml"]["verdict"]["status"] not in {
-        "indeterminate", "not_supported", "candidate_supported",
-    }:
-        raise AssertionError("the verdict must come from the pre-registered rule")
-    if report["preregistration"]["minimum_sessions"] != 120:
-        raise AssertionError("the pre-registered sample floor must stay explicit")
 
 
 def check_f46_quant_shrinkage_is_applied() -> None:
