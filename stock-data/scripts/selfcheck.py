@@ -3202,10 +3202,21 @@ def check_t27_event_timing_and_volatility_regime() -> None:
     )
 
     closes_map = {"2026-01-05": "2026-01-05T20:00:00Z"}
-    assert event_time_bucket("2026-01-05T10:00:00Z", "2026-01-05", closes_map)["bucket"] == "pre_market"
-    assert event_time_bucket("2026-01-05T15:00:00Z", "2026-01-05", closes_map)["bucket"] == "intraday"
-    assert event_time_bucket("2026-01-05T22:00:00Z", "2026-01-05", closes_map)["bucket"] == "after_close"
-    assert event_time_bucket(None, "2026-01-05", closes_map)["bucket"] == "unknown"
+    assert event_time_bucket("2026-01-05T10:00:00Z", "2026-01-05", closes_map, market="US")["bucket"] == "pre_market"
+    assert event_time_bucket("2026-01-05T15:00:00Z", "2026-01-05", closes_map, market="US")["bucket"] == "intraday"
+    assert event_time_bucket("2026-01-05T22:00:00Z", "2026-01-05", closes_map, market="US")["bucket"] == "after_close"
+    assert event_time_bucket(None, "2026-01-05", closes_map, market="US")["bucket"] == "unknown"
+
+    # HK close-only calendars cannot supply the session open, so no US-clock guess.
+    hk_closes = {"2026-01-05": "2026-01-05T08:00:00Z"}
+    for published in ("2026-01-05T00:30:00Z", "2026-01-05T03:00:00Z", "2026-01-05T09:00:00Z"):
+        hk_unknown = event_time_bucket(published, "2026-01-05", hk_closes, market="HK")
+        assert hk_unknown["bucket"] == "unknown", hk_unknown
+        assert "US session hours are not applied" in hk_unknown["reason"], hk_unknown
+    hk_opens = {"2026-01-05": "2026-01-05T01:30:00Z"}
+    assert event_time_bucket("2026-01-05T00:30:00Z", "2026-01-05", hk_closes, market="HK", session_opens=hk_opens)["bucket"] == "pre_market"
+    assert event_time_bucket("2026-01-05T03:00:00Z", "2026-01-05", hk_closes, market="HK", session_opens=hk_opens)["bucket"] == "intraday"
+    assert event_time_bucket("2026-01-05T09:00:00Z", "2026-01-05", hk_closes, market="HK", session_opens=hk_opens)["bucket"] == "after_close"
 
     # 25 quiet sessions, a +2% event session, then a flat continuation window.
     closes = [100.0]

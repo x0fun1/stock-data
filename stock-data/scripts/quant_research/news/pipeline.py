@@ -274,7 +274,8 @@ def prepare_news_input(
                   "retrieved_window": data.get("history_window") if isinstance(data, dict) else None,
                   "excluded_at_normalization": excluded,
                   "calendar_verification": manifest.get("data_validation", {}).get("calendar_verification", "unverified"),
-                  "session_closes": {row["date"]: row["close_at"] for row in (market.get("session_calendar") or {}).get("sessions", [])}},
+                  "session_closes": {row["date"]: row["close_at"] for row in (market.get("session_calendar") or {}).get("sessions", [])},
+                  "session_opens": {row["date"]: row["open_at"] for row in (market.get("session_calendar") or {}).get("sessions", []) if row.get("open_at")}},
     )
 
 
@@ -313,6 +314,7 @@ def _build_event_card(
     # hides: an after-close release acts through the next overnight gap.
     impact["event_time_bucket"] = event_time_bucket(
         decay_time, reaction.get("market_session_date"), news_input.coverage.get("session_closes"),
+        market=news_input.market, session_opens=news_input.coverage.get("session_opens"),
     )
     priced_in = priced_in_assessment(
         reaction=reaction,

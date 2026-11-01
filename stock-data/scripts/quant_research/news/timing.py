@@ -27,7 +27,7 @@ from ..contracts import parse_timestamp
 from .impact import trailing_sigma
 
 #: Regular US session length used to derive the open from the recorded close.
-SESSION_HOURS = 6.5
+US_SESSION_HOURS = 6.5
 PRICED_IN_SIGMA_MULTIPLE = 1.0
 PRICED_IN_MIN_EVENTS = 3
 
@@ -37,27 +37,48 @@ BUCKET_AFTER_CLOSE = "after_close"
 BUCKET_UNKNOWN = "unknown"
 
 
+def _unknown_bucket(market: str, basis: str, reason: str) -> dict[str, Any]:
+    return {"bucket": BUCKET_UNKNOWN, "market": market, "basis": basis, "reason": reason}
+
+
 def event_time_bucket(
     published_at: Any,
     session_date: Any,
     session_closes: dict[str, str] | None,
+    *,
+    market: str = "US",
+    session_opens: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Classify a publication time relative to its mapped trading session.
 
-    The bucket is derived from the frozen session close time minus a 6.5-hour
-    regular session, so it is reproducible offline and identical on every run.
-    When the mapped session or its close time is unavailable the bucket is
-    ``unknown`` rather than guessed.
+    US uses the frozen session close minus the 6.5-hour regular session. HK uses
+    the calendar open/close timestamps when both are available; otherwise the
+    bucket is ``unknown`` rather than pretending the US session clock applies.
+    The result is reproducible offline and identical on every run.
     """
 
-    basis = "session_close_at minus 6.5h regular session; frozen calendar only"
-    if not published_at or not session_date or not session_closes:
-        return {"bucket": BUCKET_UNKNOWN, "basis": basis, "reason": "publication time or session close unavailable"}
-    close_at = session_closes.get(str(session_date)[:10])
-    if not close_at:
-        return {"bucket": BUCKET_UNKNOWN, "basis": basis, "reason": "mapped session has no recorded close time"}
-    close = parse_timestamp(close_at)
-    opened = close - timedelta(hours=SESSION_HOURS)
+    if not published_at or not session_date:
+        return _unknown_bucket(market, "market session clock; frozen calendar only", "publication time or session date unavailable")
+    day = str(session_date)[:10]
+    close_at = (session_closes or {}).get(day)
+    if market == "US":
+        basis = "US session_close_at minus 6.5h regular session; frozen calendar only"
+        if not close_at:
+            return _unknown_bucket(market, basis, "mapped session has no recorded close time")
+        close = parse_timestamp(close_at)
+        opened = close - timedelta(hours=US_SESSION_HOURS)
+    elif market == "HK":
+        basis = "HK calendar open_at/close_at; frozen calendar only"
+        open_at = (session_opens or {}).get(day)
+        if not open_at or not close_at:
+            return _unknown_bucket(
+                market, basis,
+                "HK calendar open/close timestamps unavailable; US session hours are not applied",
+            )
+        opened = parse_timestamp(open_at)
+        close = parse_timestamp(close_at)
+    else:
+        return _unknown_bucket(market, "market session clock; frozen calendar only", f"no session clock mapping for market {market!r}")
     published = parse_timestamp(published_at)
     if published < opened:
         bucket = BUCKET_PRE_MARKET
@@ -67,8 +88,9 @@ def event_time_bucket(
         bucket = BUCKET_AFTER_CLOSE
     return {
         "bucket": bucket,
+        "market": market,
         "basis": basis,
-        "session_date": str(session_date)[:10],
+        "session_date": day,
         "session_open_at": opened.isoformat().replace("+00:00", "Z"),
         "session_close_at": close.isoformat().replace("+00:00", "Z"),
         "published_at": published.isoformat().replace("+00:00", "Z"),
