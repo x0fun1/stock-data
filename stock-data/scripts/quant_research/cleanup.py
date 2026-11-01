@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 from pathlib import Path, PurePosixPath
 from typing import Any
 
-from .contracts import RESEARCHERS, utc_now
+from .contracts import utc_now
 from .delivery import validate_final_response, validate_response_text
 from .jsonio import json_payload
 from .paths import safe_output_destination, validate_path_component
@@ -26,7 +26,7 @@ RUN_MANIFEST = "run_manifest.json"
 CLEANUP_RECEIPT = "cleanup_receipt.txt"
 PIPELINE_LOCK = ".pipeline.lock"
 ANALYSIS_JSON = ("analysis.json", "agent_summary.json", "news_result.json", "news_result.freeze.json",
-                 "audit.json", "data.json", "request.json", "snapshot.json")
+                 "data.json", "request.json", "snapshot.json")
 ANALYSIS_MARKDOWN = ("report.md", "final_response.md")
 RETAINED_PREFIXES = ("snapshots/", "collections/")
 # A hard kill leaves these behind: _atomic_write_text names its scratch file
@@ -357,9 +357,7 @@ def _orphan_counts(report: dict[str, Any], *, dry_run: bool) -> dict[str, int]:
 
 def _analysis_targets(analysis_id: str) -> set[str]:
     validate_path_component(analysis_id, label="analysis_id")
-    return {f"research/{analysis_id}/researchers/{name}.json" for name in RESEARCHERS} | {
-        f"research/{analysis_id}/{name}" for name in ANALYSIS_JSON
-    }
+    return {f"research/{analysis_id}/{name}" for name in ANALYSIS_JSON}
 
 
 def _snapshot_targets(snapshot_id: str) -> set[str]:
@@ -377,7 +375,7 @@ def _allowed_directories(analysis_id: str | None, snapshot_id: str | None, *, fu
     if snapshot_id:
         names |= {"snapshots/" + snapshot_id, "snapshots/" + snapshot_id + "/raw"}
     if analysis_id:
-        names |= {"research/" + analysis_id, "research/" + analysis_id + "/researchers"}
+        names |= {"research/" + analysis_id}
     return names
 
 
@@ -732,7 +730,7 @@ def cleanup_analysis(
         ignored = _orphan_ignore(orphans)
         receipt_path = analysis / CLEANUP_RECEIPT
         existing_receipt = _read_receipt(receipt_path) if receipt_path.exists() else None
-        expected = set(ANALYSIS_JSON) | {f"researchers/{name}.json" for name in RESEARCHERS}
+        expected = set(ANALYSIS_JSON)
         if existing_receipt:
             if existing_receipt.get("mode") != "analysis" or existing_receipt.get("analysis_id") != analysis_id:
                 raise CleanupError("existing cleanup receipt belongs to a different analysis")
@@ -761,7 +759,7 @@ def cleanup_analysis(
                 raise CleanupError("analysis cleanup receipt contains an unowned target")
             files, directories = _tree_entries(analysis, ignore=ignored)
             allowed = expected | set(ANALYSIS_MARKDOWN) | {CLEANUP_RECEIPT}
-            if files - allowed or directories - {"researchers"}:
+            if files - allowed or directories:
                 raise CleanupError("unknown files or directories prevent cleanup")
             registered = {name for name, _, _ in targets}
             if (files & expected) - registered:
@@ -779,13 +777,13 @@ def cleanup_analysis(
                 "reporting_status": existing_receipt.get("reporting_status") or None,
                 "removed_file_count": int(existing_receipt.get("removed_file_count", "0")),
                 "removed_bytes": int(existing_receipt.get("removed_json_bytes", "0")),
-                "empty_directories": ["researchers"],
+                "empty_directories": [],
                 "retained_paths": list(ANALYSIS_MARKDOWN),
                 "delivery": existing_receipt.get("delivery") or "",
             })
             return _execute_cleanup(analysis, receipt_path, metadata, targets, dry_run=dry_run)
 
-        actual = _validate_tree(analysis, expected_files=expected, expected_dirs={"researchers"},
+        actual = _validate_tree(analysis, expected_files=expected, expected_dirs=set(),
                                 allowed_markdown=set(ANALYSIS_MARKDOWN), allow_missing=force_incomplete,
                                 ignore=ignored)
         validation = None
@@ -808,13 +806,13 @@ def cleanup_analysis(
                     "final_response_hash": retained.get("final_response_hash"),
                     "analysis_status": validation.get("analysis_status") if validation else None,
                     "reporting_status": validation.get("reporting_status") if validation else None,
-                    "empty_directories": ["researchers"], "retained_paths": list(ANALYSIS_MARKDOWN),
+                    "empty_directories": [], "retained_paths": list(ANALYSIS_MARKDOWN),
                     "delivery": "verified" if validation else ("unverified" if delivery_unverified else ""),
                     **_orphan_counts(orphans, dry_run=dry_run)}
         result = _execute_cleanup(analysis, receipt_path, metadata, targets, dry_run=dry_run)
         if validation and result.get("cleanup_status") == "complete":
             result.update({key: validation.get(key) for key in
-                           ("ticker", "horizon", "asof_timestamp", "prob_up")})
+                           ("ticker", "asof_timestamp")})
         return result
 
 
@@ -1016,5 +1014,5 @@ def cleanup_owned_run(
         result = _execute_cleanup(root, receipt_path, metadata, targets, dry_run=dry_run)
         if validation and result.get("cleanup_status") == "complete":
             result.update({key: validation.get(key) for key in
-                           ("ticker", "horizon", "asof_timestamp", "prob_up")})
+                           ("ticker", "asof_timestamp")})
         return result

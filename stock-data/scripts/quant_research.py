@@ -19,9 +19,6 @@ from quant_research.cleanup import (
 )
 from quant_research.contracts import normalize_request, utc_now
 from quant_research.delivery import validate_final_response
-from quant_research.ledger import audit as ledger_audit
-from quant_research.ledger import record_prediction
-from quant_research.ledger import settle as ledger_settle
 from quant_research.news.pipeline import analyze_news, freeze_result, prepare_news_input
 from quant_research.orchestrator import run_analysis
 from quant_research.paths import safe_output_destination
@@ -45,20 +42,16 @@ def _json_file(path: Path, value: Any) -> None:
 
 def _schema(kind: str) -> dict[str, Any]:
     if kind == "request":
-        return {"schema_version": "3.0", "required": {"ticker": "validated symbol str", "market": "US|HK", "horizon": "5D for intent=forecast; 1D|5D|20D only for descriptive/factor_research", "asof": "ISO-8601 timestamp with timezone or null", "mode": "standard|strict"}, "optional": {"intent": "forecast|descriptive|factor_research", "asset_type": "stock|etf|index|unknown", "instrument": "resolved_ticker/provider_symbols/source/currency/unit", "history_window": "exactly the policy boundary when supplied; omit to let the collector compute it", "history_start": "ISO date (deprecated; must match policy)", "history_end": "ISO date (deprecated; must match policy)"}, "defaults": {"market": "US", "horizon": "5D", "asof": None, "mode": "standard", "intent": "forecast", "asset_type": "unknown"}, "policy": {"policy_version": "fixed_52w_5d_v1", "history_calendar_days": 364, "horizon_sessions": 5, "window": "(decision-364d, decision]", "unsupported_horizon_error": "UNSUPPORTED_FORECAST_HORIZON", "window_conflict_error": "FIXED_WINDOW_CONFLICT"}}
+        return {"schema_version": "4.0", "required": {"ticker": "validated symbol str", "market": "US|HK", "asof": "ISO-8601 timestamp with timezone or null"}, "optional": {"intent": "news|descriptive (default news)", "horizon": "30D|60D (default 60D)", "mode": "standard|strict", "asset_type": "stock|etf|index|unknown", "instrument": "resolved_ticker/provider_symbols/source/currency/unit", "history_window": "descriptive trend window; omit to use the latest 52 weeks"}, "defaults": {"market": "US", "horizon": "60D", "asof": None, "mode": "standard", "intent": "news", "asset_type": "unknown"}, "policy": {"policy_version": "news_60d_v1", "news_window_days": 60, "recent_window_days": 30}, "error_codes": ["FORECAST_REMOVED", "FIXED_WINDOW_CONFLICT"]}
     if kind == "collection":
-        return {"schema_version": "1.3", "required": ["request", "captured_at_utc", "domains"], "domains": {name: {"status": "complete|partial|unavailable|failed", "actual_source": "provider name", "fetched_at_utc": "timestamp", "data": "normalized domain payload"} for name in DOMAINS}, "market_data": {"forecast_required": ["data.bars[]", "data.symbol", "data.frequency=1d", "data.history_window", "data.policy_window", "price_basis=split_adjusted", "actual_source", "source_timestamp", "fetched_at_utc", "currency", "unit"], "nonfatal_optional": ["session_calendar", "latest_price_observations[]", "adjustment", "adjustment_evidence"], "calendar_resolution": ["complete supplied calendar", "pinned optional exchange-calendar library", "observed OHLCV dates (estimated horizon)"], "bar_fields": ["date", "open", "high", "low", "close", "volume"], "adjustment": "adjusted|unadjusted|split_adjusted|total_return|unknown"}, "missing_evidence": "a missing calendar permits diagnostics only; incomplete 52-week coverage or a non-split-adjusted basis blocks the formal probability; OOS support gates production eligibility but never changes the arithmetic"}
+        return {"schema_version": "1.3", "required": ["request", "captured_at_utc", "domains"], "domains": {name: {"status": "complete|partial|unavailable|failed", "actual_source": "provider name", "fetched_at_utc": "timestamp", "data": "normalized domain payload"} for name in DOMAINS}, "market_data": {"required": ["data.bars[]", "data.symbol", "data.frequency=1d", "data.history_window", "actual_source", "source_timestamp", "fetched_at_utc", "currency", "unit"], "bar_fields": ["date", "open", "high", "low", "close", "volume"]}}
     if kind == "gateway-responses":
-        return {"request_file": "normalized research request object", "responses_file": {"domains": "map of actual stock-data gateway responses"}, "market_normalization": "caller maps gateway candles into data.bars and preserves the original envelope as gateway_envelope", "provider_calls": "performed by the Skill runtime, never by this script"}
-    if kind == "researcher":
-        return {"schema_version": "3.1", "required": ["researcher_id", "result_role", "ticker", "horizon", "snapshot_id", "direction", "prob_up", "prob_down", "raw_probability", "calibrated_probability", "reportable_probability", "expected_return", "confidence", "probability_source", "evidence", "validation", "data_used", "warnings", "status"], "researcher_ids": ["quant", "factor", "ml", "factor_backtest"], "result_roles": ["production", "shadow", "diagnostic"], "statuses": ["success", "partial", "failed", "insufficient_data", "invalid"], "production_paths": ["quant"], "shadow_paths": ["factor", "ml"], "diagnostic_paths": ["factor_backtest"], "probability_source_required_when_prob_up_is_numeric": True, "production_probability_requires": ["probability_transform", "recomputable_current", "recomputable_oos", "effective_replay_samples>=12", "target_session_resolved"], "matching_floor": "disclosure_only_under_v2", "calibrated_probability": "always null under fixed policy", "confidence": "always null"}
+        return {"request_file": "normalized research request object", "responses_file": {"domains": "map of actual stock-data gateway responses"}, "market_normalization": "caller maps gateway candles into data.bars and preserves the original envelope as gateway_envelope"}
     if kind == "final":
-        return {"schema_version": "3.1", "required": ["run_id", "snapshot_id", "policy_version", "stages", "snapshot", "researchers", "consensus", "adversarial_audit", "news_result", "synthesis"], "stages": ["request", "collection", "data", "quant", "audit", "news", "cross-validation", "risk", "final"], "stage_statuses": ["complete", "partial", "skipped", "not_applicable", "not_assessed", "blocked", "insufficient_data"], "synthesis_quant": {"required": ["prob_up", "direction", "model_lean", "probability_label", "production_probability_eligible", "directional_edge_supported", "directional_edge_state", "evidence", "reporting_status"], "deprecated": ["confidence", "confidence_score", "predictive_evidence_grade", "agreement"], "source": "analysis.json.consensus", "missing_probability_display": "不可用", "news_may_change_prob_up": False}, "consensus": {"production_path_count": 1, "aggregation_method": "single_path", "production_paths": ["quant"], "shadow_paths": ["factor", "ml"], "diagnostic_paths": ["factor_backtest"], "calibration": "disabled_by_policy", "trading_signal_eligible": False, "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero | negative_skill_with_estimated_interval_excluding_zero | insufficient_evidence"}, "formats": ["analysis.json", "report.md", "agent_summary.json", "final-response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; every fixed line must match literally", "error_codes": ["UNSUPPORTED_FORECAST_HORIZON", "FIXED_WINDOW_CONFLICT", "INSUFFICIENT_HISTORY_COVERAGE", "CALENDAR_UNVERIFIED", "PRICE_BASIS_UNVERIFIED", "POLICY_VERSION_MISMATCH", "TARGET_SESSION_UNRESOLVED"], "probability_blending": "prohibited"}
+        return {"schema_version": "4.0", "required": ["run_id", "snapshot_id", "policy_version", "stages", "snapshot", "news_result", "analysis_status", "reporting_status"], "stages": ["request", "collection", "data", "news", "final"], "stage_statuses": ["complete", "partial", "skipped", "not_applicable", "not_assessed", "blocked", "insufficient_data"], "formats": ["analysis.json", "report.md", "agent_summary.json", "final_response.md"], "delivery_validation": "validate-response --analysis-dir <report_dir> --response-file <prepared_reply.md>; every fixed line must match literally", "trading_signal": "never provided", "error_codes": ["FORECAST_REMOVED", "FIXED_WINDOW_CONFLICT", "INSUFFICIENT_HISTORY_COVERAGE", "CALENDAR_UNVERIFIED", "PRICE_BASIS_UNVERIFIED"]}
     if kind == "news":
-        return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["status", "warning_count", "overall_direction", "overall_direction_status", "lexicon_diagnostic_direction", "lexicon_direction_role", "event_strength", "sentiment", "opinion_source_agreement", "event_source_agreement", "market_confirmation", "expected_volatility_regime", "already_priced_in", "event_time_bucket_counts", "major_events", "background_records", "lexicon_diagnostic_catalysts", "lexicon_diagnostic_risks", "mixed_events", "confidence", "warnings", "ai_lean_candidates", "ai_lean"], "overall_direction_rule": "AI lean only; null when no AI assessment; lexicon_diagnostic_direction is diagnostic and never user-facing", "status_values": ["complete", "partial", "not_assessed"], "status_rule": "partial is assessed evidence; only not_assessed may be rendered as 未评估", "quant_fields_visible_to_news": False, "prob_up_emitted": False, "market_data": "frozen snapshot OHLCV only",
-                "ai_lean_artifact": {"candidate_export": "news-candidates --snapshot-dir <dir> --output <json>", "path": "--news-ai-assessment <json>", "schema_version": "1.0", "required": ["schema_version", "ticker", "asof_timestamp", "items"], "optional": ["basis", "model"], "item_fields": ["news_id", "lean", "reason", "evidence_grade", "target_relevance", "importance", "headline", "source", "published_at", "url", "relevance_basis"], "lean_values": ["bullish", "bearish", "mixed", "neutral", "unclear"], "target_relevance_values": ["direct", "indirect", "unrelated", "unclear"], "importance_values": ["major", "routine"], "count_basis": "direct canonical headlines only; incomplete coverage is partial", "rejected_when": ["unknown or repeated news_id", "ticker/as-of mismatch", "unsupported field", "Quant vocabulary in any text field", "non-allow-listed lean label"]}}
+        return {"news_input_fields": ["ticker", "market", "horizon", "asof_timestamp", "snapshot_id", "news_status", "source_sentiment", "articles", "bars", "warnings", "coverage"], "news_result_fields": ["status", "warning_count", "overall_direction", "overall_direction_status", "lexicon_diagnostic_direction", "event_strength", "sentiment", "opinion_source_agreement", "event_source_agreement", "market_confirmation", "expected_volatility_regime", "already_priced_in", "event_time_bucket_counts", "major_events", "background_records", "mixed_events", "warnings", "ai_lean_candidates", "ai_lean"], "overall_direction_rule": "AI lean only; null when no AI assessment", "status_values": ["complete", "partial", "not_assessed"], "ai_lean_artifact": {"candidate_export": "news-candidates --snapshot-dir <dir> --output <json>", "path": "--news-ai-assessment <json>", "schema_version": "1.0"}, "probability_emitted": False}
     raise ValueError(f"unknown schema kind: {kind}")
-
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Quant research stage for the stock-data Skill; provider access remains in the Skill workflow.")
@@ -88,9 +81,8 @@ def main(argv: list[str] | None = None) -> int:
     analyze.add_argument("--output-root", type=Path, default=Path("runtime/research"))
     analyze.add_argument("--news-policy", type=Path, help="optional JSON event-type half-life policy for session-based decay")
     analyze.add_argument("--news-ai-assessment", type=Path, help="host-produced per-headline AI assessment")
-    analyze.add_argument("--ledger", type=Path, help="append this frozen prediction to an append-only forward ledger")
     analyze.add_argument("--artifact-profile", choices=("audit", "compact"), default="audit",
-                         help="audit keeps every replay row in analysis.json; compact references researchers/<path>.json")
+                         help="audit retains the full analysis; compact keeps the same news artifacts without replay rows")
     pipeline = commands.add_parser("pipeline", help="compose request/adapt/freeze/analyze from already collected gateway DATA")
     pipeline.add_argument("--request", type=Path, required=True)
     pipeline.add_argument("--responses", type=Path, required=True)
@@ -101,9 +93,8 @@ def main(argv: list[str] | None = None) -> int:
         help="optional JSON event-type half-life policy; pipeline runs News with the built-in defaults when omitted",
     )
     pipeline.add_argument("--news-ai-assessment", type=Path, help="host-produced per-headline AI assessment")
-    pipeline.add_argument("--ledger", type=Path, help="append this frozen prediction to an append-only forward ledger")
     pipeline.add_argument("--artifact-profile", choices=("audit", "compact"), default="audit",
-                          help="audit keeps every replay row in analysis.json; compact references researchers/<path>.json")
+                          help="audit retains the full analysis; compact keeps the same news artifacts without replay rows")
     pipeline_mode = pipeline.add_mutually_exclusive_group()
     pipeline_mode.add_argument("--cleanup-json", action="store_true", help="isolate this pipeline run for explicit post-validation JSON cleanup")
     pipeline_mode.add_argument("--keep-json", action="store_true", help="retain JSON in the legacy shared output layout (default)")
@@ -112,28 +103,6 @@ def main(argv: list[str] | None = None) -> int:
     delivery = commands.add_parser("validate-response", help="check a prepared reply against frozen Quant/News results before delivery")
     delivery.add_argument("--analysis-dir", type=Path, required=True)
     delivery.add_argument("--response-file", type=Path, required=True)
-    ledger_record = commands.add_parser("ledger-record", help="append a frozen analysis to the forward ledger (idempotent)")
-    ledger_record.add_argument("--analysis-dir", type=Path, required=True)
-    ledger_record.add_argument("--ledger", type=Path, required=True)
-    ledger_record.add_argument(
-        "--snapshot-dir",
-        type=Path,
-        help="frozen snapshot; when supplied, the causal baseline is frozen at prediction time",
-    )
-    ledger_record.add_argument(
-        "--import-reason",
-        help="why a snapshot that is already past its label maturity is being recorded; it stays retrospective",
-    )
-    ledger_settle_parser = commands.add_parser("ledger-settle", help="settle matured ledger predictions against a later frozen snapshot")
-    ledger_settle_parser.add_argument("--ledger", type=Path, required=True)
-    ledger_settle_parser.add_argument("--snapshot-dir", type=Path, required=True)
-    ledger_settle_parser.add_argument(
-        "--ticker",
-        help="optional cross-check; the snapshot manifest ticker is authoritative and a mismatch is an error",
-    )
-    ledger_settle_parser.add_argument("--horizon")
-    ledger_audit_parser = commands.add_parser("ledger-audit", help="score realized ledger predictions")
-    ledger_audit_parser.add_argument("--ledger", type=Path, required=True)
     cleanup = commands.add_parser("cleanup-run", help="preview or remove JSON owned by a run or explicitly named analysis")
     cleanup.add_argument("--run-dir", type=Path, help="isolated runtime/runs/<run_id> directory")
     cleanup.add_argument("--analysis-dir", type=Path, help="owned analysis directory (with --run-dir) or legacy analysis-only target")
@@ -150,7 +119,7 @@ def main(argv: list[str] | None = None) -> int:
     gc.add_argument("--dry-run", action="store_true", help="report what would be removed without deleting")
     gc.add_argument("--no-throttle", action="store_true", help="ignore the recorded last-run timestamp")
     schema = commands.add_parser("schema", help="print a machine-readable contract")
-    schema.add_argument("--kind", choices=("request", "gateway-responses", "collection", "researcher", "news", "final"), required=True)
+    schema.add_argument("--kind", choices=("request", "gateway-responses", "collection", "news", "final"), required=True)
     args = parser.parse_args(argv)
     try:
         if args.command == "request":
@@ -256,42 +225,26 @@ def main(argv: list[str] | None = None) -> int:
                     raise ValueError("news AI assessment file must contain a JSON object")
                 if owned_run is None:
                     location = run_analysis(snapshot_dir, output_root, policy, news_ai_assessment=ai_assessment,
-                                            ledger_path=args.ledger, artifact_profile=args.artifact_profile)
+                                            artifact_profile=args.artifact_profile)
                 else:
                     location = run_analysis(
                         snapshot_dir, output_root, policy,
                         on_analysis_created=lambda path: update_run_workspace(owned_run, analysis_id=path.name),
                         news_ai_assessment=ai_assessment,
-                        ledger_path=args.ledger,
                         artifact_profile=args.artifact_profile,
                     )
                     update_run_workspace(owned_run, state="awaiting_cleanup")
                 analysis = json.loads((location / "analysis.json").read_text(encoding="utf-8"))
-                consensus = analysis.get("consensus") or {}
-                adversarial = analysis.get("adversarial_audit") or {}
                 result = {
                     "status": "success",
-                    # Both values come from the frozen final artifact, not from a
-                    # pre-veto consensus flag: a veto clears prob_up but leaves
-                    # production_probability_eligible True, so reading the flag
-                    # here reported "direction reportable" for a vetoed run.
                     "analysis_status": analysis.get("analysis_status"),
                     "reporting_status": analysis.get("reporting_status"),
-                    "may_report_direction": adversarial.get("may_report_direction", False),
                     "report_dir": str(location),
                     "json": str(location / "analysis.json"),
                     "markdown": str(location / "report.md"),
                     "agent_summary": str(location / "agent_summary.json"),
                     "final_response": str(location / "final_response.md"),
                 }
-                if getattr(args, "ledger", None):
-                    try:
-                        result["ledger"] = record_prediction(
-                            json.loads((location / "analysis.json").read_text(encoding="utf-8")),
-                            args.ledger, snapshot_dir=snapshot_dir)
-                    except Exception as exc:  # noqa: BLE001 - a ledger failure must not discard the analysis
-                        result["ledger"] = {"status": "error", "error_type": type(exc).__name__,
-                                            "error": bounded_text(exc)}
                 if owned_run is not None:
                     result["run_dir"] = str(owned_run)
                     result["cleanup_required"] = True
@@ -305,16 +258,6 @@ def main(argv: list[str] | None = None) -> int:
                 raise
         elif args.command == "validate-response":
             print(json.dumps(validate_final_response(args.analysis_dir, args.response_file), ensure_ascii=False))
-        elif args.command == "ledger-record":
-            value = json.loads((args.analysis_dir / "analysis.json").read_text(encoding="utf-8"))
-            print(json.dumps(record_prediction(
-                value, args.ledger, import_reason=args.import_reason,
-                snapshot_dir=args.snapshot_dir), ensure_ascii=False))
-        elif args.command == "ledger-settle":
-            print(json.dumps(ledger_settle(args.ledger, args.snapshot_dir, ticker=args.ticker,
-                                           horizon=args.horizon), ensure_ascii=False))
-        elif args.command == "ledger-audit":
-            print(json.dumps(ledger_audit(args.ledger), ensure_ascii=False))
         elif args.command == "cleanup-run":
             if args.run_dir is not None:
                 result = cleanup_owned_run(args.run_dir, analysis_dir=args.analysis_dir,

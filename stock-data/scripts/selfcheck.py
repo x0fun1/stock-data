@@ -1,51 +1,16 @@
-"""Offline self-check battery for the stock-data quant research skill.
+"""Offline self-check battery for the news-focused stock-data runtime.
 
-Covers the regression cases fixed in the 2026-10 quality pass and runs entirely
-offline with synthetic data (no network, no yfinance dependency):
-
-- F01/F02  causal walk-forward ledger: current probability is not clobbered by the
-           ledger loop; per-origin calibration boundary fields; prefix invariance
-           under tail truncation; audit accepts fixed rows and rejects retrofits.
-- F03      credential redaction completeness (headers, cookies, schemes, case).
-- F04      delivery text validation: comments cannot satisfy fields, numbered/quoted
-           renderings are folded, conflicting values are rejected.
-- F05      retained-artifact binding: a report/summary changed after validation is
-           refused before any deletion.
-- F07      malformed nested market fields degrade instead of raising.
-- F08      Yahoo preflight before dependency/route selection; fallback counts each
-           gateway call at the lowest level and propagates budget failures.
-- F09      block-bootstrap estimability: insufficient independent blocks and
-           zero-width resamples are marked, not reported as certainty.
-- F10      ensemble check naming: retrospective scope is explicit.
-- F11      legacy option expiries accept Unix seconds: direct gateway validation
-           and the fallback envelope with an explicit expiry.
-- F12      PathLike cache_dir is normalized at the provider entry; non-path
-           values stay rejected.
-- F13      horizon-scaled OOS support thresholds (one-year default window) and the
-           matching evidence grades.
-- F14      weighted confidence composite bands: fully validated evidence reaches the
-           high band; contradicted skill is capped below medium.
-- F15      one-year window defaults: the collector window helper and the recalibrated
-           quant/ML sample floors keep both paths feasible at ~252 sessions.
-- F18      orphan scratch sweep: crash-leftover temp files/directories are removed,
-           lock markers and user files are not, and a dry run reports without deleting.
-- F19      retention: only completed run directories past the window expire, a run with
-           unknown files or an unfinished receipt is skipped, stale cache files are pruned.
-- F20      pipeline golden: two fixed fixtures (with and without a news domain) must
-           reproduce the same normalised digests and anchors, so a refactor can
-           prove it moved no frozen value.
-- F21      OOS record audit: one crafted ledger for the summary accounting plus one
-           single-mutation case per rejection code, so the record checks can be moved
-           without moving behaviour.
-
-Usage: python stock-data/scripts/selfcheck.py
+Runs entirely offline with synthetic data (no network, no yfinance dependency).
+Prediction-path fixtures were removed with the v4 forecast removal; the retained
+cases cover credential redaction, market validation, Yahoo transport boundaries,
+cleanup/retention, and the News/AI-lean delivery contracts.
 """
 
 from __future__ import annotations
 
 import contextlib
 import datetime as dt
-import hashlib
+import io
 import json
 import math
 import os
@@ -71,8 +36,6 @@ def case(name: str, fn) -> None:
         print(f"FAIL  {name}: {type(exc).__name__}: {exc}")
     else:
         print(f"ok    {name}")
-
-
 def synth_bars(n: int = 640, seed: int = 11, start: dt.date = dt.date(2023, 1, 2)) -> list[dict]:
     rng = random.Random(seed)
     price = 100.0
@@ -98,94 +61,6 @@ def synth_market(bars: list[dict]) -> dict:
     }
 
 
-def ml_snapshot_stub(bars: list[dict]) -> tuple[dict, dict]:
-    manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": f"synth_{len(bars)}", "market": "US"}
-    return manifest, synth_market(bars)
-
-
-# ---------------------------------------------------------------- F01 / F02
-def _run_ml(bars: list[dict]):
-    from quant_research.researchers import ml
-
-    manifest, market = ml_snapshot_stub(bars)
-    original_loader = ml.load_snapshot
-    original_fit, original_platt = ml._fit, ml._fit_platt
-    fits, platt = [], []
-
-    def wrapped_fit(rows):
-        model = original_fit(rows)
-        fits.append(model)
-        return model
-
-    def wrapped_platt(scores, targets):
-        result = original_platt(scores, targets)
-        platt.append((list(scores), list(targets), result))
-        return result
-
-    ml.load_snapshot = lambda _dir: (manifest, market)
-    ml._fit = wrapped_fit
-    ml._fit_platt = wrapped_platt
-    try:
-        result = ml.run(Path("unused"))
-    finally:
-        ml.load_snapshot = original_loader
-        ml._fit, ml._fit_platt = original_fit, original_platt
-    return result, fits, platt, bars
-
-
-def check_f01_current_probability_not_clobbered() -> None:
-    bars = synth_bars()
-    result, _fits, _platt, _ = _run_ml(bars)
-    assert result["status"] in {"success", "partial"}, result["status"]
-    rows = result["validation"]["oos_forecasts"]
-    assert rows
-    from quant_research.researchers import ml
-    from quant_research.researchers.ml import logistic
-
-    calibration = result["validation"]["current_prediction_calibration"]
-    raw = result["raw_probability"]
-    if calibration["applied"]:
-        # The published probability is the current refit model's logit passed through
-        # the calibration state matured before the current origin.
-        expected = logistic(calibration["intercept"] + calibration["slope"] * ml._logit(raw))
-    else:
-        expected = raw
-    assert abs(result["prob_up"] - expected) < 1e-9, (result["prob_up"], expected)
-    assert abs((result["prob_up"] or -1) - rows[-1]["probability"]) > 1e-12, "prob_up equals the last ledger row"
-
-
-
-
-def check_f02_prefix_invariance() -> None:
-    from quant_research.researchers import ml
-
-    bars = synth_bars()
-    result, _, _, _ = _run_ml(bars)
-    cut = 560
-    trunc_bars = bars[: cut + 1]
-    manifest, market = ml_snapshot_stub(trunc_bars)
-    original = ml.load_snapshot
-    ml.load_snapshot = lambda _dir: (manifest, market)
-    try:
-        truncated = ml.run(Path("unused"))
-    finally:
-        ml.load_snapshot = original
-    by_date = {row["decision_session"]: row for row in truncated["validation"]["oos_forecasts"]}
-    checked = 0
-    for row in result["validation"]["oos_forecasts"]:
-        other = by_date.get(row["decision_session"])
-        if other is None:
-            continue
-        checked += 1
-        for key in ("probability", "raw_probability", "calibration_applied", "calibration_label_end_session",
-                    "calibration_fit_observations"):
-            assert row[key] == other[key], (row["decision_session"], key, row[key], other[key])
-    assert checked > 50, checked
-
-
-
-
-# ---------------------------------------------------------------- F03
 def check_f03_redaction() -> None:
     from quant_research.security import redact_text, safe_url
 
@@ -212,12 +87,6 @@ def check_f03_redaction() -> None:
     assert url and "FAKESESS" not in url and "FAKESIG" not in url and "FAKEKEY" not in url and "foo=bar" in url
 
 
-# ---------------------------------------------------------------- F04 / F05
-
-
-
-
-# ---------------------------------------------------------------- F07
 def check_f07_malformed_fields() -> None:
     import copy
 
@@ -252,7 +121,6 @@ def check_f07_malformed_fields() -> None:
     assert "ASSET_TYPE_UNVERIFIED" in gate.get("reason_codes", [])
 
 
-# ---------------------------------------------------------------- F08
 def check_f08_preflight_and_counting() -> None:
     os.environ.pop("STOCK_DATA_YAHOO_CACHE_DIR", None)
     import yahoo_compat_fallback as fb
@@ -340,12 +208,6 @@ def check_f08_preflight_and_counting() -> None:
             del sys.modules["yfinance_normalize"]
 
 
-# ---------------------------------------------------------------- F09 / F10
-
-
-
-
-# ---------------------------------------------------------------- F11 / F12
 def check_f11_options_expiry_unix_seconds() -> None:
     import importlib.util
 
@@ -424,19 +286,11 @@ def check_f12_cache_dir_pathlike() -> None:
         raise AssertionError("non-path cache_dir must be rejected")
 
 
-
-
-
-
-
-
-
-
 def _news_input(bars: list[dict], articles: list[dict], ticker: str = "MU"):
     from quant_research.news.contracts import NewsInput
 
     return NewsInput(
-        ticker=ticker, market="US", horizon="5D",
+        ticker=ticker, market="US", horizon="60D",
         asof_timestamp=f"{bars[-1]['date']}T21:30:00Z", snapshot_id="snap_f17",
         news_status="complete", source_sentiment=None,
         articles=tuple(articles), bars=tuple(bars), warnings=(),
@@ -541,7 +395,6 @@ def check_f17_ai_lean_layer() -> None:
     assert empty_result["ai_lean"]["status"] == "invalid"
 
 
-# ---------------------------------------------------------------- F18 / F19
 def check_f18_orphan_sweep() -> None:
     from quant_research import cleanup
 
@@ -650,238 +503,6 @@ def check_f19_retention_gc() -> None:
         shutil.rmtree(work, ignore_errors=True)
 
 
-# ---------------------------------------------------------------- F20
-# Golden regression: the frozen artifacts are a hash-committed contract, so any
-# refactor must prove it moved no value. Two fixtures (without and with a news
-# domain) run in-process; identity and timing fields are normalised before
-# hashing, and a short anchor list is compared verbatim so a mismatch names the
-# field that moved instead of only reporting a digest.
-GOLDEN_PIPELINE: dict[str, dict[str, str]] = {'news': {'agent_summary.json': 'fe50905bc1889f89bb5b4f6ab01830a2c94b71d3d226c70d1b5d888ab9af1912',
-          'final_response.md': '5fbd5b030e5cb5de4d0c6b46dc7f8f942b0186aca86faaf1c4756a2b2efa17c8',
-          'news_result.json': 'a5e311ab6f5b8dce3506714adf450a196adec2c7a545ec120b7f55112a4656fc',
-          'quant_result.json': 'd06ea35fa13cac88db1cdacb063e6d5755ab905255bf60ea0fb47a1a9dd9ab0b',
-          'report.json': '57a11c0db63e70c2f68c66c4c9722482544a9ef5cc89511095da6487f158c9b0'},
- 'plain': {'agent_summary.json': '798588c60edab67bd0c4a0fdfa374ae132fe261b1a306e4288ac96a333b17235',
-           'final_response.md': '09c5f1f0b286ed71fd5ed8473a0f6525580e74fcbb9b262ebb31dd1f1b3309af',
-           'news_result.json': '690e95cebbda22b3e6396c03e6a2f07ea2a61c89f0ff3bf30b45353998d36ea8',
-           'quant_result.json': 'c37baef239def1ed66da481ee63245ea894daa2acd0b4e21c2af4d0872573df3',
-           'report.json': '03ea2a5b6e4b90845c1a9a789b47d70346ae4d4fba00b4eeebb3ac206071b793'}}
-GOLDEN_ANCHORS: dict[str, dict[str, object]] = {'news': {'news.confidence': 'low',
-          'news.event_strength': None,
-          'news.overall_direction': 'unknown',
-          'news.status': 'partial',
-          'quant.consensus.agreement': 'high',
-          'quant.consensus.confidence': 'low',
-          'quant.consensus.confidence_score': 54,
-          'quant.consensus.direction': 'bullish',
-          'quant.consensus.predictive_evidence_grade': 'observed_skill_below_expanding_base_rate',
-          'quant.consensus.prob_up': 0.6583983439926192,
-          'quant.consensus.probability_basis': 'equal_weight_mean_of_valid_path_estimates',
-          'quant.consensus.reporting_status': 'degraded',
-          'quant.researchers.factor.status': 'success',
-          'quant.researchers.factor_backtest.status': 'partial',
-          'quant.researchers.ml.status': 'partial',
-          'quant.researchers.quant.status': 'success',
-          'summary.analysis_status': 'degraded',
-          'summary.reporting_status': 'degraded',
-          'summary.sections.final_synthesis.may_report_direction': True,
-          'summary.sections.final_synthesis.news_relationship': '消息面交叉验证未评估',
-          'summary.sections.news.event_bias': 'unknown',
-          'summary.sections.news.status': 'partial'},
- 'plain': {'news.confidence': 'unavailable',
-           'news.event_strength': None,
-           'news.overall_direction': 'unknown',
-           'news.status': 'not_assessed',
-           'quant.consensus.agreement': 'high',
-           'quant.consensus.confidence': 'low',
-           'quant.consensus.confidence_score': 54,
-           'quant.consensus.direction': 'bullish',
-           'quant.consensus.predictive_evidence_grade': 'observed_skill_below_expanding_base_rate',
-           'quant.consensus.prob_up': 0.6583983439926192,
-           'quant.consensus.probability_basis': 'equal_weight_mean_of_valid_path_estimates',
-           'quant.consensus.reporting_status': 'degraded',
-           'quant.researchers.factor.status': 'success',
-           'quant.researchers.factor_backtest.status': 'partial',
-           'quant.researchers.ml.status': 'partial',
-           'quant.researchers.quant.status': 'success',
-           'summary.analysis_status': 'degraded',
-           'summary.reporting_status': 'degraded',
-           'summary.sections.final_synthesis.may_report_direction': True,
-           'summary.sections.final_synthesis.news_relationship': '消息面交叉验证未评估',
-           'summary.sections.news.event_bias': 'unknown',
-           'summary.sections.news.status': 'not_assessed'}}
-
-_GOLDEN_TIMESTAMP = re.compile(r"\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?Z")
-_GOLDEN_STAMP_ID = re.compile(r"\d{8}T\d{12}Z")
-_GOLDEN_VOLATILE_KEYS = frozenset({
-    "analysis_id", "snapshot_id", "run_id", "created_at", "created_at_utc", "frozen_at",
-    "generated_at_utc", "captured_at_utc", "updated_at_utc", "collection_captured_at",
-    "snapshot_created_at", "asof_resolved_from",
-})
-_GOLDEN_ANCHOR_PATHS = (
-    "summary.analysis_status",
-    "summary.reporting_status",
-    "summary.sections.final_synthesis.may_report_direction",
-    "summary.sections.final_synthesis.news_relationship",
-    "summary.sections.news.event_bias",
-    "summary.sections.news.status",
-    "quant.consensus.prob_up",
-    "quant.consensus.direction",
-    "quant.consensus.confidence",
-    "quant.consensus.agreement",
-    "quant.consensus.confidence_score",
-    "quant.consensus.reporting_status",
-    "quant.consensus.predictive_evidence_grade",
-    "quant.consensus.probability_basis",
-    "quant.researchers.quant.status",
-    "quant.researchers.factor.status",
-    "quant.researchers.ml.status",
-    "quant.researchers.factor_backtest.status",
-    "news.status",
-    "news.overall_direction",
-    "news.event_strength",
-    "news.confidence",
-)
-_GOLDEN_ARTICLES = (
-    {"title": "SYN beats quarterly revenue expectations", "published_at": "2025-12-30T13:00:00Z",
-     "tickers": ["SYN"], "source": "Example Wire", "url": "https://example.test/a1",
-     "summary": "SYN reported revenue above consensus."},
-    {"title": "SYN announces $2 billion buyback", "published_at": "2025-12-31T14:30:00Z",
-     "tickers": ["SYN"], "source": "Example Wire", "url": "https://example.test/a2"},
-    {"title": "Analyst downgrades SYN to hold on valuation", "published_at": "2026-01-02T14:00:00Z",
-     "tickers": ["SYN"], "source": "Example Research", "url": "https://example.test/a3"},
-    {"title": "SYN CEO says demand remains strong into next quarter", "published_at": "2026-01-02T15:00:00Z",
-     "tickers": ["SYN"], "source": "Example Times", "url": "https://example.test/a4"},
-)
-
-
-def _golden_bars(count: int = 260, seed: int = 11) -> list[dict]:
-    """Deterministic OHLCV ending on the fixture as-of date, not the wall clock."""
-    rng = random.Random(seed)
-    days: list[dt.date] = []
-    day = dt.date(2026, 1, 2)
-    while len(days) < count:
-        if day.weekday() < 5:
-            days.append(day)
-        day -= dt.timedelta(days=1)
-    days.reverse()
-    price = 100.0
-    bars = []
-    for session in days:
-        price *= math.exp(rng.gauss(0.0006, 0.014))
-        bars.append({"date": session.isoformat(), "open": round(price * 0.997, 4),
-                     "high": round(price * 1.011, 4), "low": round(price * 0.989, 4),
-                     "close": round(price, 4), "volume": 1_200_000})
-    return bars
-
-
-def _golden_responses(with_news: bool) -> dict:
-    bars = _golden_bars()
-    market = {
-        "status": "success", "actual_source": "synthetic-offline",
-        "source_timestamp": "2026-01-02T21:00:00Z", "fetched_at_utc": "2026-01-03T00:30:00Z",
-        "currency": "USD", "unit": "USD", "adjustment": "unadjusted", "frequency": "1d",
-        "source_symbol": "SYN",
-        "data": {"currency": "USD", "exchange": "US", "adjustment": "unadjusted", "unit": "USD",
-                 "frequency": "1d", "source_symbol": "SYN", "bars": bars,
-                 "source_timestamp": "2026-01-02T21:00:00Z", "fetched_at_utc": "2026-01-03T00:30:00Z",
-                 "history_window": {"start": bars[0]["date"], "end": bars[-1]["date"],
-                                    "selection": "trailing 52 weeks"}},
-    }
-    domains: dict[str, object] = {"market": market}
-    if with_news:
-        domains["news"] = {"status": "success", "actual_source": "synthetic-offline",
-                           "fetched_at_utc": "2026-01-03T00:30:00Z",
-                           "data": {"articles": [dict(article) for article in _GOLDEN_ARTICLES]}}
-    return {"domains": domains}
-
-
-def _golden_normalize(value, key: str | None = None):
-    """Fold identity, digests and timings so only contract values are compared."""
-    if isinstance(value, dict):
-        normalized = {}
-        for name, item in value.items():
-            if name in _GOLDEN_VOLATILE_KEYS:
-                normalized[name] = "<volatile>"
-            elif "sha256" in name or name.endswith("_digest"):
-                normalized[name] = "<digest>"
-            elif name.endswith("_wall_seconds") or name in {"wall_seconds", "peak_memory"}:
-                normalized[name] = "<timing>"
-            else:
-                normalized[name] = _golden_normalize(item, name)
-        return normalized
-    if isinstance(value, list):
-        return [_golden_normalize(item, key) for item in value]
-    if isinstance(value, str):
-        return _GOLDEN_STAMP_ID.sub("<id>", _GOLDEN_TIMESTAMP.sub("<ts>", value))
-    if isinstance(value, float):
-        return round(value, 9)
-    return value
-
-
-def _golden_digest(value) -> str:
-    canonical = json.dumps(_golden_normalize(value), sort_keys=True, ensure_ascii=False, separators=(",", ":"))
-    return hashlib.sha256(canonical.encode("utf-8")).hexdigest()
-
-
-def _golden_lookup(container, path: str):
-    current = container
-    for part in path.split("."):
-        if not isinstance(current, dict):
-            return "<missing>"
-        current = current.get(part)
-    return current
-
-
-def _offline_library_calendar(*_args: object, **_kwargs: object) -> None:
-    """Offline stand-in for the optional exchange-calendar probe."""
-    return
-
-
-def _golden_run(with_news: bool) -> tuple[dict[str, str], dict[str, object]]:
-    """Run the pipeline once in a temp tree and return normalised digests and anchors."""
-    from quant_research import data_checks
-    from quant_research.orchestrator import run_analysis
-    from quant_research.snapshot import freeze_snapshot
-    from quant_research.stock_data_adapter import StockDataAdapter
-
-    work = Path(tempfile.mkdtemp(prefix=f"selfcheck_f20_{'news' if with_news else 'plain'}_"))
-    library_calendar = data_checks._library_calendar
-    # The golden fixture pins the offline profile: the optional exchange-calendar probe is disabled
-    # so recorded digests never depend on which optional libraries happen to be installed.
-    data_checks._library_calendar = _offline_library_calendar
-    try:
-        request = {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast",
-                   "asset_type": "stock", "asof": "2026-01-02T21:00:00Z"}
-        receipt = StockDataAdapter().write_receipt(
-            request, _golden_responses(with_news)["domains"], work / "collection.json",
-            captured_at_utc="2026-01-03T00:35:00Z")
-        snapshot = freeze_snapshot(receipt, work / "snapshots")
-        analysis = run_analysis(snapshot, work / "research")
-        artifacts = {}
-        for name in ("report.json", "quant_result.json", "news_result.json", "agent_summary.json"):
-            artifacts[name] = _golden_digest(json.loads((analysis / name).read_text(encoding="utf-8")))
-        artifacts["final_response.md"] = _golden_digest(
-            (analysis / "final_response.md").read_text(encoding="utf-8").splitlines())
-        containers = {
-            "summary": json.loads((analysis / "agent_summary.json").read_text(encoding="utf-8")),
-            "quant": json.loads((analysis / "quant_result.json").read_text(encoding="utf-8")),
-            "news": json.loads((analysis / "news_result.json").read_text(encoding="utf-8")),
-        }
-        anchors = {}
-        for path in _GOLDEN_ANCHOR_PATHS:
-            root, _, remainder = path.partition(".")
-            anchors[path] = _golden_lookup(containers[root], remainder)
-        return artifacts, anchors
-    finally:
-        data_checks._library_calendar = library_calendar
-        shutil.rmtree(work, ignore_errors=True)
-
-
-
-
-
-
 def check_f22_daily_bar_timestamp_precision() -> None:
     """A daily bar's period-start label must not be judged as an incomplete latest observation."""
     from quant_research.data_checks import _check_latest_close, _Findings
@@ -912,1449 +533,6 @@ def check_f22_daily_bar_timestamp_precision() -> None:
 
     codes, _ = run("2025-12-30T00:00:00+00:00", "2026-01-03T00:30:00+00:00")
     assert "LATEST_OBSERVATION_UNRESOLVED" in codes, "a bar older than the session must stay blocked"
-
-
-
-
-
-
-def _momentum_pipeline_run(with_benchmark: bool) -> tuple[float, dict, dict]:
-    """Run the offline fixture with or without a declared benchmark series."""
-    from quant_research import data_checks
-    from quant_research.orchestrator import run_analysis
-    from quant_research.snapshot import freeze_snapshot
-    from quant_research.stock_data_adapter import StockDataAdapter
-
-    work = Path(tempfile.mkdtemp(prefix=f"selfcheck_f25_{'bench' if with_benchmark else 'plain'}_"))
-    library_calendar = data_checks._library_calendar
-    data_checks._library_calendar = _offline_library_calendar
-    try:
-        request = {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast",
-                   "asset_type": "stock", "asof": "2026-01-02T21:00:00Z"}
-        domains = _golden_responses(False)["domains"]
-        if with_benchmark:
-            request["instrument"] = {"benchmark": "BMK"}
-            domains["market"]["data"]["benchmark"] = {
-                "symbol": "BMK", "selection": "declared", "status": "complete",
-                "adjustment": "unadjusted", "bars": _golden_bars(260, seed=97),
-            }
-        receipt = StockDataAdapter().write_receipt(
-            request, domains, work / "collection.json", captured_at_utc="2026-01-03T00:35:00Z")
-        snapshot = freeze_snapshot(receipt, work / "snapshots")
-        analysis = run_analysis(snapshot, work / "research")
-        quant = json.loads((analysis / "quant_result.json").read_text(encoding="utf-8"))
-        block = quant["researchers"]["quant"]["validation"]["momentum_20d"]
-        report = json.loads((analysis / "report.json").read_text(encoding="utf-8"))
-        return float(quant["consensus"]["prob_up"]), block, report
-    finally:
-        data_checks._library_calendar = library_calendar
-        shutil.rmtree(work, ignore_errors=True)
-
-
-
-
-
-
-# ---------------------------------------------------------------- F28
-def check_f28_selection_statistics() -> None:
-    """F28: selection evidence is causal, reproducible, and gated by declared rules."""
-    from quant_research.selection import (
-        MINIMUM_OBSERVATIONS,
-        multiple_testing_disclosure,
-        overlapping_ic,
-        stability_verdict,
-    )
-
-    # A factor that is monotone in the label must read as a strong positive IC, and the
-    # estimate must not move when data after the selection boundary is appended.
-    labels = [0.01 * index for index in range(80)]
-    values = [0.5 * label + 0.001 * ((index % 3) - 1) for index, label in enumerate(labels)]
-    indices = list(range(10, 70))
-    first = overlapping_ic(values, labels, indices, horizon=5, replicates=200, seed=7)
-    if first["status"] != "assessed" or first["rank_ic"] < 0.9:
-        raise AssertionError(f"a monotone factor must read as a strong IC: {first}")
-    extended = overlapping_ic(values + [9.0] * 40, labels + [9.0] * 40, indices, horizon=5, replicates=200, seed=7)
-    if abs(extended["rank_ic"] - first["rank_ic"]) > 1e-12:
-        raise AssertionError("appending future data must not move a fixed-index estimate")
-    repeat = overlapping_ic(values, labels, indices, horizon=5, replicates=200, seed=7)
-    if repeat != first:
-        raise AssertionError("the block bootstrap must be deterministic for a fixed seed")
-
-    # Too few labels must be reported, never silently scored.
-    thin = overlapping_ic(values, labels, list(range(10, 10 + MINIMUM_OBSERVATIONS - 1)), horizon=5)
-    if thin["status"] != "insufficient_samples" or thin["rank_ic"] is not None or thin["interval"] is not None:
-        raise AssertionError(f"thin evidence must stay unscored: {thin}")
-
-    # The declared rule: point-estimate floor, then directional stability.
-    passing = {"status": "assessed", "rank_ic": 0.15, "sign_consistency": 1.0}
-    if not stability_verdict(passing, min_abs_rank_ic=0.02, min_sign_consistency=2 / 3)["passed"]:
-        raise AssertionError("a stable factor above the IC floor must pass")
-    weak = {"status": "assessed", "rank_ic": 0.01, "sign_consistency": 1.0}
-    if stability_verdict(weak, min_abs_rank_ic=0.02, min_sign_consistency=2 / 3)["reason"] != "below_minimum_rank_ic":
-        raise AssertionError("a factor under the IC floor must be rejected for that reason")
-    unstable = {"status": "assessed", "rank_ic": 0.15, "sign_consistency": 0.34}
-    if stability_verdict(unstable, min_abs_rank_ic=0.02, min_sign_consistency=2 / 3)["reason"] != "direction_unstable":
-        raise AssertionError("a factor flipping sign across sub-windows must be rejected")
-    unscorable = {"status": "insufficient_samples", "rank_ic": None, "sign_consistency": None}
-    if stability_verdict(unscorable, min_abs_rank_ic=0.02, min_sign_consistency=2 / 3)["passed"]:
-        raise AssertionError("unscored evidence must never pass")
-
-    disclosure = multiple_testing_disclosure({"a": 0.01, "b": 0.4, "c": None})
-    if disclosure["used_as_selection_gate"] is not False or disclosure["tested_candidates"] != 2:
-        raise AssertionError(f"FDR must stay disclosure-only: {disclosure}")
-
-
-# ---------------------------------------------------------------- F29
-def check_f29_reliability_accounting() -> None:
-    """F29: the reliability layer reports samples honestly and cannot lower its own bar."""
-    from quant_research import reliability
-    from quant_research.reliability import (
-        QUALIFICATION_THRESHOLDS,
-        logistic_shortfall,
-        probabilistic_scores,
-        qualification,
-        sample_diagnostics,
-    )
-
-    # 250 bars, 60 warmup, 5-session horizon: the arithmetic behind the 52-week verdict.
-    sample = sample_diagnostics(bar_count=250, warmup=60, horizon=5)
-    if (sample["raw_sample_count"], sample["nonoverlap_sample_count"]) != (185, 31):
-        raise AssertionError(f"52-week sample accounting changed: {sample}")
-    # Without dates the counter falls back to legacy spacing; production passes real dates
-    # and gets the anchored count, so both bases are asserted rather than assumed.
-    if sample["nonoverlap_count_basis"] != "legacy_spacing":
-        raise AssertionError(f"the fallback basis must be named: {sample['nonoverlap_count_basis']}")
-    anchored = sample_diagnostics(
-        bar_count=250, warmup=60, horizon=5,
-        dates=[bar["date"] for bar in _golden_bars(250, seed=11)],
-    )
-    if anchored["nonoverlap_count_basis"] != "anchored_phase" or anchored["nonoverlap_sample_count"] >= 31:
-        raise AssertionError(f"the anchored basis must count fewer labels than legacy: {anchored}")
-    if abs(sample["sample_coverage"] - 185 / 190) > 1e-12:
-        raise AssertionError("coverage must be matured labels over decision dates")
-    if sample["overlapping_observations_are_independent"] is not False:
-        raise AssertionError("overlapping labels must never be advertised as independent")
-    twenty = sample_diagnostics(bar_count=250, warmup=60, horizon=20)
-    if twenty["nonoverlap_sample_count"] != 9:
-        raise AssertionError(f"20D non-overlapping count changed: {twenty}")
-
-    # A fitted model needs three disjoint stages, so the requirement is their sum.
-    withheld = logistic_shortfall(sample["nonoverlap_sample_count"])
-    if withheld["status"] != "not_applicable_insufficient_samples":
-        raise AssertionError(f"31 labels cannot host a fitted model: {withheld}")
-    if withheld["required_non_overlapping_labels"] != sum(QUALIFICATION_THRESHOLDS["logistic"].values()):
-        raise AssertionError("the requirement must be the sum of the stages")
-    if withheld["shortfall"] != 120 - 31:
-        raise AssertionError("the shortfall must be reported, not hidden")
-
-    # Routing is decided by the declared floors only.
-    abstained = qualification(nonoverlap_matured=5, bucket_observations=2, buckets_available=1, validation_predictions=3)
-    if abstained["route"] != reliability.ROUTE_ABSTAINED:
-        raise AssertionError(f"thin evidence must abstain: {abstained}")
-    qualified = qualification(nonoverlap_matured=40, bucket_observations=9, buckets_available=3, validation_predictions=15)
-    if qualified["route"] != reliability.ROUTE_LEGACY:
-        raise AssertionError(f"sufficient evidence must route to the legacy bucket: {qualified}")
-    if qualified["thresholds_adjustable_per_symbol"] is not False:
-        raise AssertionError("thresholds must not be adjustable per symbol")
-
-    # Scoring: a perfect forecast scores zero Brier and unit skill; a copy of the base rate
-    # scores exactly zero skill, which is the definition a reader expects.
-    perfect = [(0, 1.0, 0.5, 1), (1, 0.0, 0.5, 0), (2, 1.0, 0.5, 1)]
-    scores = probabilistic_scores(perfect, horizon=5)
-    if scores["brier"] != 0.0 or abs(scores["brier_skill_vs_base_rate"] - 1.0) > 1e-12:
-        raise AssertionError(f"a perfect forecast must score zero Brier: {scores}")
-    copied = [(index, 0.4, 0.4, outcome) for index, outcome in enumerate([1, 0, 1, 0, 1, 0])]
-    if abs(probabilistic_scores(copied, horizon=5)["brier_skill_vs_base_rate"]) > 1e-12:
-        raise AssertionError("copying the baseline cannot earn skill")
-    small = probabilistic_scores(copied, horizon=5)
-    if small["brier_difference_interval_status"] != "insufficient_samples":
-        raise AssertionError("a short pair series must not claim a bootstrap interval")
-
-
-# ---------------------------------------------------------------- F27
-def check_f27_ab_protocol_statistics() -> None:
-    """F27: the A/B protocol decides from the registered rule, not from the data."""
-    import momentum_ab as ab
-    from quant_research.momentum import compute, score_at
-
-    # Ablation must reproduce the frozen formula with one weight set to zero.
-    flat = {"risk_adjusted": 50.0, "regression_trend": 30.0, "relative_strength": 20.0}
-    for name, value in ab.ablation_scores(flat).items():
-        if abs(value - 100.0) > 1e-9:
-            raise AssertionError(f"dropping {name} must preserve a flat composite: {value}")
-    partial = {"risk_adjusted": 50.0, "regression_trend": 30.0, "relative_strength": 0.0}
-    if abs(ab.ablation_scores(partial)["relative_strength"] - 100.0) > 1e-9:
-        raise AssertionError("a zero-weight component must vanish under renormalisation")
-
-    # Bootstrap must be reproducible and bracket the sample mean.
-    series = [0.02 * math.sin(index / 7.0) + 0.01 for index in range(120)]
-    settings = {"block_length": 6, "iterations": 400, "confidence": 0.95, "seed": 12345}
-    first = ab.block_bootstrap_mean_ci(series, **settings)
-    second = ab.block_bootstrap_mean_ci(series, **settings)
-    if first != second:
-        raise AssertionError("the bootstrap must be deterministic for a fixed seed")
-    mean = math.fsum(series) / len(series)
-    if not first[0] < mean < first[1]:
-        raise AssertionError(f"interval {first} must contain the mean {mean}")
-    wide = ab.block_bootstrap_mean_ci(series, **{**settings, "block_length": 24})
-    if (wide[1] - wide[0]) < (first[1] - first[0]) - 1e-12:
-        raise AssertionError("longer blocks must not narrow the interval")
-
-    # Verdict rule: every primary horizon must clear zero; report-only horizons never decide.
-    def record(delta, interval):
-        return {"status": "evaluated", "delta_ic": delta, "ci_delta": interval}
-
-    better = {5: record(0.017, (0.005, 0.030)), 10: record(0.020, (0.002, 0.039)),
-              20: record(0.005, (-0.020, 0.030))}
-    if ab.decide_verdict(better) != "composite_better":
-        raise AssertionError("both primary horizons clearing zero must read as better")
-    marginal = {**better, 10: record(0.020, (-0.0002, 0.039))}
-    if ab.decide_verdict(marginal) != "indistinguishable":
-        raise AssertionError("an interval containing zero must not count as better")
-    worse = {5: record(-0.017, (-0.030, -0.005)), 10: record(-0.020, (-0.039, -0.002))}
-    if ab.decide_verdict(worse) != "composite_worse":
-        raise AssertionError("both primary horizons below zero must read as worse")
-    skipped = {5: {"status": "no_usable_sessions"}, 10: record(0.02, (0.01, 0.03))}
-    if ab.decide_verdict(skipped) != "indistinguishable":
-        raise AssertionError("an unevaluable primary horizon must fail closed")
-
-    # Durability compares the disclosure slice with the registered verdict.
-    same = ab.assess_durability("composite_better", {"status": "evaluated", "verdict": "composite_better"})
-    if same != "consistent_across_pool_slices":
-        raise AssertionError(f"matching slice verdicts must read as consistent: {same}")
-    flipped = ab.assess_durability(
-        "composite_better", {"status": "evaluated", "verdict": "indistinguishable"}
-    )
-    if flipped != "pool_dependent":
-        raise AssertionError(f"a flipping disclosure slice must read as pool dependent: {flipped}")
-    if ab.assess_durability("composite_better", {"status": "not_applicable"}) != "not_assessed":
-        raise AssertionError("a missing disclosure slice must be reported as unassessed")
-
-    # The offline point entry must agree with the report path it was extracted from.
-    dates = [bar["date"] for bar in _golden_bars(90, seed=29)]
-    rng = random.Random(47)
-    prices = [100.0]
-    for _ in range(1, 90):
-        prices.append(prices[-1] * math.exp(rng.gauss(0.001, 0.011)))
-    benchmark: dict[str, float] = {}
-    level = 100.0
-    for session in dates:
-        level *= math.exp(rng.gauss(0.0, 0.009))
-        benchmark[session] = level
-    block = compute(prices, dates, benchmark, symbol="SYN", benchmark_symbol="BMK")
-    point = score_at(prices, dates, benchmark, 89)
-    if point["status"] != block["score_status"]:
-        raise AssertionError("point entry and report path disagree on status")
-    if block["momentum_score_20d"] is None or abs(point["score"] - block["momentum_score_20d"]) > 1e-12:
-        raise AssertionError("point entry and report path disagree on the score")
-
-    # Panel subsetting must keep the declared benchmark untouched.
-    panel = {
-        "dates": dates,
-        "closes": {"AAA": prices, "BBB": prices, "XLK": prices},
-        "benchmark": benchmark,
-        "dropped": {},
-        "asset_types": {"AAA": "stock", "BBB": "stock", "XLK": "etf"},
-    }
-    sliced = ab.subset_panel(panel, {"AAA", "BBB"})
-    if set(sliced["closes"]) != {"AAA", "BBB"}:
-        raise AssertionError("subsetting must drop only the excluded symbols")
-    if sliced["benchmark"] is not benchmark:
-        raise AssertionError("subsetting must not rewrite the benchmark series")
-
-
-# ---------------------------------------------------------------- F30
-def check_f30_anchored_sampling() -> None:
-    """F30: the sampling phase follows the calendar, not the window start."""
-    from quant_research.market_data import (
-        anchored_non_overlapping,
-        business_day_ordinal,
-        non_overlapping,
-    )
-
-    # The ordinal must advance by exactly one per weekday and be stable per date.
-    if business_day_ordinal("2026-01-05") + 1 != business_day_ordinal("2026-01-06"):
-        raise AssertionError("consecutive weekdays must differ by one ordinal")
-    if business_day_ordinal("2026-01-09") + 1 != business_day_ordinal("2026-01-12"):
-        raise AssertionError("the ordinal must skip the weekend without colliding")
-
-    dates = [bar["date"] for bar in _golden_bars(320, seed=11)]
-    for horizon in (1, 5, 20):
-        kept, provenance = anchored_non_overlapping(dates, list(range(60, len(dates) - horizon)), horizon)
-        gaps = [kept[index + 1] - kept[index] for index in range(len(kept) - 1)]
-        if gaps and min(gaps) <= horizon:
-            raise AssertionError(f"labels overlap at H={horizon}: min gap {min(gaps)}")
-        if provenance["candidate_phase_window_independent"] is not True:
-            raise AssertionError(f"phase must be window independent: {provenance}")
-
-    # In this holiday-free fixture, sliding the window must not replace interior dates.
-    # This is not a general final-membership guarantee; F33 covers holiday collisions.
-    # Both sides use the same window length to keep bounds comparable.
-    def sampled(window: list[str]) -> set[str]:
-        return {window[i] for i in anchored_non_overlapping(window, list(range(60, len(window) - 5)), 5)[0]}
-
-    base = sampled(dates[0:250])
-    for shift in (1, 2, 3):
-        window = dates[shift:shift + 250]
-        shifted = sampled(window)
-        warmup_boundary = window[60]
-        # A date may leave only by falling out of the warm-up boundary at the old end;
-        # an interior date leaving would be the phase drift this fix removes.
-        interior_lost = sorted(date for date in (base - shifted) if date >= warmup_boundary)
-        if interior_lost:
-            raise AssertionError(
-                f"shift {shift} dropped {len(interior_lost)} interior sampled dates, e.g. {interior_lost[:2]}"
-            )
-
-    # The legacy rule is the control: it does churn, which is why the fix exists.
-    legacy_base = {dates[i] for i in non_overlapping(list(range(60, 250 - 5)), 5)}
-    legacy_shift = {dates[1:251][i] for i in non_overlapping(list(range(60, 250 - 5)), 5)}
-    if not (legacy_base - legacy_shift):
-        raise AssertionError("the legacy spacing is expected to churn; if it does not, this test is stale")
-
-    # Deterministic, and a documented fallback when no candidate clears the phase.
-    first = anchored_non_overlapping(dates, list(range(60, 245)), 5)[0]
-    second = anchored_non_overlapping(dates, list(range(60, 245)), 5)[0]
-    if first != second:
-        raise AssertionError("anchored sampling must be deterministic")
-    _, provenance = anchored_non_overlapping(["2026-01-05"], [0], 5)
-    if provenance.get("candidate_phase_window_independent") is not False:
-        raise AssertionError(f"an empty candidate set must fall back and say so: {provenance}")
-
-
-# ---------------------------------------------------------------- F31
-
-
-# ---------------------------------------------------------------- F32
-
-
-# ---------------------------------------------------------------- F33
-def check_f33_holiday_collisions() -> None:
-    """F33: holidays cannot break the session gap, and membership invariance is not claimed.
-
-    The weekday ordinal counts Monday-Friday and does not know exchange holidays, so a
-    weekday step of ``horizon + 1`` would collapse to ``horizon`` sessions across a holiday
-    and force a drop. ``horizon + 2`` absorbs one holiday. Several holidays can still
-    collide, which is why the provenance reports the candidate phase as window independent
-    but the final membership as not guaranteed: the greedy gap filter restarts at the left
-    boundary, so admitting or dropping an early candidate can change a later one. This
-    check proves the non-invariance instead of assuming it, and it compares only dates
-    inside both windows - a sliding window also introduces genuinely new dates, and
-    counting those as churn would make the assertion pass for the wrong reason.
-    """
-    from quant_research.market_data import anchored_non_overlapping, business_day_ordinal
-
-    dates = [bar["date"] for bar in _golden_bars(500, seed=7)]
-    ordinals = [business_day_ordinal(day) for day in dates]
-    horizon, step = 5, 7
-
-    # Remove sessions between two adjacent lattice dates so they become 5 sessions apart.
-    # The greedy filter must drop the later candidate instead of emitting a short gap.
-    pairs = []
-    for left in range(60, len(dates) - horizon):
-        if ordinals[left] % step:
-            continue
-        for right in range(left + 1, min(left + 30, len(dates) - horizon)):
-            if ordinals[right] % step == 0:
-                pairs.append((left, right, right - left))
-                break
-    if not pairs:
-        raise AssertionError("fixture produced no adjacent lattice pair")
-    left, _, span = pairs[0]
-    removed = {dates[index] for index in range(left + 1, left + 1 + (span - horizon))}
-    sparse = [day for day in dates if day not in removed]
-    kept, provenance = anchored_non_overlapping(sparse, list(range(60, len(sparse) - horizon)), horizon)
-    gaps = [kept[i + 1] - kept[i] for i in range(len(kept) - 1)]
-    if provenance["dropped_for_overlap"] < 1:
-        raise AssertionError(f"a collapsed span must drop a candidate: {provenance}")
-    if gaps and min(gaps) < horizon + 1:
-        raise AssertionError(f"the drop did not restore the session gap: {min(gaps)}")
-    if provenance["required_session_gap"] != horizon + 1:
-        raise AssertionError(f"the declared gap must match the horizon: {provenance}")
-
-    # The gap must hold at every horizon even when closures are dense.
-    dense = [day for index, day in enumerate(dates) if index % 9]
-    for probe in (1, 2, 3, 5, 10, 20):
-        sampled, info = anchored_non_overlapping(dense, list(range(60, len(dense) - probe)), probe)
-        spacing = [sampled[i + 1] - sampled[i] for i in range(len(sampled) - 1)]
-        if spacing and min(spacing) < probe + 1:
-            raise AssertionError(f"H={probe} violated the gap under dense closures: {min(spacing)}")
-        if info["required_session_gap"] != probe + 1:
-            raise AssertionError(f"declared gap mismatch at H={probe}: {info}")
-
-    # Non-invariance is disclosed as a conservative claim, not a measured rate. At a
-    # realistic exchange density (~4% of sessions closed) membership was invariant on this
-    # fixture; the cascade becomes observable only in a sparse-data regime. The probe below
-    # uses ~11% missing sessions on purpose, to show the mechanism can propagate, and it
-    # compares only dates inside both windows so that genuinely new dates cannot be
-    # miscounted as churn.
-    sparse_calendar = [day for index, day in enumerate(dates) if index % 9]
-    probe_horizon = 20
-    base_window = sparse_calendar[0:250]
-    base = {base_window[i] for i in anchored_non_overlapping(
-        base_window, list(range(60, len(base_window) - probe_horizon)), probe_horizon)[0]}
-    entered = left_set = 0
-    for shift in (2, 3, 5, 7, 11, 13, 17):
-        window = sparse_calendar[shift:shift + 250]
-        shifted = {window[i] for i in anchored_non_overlapping(
-            window, list(range(60, len(window) - probe_horizon)), probe_horizon)[0]}
-        shared = set(base_window[60:len(base_window) - probe_horizon]) & set(
-            window[60:len(window) - probe_horizon])
-        entered += len((shifted - base) & shared)
-        left_set += len((base - shifted) & shared)
-    if entered == 0 or left_set == 0:
-        raise AssertionError(
-            "the cascade probe no longer shows both entry and exit; re-derive the disclosure "
-            f"before claiming membership is not invariant (entered={entered}, left={left_set})"
-        )
-    provenance = anchored_non_overlapping(dates, list(range(60, len(dates) - 5)), 5)[1]
-    if provenance["candidate_phase_window_independent"] is not True:
-        raise AssertionError("the candidate phase is calendar-anchored and must say so")
-    if provenance["final_membership_window_independent"] is not False:
-        raise AssertionError("final membership must not claim window independence")
-
-
-def check_f34_capacity_and_timing():
-    from quant_research.feasibility import build_forecast_feasibility, build_timing
-
-    bars = synth_bars(250)
-    manifest = {
-        "horizon": "20D",
-        "asof_timestamp": "2026-10-18T12:00:00Z",
-        "data_validation": {"latest_confirmed_close": {
-            "session_date": bars[-1]["date"], "close_at": "2026-10-16T20:00:00+00:00"}},
-    }
-    block = build_forecast_feasibility(manifest, bars)
-    if block["paths"]["quant"]["capacity_matured_non_overlapping"] != 10:
-        raise AssertionError("250 bars at H=20 must cap the non-overlapping ledger at 10")
-    if block["paths"]["quant"]["status"] != "capacity_insufficient":
-        raise AssertionError("10 labels cannot satisfy the 12-match Quant minimum")
-    if block["paths"]["factor"]["status"] != "capacity_insufficient":
-        raise AssertionError("the selection segment cannot host ten labels at H=20")
-    if block["paths"]["ml"]["status"] != "feasible":
-        raise AssertionError("the logistic path uses daily observations and remains feasible")
-
-    five_day = build_forecast_feasibility({**manifest, "horizon": "5D"}, bars)
-    if five_day["paths"]["quant"]["status"] != "feasible":
-        raise AssertionError("the 5D Quant path must be feasible on a 52-week window")
-    if five_day["paths"]["quant"].get("observed") is not None:
-        raise AssertionError("observed labels require results and must not be invented")
-
-    timing = build_timing(manifest, bars)
-    if timing["decision_at"] != "2026-10-16T20:00:00+00:00":
-        raise AssertionError("timing must carry the confirmed close, not the as-of clock")
-    if timing["label_basis"] != "close_to_close" or timing["entry_basis"] != "not_modelled":
-        raise AssertionError("timing must state the label basis and that entry is not modelled")
-    if timing["first_executable_at"] is not None:
-        raise AssertionError("first executable time must stay unresolved rather than guessed")
-
-
-
-
-
-
-
-
-
-
-def check_f39_forward_ledger():
-    from quant_research import ledger
-
-    result = {
-        "snapshot": {
-            "ticker": "SYN", "market": "US", "horizon": "5D",
-            "asof_timestamp": "2026-01-02T21:00:00Z",
-            "snapshot_id": "SYN_TEST", "snapshot_content_sha256": "a" * 64,
-        },
-        "consensus": {
-            "prob_up": 0.6, "raw_probability": 0.6, "calibrated_probability": None,
-            "probability_basis": "test", "direction": "bullish", "confidence": "low",
-            "confidence_score": 50, "predictive_evidence_grade": "insufficient_oos_evidence",
-            "eligibility": {"probability_report": True, "direction_report": True,
-                            "trading_signal": False, "trading_signal_reasons": []},
-            "timing": {"decision_session": "2026-01-02", "decision_at": "2026-01-02T21:00:00Z",
-                       "label_basis": "close_to_close", "entry_basis": "not_modelled"},
-        },
-        "engine": {"version": "test"},
-    }
-    work = Path(tempfile.mkdtemp(prefix="selfcheck_f39_"))
-    try:
-        path = work / "ledger.jsonl"
-        first = ledger.record_prediction(result, path)
-        second = ledger.record_prediction(result, path)
-        if first["status"] != "recorded" or second["status"] != "duplicate":
-            raise AssertionError("a retried analysis must not double-record the forecast")
-        events = ledger.read_events(path)
-        if len(events) != 1 or events[0]["status"] != "pending":
-            raise AssertionError("the ledger must hold one immutable pending prediction")
-
-        days = ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09",
-                "2026-01-12", "2026-01-13", "2026-01-14", "2026-01-15"]
-        bars = [{"date": day, "close": 100 + index * 2} for index, day in enumerate(days)]
-        settlements, skipped = ledger.settle_pending(events, bars, ticker="SYN", market="US")
-        if skipped or len(settlements) != 1:
-            raise AssertionError(f"one prediction should settle cleanly: {skipped}")
-        if settlements[0]["hit"] != 1 or abs(settlements[0]["brier"] - 0.16) > 1e-12:
-            raise AssertionError("settlement must use probability minus outcome")
-        for event in settlements:
-            ledger._append(path, event)
-        settled_again, _ = ledger.settle_pending(ledger.read_events(path), bars, ticker="SYN", market="US")
-        if settled_again:
-            raise AssertionError("settlement must be idempotent")
-        report = ledger.audit(path)
-        if report["settled_predictions"] != 1 or report["pending_predictions"] != 0:
-            raise AssertionError(f"audit accounting is wrong: {report}")
-        if abs(report["retrospective"]["brier"] - 0.16) > 1e-9:
-            raise AssertionError("audit must recompute Brier from the recorded probability")
-        if report["prospective"]["samples"] != 0:
-            raise AssertionError("a snapshot recorded after its label matured is not prospective")
-
-        abstained = json.loads(json.dumps(result))
-        abstained["consensus"]["prob_up"] = None
-        abstained["snapshot"]["asof_timestamp"] = "2026-01-03T21:00:00Z"
-        abstained["consensus"]["timing"]["decision_session"] = "2026-01-05"
-        recorded = ledger.record_prediction(abstained, path)
-        if recorded["status"] != "recorded":
-            raise AssertionError("an abstention must still enter the ledger")
-        latest = ledger.read_events(path)[-1]
-        if latest["status"] != "abstained":
-            raise AssertionError("an abstention must be labelled, not silently dropped")
-        _, skipped = ledger.settle_pending(ledger.read_events(path), bars, ticker="SYN", market="US")
-        if not any(item["reason"] == "prediction_abstained" for item in skipped):
-            raise AssertionError("an abstention has no outcome to settle")
-
-        other = json.loads(json.dumps(result))
-        other["snapshot"]["ticker"] = "OTHER"
-        other["snapshot"]["snapshot_content_sha256"] = "b" * 64
-        other["snapshot"]["asof_timestamp"] = "2026-01-04T21:00:00Z"
-        if ledger.record_prediction(other, path)["status"] != "recorded":
-            raise AssertionError("the second instrument must enter the same ledger")
-        _, mixed = ledger.settle_pending(ledger.read_events(path), bars, ticker="SYN", market="US")
-        if not any(item["reason"] == "ticker_mismatch" for item in mixed):
-            raise AssertionError("bars for SYN must never settle an OTHER prediction")
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
-def check_f40_ledger_metrics_semantics() -> None:
-    from quant_research import ledger
-
-    bars = [
-        {"date": (dt.date(2026, 1, 1) + dt.timedelta(days=offset)).isoformat(), "close": 100 + offset}
-        for offset in range(1, 60)
-        if (dt.date(2026, 1, 1) + dt.timedelta(days=offset)).weekday() < 5
-    ]
-    work = Path(tempfile.mkdtemp())
-    try:
-        path = work / "ledger.jsonl"
-        for offset in range(4):
-            decision = bars[20 + offset]["date"]
-            result = {
-                "snapshot": {
-                    "ticker": "SYN", "market": "US", "horizon": "5D",
-                    "asof_timestamp": f"{decision}T21:00:00Z",
-                    "snapshot_id": f"S{offset}",
-                    "snapshot_content_sha256": f"{offset:064d}",
-                },
-                "consensus": {
-                    "prob_up": 0.1,
-                    "timing": {"decision_session": decision, "decision_at": f"{decision}T21:00:00Z"},
-                },
-                "engine": {"version": "test"},
-            }
-            ledger.record_prediction(result, path, bars=bars)
-        appended, _ = ledger.settle_pending(ledger.read_events(path), bars, ticker="SYN", market="US")
-        for event in appended:
-            ledger._append(path, event)
-        report = ledger.audit(path)
-        if report["prospective"]["samples"] != 0 or report["retrospective"]["samples"] != 4:
-            raise AssertionError("a past snapshot must stay retrospective")
-        metrics = report["retrospective"]
-        if metrics["observed_up_rate"] != 1.0:
-            raise AssertionError("observed_up_rate must be the realised label base rate")
-        if metrics["direction_accuracy"] != 0.0:
-            raise AssertionError("four confident down calls on four up labels are zero accuracy")
-        if "hit_rate" in metrics:
-            raise AssertionError("hit_rate must not be used for a base-rate field")
-        if metrics["causal_baseline_samples"] != 4:
-            raise AssertionError("every settled row needs a causal baseline")
-        if any(record.get("baseline_probability") != 1.0 for record in appended):
-            raise AssertionError("the causal baseline may only use labels matured by the decision")
-        if any(record.get("baseline_frozen_at") != "prediction" for record in appended):
-            raise AssertionError("a baseline computed at recording time must be frozen there")
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
-def check_f41_production_replay_capacity() -> None:
-    """F41: the shadow replay stays uncalibrated by policy, at either window length."""
-    for count in (252, 640):
-        result, _, _, _ = _run_ml(synth_bars(count))
-        validation = result["validation"]
-        replay = validation["production_replay"]
-        if replay["observations"] < 20:
-            raise AssertionError(f"the production replay should be populated: {replay['observations']}")
-        if validation["probability_calibration"]["status"] != "disabled_by_policy":
-            raise AssertionError(validation["probability_calibration"]["status"])
-        if replay["calibrated_predictions"] != 0:
-            raise AssertionError("no shadow row may be marked calibrated under the policy")
-        if result["calibrated_probability"] is not None:
-            raise AssertionError("a calibrated shadow probability must never be published")
-        if result["status"] != "success":
-            raise AssertionError(f"a policy-disabled calibrator is not a partial run: {result['status']}")
-        warnings = " ".join(result["warnings"])
-        if "disabled by policy" not in warnings:
-            raise AssertionError("the shadow artifact must disclose the policy-disabled calibrator")
-
-
-def check_f42_live_entry_matches_replay() -> None:
-    bars = synth_bars(640)
-    result, _, _, _ = _run_ml(bars)
-    rows = result["validation"]["oos_forecasts"]
-    target = rows[len(rows) // 2]
-    replay_entry, _, _, _ = _run_ml(bars[: target["decision_index"] + 1])
-    if abs(replay_entry["prob_up"] - target["probability"]) > 1e-9:
-        raise AssertionError(
-            f"the live entry and the replay disagree at {target['decision_session']}: "
-            f"{replay_entry['prob_up']} vs {target['probability']}"
-        )
-    if abs(replay_entry["raw_probability"] - target["raw_probability"]) > 1e-9:
-        raise AssertionError("the raw logits must agree at the same origin")
-
-
-
-
-def check_f44_forward_eligibility() -> None:
-    """F44: prospective means recorded promptly and before the label matured."""
-    from quant_research import ledger
-
-    work = Path(tempfile.mkdtemp())
-    try:
-        path = work / "ledger.jsonl"
-        today = dt.datetime.now(dt.timezone.utc).date()
-        session = today - dt.timedelta(days=1)
-        while session.weekday() >= 5:
-            session -= dt.timedelta(days=1)
-        decision_at = dt.datetime.combine(session, dt.time(20, 0), tzinfo=dt.timezone.utc)
-        live = {
-            "snapshot": {
-                "ticker": "SYN", "market": "US", "horizon": "5D",
-                "asof_timestamp": f"{session.isoformat()}T20:00:00Z",
-                "snapshot_id": "LIVE", "snapshot_content_sha256": "a" * 64,
-            },
-            "consensus": {
-                "prob_up": 0.6,
-                "timing": {
-                    "decision_session": session.isoformat(),
-                    "decision_at": f"{session.isoformat()}T20:00:00Z",
-                },
-            },
-            "engine": {"version": "test"},
-        }
-        recorded = ledger.record_prediction(
-            live, path, clock=lambda: decision_at + dt.timedelta(hours=1),
-        )
-        if not recorded["prospective_eligible"]:
-            raise AssertionError("a prompt record made before the label matures must be prospective")
-
-        # Same shape, but written after the prompt window: the label has not
-        # matured yet, so only the new recording-time condition can reject it.
-        late_session = session - dt.timedelta(days=1)
-        while late_session.weekday() >= 5:
-            late_session -= dt.timedelta(days=1)
-        late_decision_at = dt.datetime.combine(late_session, dt.time(20, 0), tzinfo=dt.timezone.utc)
-        late = json.loads(json.dumps(live))
-        late["snapshot"]["snapshot_content_sha256"] = "d" * 64
-        late["snapshot"]["asof_timestamp"] = f"{late_session.isoformat()}T20:00:00Z"
-        late["consensus"]["timing"] = {
-            "decision_session": late_session.isoformat(),
-            "decision_at": f"{late_session.isoformat()}T20:00:00Z",
-        }
-        late_record = ledger.record_prediction(
-            late, path, clock=lambda: late_decision_at + dt.timedelta(hours=13),
-        )
-        if late_record["prospective_eligible"]:
-            raise AssertionError("a record written after the prompt window must not be prospective")
-        late_event = next(
-            event for event in ledger.read_events(path)
-            if event["event"] == "prediction" and event["prediction_id"] == ledger._prediction_id(late)
-        )
-        if late_event["forward_eligibility"]["reason"] != "recorded_after_prompt_window":
-            raise AssertionError(late_event["forward_eligibility"])
-
-        old = json.loads(json.dumps(live))
-        old["snapshot"]["snapshot_content_sha256"] = "c" * 64
-        old["snapshot"]["asof_timestamp"] = "2023-01-03T20:00:00Z"
-        old["consensus"]["timing"] = {
-            "decision_session": "2023-01-03",
-            "decision_at": "2023-01-03T20:00:00Z",
-        }
-        historical = ledger.record_prediction(old, path, import_reason="backfill")
-        if historical["prospective_eligible"]:
-            raise AssertionError("a historical import must not enter the forward score")
-        events = {
-            event["prediction_id"]: event
-            for event in ledger.read_events(path) if event["event"] == "prediction"
-        }
-        if events[ledger._prediction_id(old)]["import_reason"] != "backfill":
-            raise AssertionError("the import reason must be recorded")
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
-
-
-def check_f46_quant_shrinkage_is_applied() -> None:
-    """F46: the published probability equals the frozen v2 drift-shrinkage formula."""
-    from quant_research.forecast_policy import DRIFT_SHRINKAGE_K, DRIFT_SHRINKAGE_VERSION
-    from quant_research.researchers import quant
-
-    bars = synth_bars(252)
-    manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": "s", "market": "US"}
-    market = synth_market(bars)
-    market["price_basis"] = "split_adjusted"
-    market["adjustment"] = "provider"
-    result = quant.run(None, (manifest, market))
-    transform = (result["validation"] or {}).get("probability_transform") or {}
-    if transform.get("version") != DRIFT_SHRINKAGE_VERSION:
-        raise AssertionError(f"the transform version must be v2: {transform.get('version')}")
-    if transform.get("k") != DRIFT_SHRINKAGE_K:
-        raise AssertionError("the recorded k must be the policy constant")
-    n_eff = transform.get("n_eff")
-    base_rate = transform.get("base_rate_at_origin")
-    p_vol = transform.get("p_vol")
-    for name, value in (("n_eff", n_eff), ("base_rate_at_origin", base_rate), ("p_vol", p_vol)):
-        if not isinstance(value, (int, float)) or isinstance(value, bool):
-            raise AssertionError(f"the transform must publish {name}: {transform}")
-    expected = (
-        float(n_eff) * float(base_rate) + DRIFT_SHRINKAGE_K * float(p_vol)
-    ) / (float(n_eff) + DRIFT_SHRINKAGE_K)
-    if abs(expected - float(result["prob_up"])) > 1e-12:
-        raise AssertionError("the published quant probability must equal the v2 formula")
-    if transform.get("prior_weight") is not None:
-        raise AssertionError("the prior weight must be derived, not silently stored")
-    if quant.MINIMUM_MATCHING_SAMPLES != 12:
-        raise AssertionError("the 12-match floor is deliberate and must not be lowered")
-    if quant.FEATURE_ROLE_IN_PROBABILITY != "disclosure_only":
-        raise AssertionError("ROC20 must stay a disclosed state variable")
-
-
-
-# ---------------------------------------------------------------- policy helpers
-def _policy_sessions(n: int = 300, end: dt.date = dt.date(2026, 10, 23)) -> list[dt.date]:
-    days, cursor = [], end
-    while len(days) < n:
-        if cursor.weekday() < 5:
-            days.append(cursor)
-        cursor -= dt.timedelta(days=1)
-    return list(reversed(days))
-
-
-def _policy_bars(sessions: list[dt.date], seed: int = 5) -> list[dict]:
-    rng = random.Random(seed)
-    price = 100.0
-    bars = []
-    for session in sessions:
-        price *= 1 + rng.gauss(0.0004, 0.011)
-        bars.append({"date": session.isoformat(), "open": price * 0.995, "high": price * 1.012,
-                     "low": price * 0.988, "close": price,
-                     "volume": 1_000_000 + rng.randint(0, 200_000)})
-    return bars
-
-
-def _policy_calendar(sessions: list[dt.date]) -> dict:
-    return {"source": "selfcheck:synthetic_exchange", "timezone": "America/New_York",
-            "coverage_start": sessions[0].isoformat(), "coverage_end": sessions[-1].isoformat(),
-            "sessions": [{"date": s.isoformat(),
-                          "close_at": dt.datetime(s.year, s.month, s.day, 20, 0, tzinfo=dt.timezone.utc).isoformat()}
-                         for s in sessions]}
-
-
-def _extend_sessions(sessions: list[dt.date], count: int = 10) -> list[dt.date]:
-    """Append future weekdays so the 5th-session target is resolvable.
-
-    A calendar that stops at the decision session cannot name the target session,
-    and publishing a probability against an undetermined close is exactly the
-    defect the target-session gate now blocks.
-    """
-
-    extended = list(sessions)
-    cursor = sessions[-1]
-    while len(extended) < len(sessions) + count:
-        cursor += dt.timedelta(days=1)
-        if cursor.weekday() < 5:
-            extended.append(cursor)
-    return extended
-
-
-def _policy_asof(day: dt.date) -> dt.datetime:
-    return dt.datetime(day.year, day.month, day.day, 21, 0, tzinfo=dt.timezone.utc)
-
-
-class _FakeProvider:
-    def __init__(self, bars, calendar, asof, *, adjustment="provider", symbol="SYN"):
-        self.bars, self.calendar, self.asof = bars, calendar, asof
-        self.adjustment, self.symbol = adjustment, symbol
-        self.calls = 0
-
-    def call(self, _name, **_kwargs):
-        self.calls += 1
-        envelope = {"status": "success", "source": "selfcheck-feed", "actual_source": "selfcheck-feed",
-                    "currency": "USD", "unit": "USD", "adjustment": self.adjustment,
-                    "source_symbol": self.symbol, "frequency": "1d",
-                    "source_timestamp": self.asof.isoformat(), "fetched_at_utc": self.asof.isoformat(),
-                    "last_bar_closed": True,
-                    "data": {"bars": self.bars, "symbol": self.symbol, "frequency": "1d",
-                             "adjustment": self.adjustment, "currency": "USD", "unit": "USD"}}
-        if self.calendar:
-            envelope["session_calendar"] = self.calendar
-        return envelope
-
-
-def _policy_collection(sessions, bars, asof, *, adjustment="provider", calendar=True,
-                       declared=None, ticker="SYN"):
-    import yahoo_collect
-
-    calendar_block = _policy_calendar(_extend_sessions(list(sessions))) if calendar else None
-    provider = _FakeProvider(bars, calendar_block, asof, adjustment=adjustment, symbol=ticker)
-    original = yahoo_collect._library_calendar
-    yahoo_collect._library_calendar = lambda *_a, **_k: calendar_block
-    try:
-        request = {"ticker": ticker, "market": "US", "horizon": "5D", "intent": "forecast",
-                   "asof": asof.isoformat()}
-        if declared:
-            request["history_window"] = declared
-        return yahoo_collect.collect(request, provider=provider)
-    finally:
-        yahoo_collect._library_calendar = original
-
-
-def _policy_snapshot(sessions, bars, asof, *, adjustment="provider", calendar=True,
-                     declared=None, ticker="SYN"):
-    from quant_research.snapshot import freeze_snapshot
-    from quant_research.stock_data_adapter import StockDataAdapter
-
-    root = Path(tempfile.mkdtemp(prefix="policy-"))
-    responses = _policy_collection(sessions, bars, asof, adjustment=adjustment, calendar=calendar,
-                                   declared=declared, ticker=ticker)
-    receipt = StockDataAdapter().write_receipt(
-        {"ticker": ticker, "market": "US", "horizon": "5D", "intent": "forecast", "asof": asof.isoformat()},
-        responses, root / "receipt.json",
-    )
-    return freeze_snapshot(receipt, root / "snapshots"), responses, root
-
-
-def _policy_analysis(sessions=None, bars=None, asof=None):
-    from quant_research.orchestrator import run_analysis
-
-    sessions = sessions or _policy_sessions()
-    bars = bars or _policy_bars(sessions)
-    asof = asof or _policy_asof(sessions[-1])
-    snapshot, _responses, root = _policy_snapshot(sessions, bars, asof)
-    return run_analysis(snapshot, root / "research"), snapshot, bars, sessions
-
-
-def _quant_rows(snapshot, _bars=None):
-
-    from quant_research.contracts import HORIZONS  # noqa: F401 - legacy import kept for schema parity
-    from quant_research.researchers import quant
-    from quant_research.snapshot import load_snapshot
-
-    manifest, market = load_snapshot(snapshot)
-    return quant.run(snapshot, (manifest, market))
-
-
-def _snapshot_bars(snapshot):
-    from quant_research.market_data import market_bars
-    from quant_research.snapshot import load_snapshot
-
-    _manifest, market = load_snapshot(snapshot)
-    return market_bars(market)
-
-
-def check_t01_forecast_horizon_is_five_sessions() -> None:
-    from quant_research.contracts import normalize_request
-    from quant_research.forecast_policy import PolicyError
-
-    for horizon in ("1D", "20D"):
-        try:
-            normalize_request({"ticker": "SYN", "horizon": horizon, "intent": "forecast"})
-        except PolicyError as exc:  # noqa: PERF203 - one controlled negative case per horizon
-            assert exc.code == "UNSUPPORTED_FORECAST_HORIZON", exc.code
-        else:
-            raise AssertionError(f"{horizon} must be rejected for a forecast")
-    assert normalize_request({"ticker": "SYN", "horizon": "5D", "intent": "forecast"})["horizon"] == "5D"
-    assert normalize_request({"ticker": "SYN", "horizon": "20D", "intent": "descriptive"})["horizon"] == "20D"
-
-
-def check_t02_fixed_window_and_coverage() -> None:
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    responses = _policy_collection(sessions, bars, asof)
-    window = responses["market"]["data"]["policy_window"]
-    assert window["coverage_status"] == "complete", window
-    assert window["decision_session"] == sessions[-1].isoformat()
-    assert window["window_start_exclusive"] == (sessions[-1] - dt.timedelta(days=364)).isoformat()
-    assert window["expected_sessions"] == window["observed_sessions"], window
-    assert window["calendar_verified"] is True
-
-
-def check_t03_declared_window_must_match_policy() -> None:
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    from quant_research.forecast_policy import PolicyError
-
-    try:
-        _policy_collection(sessions, bars, asof, declared={"start": "2020-01-01"})
-    except PolicyError as exc:
-        assert exc.code == "FIXED_WINDOW_CONFLICT", exc.code
-    else:
-        raise AssertionError("a conflicting declared start must be rejected")
-
-
-def check_t04_bars_outside_window_are_rejected() -> None:
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    from quant_research.snapshot import freeze_snapshot
-    from quant_research.stock_data_adapter import StockDataAdapter
-
-    responses = _policy_collection(sessions, bars, asof)
-    window = responses["market"]["data"]["policy_window"]
-    extra = dict(bars[0])
-    extra["date"] = window["window_start_exclusive"]
-    responses["market"]["data"]["bars"] = [extra, *responses["market"]["data"]["bars"]]
-    root = Path(tempfile.mkdtemp(prefix="policy-"))
-    receipt = StockDataAdapter().write_receipt(
-        {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast", "asof": asof.isoformat()},
-        responses, root / "receipt.json",
-    )
-    try:
-        freeze_snapshot(receipt, root / "snapshots")
-    except ValueError as exc:
-        assert "OHLCV_OUT_OF_WINDOW" in str(exc) or "outside the frozen policy window" in str(exc), exc
-    else:
-        raise AssertionError("a bar on the left-open boundary must be rejected")
-
-
-def check_t05_dividend_adjusted_basis_is_rejected() -> None:
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    responses = _policy_collection(sessions, bars, asof, adjustment="adjusted")
-    assert responses["market"]["data"]["policy_window"]["coverage_status"] in {"complete", "incomplete"}
-    assert responses["market"]["policy_status"] == "ineligible", responses["market"].get("policy_status")
-    try:
-        _policy_snapshot(sessions, bars, asof, adjustment="adjusted")
-    except ValueError as exc:
-        assert "PRICE_BASIS_UNVERIFIED" in str(exc) or "price basis" in str(exc).lower(), exc
-    else:
-        raise AssertionError("a dividend-reinvested basis must not pass the policy gate")
-
-
-def check_t06_target_is_fifth_session() -> None:
-    sessions = _policy_sessions(300)
-    future = []
-    cursor = sessions[-1] + dt.timedelta(days=1)
-    while len(future) < 10:
-        if cursor.weekday() < 5:
-            future.append(cursor)
-        cursor += dt.timedelta(days=1)
-    calendar_sessions = sessions + future
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    # The calendar is supplied explicitly so the target session is known even
-    # though no bar exists for it yet.
-    import json
-
-    from quant_research.snapshot import freeze_snapshot
-    from quant_research.stock_data_adapter import StockDataAdapter
-
-    responses = _policy_collection(sessions, bars, asof, calendar=False)
-    responses["market"]["session_calendar"] = _policy_calendar(calendar_sessions)
-    responses["market"]["data"]["session_calendar"] = _policy_calendar(calendar_sessions)
-    root = Path(tempfile.mkdtemp(prefix="policy-"))
-    receipt = StockDataAdapter().write_receipt(
-        {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast", "asof": asof.isoformat()},
-        responses, root / "receipt.json",
-    )
-    snapshot = freeze_snapshot(receipt, root / "snapshots")
-    manifest = json.loads((snapshot / "manifest.json").read_text())
-    index = [s.isoformat() for s in calendar_sessions].index(sessions[-1].isoformat())
-    assert manifest["policy"]["target_session"] == calendar_sessions[index + 5].isoformat(), manifest["policy"]
-
-
-def check_t07_unverified_calendar_blocks_formal_probability() -> None:
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    try:
-        snapshot, _, root = _policy_snapshot(sessions, bars, asof, calendar=False)
-    except ValueError as exc:
-        assert "CALENDAR_UNVERIFIED" in str(exc) or "coverage" in str(exc).lower(), exc
-        return
-    from quant_research.orchestrator import run_analysis
-
-    analysis = run_analysis(snapshot, root / "research")
-    import json
-
-    payload = json.loads((analysis / "analysis.json").read_text())
-    assert payload["consensus"]["prob_up"] is None
-    assert "CALENDAR_UNVERIFIED" in payload["consensus"]["reason_codes"]
-
-
-def check_t08_labels_are_matured_at_each_origin() -> None:
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    result = _quant_rows(snapshot, bars)
-    rows = result["validation"]["oos_forecasts"]
-    assert rows
-    index = {bar["date"]: i for i, bar in enumerate(bars)}
-    for row in rows:
-        if row["probability"] is None:
-            continue
-        transform = row["probability_transform"]
-        for label_end in transform["matching_label_ends"]:
-            assert index[label_end] <= index[row["decision_session"]]
-        assert index[transform["base_rate_label_end_max"]] <= index[row["decision_session"]]
-
-
-def check_t09_oos_support_counts_zero_eleven_twelve() -> None:
-    from quant_research.researchers.quant import predict_at_origin
-    from quant_research.validation.probability_quality import audit_oos_result
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    dates = [bar["date"] for bar in bars]
-    closes = [bar["close"] for bar in bars]
-    rows = [
-        row for row in (predict_at_origin(dates, closes, index) for index in range(25, len(bars) - 5))
-        if row["probability"] is not None
-    ]
-    assert len(rows) >= 60, len(rows)
-    manifest = {"ticker": "SYN", "horizon": "5D", "snapshot_id": "s"}
-    # Support is an effective-sample floor: 5-session labels overlap, so 55 rows
-    # are 11 independent equivalents and 60 rows are 12.  The old 12-phase
-    # sample was a different quantity that happened to share the number.
-    for count, expected in ((0, "NO_VALID_OOS_PROBABILITY"), (55, "OOS_SUPPORT_INSUFFICIENT"), (60, None)):
-        result = {"researcher_id": "quant", "ticker": "SYN", "horizon": "5D", "snapshot_id": "s",
-                  "validation": {"oos_forecasts": rows[:count], "sampling": {"coverage_ratio": None}}}
-        audit = audit_oos_result(result, manifest, bars, sessions=sessions)
-        if expected:
-            assert expected in audit["reasons"], (count, audit["reasons"])
-        else:
-            assert "OOS_SUPPORT_INSUFFICIENT" not in audit["reasons"], audit["reasons"]
-            assert audit["effective_valid_samples"] >= 12
-    # The sampling phase must not be claimed window-independent when the supplied
-    # calendar does not contain the 2000-01-03 anchor.
-    assert audit_oos_result(result, manifest, bars, sessions=sessions)["sampling"]["status"] in {
-        "unanchored", "unanchored_calendar",
-    }
-
-
-def check_t10_directional_edge_requires_thirty_and_positive_interval() -> None:
-    from quant_research.validation.probability_quality import directional_edge_assessment
-
-    def record(index: int, probability: float, baseline: float, target: int, *,
-               sampled: bool = True, sampling_status: str = "anchored") -> dict:
-        return {"decision_session": f"2026-01-{index + 1:02d}", "status": "matured", "sampled": sampled,
-                "sampling_status": sampling_status,
-                "probability": probability, "target": target,
-                "probability_transform": {"base_rate_at_origin": baseline}}
-
-    short = directional_edge_assessment([record(i, 0.5, 0.5, 1) for i in range(29)])
-    assert short["replay_interval_excludes_zero"] is False and short["supported"] is False
-    negative = [record(i, 0.80 + (i * i % 7) * 0.01, 0.5, 0) for i in range(30)]
-    negative_result = directional_edge_assessment(negative)
-    assert negative_result["replay_state"].endswith("excluding_zero")
-    assert negative_result["replay_claim"] == "replay_interval_below_zero"
-    positive = [record(i, 0.90 + i * 0.003, 0.50, 1) for i in range(30)]
-    replay_only = directional_edge_assessment(positive)
-    # A positive in-window replay is an observation, not independent evidence.
-    assert replay_only["replay_interval_excludes_zero"] is True, replay_only
-    assert replay_only["supported"] is False and replay_only["independent_supported"] is False, replay_only
-    assert replay_only["evidence_scope"] == "in_window_causal_prefix_replay_not_independent_holdout"
-
-    # Matured prospective outcomes from an anchored phase, whose interval excludes zero, do support the claim.
-    prospective = [
-        record(i, 0.9 + (i * i % 7) * 0.01 if i % 2 == 0 else 0.1 + (i * i % 5) * 0.01, 0.5,
-               1 if i % 2 == 0 else 0)
-        for i in range(30)
-    ]
-    supported = directional_edge_assessment(positive, prospective_records=prospective)
-    assert supported["independent_supported"] is True and supported["supported"] is True, supported
-
-    # An unanchored phase never counts as non-overlapping forward evidence.
-    unanchored = [
-        record(i, 0.9, 0.5, 1, sampled=False, sampling_status="unanchored_calendar")
-        for i in range(30)
-    ]
-    unanchored_result = directional_edge_assessment(positive, prospective_records=unanchored)
-    assert unanchored_result["prospective_nonoverlap_count"] == 0, unanchored_result
-
-
-def check_t11_current_prediction_is_reproducible() -> None:
-    from quant_research.researchers.quant import predict_at_origin
-    from quant_research.validation.probability_quality import audit_current_prediction
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    audit_bars = _snapshot_bars(snapshot)
-    result = _quant_rows(snapshot, audit_bars)
-    audit = audit_current_prediction(result, {}, audit_bars)
-    assert audit["pass"] is True, audit
-    direct = predict_at_origin([b["date"] for b in audit_bars], [b["close"] for b in audit_bars], len(audit_bars) - 1)
-    assert abs(direct["probability"] - result["prob_up"]) < 1e-12
-
-
-def check_t12_transform_tampering_is_rejected() -> None:
-    import copy
-
-    from quant_research.validation.probability_quality import audit_current_prediction
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    audit_bars = _snapshot_bars(snapshot)
-    result = _quant_rows(snapshot, audit_bars)
-    tampered = copy.deepcopy(result)
-    tampered["prob_up"] = min(0.999, tampered["prob_up"] + 0.1)
-    assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False
-    tampered = copy.deepcopy(result)
-    tampered["raw_probability"] = 0.01
-    assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False
-    tampered = copy.deepcopy(result)
-    tampered["validation"]["probability_transform"]["matching_origins"] = []
-    assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False
-
-
-def check_t13_transform_version_change_is_rejected() -> None:
-    import copy
-
-    from quant_research.validation.probability_quality import audit_current_prediction
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    audit_bars = _snapshot_bars(snapshot)
-    result = _quant_rows(snapshot, audit_bars)
-    for field, value in (("version", "shrinkage_v0"), ("policy_version", "old_policy")):
-        tampered = copy.deepcopy(result)
-        tampered["validation"]["probability_transform"][field] = value
-        assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False, field
-    tampered = copy.deepcopy(result)
-    tampered["validation"]["probability_transform"]["type"] = "fitted_calibrator"
-    assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False
-
-
-def check_t14_parameter_tampering_is_rejected() -> None:
-    import copy
-
-    from quant_research.validation.probability_quality import audit_current_prediction
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    audit_bars = _snapshot_bars(snapshot)
-    result = _quant_rows(snapshot, audit_bars)
-    for field, value in (("k", 1), ("minimum_gap_sessions", 1),
-                         ("minimum_matches", 1), ("horizon_sessions", 1)):
-        tampered = copy.deepcopy(result)
-        tampered["validation"]["probability_transform"][field] = value
-        assert audit_current_prediction(tampered, {}, audit_bars)["pass"] is False, field
-
-
-def check_t15_same_decision_is_recorded_once() -> None:
-    from quant_research.ledger import record_prediction
-
-    analysis, snapshot, _bars, _sessions = _policy_analysis()
-    root = Path(tempfile.mkdtemp(prefix="ledger-"))
-    ledger = root / "ledger.jsonl"
-    import json
-
-    payload = json.loads((analysis / "analysis.json").read_text())
-    first = record_prediction(payload, ledger, snapshot_dir=snapshot)
-    second = record_prediction(payload, ledger, snapshot_dir=snapshot)
-    assert first["status"] == "recorded", first
-    assert second["status"] == "duplicate", second
-
-
-def check_t16_window_slide_keeps_same_probability() -> None:
-    from quant_research.researchers import quant
-    from quant_research.snapshot import load_snapshot
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    first, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    manifest, market = load_snapshot(first)
-    base = quant.run(first, (manifest, market))
-    # A second snapshot with the same decision but extra pre-window bars must trim
-    # them and produce the same probability.
-    extra = []
-    cursor = sessions[0] - dt.timedelta(days=1)
-    while len(extra) < 10:
-        if cursor.weekday() < 5:
-            extra.append(cursor)
-        cursor -= dt.timedelta(days=1)
-    extra_bars = _policy_bars(list(reversed(extra)), seed=9) + bars
-    second, _responses2, _root2 = _policy_snapshot(sessions, extra_bars, asof)
-    manifest2, market2 = load_snapshot(second)
-    other = quant.run(second, (manifest2, market2))
-    assert abs(base["prob_up"] - other["prob_up"]) < 1e-12, (base["prob_up"], other["prob_up"])
-
-
-def check_t17_single_production_path() -> None:
-    import json
-
-    analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    payload = json.loads((analysis / "analysis.json").read_text())
-    consensus = payload["consensus"]
-    assert consensus["production_path_count"] == 1
-    assert consensus["aggregation_method"] == "single_path"
-    assert [row["path"] for row in consensus["paths"] if row["role"] == "production"] == ["quant"]
-    assert all(row["role"] == "shadow" for row in consensus["shadow_predictions"])
-    assert consensus["confidence_score"] is None
-
-
-def check_t18_shadow_probability_isolation() -> None:
-    from quant_research.consensus import build_consensus
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    from quant_research.snapshot import load_snapshot
-
-    manifest, _market = load_snapshot(snapshot)
-    quant_result = _quant_rows(snapshot, bars)
-    shadow = {"researcher_id": "factor", "result_role": "shadow", "ticker": "SYN", "horizon": "5D",
-              "snapshot_id": manifest["snapshot_id"], "status": "success", "prob_up": 0.99,
-              "raw_probability": 0.99, "probability_source": "shadow", "validation": {}}
-    consensus = build_consensus([quant_result, shadow], manifest, bars=_snapshot_bars(snapshot), sessions=sessions)
-    assert abs(consensus["prob_up"] - quant_result["prob_up"]) < 1e-12
-    assert any(row["path"] == "factor" and row["probability"] == 0.99 for row in consensus["shadow_predictions"])
-
-
-def check_t19_shadow_failure_does_not_block_production() -> None:
-    import json
-
-    from quant_research import orchestrator
-
-    original = orchestrator.RUNNERS["factor"]
-    orchestrator.RUNNERS["factor"] = lambda *_args, **_kwargs: (_ for _ in ()).throw(RuntimeError("shadow exploded"))
-    try:
-        analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    finally:
-        orchestrator.RUNNERS["factor"] = original
-    payload = json.loads((analysis / "analysis.json").read_text())
-    assert payload["consensus"]["prob_up"] is not None
-    assert payload["researchers"]["factor"]["status"] == "failed"
-
-
-def check_t20_factor_uses_post_selection_labels_only() -> None:
-    from quant_research.researchers import factor
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    from quant_research.snapshot import load_snapshot
-
-    manifest, market = load_snapshot(snapshot)
-    result = factor.run(None, (manifest, market), bucket_mode="two", selection_profile="restricted")
-    candidate = (result["validation"] or {}).get("honest_calibration_candidate") or {}
-    assert candidate.get("used_for_reported_probability") is True
-    if result.get("prob_up") is not None:
-        assert candidate.get("status") == "candidate_available"
-        assert candidate.get("observations", 0) > 0
-    else:
-        assert candidate.get("status") == "abstained"
-
-
-def check_t21_ml_refits_every_origin() -> None:
-    from quant_research.researchers import ml
-
-    assert ml._anchor(17) == 17
-    assert ml._anchor(18) == 18
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    from quant_research.snapshot import load_snapshot
-
-    manifest, market = load_snapshot(snapshot)
-    result = ml.run(None, (manifest, market))
-    assert result["validation"]["model_hyperparameters"]["refit_sessions"] == 1
-    assert result["validation"]["probability_calibration"]["status"] == "disabled_by_policy"
-    assert len(result["validation"]["oos_forecasts"]) > 100
-
-
-def check_t22_ledger_prospective_and_retrospective() -> None:
-    from quant_research.ledger import prospective_records, record_prediction
-
-    analysis, snapshot, _bars, _sessions = _policy_analysis()
-    import json
-
-    payload = json.loads((analysis / "analysis.json").read_text())
-    root = Path(tempfile.mkdtemp(prefix="ledger-"))
-    decision_at = dt.datetime.fromisoformat(
-        payload["consensus"]["timing"]["decision_at"].replace("Z", "+00:00")
-    )
-    # A prospective record must be written inside the prompt window.  The clock
-    # seam keeps the test deterministic without letting the CLI backdate a record.
-    forward = record_prediction(
-        payload, root / "forward.jsonl", snapshot_dir=snapshot,
-        clock=lambda: decision_at + dt.timedelta(hours=1),
-    )
-    assert forward["prospective_eligible"] is True
-    # Backdating the recording time is not possible through the API, but an
-    # already-matured decision snapshot must be marked retrospective.
-    old_sessions = _policy_sessions(300, end=dt.date(2025, 6, 30))
-    old_bars = _policy_bars(old_sessions)
-    old_asof = _policy_asof(old_sessions[-1])
-    old_snapshot, _responses, old_root = _policy_snapshot(old_sessions, old_bars, old_asof)
-    from quant_research.orchestrator import run_analysis
-
-    old_analysis = run_analysis(old_snapshot, old_root / "research")
-    old_payload = json.loads((old_analysis / "analysis.json").read_text())
-    backfilled = record_prediction(old_payload, root / "forward.jsonl", snapshot_dir=old_snapshot,
-                                   import_reason="historical")
-    assert backfilled["prospective_eligible"] is False
-    assert prospective_records(root / "forward.jsonl") == []
-
-
-def check_t23_delivery_and_stage_contract() -> None:
-    import json
-
-    from quant_research.delivery import validate_final_response
-
-    analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    response = analysis / "final_response.md"
-    assert validate_final_response(analysis, response)["delivery_status"] == "validated"
-    payload = json.loads((analysis / "analysis.json").read_text())
-    assert [row["stage"] for row in payload["stages"]] == [
-        "request", "collection", "data", "quant", "audit", "news", "cross-validation", "risk", "final"
-    ]
-    stages = {row["stage"]: row for row in payload["stages"]}
-    if stages["risk"]["status"] != "complete":
-        raise AssertionError("the risk stage must be a completed disclosure block, not not_assessed")
-    if stages["cross-validation"]["status"] == "not_applicable":
-        raise AssertionError("cross-validation must not be hard-coded not_applicable")
-    # Drop a stage, duplicate one, or change the order: all must fail.
-    broken = {**payload, "stages": payload["stages"][:-1]}
-    target = analysis / "broken.json"
-    target.write_text(json.dumps(broken), encoding="utf-8")
-    with contextlib.suppress(ValueError):
-        validate_final_response(analysis, response)
-    original = (analysis / "analysis.json").read_text()
-    (analysis / "analysis.json").write_text(json.dumps(broken), encoding="utf-8")
-    try:
-        validate_final_response(analysis, response)
-    except ValueError:
-        pass
-    else:
-        raise AssertionError("a missing stage must be rejected")
-    finally:
-        (analysis / "analysis.json").write_text(original, encoding="utf-8")
-
-
-def check_t24_missing_production_path_stays_unavailable() -> None:
-    from quant_research.consensus import build_consensus
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    from quant_research.snapshot import load_snapshot
-
-    manifest, _market = load_snapshot(snapshot)
-    shadow = {"researcher_id": "ml", "result_role": "shadow", "ticker": "SYN", "horizon": "5D",
-              "snapshot_id": manifest["snapshot_id"], "status": "success", "prob_up": 0.8,
-              "raw_probability": 0.8, "probability_source": "shadow", "validation": {}}
-    consensus = build_consensus([shadow], manifest, bars=bars, sessions=sessions)
-    assert consensus["prob_up"] is None
-    assert consensus["production_probability_eligible"] is False
-    assert consensus["status"] == "unavailable"
-
-
-
-# ---------------------------------------------------------------- review items
-def _fake_delivery_result(news_status: str, **overrides) -> dict:
-    result = {
-        "snapshot": {
-            "ticker": "SYN", "market": "US", "horizon": "5D",
-            "asof_timestamp": "2026-01-02T21:00:00Z",
-            "policy": {"decision_session": "2026-01-02", "window_end_inclusive": "2026-01-02",
-                       "policy_version": "fixed_52w_5d_v1"},
-            "target_session": "2026-01-09",
-            "snapshot_id": "SYN_TEST",
-        },
-        "consensus": {
-            "prob_up": 0.53, "model_lean": "up", "production_probability_eligible": True,
-            "directional_edge_supported": False, "computable": True,
-            "current_prediction_integrity_pass": True, "oos_integrity_pass": True,
-            "production": {"probability_transform": {"k": 50}},
-            "evidence": {
-                "replay_type": "prefix_walk_forward", "replay_valid": 230, "replay_nonoverlap": 39,
-                "replay_abstained": 0, "oos_effective_samples": 46, "prospective_nonoverlap": 0,
-                "directional_edge_state": "insufficient_evidence",
-                "directional_edge_primary_evidence": "full_prefix_replay",
-                "relative_baseline_skill": [
-                    {"block_length": 6, "primary": True, "status": "estimated",
-                     "mean": 0.0201, "lower": -0.002, "upper": 0.0517},
-                ],
-                "baseline_comparison": {"brier_model": 0.2553, "brier_causal_base_rate": 0.2754,
-                                        "brier_constant_half": 0.25, "auc": 0.4886,
-                                        "effective_sample_size": 46, "observations": 230},
-            },
-        },
-        "news_result": {"status": news_status},
-        "adversarial_audit": {"may_report_probability": True},
-    }
-    result.update(overrides)
-    return result
-
-
-def check_t25_news_partial_is_assessed_not_unassessed() -> None:
-    """N1/N2/N4: partial is assessed evidence and the warning count must be shown."""
-
-    from quant_research.delivery import validate_response_text
-    from quant_research.news import news_assessed, news_status_label
-    from quant_research.report import render_final_response, required_response_lines
-
-    assert news_assessed("partial") and news_assessed("complete") and news_assessed("valid")
-    assert not news_assessed("not_assessed") and not news_assessed(None) and not news_assessed("corrupted")
-    assert news_status_label("partial") == "partial"
-
-    partial = _fake_delivery_result("partial")
-    partial["news_result"].update({"warning_count": 3, "warnings": ["a", "b", "c"],
-                                   "overall_direction": "mixed",
-                                   "expected_volatility_regime": {"regime": "elevated"}})
-    line = required_response_lines(partial)["news"]
-    if "已采集" not in line or "3 条警告" not in line or "AI逐条未评估" not in line:
-        raise AssertionError(f"collection and AI assessment must have distinct statuses: {line}")
-    if "未提供" in line:
-        raise AssertionError(f"collected evidence must not be described as absent: {line}")
-    text = render_final_response(partial)
-    if "新闻：未提供" in text:
-        raise AssertionError("a collected run must not be described as absent")
-    validate_response_text(partial, text)
-
-    absent = _fake_delivery_result("not_assessed")
-    line = required_response_lines(absent)["news"]
-    if "未提供" not in line:
-        raise AssertionError(f"a genuinely unassessed News stage must say so: {line}")
-    validate_response_text(absent, render_final_response(absent))
 
 
 def check_t26_denial_is_not_unknown_and_no_number_is_not_negation() -> None:
@@ -2449,6 +627,134 @@ def check_t28_ai_lean_identity_fields_cannot_be_forged() -> None:
     assert good["ai_lean"]["status"] == "partial", good["ai_lean"]
 
 
+def check_t41_partial_ai_news_can_be_delivered_when_disclosed() -> None:
+    """T41: partial coverage is deliverable only with reconciling counts and a warning."""
+    from quant_research.delivery import require_ai_news_coverage
+
+    candidates = [{"news_id": "n1"}, {"news_id": "n2"}]
+
+    def news(status: str, assessed: int, items: int, warnings: list[str] | None = None) -> dict:
+        return {"ai_lean_candidates": candidates, "warnings": warnings or [],
+                "ai_lean": {"status": status,
+                            "coverage": {"candidate_count": len(candidates), "assessed_count": assessed},
+                            "items": [{"news_id": f"n{index + 1}"} for index in range(items)]}}
+
+    require_ai_news_coverage(news("assessed", 2, 2))
+    require_ai_news_coverage(news("partial", 1, 1, ["1 candidate not assessed"]))
+    for case, label in (
+        (news("partial", 1, 1), "partial without a disclosed reason"),
+        (news("assessed", 1, 1), "assessed with a missing item"),
+        (news("not_assessed", 0, 0), "unassessed artifact"),
+        (news("partial", 3, 3, ["x"]), "assessed count above the candidate count"),
+    ):
+        try:
+            require_ai_news_coverage(case)
+        except ValueError:
+            continue
+        raise AssertionError(f"{label} was accepted")
+
+
+def check_t42_presentation_warnings_do_not_degrade_news() -> None:
+    """T42: truncation is disclosed without pretending the evidence set shrank."""
+    from quant_research.news.pipeline import _finalize_warnings
+    from quant_research.news.status import warning_details, warning_severity_counts
+
+    warnings = ["12 news headline(s) were truncated to 400 characters",
+                "3 news record(s) were dropped before normalization"]
+    details = warning_details(warnings)
+    counts = warning_severity_counts(warnings)
+    if details[0]["severity"] != "presentation" or details[1]["severity"] != "evidence_affecting":
+        raise AssertionError(details)
+    if counts != {"evidence_affecting": 1, "presentation": 1}:
+        raise AssertionError(counts)
+    if warning_severity_counts(["3 news headline(s) were truncated to 400 characters"])["evidence_affecting"]:
+        raise AssertionError("a truncation-only warning must not degrade the status")
+
+    result = {"status": "complete"}
+    _finalize_warnings(result, ["2 news headline(s) were truncated to 400 characters"], assessed_any=True)
+    if result["status"] != "complete":
+        raise AssertionError("presentation-only warnings must keep the assessed status complete")
+    result = {"status": "complete"}
+    _finalize_warnings(result, ["2 canonical news headline(s) were not assessed by the host AI"], assessed_any=True)
+    if result["status"] != "partial":
+        raise AssertionError("unassessed canonical headlines must degrade the assessed status")
+
+
+# ---------------------------------------------------------------- v4 contracts
+def _fake_delivery_result(news_status: str, **overrides) -> dict:
+    result = {
+        "snapshot": {
+            "ticker": "SYN", "market": "US", "asset_type": "stock",
+            "asof_timestamp": "2026-01-02T21:00:00Z",
+            "policy": {"policy_version": "news_60d_v1"},
+            "snapshot_id": "SYN_TEST",
+        },
+        "news_result": {"status": news_status},
+    }
+    result.update(overrides)
+    return result
+
+
+def check_t25_news_partial_is_assessed_not_unassessed() -> None:
+    """Partial is assessed evidence and the warning count must be shown."""
+
+    from quant_research.delivery import validate_response_text
+    from quant_research.news import news_assessed, news_status_label
+    from quant_research.report import render_final_response, required_response_lines
+
+    assert news_assessed("partial") and news_assessed("complete") and news_assessed("valid")
+    assert not news_assessed("not_assessed") and not news_assessed(None) and not news_assessed("corrupted")
+    assert news_status_label("partial") == "partial"
+
+    partial = _fake_delivery_result("partial")
+    partial["news_result"].update({"warning_count": 3, "warnings": ["a", "b", "c"],
+                                   "overall_direction": "mixed",
+                                   "expected_volatility_regime": {"regime": "elevated"}})
+    line = required_response_lines(partial)["news"]
+    if "已采集" not in line or "3 条警告" not in line or "AI逐条未评估" not in line:
+        raise AssertionError(f"collection and AI assessment must have distinct statuses: {line}")
+    if "未提供" in line:
+        raise AssertionError(f"collected evidence must not be described as absent: {line}")
+    text = render_final_response(partial)
+    if "新闻：未提供" in text:
+        raise AssertionError("a collected run must not be described as absent")
+    validate_response_text(partial, text)
+
+    absent = _fake_delivery_result("not_assessed")
+    line = required_response_lines(absent)["news"]
+    if "未提供" not in line:
+        raise AssertionError(f"a genuinely unassessed News stage must say so: {line}")
+    validate_response_text(absent, render_final_response(absent))
+
+
+def check_t32_headline_newlines_cannot_inject_report_lines() -> None:
+    """Provider text stays one line and is escaped in Markdown."""
+
+    from quant_research.news.normalize import normalize_articles
+    from quant_research.report import render_markdown
+
+    articles, _excluded, _warnings = normalize_articles(
+        {"articles": [{
+            "title": "MU raises guidance\n## Injected heading\n- injected item",
+            "published_at": "2026-01-05T13:00:00Z", "source": "Reuters",
+            "url": "https://example.com/a", "tickers": ["MU"],
+        }]},
+        asof_timestamp="2026-01-09T00:00:00Z",
+    )
+    assert articles, "the fixture article must survive normalization"
+    assert "\n" not in articles[0]["title"], articles[0]["title"]
+
+    result = _fake_delivery_result("complete")
+    result["news_result"] = {
+        "status": "complete", "warning_count": 0, "overall_direction": "positive",
+        "major_events": [{"headline": "MU raises guidance\n## Injected heading", "direction": "positive",
+                          "eligible_evidence": True, "age_sessions": 1}],
+    }
+    rendered = render_markdown(result)
+    if any(line.strip().startswith("## Injected heading") for line in rendered.splitlines()):
+        raise AssertionError("a headline must not be able to create a new Markdown heading")
+
+
 def check_t35_ai_news_counts_and_links() -> None:
     """Every canonical headline is offered to AI; direct counts and major links are auditable."""
 
@@ -2509,697 +815,8 @@ def check_t35_ai_news_counts_and_links() -> None:
     assert "https://example.com/macro" in report
 
 
-def check_t29_mutation_detection() -> None:
-    """R3: three deliberate formula mutations must be caught by the audit."""
-
-    import copy
-
-    from quant_research.validation.probability_quality import audit_current_prediction
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    snapshot, _responses, _root = _policy_snapshot(sessions, bars, asof)
-    audit_bars = _snapshot_bars(snapshot)
-    result = _quant_rows(snapshot, audit_bars)
-    assert audit_current_prediction(result, {}, audit_bars)["pass"] is True
-
-    mutations = {}
-    zero_prior = copy.deepcopy(result)
-    zero_prior["validation"]["probability_transform"]["k"] = 0
-    mutations["prior->0"] = zero_prior
-    sign_flip = copy.deepcopy(result)
-    sign_flip["prob_up"] = 1 - sign_flip["prob_up"]
-    mutations["sign flip"] = sign_flip
-    shifted = copy.deepcopy(result)
-    shifted["validation"]["probability_transform"]["base_rate_label_end_max"] = (
-        audit_bars[-1]["date"] if shifted["validation"]["probability_transform"]["base_rate_label_end_max"] != audit_bars[-1]["date"]
-        else audit_bars[-2]["date"]
-    )
-    mutations["label shift"] = shifted
-    undetected = [name for name, payload in mutations.items() if audit_current_prediction(payload, {}, audit_bars)["pass"]]
-    if undetected:
-        raise AssertionError(f"the audit failed to detect deliberate mutations: {undetected}")
-
-
-def check_t30_baseline_comparison_uses_two_naive_baselines() -> None:
-    """R1: effectiveness is reported against the base rate and against 0.5."""
-
-    from quant_research.statistics import baseline_comparison
-    from quant_research.validation.probability_quality import directional_edge_assessment
-
-    def build(probability: float) -> list[dict]:
-        return [
-            {
-                "decision_session": f"2026-01-{index + 1:02d}", "status": "matured",
-                "probability": probability + (index % 5) * 0.002,
-                # 70% of the labelled windows rise: a constant 0.5 is a weak baseline.
-                "target": 0 if index % 10 < 3 else 1,
-                "probability_transform": {"base_rate_at_origin": 0.5},
-            }
-            for index in range(60)
-        ]
-
-    rows = build(0.20)
-    comparison = baseline_comparison(rows, horizon=5)
-    assert comparison["brier_model"] > comparison["brier_causal_base_rate"], comparison
-    assert comparison["skill"]["vs_causal_base_rate"] < 0, comparison
-    assert comparison["auc"] is not None
-    assert "constant_half" in comparison["baselines"]
-    edge = directional_edge_assessment(replay_records=rows)
-    assert edge["state"] == "negative_skill_with_estimated_interval_excluding_zero", edge
-
-    better = baseline_comparison(build(0.72), horizon=5)
-    assert better["skill"]["vs_causal_base_rate"] > 0, better
-    # With 60 rows the primary 6-session block interval stays wide: positive point
-    # skill is not yet a supported edge, and the block must say so.
-    assert better["verdict"] in {"insufficient_evidence",
-                                 "positive_skill_with_estimated_interval_excluding_zero"}, better
-
-
-def check_t31_reporting_status_is_not_a_stale_flag() -> None:
-    """B9: a veto must not leave the report saying 'reportable'."""
-
-    from quant_research.report import reporting_status_for
-
-    stale = {"consensus": {"prob_up": None, "production_probability_eligible": True},
-             "adversarial_audit": {"may_report_probability": False}}
-    if reporting_status_for(stale) != "unavailable":
-        raise AssertionError("a vetoed run with no probability must not be reportable")
-    live = {"consensus": {"prob_up": 0.53, "production_probability_eligible": True},
-            "adversarial_audit": {"may_report_probability": True}}
-    assert reporting_status_for(live) == "reportable"
-
-
-def check_t32_headline_newlines_cannot_inject_report_lines() -> None:
-    """N10: provider text stays one line and is escaped in Markdown."""
-
-    from quant_research.news.normalize import normalize_articles
-    from quant_research.report import render_markdown
-
-    articles, _excluded, _warnings = normalize_articles(
-        {"articles": [{
-            "title": "MU raises guidance\n## Injected heading\n- injected item",
-            "published_at": "2026-01-05T13:00:00Z", "source": "Reuters",
-            "url": "https://example.com/a", "tickers": ["MU"],
-        }]},
-        asof_timestamp="2026-01-09T00:00:00Z",
-    )
-    assert articles, "the fixture article must survive normalization"
-    assert "\n" not in articles[0]["title"], articles[0]["title"]
-
-    result = _fake_delivery_result("complete")
-    result["news_result"] = {
-        "status": "complete", "warning_count": 0, "overall_direction": "positive",
-        "major_events": [{"headline": "MU raises guidance\n## Injected heading", "direction": "positive",
-                          "eligible_evidence": True, "age_sessions": 1}],
-    }
-    rendered = render_markdown(result)
-    if any(line.strip().startswith("## Injected heading") for line in rendered.splitlines()):
-        raise AssertionError("a headline must not be able to create a new Markdown heading")
-
-
-def check_t33_unresolved_target_session_vetoes_publication() -> None:
-    """A4: a probability against an undetermined 5th-session close is vetoed."""
-
-    from quant_research.audit import audit
-    from quant_research.consensus import _manifest_policy_reasons
-
-    manifest = {
-        "snapshot_id": "SYN_TEST",
-        "source_payload_sha256": "a" * 64,
-        "request": {"intent": "forecast"},
-        "policy": {
-            "policy_version": "fixed_52w_5d_v1",
-            "coverage_status": "complete",
-            "calendar_verified": True,
-            "target_session": None,
-        },
-        "data_validation": {"policy": {"price_basis": "split_adjusted"}},
-        "data_quality": {"overall": "complete"},
-    }
-    assert "TARGET_SESSION_UNRESOLVED" in _manifest_policy_reasons(manifest)
-    consensus = {
-        "prob_up": 0.55, "production_probability_eligible": True, "computable": True,
-        "current_prediction_integrity_pass": True, "oos_integrity_pass": True,
-        "directional_edge_supported": False, "aggregation_method": "single_path",
-        "production_path_count": 1, "confidence_score": None, "assessment": {
-            "current_prediction_integrity_pass": True, "oos_integrity_pass": True,
-            "production_probability_eligible": True, "directional_edge_supported": False,
-        },
-        "shadow_predictions": [], "evidence": {},
-    }
-    result = audit(manifest, [], consensus)
-    assert "TARGET_SESSION_UNRESOLVED" in result["reason_codes"], result["reason_codes"]
-    assert result["may_report_probability"] is False
-    manifest["policy"]["target_session"] = "2026-01-09"
-    assert "TARGET_SESSION_UNRESOLVED" not in _manifest_policy_reasons(manifest)
-
-
-def check_t34_pipeline_runs_news_by_default() -> None:
-    """N3: `pipeline` runs the News stage without an explicit policy file."""
-
-    import contextlib
-    import importlib.util
-    import io
-    import json
-
-    # ``quant_research.py`` (the CLI) and ``quant_research/`` (the package) share a
-    # name; load the script by path instead of relying on import resolution.
-    cli_path = Path(__file__).with_name("quant_research.py")
-    spec = importlib.util.spec_from_file_location("quant_research_cli", cli_path)
-    cli = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(cli)
-
-    sessions = _policy_sessions()
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    work = Path(tempfile.mkdtemp(prefix="selfcheck_pipeline_news_"))
-    try:
-        responses = _policy_collection(sessions, bars, asof)
-        request_path = work / "request.json"
-        responses_path = work / "responses.json"
-        request_path.write_text(json.dumps({
-            "ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast",
-            "asof": asof.isoformat(),
-        }), encoding="utf-8")
-        responses_path.write_text(json.dumps({"domains": responses}), encoding="utf-8")
-        with contextlib.redirect_stdout(io.StringIO()) as captured:
-            code = cli.main([
-                "pipeline", "--request", str(request_path), "--responses", str(responses_path),
-                "--output-root", str(work / "runtime"), "--no-gc",
-            ])
-        if code != 0:
-            raise AssertionError(f"pipeline failed with exit code {code}: {captured.getvalue()[:400]}")
-        if code != 0:
-            raise AssertionError(f"pipeline failed with exit code {code}")
-        analyses = sorted((work / "runtime" / "research").glob("*/analysis.json"))
-        if not analyses:
-            raise AssertionError("pipeline produced no analysis")
-        payload = json.loads(analyses[-1].read_text(encoding="utf-8"))
-        news = payload.get("news_result") or {}
-        if news.get("schema_version") != "1.3":
-            raise AssertionError(f"the News stage did not run by default: {news.get('status')!r} {sorted(news)}")
-        receipt = next(row for row in payload["stages"] if row["stage"] == "news")
-        if receipt["status"] not in {"complete", "partial", "not_assessed"}:
-            raise AssertionError(f"unexpected News stage status: {receipt}")
-        if "warning_count" not in news:
-            raise AssertionError("the News result must disclose its warning count")
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
-def check_t36_coverage_is_recomputed_not_declared() -> None:
-    """T36: a declared `complete` window must match the calendar-derived session set."""
-    from quant_research.snapshot import freeze_snapshot
-    from quant_research.stock_data_adapter import StockDataAdapter
-
-    sessions = _policy_sessions(300)
-    bars = _policy_bars(sessions)
-    asof = _policy_asof(sessions[-1])
-    work = Path(tempfile.mkdtemp(prefix="coverage-"))
-    try:
-        responses = _policy_collection(sessions, bars, asof)
-        receipt = StockDataAdapter().write_receipt(
-            {"ticker": "SYN", "market": "US", "horizon": "5D", "intent": "forecast", "asof": asof.isoformat()},
-            responses, work / "receipt.json",
-        )
-        snapshot = freeze_snapshot(receipt, work / "snapshots")
-        manifest = json.loads((snapshot / "manifest.json").read_text(encoding="utf-8"))
-        policy = manifest["policy"]
-        assert policy["coverage_status"] == "complete", policy
-        assert policy["coverage_recomputed"] is True, policy
-        assert policy["expected_sessions"] == policy["observed_sessions"], policy
-
-        forged = json.loads(receipt.read_text(encoding="utf-8"))
-        market = forged["domains"]["market"]
-        market["data"]["bars"] = market["data"]["bars"][-120:]
-        window = market["data"]["policy_window"]
-        window["coverage_status"] = "complete"
-        window["observed_sessions"] = window["expected_sessions"]
-        window["missing_session_count"] = 0
-        window["missing_sessions"] = 0
-        tampered = work / "tampered.json"
-        tampered.write_text(json.dumps(forged), encoding="utf-8")
-        tampered_snapshot = freeze_snapshot(tampered, work / "snapshots_tampered")
-        tampered_manifest = json.loads((tampered_snapshot / "manifest.json").read_text(encoding="utf-8"))
-        validation = tampered_manifest["data_validation"]
-        if validation["forecast_eligible"] is not False:
-            raise AssertionError("truncated bars declaring complete coverage must block eligibility")
-        if "INSUFFICIENT_HISTORY_COVERAGE" not in validation["reason_codes"]:
-            raise AssertionError(validation["reason_codes"])
-        if tampered_manifest["policy"]["coverage_status"] == "complete":
-            raise AssertionError("the manifest must carry the recomputed, not the declared, coverage")
-        from quant_research.orchestrator import run_analysis
-
-        blocked = run_analysis(tampered_snapshot, work / "blocked_research")
-        blocked_payload = json.loads((blocked / "analysis.json").read_text(encoding="utf-8"))
-        if blocked_payload["consensus"]["prob_up"] is not None:
-            raise AssertionError("a blocked coverage snapshot must not publish a probability")
-        if blocked_payload["adversarial_audit"]["may_report_probability"] is not False:
-            raise AssertionError("the audit must not report a probability for a blocked snapshot")
-
-        mismatch = json.loads(receipt.read_text(encoding="utf-8"))
-        mismatch["domains"]["market"]["data"]["policy_window"]["observed_sessions"] -= 3
-        mismatch_path = work / "mismatch.json"
-        mismatch_path.write_text(json.dumps(mismatch), encoding="utf-8")
-        mismatch_snapshot = freeze_snapshot(mismatch_path, work / "snapshots_mismatch")
-        mismatch_manifest = json.loads((mismatch_snapshot / "manifest.json").read_text(encoding="utf-8"))
-        if mismatch_manifest["data_validation"]["forecast_eligible"] is not False:
-            raise AssertionError("a declaration that contradicts recomputation must block eligibility")
-        if "INSUFFICIENT_HISTORY_COVERAGE" not in mismatch_manifest["data_validation"]["reason_codes"]:
-            raise AssertionError(mismatch_manifest["data_validation"]["reason_codes"])
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
-def check_t37_sampling_phase_is_tri_state() -> None:
-    """T37: unanchored is None, not False, everywhere the phase is reported."""
-    from quant_research.orchestrator import _decision_sampled
-
-    sessions = [dt.date(2000, 1, 3) + dt.timedelta(days=offset) for offset in range(14)
-                if (dt.date(2000, 1, 3) + dt.timedelta(days=offset)).weekday() < 5]
-    anchored = sessions[0]
-    if _decision_sampled(anchored.isoformat(), sessions) is not True:
-        raise AssertionError("ordinal 0 must be sampled")
-    if _decision_sampled(sessions[1].isoformat(), sessions) is not False:
-        raise AssertionError("ordinal 1 must be a verified non-sampled decision")
-    if _decision_sampled("2026-10-23", sessions) is not None:
-        raise AssertionError("a decision outside the anchored calendar must be None")
-
-    analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
-    sampling = payload["consensus"]["sampling"]
-    if sampling["status"] != "unanchored_calendar":
-        raise AssertionError(f"a 52-week calendar cannot be anchored: {sampling}")
-    if sampling["decision_sampled"] is not None or payload["consensus"]["decision_sampled"] is not None:
-        raise AssertionError("an unanchored phase must stay null")
-    if sampling["counts_as_nonoverlap"] is not False:
-        raise AssertionError("an unanchored phase must not count as non-overlapping evidence")
-    if payload["consensus"]["evidence"]["oos_sampling_status"] != "unanchored":
-        raise AssertionError("the replay sampling status must agree with the consensus block")
-
-
-def check_t38_veto_clears_every_publishable_field() -> None:
-    """T38: an audit veto leaves no probability or lean anywhere in the payload."""
-    from quant_research.consensus import redact_publishable_prediction
-
-    consensus = {
-        "prob_up": 0.61,
-        "raw_probability": 0.61,
-        "reportable_probability": 0.61,
-        "model_lean": "up",
-        "direction": "bullish",
-        "probability_basis": "drift_shrunk_causal_base_rate",
-        "production": {"prob_up": 0.61, "raw_probability": 0.61, "model_lean": "up",
-                       "probability_transform": {"version": "drift_shrinkage_v2", "n_eff": 49.0}},
-        "prediction": {"status": "available", "prob_up": 0.61, "model_lean": "up"},
-    }
-    audit = {"reason_codes": ["CALENDAR_UNVERIFIED"], "vetoes": ["calendar missing"]}
-    redacted = redact_publishable_prediction(consensus, audit=audit)
-    for container in (redacted, redacted["production"], redacted["prediction"]):
-        for key in ("prob_up", "raw_probability", "reportable_probability", "calibrated_probability"):
-            if container.get(key) is not None:
-                raise AssertionError(f"{key} still carries a value after a veto")
-    if redacted["model_lean"] != "unavailable" or redacted["prediction"]["model_lean"] != "unavailable":
-        raise AssertionError("the lean must be unavailable after a veto")
-    if "probability_transform" in redacted["production"]:
-        raise AssertionError("the transform must move to audit_only after a veto")
-    if redacted["audit_only"]["publishable"] is not False:
-        raise AssertionError("audit-only values must be marked non-publishable")
-    if redacted["redaction"]["publishable"] is not False:
-        raise AssertionError("the redaction block must state that nothing is publishable")
-
-
-def check_t39_ledger_prompt_recording_and_version_isolation() -> None:
-    """T39: late records and other model versions cannot become forward evidence."""
-    from quant_research import ledger
-
-    work = Path(tempfile.mkdtemp(prefix="ledger39-"))
-    try:
-        path = work / "ledger.jsonl"
-
-        def payload(decision: str, *, asof: str) -> dict:
-            return {
-                "snapshot": {"ticker": "SYN", "market": "US", "horizon": "5D", "asof_timestamp": asof,
-                             "snapshot_id": f"S-{decision}", "snapshot_content_sha256": (decision + "a" * 20)[:64]},
-                "consensus": {"prob_up": 0.6, "decision_sampled": True, "sampling": {"status": "anchored"},
-                              "timing": {"decision_session": decision, "decision_at": f"{decision}T20:00:00Z",
-                                         "label_basis": "close_to_close", "entry_basis": "not_modelled"}},
-                "engine": {"version": "test"},
-            }
-
-        early = payload("2026-01-02", asof="2026-01-02T20:00:00Z")
-        decision_at = dt.datetime(2026, 1, 2, 20, tzinfo=dt.timezone.utc)
-        prompt = ledger.record_prediction(early, path, clock=lambda: decision_at + dt.timedelta(hours=1))
-        if not prompt["prospective_eligible"]:
-            raise AssertionError("a record inside the prompt window must be prospective")
-        late_payload = payload("2026-01-05", asof="2026-01-05T20:00:00Z")
-        late = ledger.record_prediction(
-            late_payload, path,
-            clock=lambda: dt.datetime(2026, 1, 6, 9, tzinfo=dt.timezone.utc),
-        )
-        if late["prospective_eligible"]:
-            raise AssertionError("a record written after the prompt window must not be prospective")
-        events = {e["prediction_id"]: e for e in ledger.read_events(path) if e["event"] == "prediction"}
-        late_event = events[ledger._prediction_id(late_payload)]
-        if late_event["forward_eligibility"]["reason"] != "recorded_after_prompt_window":
-            raise AssertionError(late_event["forward_eligibility"])
-        if late_event["import_reason"] != "recorded_after_prompt_window_not_forward_evidence":
-            raise AssertionError(f"the late reason must be recorded: {late_event['import_reason']}")
-
-        days = ["2026-01-02", "2026-01-05", "2026-01-06", "2026-01-07", "2026-01-08", "2026-01-09"]
-        bars = [{"date": day, "close": 100 + index * 2} for index, day in enumerate(days)]
-        settlements, _skipped = ledger.settle_pending(
-            ledger.read_events(path), bars, ticker="SYN", market="US",
-        )
-        for event in settlements:
-            ledger._append(path, event)
-
-        # A row from another model version must not inherit this model's evidence.
-        source = next(e for e in ledger.read_events(path) if e["event"] == "prediction")
-        forged = {k: v for k, v in source.items() if k not in {"event_hash", "prev_hash"}}
-        forged["prediction_id"] = "other-model"
-        forged["model_version"] = "quant_previous_model"
-        ledger._append(path, forged)
-        ledger._append(path, {"schema_version": ledger.SCHEMA_VERSION, "event": "settlement",
-                              "prediction_id": "other-model", "hit": 1, "recorded_at": "2026-01-10T00:00:00Z"})
-
-        rows = ledger.prospective_records(path)
-        if len(rows) != 1:
-            raise AssertionError(f"only the prompt, same-version record may count: {rows}")
-        if rows[0]["evidence_scope"] != "prospective_prompt_recording_anchored":
-            raise AssertionError(rows[0])
-        if any(row["decision_session"] == "2026-01-05" for row in rows):
-            raise AssertionError("the late record leaked into forward evidence")
-
-        # Tampering with a chained row must fail the hash check.
-        lines = path.read_text(encoding="utf-8").splitlines()
-        modified = json.loads(lines[0])
-        modified["prob_up"] = 0.99
-        lines[0] = json.dumps(modified, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
-        tampered = work / "tampered.jsonl"
-        tampered.write_text("\n".join(lines) + "\n", encoding="utf-8")
-        try:
-            ledger.read_events(tampered)
-        except ValueError as exc:
-            assert "hash" in str(exc), exc
-        else:
-            raise AssertionError("a modified ledger row must fail the hash chain check")
-    finally:
-        shutil.rmtree(work, ignore_errors=True)
-
-
-def check_t40_split_action_must_match_the_price_series() -> None:
-    """T40: a declared split-adjusted series must not show the reverse split step."""
-    from quant_research.data_checks import _Findings, _check_adjustment
-
-    sessions = [f"2026-01-{day:02d}" for day in (5, 6, 7, 8, 9, 12, 13, 14)]
-
-    def block(price_basis: str = "split_adjusted", confirmed: bool = True) -> dict:
-        return {"adjustment": "provider", "price_basis": price_basis,
-                "adjustment_evidence": {"source": "test", "price_basis": price_basis,
-                                        "checked_through": sessions[-1], "action_coverage_confirmed": confirmed,
-                                        "actions": [{"date": sessions[3], "type": "stock_splits", "value": 2.0}]}}
-
-    continuous = [{"date": day, "close": 100.0 + index} for index, day in enumerate(sessions)]
-    findings = _Findings()
-    _status, _known, reconciliation = _check_adjustment(
-        block(), sessions[0], sessions[-1], continuous, findings,
-    )
-    if "CORPORATE_ACTION_CONTAMINATION" in findings.reason_codes:
-        raise AssertionError("a continuous split-adjusted series must not be vetoed")
-    if not reconciliation or reconciliation[0]["verdict"] != "consistent_with_split_adjusted":
-        raise AssertionError(reconciliation)
-
-    unadjusted = [{"date": day, "close": 100.0 + index if index < 3 else 50.0 + index} for index, day in enumerate(sessions)]
-    findings = _Findings()
-    _check_adjustment(block(), sessions[0], sessions[-1], unadjusted, findings)
-    if "CORPORATE_ACTION_CONTAMINATION" not in findings.reason_codes or not findings.blockers:
-        raise AssertionError("a split step in a declared split-adjusted series must be fatal")
-
-    findings = _Findings()
-    _check_adjustment(block(confirmed=False), sessions[0], sessions[-1], continuous, findings)
-    if "CORPORATE_ACTION_UNKNOWN" not in findings.reason_codes or findings.blockers:
-        raise AssertionError("missing action coverage must degrade, not invent contamination")
-
-
-def check_t41_partial_ai_news_can_be_delivered_when_disclosed() -> None:
-    """T41: partial coverage is deliverable only with reconciling counts and a warning."""
-    from quant_research.delivery import require_ai_news_coverage
-
-    candidates = [{"news_id": "n1"}, {"news_id": "n2"}]
-
-    def news(status: str, assessed: int, items: int, warnings: list[str] | None = None) -> dict:
-        return {"ai_lean_candidates": candidates, "warnings": warnings or [],
-                "ai_lean": {"status": status,
-                            "coverage": {"candidate_count": len(candidates), "assessed_count": assessed},
-                            "items": [{"news_id": f"n{index + 1}"} for index in range(items)]}}
-
-    require_ai_news_coverage(news("assessed", 2, 2))
-    require_ai_news_coverage(news("partial", 1, 1, ["1 candidate not assessed"]))
-    for case, label in (
-        (news("partial", 1, 1), "partial without a disclosed reason"),
-        (news("assessed", 1, 1), "assessed with a missing item"),
-        (news("not_assessed", 0, 0), "unassessed artifact"),
-        (news("partial", 3, 3, ["x"]), "assessed count above the candidate count"),
-    ):
-        try:
-            require_ai_news_coverage(case)
-        except ValueError:
-            continue
-        raise AssertionError(f"{label} was accepted")
-
-
-def check_t42_presentation_warnings_do_not_degrade_news() -> None:
-    """T42: truncation is disclosed without pretending the evidence set shrank."""
-    from quant_research.news.pipeline import _finalize_warnings
-    from quant_research.news.status import warning_details, warning_severity_counts
-
-    warnings = ["12 news headline(s) were truncated to 400 characters",
-                "3 news record(s) were dropped before normalization"]
-    details = warning_details(warnings)
-    counts = warning_severity_counts(warnings)
-    if details[0]["severity"] != "presentation" or details[1]["severity"] != "evidence_affecting":
-        raise AssertionError(details)
-    if counts != {"evidence_affecting": 1, "presentation": 1}:
-        raise AssertionError(counts)
-    if warning_severity_counts(["3 news headline(s) were truncated to 400 characters"])["evidence_affecting"]:
-        raise AssertionError("a truncation-only warning must not degrade the status")
-
-    result = {"status": "complete"}
-    _finalize_warnings(result, ["2 news headline(s) were truncated to 400 characters"], assessed_any=True)
-    if result["status"] != "complete":
-        raise AssertionError("presentation-only warnings must keep the assessed status complete")
-    result = {"status": "complete"}
-    _finalize_warnings(result, ["2 canonical news headline(s) were not assessed by the host AI"], assessed_any=True)
-    if result["status"] != "partial":
-        raise AssertionError("unassessed canonical headlines must degrade the assessed status")
-
-
-def check_t43_registry_accounts_for_every_check() -> None:
-    """T43: no check function may exist without being registered or explicitly retired."""
-    defined = {name for name, value in globals().items() if name.startswith("check_") and callable(value)}
-    registered = [fn.__name__ for _, fn in CHECKS]
-    if len(registered) != len(set(registered)):
-        raise AssertionError("a check is registered more than once")
-    retired = set(RETIRED_CHECKS)
-    if set(registered) & retired:
-        raise AssertionError("a check cannot be both registered and retired")
-    if any(not str(reason).strip() for reason in RETIRED_CHECKS.values()):
-        raise AssertionError("every retired check needs a reason")
-    missing = sorted(defined - set(registered) - retired)
-    if missing:
-        raise AssertionError(f"defined but neither registered nor retired: {missing}")
-
-
-def check_t44_documented_versions_match_the_runtime() -> None:
-    """T44: SKILL, package and README must not advertise different versions.
-
-    ``README.md`` lives in the repository root and is deliberately not part of the
-    installed Skill, so version binding may not depend on it.  ``SKILL.md``
-    declares both its own version and the runtime version it ships; that binding
-    is checked in every layout.  When a repository checkout is present, the README
-    line is checked as well.
-    """
-
-    root = SCRIPTS.parent
-    skill = (root / "SKILL.md").read_text(encoding="utf-8")
-    import re
-
-    metadata = re.search(r"metadata:\s*\{(.*?)\}", skill, re.DOTALL)
-    if not metadata:
-        raise AssertionError("SKILL.md has no metadata block")
-    skill_version = re.search(r'(?:^|[\s,{])version:\s*"([^"]+)"', metadata.group(1))
-    if not skill_version:
-        raise AssertionError("SKILL.md has no metadata version")
-    runtime_binding = re.search(r'runtime:\s*"([^"]+)"', metadata.group(1))
-    if not runtime_binding:
-        raise AssertionError("SKILL.md does not declare the runtime version it ships")
-    from quant_research import __version__
-
-    if runtime_binding.group(1) != __version__:
-        raise AssertionError(f"SKILL runtime {runtime_binding.group(1)} != package {__version__}")
-
-    readme_path = root.parent / "README.md"
-    if not readme_path.is_file():
-        return
-    documented = re.search(r"当前 Skill `([^`]+)`，research runtime `([^`]+)`", readme_path.read_text(encoding="utf-8"))
-    if not documented:
-        raise AssertionError("README.md has no version line")
-    if documented.group(1) != skill_version.group(1):
-        raise AssertionError(f"README Skill {documented.group(1)} != SKILL {skill_version.group(1)}")
-    if documented.group(2) != __version__:
-        raise AssertionError(f"README runtime {documented.group(2)} != package {__version__}")
-
-
-def check_t45_compact_profile_and_single_economic_viability() -> None:
-    """T45: compact artifacts keep pointers, and timing/viability have one source."""
-    from quant_research.orchestrator import run_analysis
-
-    analysis, snapshot, _bars, _sessions = _policy_analysis()
-    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
-    if payload.get("analysis_id") != payload.get("run_id"):
-        raise AssertionError("analysis_id must name the run")
-    if not isinstance(payload.get("elapsed_seconds"), (int, float)):
-        raise AssertionError("elapsed_seconds must be written before the artifact is frozen")
-    if payload["consensus"]["probability_basis"] != "drift_shrunk_causal_base_rate":
-        raise AssertionError(payload["consensus"]["probability_basis"])
-    if payload.get("analysis_status") not in {"complete_with_limitations", "degraded", "abstain"}:
-        raise AssertionError(f"analysis_status must use the documented vocabulary: {payload.get('analysis_status')}")
-    if payload["synthesis"]["matching_sample_disclosure"]["source"] != "quant_result.json.consensus.matching_sample_disclosure":
-        raise AssertionError(payload["synthesis"]["matching_sample_disclosure"])
-    if "economic_viability" in payload["consensus"] or "economic_viability" in payload["synthesis"]:
-        raise AssertionError("the ambiguous economic_viability name must be gone")
-
-    compact = run_analysis(snapshot, analysis.parent.parent / "research_compact", artifact_profile="compact")
-    compact_payload = json.loads((compact / "analysis.json").read_text(encoding="utf-8"))
-    if compact_payload.get("artifact_profile") != "compact":
-        raise AssertionError("compact profile was not recorded")
-    rows = compact_payload["researchers"]["quant"]["validation"]["oos_forecasts"]
-    if not isinstance(rows, dict) or not rows.get("omitted"):
-        raise AssertionError("compact profile must reference, not duplicate, replay rows")
-    if not (compact / "researchers" / "quant.json").is_file():
-        raise AssertionError("the full replay rows must remain in the researcher artifact")
-
-
-def check_t47_direction_claim_abstain() -> None:
-    """FIX-01: non-claimable evidence must emit an explicit direction abstain."""
-    from quant_research.consensus import derive_direction_claim_status
-    from quant_research.delivery import validate_response_text
-    from quant_research.report import render_final_response, required_response_lines
-
-    insufficient = _fake_delivery_result("complete")
-    insufficient["consensus"]["evidence"]["directional_edge_state"] = "insufficient_evidence"
-    lines = required_response_lines(insufficient)
-    if "abstain" not in lines["model_lean"] or "证据不足" not in lines["model_lean"]:
-        raise AssertionError(f"insufficient evidence must abstain: {lines['model_lean']}")
-    if "偏上涨" in lines["model_lean"] or "偏下跌" in lines["model_lean"]:
-        raise AssertionError("an abstain line must not carry an unqualified direction")
-    if "非方向结论" not in lines["probability"]:
-        raise AssertionError("the diagnostic probability must be marked as non-directional")
-    validate_response_text(insufficient, render_final_response(insufficient))
-
-    negative = _fake_delivery_result("complete")
-    negative["consensus"]["evidence"]["directional_edge_state"] = (
-        "negative_skill_with_estimated_interval_excluding_zero"
-    )
-    lines = required_response_lines(negative)
-    if "劣于纯基率" not in lines["model_lean"] or "abstain" not in lines["model_lean"]:
-        raise AssertionError(f"negative skill must abstain and say so: {lines['model_lean']}")
-
-    replay = _fake_delivery_result("complete")
-    replay["consensus"]["evidence"].update({
-        "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
-        "directional_edge_replay_interval_excludes_zero": True,
-    })
-    lines = required_response_lines(replay)
-    if "abstain" in lines["model_lean"] or "仅回放" not in lines["model_lean"]:
-        raise AssertionError(f"a positive replay interval allows only weak wording: {lines['model_lean']}")
-    if "非方向结论" in lines["probability"]:
-        raise AssertionError("a claimable replay direction need not mark the probability as non-directional")
-
-    independent = _fake_delivery_result("complete")
-    independent["consensus"]["evidence"].update({
-        "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
-        "directional_edge_replay_interval_excludes_zero": True,
-        "directional_edge_independent_supported": True,
-    })
-    lines = required_response_lines(independent)
-    if "独立前向证据支持" not in lines["model_lean"]:
-        raise AssertionError(f"independent evidence must be named: {lines['model_lean']}")
-
-    if derive_direction_claim_status(None, edge_state=None, independent_supported=False,
-                                     replay_interval_excludes_zero=False) != "unavailable":
-        raise AssertionError("no probability must be unavailable")
-
-
-def check_t48_cross_validation_relations() -> None:
-    """FIX-02: deterministic Quant/News relations, no joint probability."""
-    from quant_research.cross_validation import cross_validate
-    from quant_research.report import render_final_response
-
-    def claimable_up() -> dict:
-        result = _fake_delivery_result("complete")
-        result["consensus"]["evidence"].update({
-            "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
-            "directional_edge_replay_interval_excludes_zero": True,
-        })
-        return result
-
-    def news_assessed(major_bearish: int = 0, major_bullish: int = 0) -> dict:
-        major = (
-            [{"lean": "bearish", "headline": "cuts guidance", "url": "https://example.com/bad",
-              "reason": "指引下调"}] * major_bearish
-            + [{"lean": "bullish", "headline": "raises guidance", "url": "https://example.com/good",
-                "reason": "指引上调"}] * major_bullish
-        )
-        return {
-            "status": "complete",
-            "ai_lean": {
-                "status": "assessed",
-                "coverage": {"direct_label_counts": {
-                    "bullish": major_bullish, "bearish": major_bearish,
-                    "neutral": 0, "mixed": 0, "unclear": 0,
-                }},
-                "major_direct_items": major,
-            },
-        }
-
-    conflict = claimable_up()
-    before = conflict["consensus"]["prob_up"]
-    block = cross_validate(conflict["consensus"], news_assessed(major_bearish=1))
-    if block["relation"] != "conflicting":
-        raise AssertionError(f"a major direct bearish item against an up lean must conflict: {block}")
-    if block["quant_prob_up"] != before or block["joint_probability"] is not None:
-        raise AssertionError("cross-validation must not rewrite the probability or emit a joint one")
-    conflict["cross_validation"] = block
-    if "冲突" not in render_final_response(conflict):
-        raise AssertionError("the delivered text must name the conflict")
-    if "alignment" in block:
-        raise AssertionError("score-like alignment fields must not return")
-
-    aligned = claimable_up()
-    if cross_validate(aligned["consensus"], news_assessed(major_bullish=1))["relation"] != "aligned":
-        raise AssertionError("an up lean with major bullish news must be aligned")
-    absent = cross_validate(claimable_up()["consensus"], {"status": "not_assessed"})
-    if absent["relation"] != "news_not_assessed":
-        raise AssertionError(f"missing news must be disclosed, not silently aligned: {absent}")
-    both = cross_validate({"prob_up": None}, {"status": "not_assessed"})
-    if both["relation"] != "both_unavailable":
-        raise AssertionError(f"no Quant and no news must be both_unavailable: {both}")
-
-    analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
-    stages = {row["stage"]: row for row in payload["stages"]}
-    if stages["cross-validation"]["status"] == "not_applicable":
-        raise AssertionError("cross-validation must no longer be hard-coded not_applicable")
-    if payload["cross_validation"]["probability_unchanged"] is not True:
-        raise AssertionError("cross-validation must attest the probability is unchanged")
-
-
 def check_t49_news_coverage_is_disclosed() -> None:
-    """FIX-03: a seven-day sample must disclose its real span, not 90 days."""
+    """A seven-day sample must disclose its real span, not claim a covered 90 days."""
     from quant_research.delivery import validate_response_text
     from quant_research.news import analyze_news
     from quant_research.report import render_final_response, required_response_lines
@@ -3243,7 +860,7 @@ def check_t49_news_coverage_is_disclosed() -> None:
 
 
 def check_t50_ai_lean_is_the_only_user_direction() -> None:
-    """FIX-04: a bullish lexicon must not override an AI bearish judgement."""
+    """A bullish lexicon must not override an AI bearish judgement."""
     from quant_research.news import AI_ASSESSMENT_SCHEMA_VERSION, analyze_news
     from quant_research.report import required_response_lines
 
@@ -3283,135 +900,91 @@ def check_t50_ai_lean_is_the_only_user_direction() -> None:
         raise AssertionError(f"the delivered counts must come from AI lean: {line}")
 
 
-def check_t51_pit_disclosure_is_forced() -> None:
-    """FIX-05: every formal delivery states that price history is not PIT-certified."""
-    analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    text = (analysis / "final_response.md").read_text(encoding="utf-8")
-    if "行情PIT：未认证" not in text:
-        raise AssertionError("final_response.md must carry the forced unsplit PIT line")
-    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
-    evidence = payload["consensus"]["evidence"]
-    if evidence.get("point_in_time_certified") is not False:
-        raise AssertionError("the evidence block must state that PIT is not certified")
-    if not evidence.get("historical_availability_status") or not evidence.get("provider_revision_status"):
-        raise AssertionError("both PIT status fields must be copied into consensus.evidence")
+def check_forecast_removed() -> None:
+    """Old forecast calls must fail with FORECAST_REMOVED and a non-zero exit."""
+    import importlib.util
+
+    from quant_research.contracts import normalize_request
+    from quant_research.forecast_policy import PolicyError
+
+    for request in ({"ticker": "AAPL", "intent": "forecast"},
+                    {"ticker": "AAPL", "horizon": "5D"}):
+        try:
+            normalize_request(request)
+        except PolicyError as exc:
+            assert exc.code == "FORECAST_REMOVED", exc.code
+        else:
+            raise AssertionError(f"legacy forecast request was accepted: {request}")
+    assert normalize_request({"ticker": "AAPL"})["intent"] == "news"
+
+    cli_path = Path(__file__).with_name("quant_research.py")
+    spec = importlib.util.spec_from_file_location("quant_research_cli", cli_path)
+    cli = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(cli)
+    work = Path(tempfile.mkdtemp(prefix="selfcheck_forecast_removed_"))
+    try:
+        request_path = work / "request.json"
+        output_path = work / "normalized.json"
+        request_path.write_text(json.dumps({"ticker": "AAPL", "intent": "forecast"}), encoding="utf-8")
+        with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+            code = cli.main(["request", "--input", str(request_path), "--output", str(output_path)])
+        if code == 0:
+            raise AssertionError("intent=forecast must return a non-zero exit code")
+    finally:
+        shutil.rmtree(work, ignore_errors=True)
 
 
-def check_t52_matching_hit_rate_is_disclosure_only() -> None:
-    """FIX-06: matching hit rate is never published as a raw production probability."""
-    analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
-    consensus = payload["consensus"]
-    production = consensus["production"]
-    if consensus.get("raw_probability") is not None or production.get("raw_probability") is not None:
-        raise AssertionError("publishable raw_probability must be null in v2")
-    if "matching_hit_rate_disclosure_only" not in production:
-        raise AssertionError("the matching hit rate must be renamed as a disclosure field")
-    if payload["synthesis"]["quant"].get("raw_probability") is not None:
-        raise AssertionError("synthesis must not expose the matching hit rate as raw_probability")
-    if payload["synthesis"]["quant"].get("matching_hit_rate_disclosure_only") != production.get(
-        "matching_hit_rate_disclosure_only"
-    ):
-        raise AssertionError("synthesis must carry the renamed matching disclosure")
-    summary = json.loads((analysis / "agent_summary.json").read_text(encoding="utf-8"))
-    quant = summary["sections"]["quant"]
-    if quant.get("matching_hit_rate_disclosure_only") != production.get("matching_hit_rate_disclosure_only"):
-        raise AssertionError("agent_summary must use the renamed disclosure field")
-    for key in ("causal_base_rate", "p_vol", "prior_weight"):
-        if key not in quant:
-            raise AssertionError(f"agent_summary must report {key} beside the probability")
+def check_t43_registry_accounts_for_every_check() -> None:
+    """No check function may exist without being registered or explicitly retired."""
+    defined = {name for name, value in globals().items() if name.startswith("check_") and callable(value)}
+    registered = [fn.__name__ for _, fn in CHECKS]
+    if len(registered) != len(set(registered)):
+        raise AssertionError("a check is registered more than once")
+    retired = set(RETIRED_CHECKS)
+    if set(registered) & retired:
+        raise AssertionError("a check cannot be both registered and retired")
+    if any(not str(reason).strip() for reason in RETIRED_CHECKS.values()):
+        raise AssertionError("every retired check needs a reason")
+    missing = sorted(defined - set(registered) - retired)
+    if missing:
+        raise AssertionError(f"defined but neither registered nor retired: {missing}")
 
 
-def check_t53_risk_block_is_complete_disclosure() -> None:
-    """FIX-07: risk is a deterministic disclosure stage, not an empty stage."""
-    analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
-    stages = {row["stage"]: row for row in payload["stages"]}
-    if stages["risk"]["status"] != "complete":
-        raise AssertionError(f"risk stage status must be complete: {stages['risk']}")
-    block = payload["risk_block"]
-    if block.get("status") != "disclosed" or not block.get("items"):
-        raise AssertionError("risk_block must carry deterministic disclosure items")
-    sources = {row.get("source") for row in block["items"]}
-    for expected in ("point_in_time", "execution_cost", "calibration"):
-        if expected not in sources:
-            raise AssertionError(f"risk_block is missing {expected}: {sources}")
-    markdown = (analysis / "report.md").read_text(encoding="utf-8")
-    if "## 风险与不确定性" not in markdown:
-        raise AssertionError("report.md must contain the risk and uncertainty section")
+def check_t44_documented_versions_match_the_runtime() -> None:
+    """SKILL, package and README must not advertise different versions."""
+    root = SCRIPTS.parent
+    skill = (root / "SKILL.md").read_text(encoding="utf-8")
+    metadata = re.search(r"metadata:\s*\{(.*?)\}", skill, re.DOTALL)
+    if not metadata:
+        raise AssertionError("SKILL.md has no metadata block")
+    skill_version = re.search(r'(?:^|[\s,{])version:\s*"([^"]+)"', metadata.group(1))
+    if not skill_version:
+        raise AssertionError("SKILL.md has no metadata version")
+    runtime_binding = re.search(r'runtime:\s*"([^"]+)"', metadata.group(1))
+    if not runtime_binding:
+        raise AssertionError("SKILL.md does not declare the runtime version it ships")
+    from quant_research import __version__
+
+    if runtime_binding.group(1) != __version__:
+        raise AssertionError(f"SKILL runtime {runtime_binding.group(1)} != package {__version__}")
+    if skill_version.group(1) != "4.0.0":
+        raise AssertionError(f"SKILL version {skill_version.group(1)} != 4.0.0")
+
+    readme_path = root.parent / "README.md"
+    if not readme_path.is_file():
+        return
+    documented = re.search(r"当前 Skill `([^`]+)`，research runtime `([^`]+)`", readme_path.read_text(encoding="utf-8"))
+    if not documented:
+        raise AssertionError("README.md has no version line")
+    if documented.group(1) != skill_version.group(1):
+        raise AssertionError(f"README Skill {documented.group(1)} != SKILL {skill_version.group(1)}")
+    if documented.group(2) != __version__:
+        raise AssertionError(f"README runtime {documented.group(2)} != package {__version__}")
 
 
-def check_t54_matching_sample_disclosure_naming() -> None:
-    """FIX-09: the matching-sample mean return is a disclosure, not a viability claim."""
-    analysis, _snapshot, _bars, _sessions = _policy_analysis()
-    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
-    block = payload["consensus"]["matching_sample_disclosure"]
-    if block.get("tradability_assessment") != "not_assessed_not_a_trade_signal":
-        raise AssertionError("the block must deny tradability explicitly")
-    if block.get("net_expected_return_published") is not False:
-        raise AssertionError("a net expected return must not be published")
-    if any("net_expected_return" in scenario for scenario in block.get("cost_scenarios") or []):
-        raise AssertionError("cost scenarios must not imply a tradable net expected return")
-    if "economic_viability" in payload["synthesis"]:
-        raise AssertionError("synthesis must use the matching-sample disclosure name")
-    text = (analysis / "report.md").read_text(encoding="utf-8")
-    if "净预期收益可交易" in text:
-        raise AssertionError("the report must not imply a tradable net expected return")
-
-
-RETIRED_CHECKS: dict[str, str] = {
-    "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
-    "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
-    "check_f04_response_text_validation": "tests the v1 fixed block (including the now-forbidden 报告状态 line)",
-    "check_f05_retained_binding": "tests the pre-run-workspace cleanup layout",
-    "check_f09_bootstrap_estimability": "imports the removed _block_bootstrap_skill_interval helper",
-    "check_f10_ensemble_scope": "tests the removed ensemble-calibration block",
-    "check_f13_horizon_scaled_support": "tests the removed horizon-scaled support thresholds",
-    "check_f14_confidence_composite": "tests the removed 0-100 confidence composite",
-    "check_f15_52_week_window_defaults": "fixture predates the price-basis requirement",
-    "check_f16_factor_path_fits_52_weeks": "fixture predates the fixed-policy snapshot contract",
-    "check_f20_pipeline_golden": "golden digests predate the policy/coverage schema changes",
-    "check_f21_oos_record_audit": "imports the removed _audit_oos_path helper",
-    "check_f23_window_scaled_support": "imports the removed oos_support_thresholds helper",
-    "check_f24_shared_support_ceiling": "tests the removed confidence composite",
-    "check_f25_composite_momentum": "fixture predates the fixed-policy snapshot contract",
-    "check_f26_momentum_probability_separation": "fixture predates the fixed-policy snapshot contract",
-    "check_f31_qualification_is_authoritative": "tests the pre-v2 qualification contract",
-    "check_f32_candidate_profiles": "tests the removed candidate-profile selector",
-    "check_f35_confidence_disclosure_fields": "tests the removed confidence composite fields",
-    "check_f36_eligibility_and_uncertainty": "imports the removed ensemble-uncertainty helper",
-    "check_f37_path_error_dependency": "imports the removed path-error dependency helper",
-    "check_f38_ml_hyperparameters": "asserts the removed REFIT_SESSIONS constant; the live parameter block is self-describing",
-    "check_f43_compact_candidate_is_shadow_only": "tests the removed compact candidate selector",
-    "check_f45_candidates_never_switch_production": "fixture predates the price-basis requirement",
-}
-
+RETIRED_CHECKS: dict[str, str] = {}
 
 CHECKS = [
-    ("T01 forecast horizon is 5 sessions", check_t01_forecast_horizon_is_five_sessions),
-    ("T02 fixed window and coverage", check_t02_fixed_window_and_coverage),
-    ("T03 declared window must match policy", check_t03_declared_window_must_match_policy),
-    ("T04 bars outside the window are rejected", check_t04_bars_outside_window_are_rejected),
-    ("T05 dividend-adjusted basis is rejected", check_t05_dividend_adjusted_basis_is_rejected),
-    ("T06 target is the fifth session", check_t06_target_is_fifth_session),
-    ("T07 unverified calendar blocks formal probability", check_t07_unverified_calendar_blocks_formal_probability),
-    ("T08 labels matured at each origin", check_t08_labels_are_matured_at_each_origin),
-    ("T09 OOS support 0/11/12", check_t09_oos_support_counts_zero_eleven_twelve),
-    ("T10 directional edge needs 30 and a positive interval", check_t10_directional_edge_requires_thirty_and_positive_interval),
-    ("T11 current prediction is reproducible", check_t11_current_prediction_is_reproducible),
-    ("T12 transform tampering is rejected", check_t12_transform_tampering_is_rejected),
-    ("T13 transform version change is rejected", check_t13_transform_version_change_is_rejected),
-    ("T14 parameter tampering is rejected", check_t14_parameter_tampering_is_rejected),
-    ("T15 same decision is recorded once", check_t15_same_decision_is_recorded_once),
-    ("T16 window slide keeps the same probability", check_t16_window_slide_keeps_same_probability),
-    ("T17 single production path", check_t17_single_production_path),
-    ("T18 shadow probability isolation", check_t18_shadow_probability_isolation),
-    ("T19 shadow failure does not block production", check_t19_shadow_failure_does_not_block_production),
-    ("T20 factor uses post-selection labels only", check_t20_factor_uses_post_selection_labels_only),
-    ("T21 ML refits every origin", check_t21_ml_refits_every_origin),
-    ("T22 ledger prospective/retrospective", check_t22_ledger_prospective_and_retrospective),
-    ("T23 delivery and stage contract", check_t23_delivery_and_stage_contract),
-    ("T24 missing production path stays unavailable", check_t24_missing_production_path_stays_unavailable),
     ("F03 credential redaction", check_f03_redaction),
     ("F07 malformed market fields", check_f07_malformed_fields),
     ("F08 preflight and fallback counting", check_f08_preflight_and_counting),
@@ -3421,49 +994,19 @@ CHECKS = [
     ("F18 orphan scratch sweep", check_f18_orphan_sweep),
     ("F19 retention and cache pruning", check_f19_retention_gc),
     ("F22 daily bar timestamp precision", check_f22_daily_bar_timestamp_precision),
-    ("F27 A/B protocol statistics", check_f27_ab_protocol_statistics),
-    ("F28 selection statistics", check_f28_selection_statistics),
-    ("F29 reliability accounting", check_f29_reliability_accounting),
-    ("F30 anchored sampling phase", check_f30_anchored_sampling),
-    ("F33 holiday collisions", check_f33_holiday_collisions),
-    ("F34 capacity and timing", check_f34_capacity_and_timing),
-    ("F44 forward eligibility", check_f44_forward_eligibility),
     ("T25 news partial is assessed", check_t25_news_partial_is_assessed_not_unassessed),
     ("T26 denial is not unknown", check_t26_denial_is_not_unknown_and_no_number_is_not_negation),
-    ("T27 event timing, volatility regime and priced-in", check_t27_event_timing_and_volatility_regime),
+    ("T27 event timing and volatility regime", check_t27_event_timing_and_volatility_regime),
     ("T28 AI lean identity cannot be forged", check_t28_ai_lean_identity_fields_cannot_be_forged),
-    ("T29 mutation detection", check_t29_mutation_detection),
-    ("T30 baseline comparison", check_t30_baseline_comparison_uses_two_naive_baselines),
-    ("T31 reporting status is not stale", check_t31_reporting_status_is_not_a_stale_flag),
     ("T32 headline cannot inject report lines", check_t32_headline_newlines_cannot_inject_report_lines),
-    ("T33 unresolved target session vetoes publication", check_t33_unresolved_target_session_vetoes_publication),
-    ("T34 pipeline runs news by default", check_t34_pipeline_runs_news_by_default),
     ("T35 AI news counts and links", check_t35_ai_news_counts_and_links),
-    ("T36 coverage is recomputed, not declared", check_t36_coverage_is_recomputed_not_declared),
-    ("T37 sampling phase is tri-state", check_t37_sampling_phase_is_tri_state),
-    ("T38 veto clears every publishable field", check_t38_veto_clears_every_publishable_field),
-    ("T39 ledger prompt recording and version isolation", check_t39_ledger_prompt_recording_and_version_isolation),
-    ("T40 split action matches the price series", check_t40_split_action_must_match_the_price_series),
     ("T41 partial AI news delivery", check_t41_partial_ai_news_can_be_delivered_when_disclosed),
     ("T42 presentation warnings do not degrade news", check_t42_presentation_warnings_do_not_degrade_news),
     ("T43 registry accounts for every check", check_t43_registry_accounts_for_every_check),
     ("T44 documented versions match the runtime", check_t44_documented_versions_match_the_runtime),
-    ("T45 compact profile and single viability block", check_t45_compact_profile_and_single_economic_viability),
-    ("T47 direction claim abstain", check_t47_direction_claim_abstain),
-    ("T48 cross-validation relations", check_t48_cross_validation_relations),
     ("T49 news coverage is disclosed", check_t49_news_coverage_is_disclosed),
     ("T50 AI lean is the only user direction", check_t50_ai_lean_is_the_only_user_direction),
-    ("T51 PIT disclosure is forced", check_t51_pit_disclosure_is_forced),
-    ("T52 matching hit rate is disclosure only", check_t52_matching_hit_rate_is_disclosure_only),
-    ("T53 risk block is complete disclosure", check_t53_risk_block_is_complete_disclosure),
-    ("T54 matching sample disclosure naming", check_t54_matching_sample_disclosure_naming),
-    ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
-    ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
-    ("F39 forward ledger", check_f39_forward_ledger),
-    ("F40 ledger metric semantics", check_f40_ledger_metrics_semantics),
-    ("F41 shadow replay stays uncalibrated by policy", check_f41_production_replay_capacity),
-    ("F42 live entry matches replay", check_f42_live_entry_matches_replay),
-    ("F46 v2 drift shrinkage is applied", check_f46_quant_shrinkage_is_applied),
+    ("FIX12 forecast removed", check_forecast_removed),
 ]
 
 if __name__ == "__main__":

@@ -6,9 +6,9 @@ The taxonomy is adapted from the MIT-licensed `market-news-analyst` skill (<http
 
 ## What was deliberately not adopted
 
-- **The composite Impact Score** (`price score x breadth multiplier x forward modifier`, e.g. `37.5`). It is an uncalibrated pseudo-precise number. This runtime does not produce it: `events[].impact.composite_impact_score` is always `not_implemented`, consistent with the confidence and probability contracts in [probability-policy.md](probability-policy.md).
+- **The composite Impact Score** (`price score x breadth multiplier x forward modifier`, e.g. `37.5`). It is an uncalibrated pseudo-precise number. This runtime does not produce it: `events[].impact.composite_impact_score` is always `not_implemented`, consistent with the confidence and probability contracts in [news-analysis.md](news-analysis.md).
 - **Cross-asset market reaction analysis.** Upstream compares index, sector, Treasury, FX, commodity and VIX moves. The News layer reads only the one frozen OHLCV series for the analysed ticker, so those bands are unobservable here and are not implemented.
-- **WebSearch/WebFetch collection.** News comes only from the host's Finnhub MCP `get-news-pulse` tool during Step 2 collection. See [news-analysis.md](news-analysis.md).
+- **WebSearch/WebFetch collection.** News is collected by `scripts/news_collect.py` from SEC EDGAR, registered IR RSS feeds, and Finnhub REST (plus optional host MCP). See [news-analysis.md](news-analysis.md).
 - **English-only output and the long ranked report.** Output stays inside the bounded summary contracts in [news-analysis.md](news-analysis.md).
 
 ## Impact magnitude
@@ -114,7 +114,7 @@ The bucket exists because timing, not direction, is where the measured effect
 lives: on 318 real 8-K Item 2.02 releases the absolute 5-day move was 5.28% for
 after-close releases and 2.57% for pre-market releases. A single magnitude band
 without the bucket hides a two-fold difference. The bucket never carries a
-direction and never enters a probability.
+direction and never enters any score.
 
 ## Priced-in judgement
 
@@ -133,4 +133,4 @@ the honest answer to "was the news already in the price?"; it is not a forecast.
 
 ## Boundaries
 
-These grades are descriptive heuristics inside the News stage. They never produce a probability, never change the frozen Quant result, never restore a vetoed forecast, and never feed back into A/B/C/D. Final Synthesis may describe them as supporting context and must keep the original Quant P(up).
+These grades are descriptive heuristics inside the News stage. They never produce a probability, never produce a direction conclusion, and never feed any score. They are descriptive context only.

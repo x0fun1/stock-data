@@ -17,7 +17,6 @@ from zoneinfo import ZoneInfo
 
 from .contracts import normalize_request, parse_timestamp, utc_now
 from .data_checks import EXCHANGE_TIMEZONES, calendar_sessions, check_market
-from .forecast_policy import FORECAST_HORIZON_SESSIONS
 from .gate_policy import classify_reasons
 from .jsonio import canonical_bytes, write_json
 from .paths import safe_output_destination, validate_path_component
@@ -248,11 +247,6 @@ def freeze_snapshot(
         # A non-empty schedule only establishes closure for the dates it actually contains.
         exclude = bool(bars) and (parse_timestamp(close_row["close_at"]) > parse_timestamp(asof_timestamp)
                                   if close_row is not None else last_day == asof_day and market.get("last_bar_closed") is not True)
-        if exclude and request.get("intent") == "forecast":
-            raise ValueError(
-                "snapshot rejected: the decision-session bar is not confirmed closed; "
-                "fixed-policy forecasts must be created after the exchange close"
-            )
         if exclude:
             market_data = dict(market_data)
             market_data["bars"] = bars[:-1]
@@ -310,34 +304,7 @@ def freeze_snapshot(
         "domain_sha256s": normalized_hashes,
         "raw_domain_sha256s": raw_hashes,
     }
-    if request.get("intent") == "forecast":
-        market_policy = (normalized.get("market", {}).get("data") or {}).get("policy_window")
-        calendar = (normalized.get("market", {}).get("session_calendar")
-                    or (normalized.get("market", {}).get("data") or {}).get("session_calendar") or {})
-        session_dates = [row.get("date") for row in calendar.get("sessions") or [] if isinstance(row, dict)]
-        decision = (market_policy or {}).get("decision_session")
-        target_session = None
-        if decision in session_dates:
-            index = session_dates.index(decision) + FORECAST_HORIZON_SESSIONS
-            target_session = session_dates[index] if index < len(session_dates) else None
-        manifest["policy"] = {
-            **request.get("policy", {}),
-            "decision_session": decision,
-            "target_session": target_session,
-            "window_start_exclusive": (market_policy or {}).get("window_start_exclusive"),
-            "window_end_inclusive": (market_policy or {}).get("window_end_inclusive"),
-            "expected_sessions": (market_policy or {}).get("expected_sessions"),
-            "observed_sessions": (market_policy or {}).get("observed_sessions"),
-            "missing_sessions": (market_policy or {}).get("missing_sessions"),
-            "missing_session_dates": (market_policy or {}).get("missing_session_dates"),
-            "declared_coverage_status": (market_policy or {}).get("declared_coverage_status"),
-            "coverage_status": (market_policy or {}).get("coverage_status"),
-            "coverage_basis": (market_policy or {}).get("coverage_basis"),
-            "coverage_recomputed": (market_policy or {}).get("coverage_recomputed"),
-            "calendar_verified": (market_policy or {}).get("calendar_verified"),
-            "calendar_source": (market_policy or {}).get("calendar_source"),
-            "price_basis": (market_policy or {}).get("price_basis"),
-        }
+    manifest["policy"] = dict(request.get("policy") or {})
     manifest.update(derived)
     manifest["manifest_sha256"] = hashlib.sha256(canonical_bytes(manifest)).hexdigest()
 

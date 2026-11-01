@@ -1,64 +1,17 @@
-# Frozen Snapshot Schema
+# Snapshot Schema 1.3
 
-Current schema is **1.3**. Schema 1.0/1.1/1.2 remain readable for diagnosis and
-legacy reproduction but are not prediction-eligible under the fixed policy.
+冻结快照由 `quant_research.py freeze` 生成，包含：
 
-## Identity and integrity
+- `manifest.json`：`snapshot_id`、ticker、market、horizon、as-of、请求、来源 digest、内容 digest、数据校验与来源状态。
+- `<domain>.json` 与 `raw/<domain>.json`：`market`、`fundamentals`、`expectations`、`news`、`insider`、`options`、`short_volume`、`sec`、`macro`。
+- 每个 domain 保留 `status`、`actual_source`、来源时间、抓取时间与实际数据；缺失证据保持 null。
 
-`manifest.json` is authoritative. It contains the schema version, `snapshot_id`,
-ticker, market, horizon, normalized request and as-of time, source receipt
-digest, normalized-content digest, per-domain normalized/raw hashes and
-`manifest_sha256`. Hashes establish content integrity, not supplier
-authentication. Existing directories are never overwritten; `raw/` keeps the
-redacted source receipt and the top-level domain files keep the normalized view.
+新闻只保存标题、时间、来源、链接与摘要字段，不保存正文。所有时间转 UTC ISO；`published_at > as-of` 的条目丢弃并计数。历史 as-of 只保证发布时间不晚于 as-of，不认证当时可见性。
 
-## Policy block
+快照不含任何方向预测字段、概率、模型分数或前向台账。旧预测字段的读取不再支持。
 
-Forecast snapshots carry `manifest.policy` with:
+## 行情字段
 
-- `policy_version` (`fixed_52w_5d_v1`), window length (364 calendar days),
-  horizon (5 sessions), target/model/feature versions;
-- `decision_session`, `target_session`, `window_start_exclusive`,
-  `window_end_inclusive`;
-- `expected_sessions`, `observed_sessions`, `missing_sessions`,
-  `coverage_status`, `calendar_verified`;
-- price basis (`split_adjusted`, dividends not reinvested) and its source.
+`market.data.bars[]` 使用 `date/open/high/low/close/volume`，严格按交易日升序、唯一、无未来日期。`history_window` 必须描述实际保留的 bar 范围；描述性走势窗口最多最近 52 周（约 250 个交易日）。
 
-`data.policy_window` records the same window plus `dropped_out_of_window_count`.
-Any bar on or before the left-open boundary is rejected with
-`OHLCV_OUT_OF_WINDOW`. A forecast with a missing/unverified calendar may freeze
-for diagnosis but cannot publish a formal probability.
-
-## Market data
-
-Normalized daily bars contain date, OHLCV and the split-adjusted close. The
-decision session is the latest exchange session whose close is at or before the
-as-of instant; an intraday run uses the previous completed close. The target is
-the fifth exchange session after the decision, not "five bars that happen to
-exist".
-
-The builder rejects missing/duplicate/unsorted/future dates, invalid OHLCV,
-booleans, provider failure and contradictory identity/frequency/provenance/window
-metadata. With a verified schedule the bar axis must match confirmed sessions;
-missing sessions are `INSUFFICIENT_HISTORY_COVERAGE`. Without a schedule the
-result is diagnostic only.
-
-## Data quality
-
-`data_quality` is `data_completeness_v2`: observed/expected sessions, coverage
-ratio, prediction eligibility and issue list. `score`, `confidence_score` and
-`confidence_penalties` are deprecated and null; no 0–100 confidence is published.
-
-## News
-
-The optional `news.json` domain is preserved inside the same content-addressed
-snapshot. The post-Quant News layer reads only normalized articles, shared
-identity/as-of metadata and frozen bars; it never sees Quant results before its
-own result is frozen, and it cannot change Quant probability.
-
-## Retention
-
-Cleanup ownership is tracked in `runtime/runs/<run_id>/run_manifest.json`.
-`cleanup-run` deletes only registered JSON whose hashes still match and keeps
-`report.md`, `final_response.md` and a minimal `cleanup_receipt.txt`. The snapshot
-and ledger are outside the run and are never deleted by run cleanup.
+`session_calendar` 可选；缺失时只能使用观测日期，并披露未验证。价格基础必须明确；未知单位保持 null，不猜币种或交易单位。

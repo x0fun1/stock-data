@@ -72,7 +72,7 @@ _FORBIDDEN_TOKENS = (
     "confidence_score",
     "calibrated_probability",
     "报告概率",
-    "上涨概率",
+    "上涨" + "概率",
 )
 
 TARGET_RELEVANCE = ("direct", "indirect", "unrelated", "unclear")

@@ -1,21 +1,27 @@
-"""Request and researcher contracts. This module intentionally has no provider access."""
+"""Request contracts. This module intentionally has no provider access."""
 
 from __future__ import annotations
 
-import math
 import re
 from datetime import date, datetime, timezone
 from typing import Any
 
-from .forecast_policy import PolicyError, policy_metadata, validate_forecast_horizon
+from .forecast_policy import PolicyError, policy_metadata
 
-HORIZONS = {"1D": 1, "5D": 5, "20D": 20}
-RESEARCHERS = ("quant", "factor", "ml", "factor_backtest")
-RESEARCHER_STATUSES = {"success", "partial", "failed", "insufficient_data", "invalid"}
-# The one literal the delivery contract reserves for "no reportable probability".
-# It is rendered into the reply, declared in `schema --kind final`, and quoted in
-# SKILL.md, so it lives here instead of being repeated at each site.
-MISSING_PROBABILITY_LABEL = "上涨概率：不可用"
+#: News windows supported by the runtime.  The old forecast horizons are
+#: intentionally absent: they are rejected with ``FORECAST_REMOVED``.
+HORIZONS = {"30D": 30, "60D": 60}
+LEGACY_FORECAST_HORIZONS = frozenset({"1D", "5D", "20D"})
+INTENTS = frozenset({"news", "descriptive"})
+
+
+def _forecast_removed() -> PolicyError:
+    return PolicyError(
+        "FORECAST_REMOVED",
+        "Direction prediction was removed in v4. Use the news-analysis workflow "
+        "(references/news-analysis.md); this runtime reports news events only and "
+        "never emits an up/down probability or directional conclusion.",
+    )
 
 
 def normalize_request(value: dict[str, Any]) -> dict[str, Any]:
@@ -28,14 +34,18 @@ def normalize_request(value: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("request.ticker must be a string")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
     ticker = value["ticker"].strip().upper()
     market = str(value.get("market", "US")).strip().upper()
-    horizon = str(value.get("horizon", "5D")).strip().upper()
+    horizon = str(value.get("horizon", "60D")).strip().upper()
     mode = str(value.get("mode", "standard")).strip().lower()
     if not re.fullmatch(r"[A-Z0-9.^][A-Z0-9._^-]{0,31}", ticker):
         raise ValueError("request.ticker must use supported stock/index symbol characters")
     if market not in {"US", "HK"}:
         raise ValueError("request.market must be US or HK")
+    if "intent" in value and value.get("intent") == "forecast":
+        raise _forecast_removed()
+    if "horizon" in value and horizon in LEGACY_FORECAST_HORIZONS:
+        raise _forecast_removed()
     if horizon not in HORIZONS:
-        raise ValueError("request.horizon must be one of 1D, 5D, 20D")
+        raise ValueError("request.horizon must be one of 30D, 60D")
     if mode not in {"standard", "strict"}:
         raise ValueError("request.mode must be standard or strict")
     asof = value.get("asof")
@@ -45,24 +55,12 @@ def normalize_request(value: dict[str, Any]) -> dict[str, Any]:
     else:
         asof = None
     result = {"ticker": ticker, "market": market, "horizon": horizon, "asof": asof, "mode": mode}
-    for field, default, choices in (("intent", "forecast", {"forecast", "descriptive", "factor_research"}), ("asset_type", "unknown", {"stock", "etf", "index", "unknown"})):
+    for field, default, choices in (("intent", "news", INTENTS), ("asset_type", "unknown", {"stock", "etf", "index", "unknown"})):
         item = value.get(field, default)
         if not isinstance(item, str) or item not in choices:
             raise ValueError(f"request.{field} must be one of {sorted(choices)}")
         result[field] = item
-    # Production forecasts are fixed to 5 exchange sessions.  Descriptive and
-    # standalone factor research keep their full range support but can never be
-    # promoted into the production probability path.
-    horizon = validate_forecast_horizon(horizon, intent=result["intent"])
-    result["horizon"] = horizon
-    if result["intent"] == "forecast":
-        supplied_policy = value.get("policy")
-        if supplied_policy is not None:
-            if not isinstance(supplied_policy, dict):
-                raise ValueError("request.policy must be an object")
-            if supplied_policy.get("policy_version") != policy_metadata()["policy_version"]:
-                raise PolicyError("POLICY_VERSION_MISMATCH", "request.policy_version is not the active policy")
-        result["policy"] = policy_metadata()
+    result["policy"] = policy_metadata()
     window = value.get("history_window", {})
     if not isinstance(window, dict) or set(window) - {"start", "end", "selection"}:
         raise ValueError("request.history_window must contain only start/end/selection")
@@ -83,9 +81,6 @@ def normalize_request(value: dict[str, Any]) -> dict[str, Any]:
             raise ValueError("request.instrument has unsupported fields")
         if instrument.get("resolved_ticker", ticker) != ticker:
             raise ValueError("resolved instrument differs from request ticker")
-        # The relative-strength factor needs a declared comparison series. It is never
-        # inferred or substituted: an undeclared benchmark simply leaves that factor
-        # unavailable, and the score is reported as such instead of being renormalised.
         benchmark = instrument.get("benchmark")
         if benchmark is not None:
             if not isinstance(benchmark, str) or not re.fullmatch(r"[A-Za-z0-9.^][A-Za-z0-9._^-]{0,31}", benchmark.strip()):
@@ -117,64 +112,3 @@ def parse_timestamp(value: Any) -> datetime:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-
-
-def researcher_result(
-    researcher_id: str,
-    ticker: str,
-    horizon: str,
-    snapshot_id: str,
-    *,
-    status: str,
-    result_role: str = "forecast",
-    prob_up: float | None = None,
-    expected_return: float | None = None,
-    confidence: float | None = None,
-    evidence: dict[str, list[dict[str, Any]]] | None = None,
-    validation: dict[str, Any] | None = None,
-    data_used: list[str] | None = None,
-    warnings: list[str] | None = None,
-    probability_source: str | None = None,
-    raw_probability: float | None = None,
-    calibrated_probability: float | None = None,
-) -> dict[str, Any]:
-    if researcher_id not in RESEARCHERS:
-        raise ValueError(f"unknown researcher_id: {researcher_id}")
-    if status not in RESEARCHER_STATUSES:
-        raise ValueError(f"unknown researcher status: {status}")
-    if result_role not in {"forecast", "diagnostic", "shadow", "production"}:
-        raise ValueError(f"unknown result_role: {result_role}")
-    if prob_up is not None and not 0 <= prob_up <= 1:
-        raise ValueError("prob_up must be between 0 and 1")
-    if prob_up is None and probability_source is not None:
-        raise ValueError("probability_source requires a numeric probability")
-    raw_probability = prob_up if raw_probability is None else raw_probability
-    for name, value in (("raw_probability", raw_probability), ("calibrated_probability", calibrated_probability)):
-        if value is not None and (isinstance(value, bool) or not isinstance(value, (int, float)) or not math.isfinite(value) or not 0 <= value <= 1):
-            raise ValueError(f"{name} must be a finite probability between 0 and 1")
-    if prob_up is None and (raw_probability is not None or calibrated_probability is not None):
-        raise ValueError("raw/calibrated probabilities require a reportable path probability")
-    direction = "unavailable"
-    if prob_up is not None:
-        direction = "bullish" if prob_up > 0.5 else "bearish" if prob_up < 0.5 else "neutral"
-    return {
-        "researcher_id": researcher_id,
-        "result_role": result_role,
-        "ticker": ticker,
-        "horizon": horizon,
-        "snapshot_id": snapshot_id,
-        "direction": direction,
-        "prob_up": prob_up,
-        "prob_down": (1 - prob_up) if prob_up is not None else None,
-        "raw_probability": raw_probability,
-        "calibrated_probability": calibrated_probability,
-        "reportable_probability": prob_up,
-        "expected_return": expected_return,
-        "confidence": confidence,
-        "probability_source": probability_source,
-        "evidence": evidence or {"positive": [], "negative": []},
-        "validation": validation or {},
-        "data_used": data_used or [],
-        "warnings": warnings or [],
-        "status": status,
-    }
