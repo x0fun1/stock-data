@@ -20,9 +20,21 @@ def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
         and math.isfinite(probability) and 0 <= probability <= 1
         and quant_result.get("adversarial_audit", {}).get("may_report_direction") is True
     )
+    production = quant.get("production") or {}
+    transform = production.get("probability_transform") or {}
+    n_eff = transform.get("n_eff")
+    prior_weight = (
+        50 / (float(n_eff) + 50)
+        if isinstance(n_eff, (int, float)) and not isinstance(n_eff, bool) and float(n_eff) + 50 > 0
+        else None
+    )
     fields = {
         "prob_up": quant.get("prob_up"),
-        "raw_probability": quant.get("raw_probability"),
+        "raw_probability": None,
+        "matching_hit_rate_disclosure_only": quant.get("matching_hit_rate_disclosure_only"),
+        "causal_base_rate": production.get("causal_base_rate") or transform.get("base_rate_at_origin"),
+        "p_vol": transform.get("p_vol") or production.get("p_vol"),
+        "prior_weight": prior_weight,
         "direction": quant.get("direction"),
         "model_lean": quant.get("model_lean"),
         "probability_label": "uncalibrated_model_estimate",
@@ -37,9 +49,9 @@ def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
         "confidence_score_deprecated": True,
     }
     if not allowed:
-        fields.update(prob_up=None, raw_probability=None, direction="research_unavailable",
-                      direction_claim_status="unavailable", direction_claimable=False,
-                      reporting_status="unavailable")
+        fields.update(prob_up=None, raw_probability=None, matching_hit_rate_disclosure_only=None,
+                      direction="research_unavailable", direction_claim_status="unavailable",
+                      direction_claimable=False, reporting_status="unavailable")
     else:
         fields["reporting_status"] = "reportable_uncalibrated"
     return fields

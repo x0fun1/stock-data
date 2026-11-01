@@ -4097,6 +4097,31 @@ def check_t51_pit_disclosure_is_forced() -> None:
         raise AssertionError("both PIT status fields must be copied into consensus.evidence")
 
 
+def check_t52_matching_hit_rate_is_disclosure_only() -> None:
+    """FIX-06: matching hit rate is never published as a raw production probability."""
+    analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
+    consensus = payload["consensus"]
+    production = consensus["production"]
+    if consensus.get("raw_probability") is not None or production.get("raw_probability") is not None:
+        raise AssertionError("publishable raw_probability must be null in v2")
+    if "matching_hit_rate_disclosure_only" not in production:
+        raise AssertionError("the matching hit rate must be renamed as a disclosure field")
+    if payload["synthesis"]["quant"].get("raw_probability") is not None:
+        raise AssertionError("synthesis must not expose the matching hit rate as raw_probability")
+    if payload["synthesis"]["quant"].get("matching_hit_rate_disclosure_only") != production.get(
+        "matching_hit_rate_disclosure_only"
+    ):
+        raise AssertionError("synthesis must carry the renamed matching disclosure")
+    summary = json.loads((analysis / "agent_summary.json").read_text(encoding="utf-8"))
+    quant = summary["sections"]["quant"]
+    if quant.get("matching_hit_rate_disclosure_only") != production.get("matching_hit_rate_disclosure_only"):
+        raise AssertionError("agent_summary must use the renamed disclosure field")
+    for key in ("causal_base_rate", "p_vol", "prior_weight"):
+        if key not in quant:
+            raise AssertionError(f"agent_summary must report {key} beside the probability")
+
+
 RETIRED_CHECKS: dict[str, str] = {
     "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
     "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
@@ -4192,6 +4217,7 @@ CHECKS = [
     ("T49 news coverage is disclosed", check_t49_news_coverage_is_disclosed),
     ("T50 AI lean is the only user direction", check_t50_ai_lean_is_the_only_user_direction),
     ("T51 PIT disclosure is forced", check_t51_pit_disclosure_is_forced),
+    ("T52 matching hit rate is disclosure only", check_t52_matching_hit_rate_is_disclosure_only),
     ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
     ("F39 forward ledger", check_f39_forward_ledger),

@@ -290,12 +290,23 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
             else None
         )
         prior_text = f"；先验权重≈{_pct(prior_weight)}" if prior_weight is not None else ""
+        diagnostics = []
+        causal = _production(result).get("causal_base_rate") or transform.get("base_rate_at_origin")
+        p_vol = transform.get("p_vol") or _production(result).get("p_vol")
+        matching = _production(result).get("matching_hit_rate_disclosure_only")
+        if isinstance(causal, (int, float)) and not isinstance(causal, bool):
+            diagnostics.append(f"因果基率{_pct(causal)}")
+        if isinstance(p_vol, (int, float)) and not isinstance(p_vol, bool):
+            diagnostics.append(f"p_vol{_pct(p_vol)}")
+        if isinstance(matching, (int, float)) and not isinstance(matching, bool):
+            diagnostics.append(f"匹配命中率仅披露{_pct(matching)}")
+        diagnostic_text = "；" + "；".join(diagnostics) if diagnostics else ""
         if direction_claim_is_claimable(direction_claim_status_for(result)):
             caveat = "未校准，不可作为真实频率"
         else:
             caveat = "诊断估计，非方向结论；未校准，不可作为真实频率"
         probability_line = (
-            f"上涨概率：{_pct(probability)}（漂移收缩估计 k={k}{prior_text}；{caveat}）"
+            f"上涨概率：{_pct(probability)}（漂移收缩估计 k={k}{prior_text}{diagnostic_text}；{caveat}）"
         )
     else:
         probability_line = f"上涨概率：不可用（{_unavailable_reason(result)}）"
@@ -375,7 +386,10 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "probability_label": "uncalibrated_model_estimate",
                 "reason_codes": consensus.get("reason_codes") or [],
                 "matching_observations": production.get("matching_observations"),
+                "matching_hit_rate_disclosure_only": production.get("matching_hit_rate_disclosure_only"),
                 "causal_base_rate": production.get("causal_base_rate"),
+                "p_vol": production.get("p_vol") or ((production.get("probability_transform") or {}).get("p_vol")),
+                "prior_weight": production.get("prior_weight"),
             },
             "replay_and_prospective": {
                 "replay_type": evidence.get("replay_type"),
@@ -506,7 +520,15 @@ def render_markdown(result: dict[str, Any]) -> str:
     out.extend(["", "## 概率与证据", ""])
     out.append(f"- {lines['model_lean']}")
     out.append(f"- 方向结论状态：{direction_claim_status_for(result)}")
-    out.append(f"- 当前匹配样本：{production.get('matching_observations')}；因果基率：{_num(production.get('causal_base_rate'))}")
+    transform = production.get("probability_transform") or {}
+    out.append(
+        f"- 当前匹配样本：{production.get('matching_observations')}；因果基率：{_num(production.get('causal_base_rate'))}；"
+        f"p_vol：{_num(transform.get('p_vol'))}；先验权重：{_num(production.get('prior_weight'))}"
+    )
+    out.append(
+        f"- 匹配命中率（仅披露，不进入生产概率）：{_pct(production.get('matching_hit_rate_disclosure_only'))}；"
+        "它不是 raw 生产概率。"
+    )
     out.append(f"- 前缀回放：类型 {evidence.get('replay_type')}；有效 {evidence.get('replay_valid')}；非重叠 {evidence.get('replay_nonoverlap')}；弃权 {evidence.get('replay_abstained')}")
     momentum = (((result.get("researchers") or {}).get("quant") or {}).get("validation") or {}).get("momentum_20d") or {}
     if momentum:

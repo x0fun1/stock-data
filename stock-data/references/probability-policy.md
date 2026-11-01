@@ -104,6 +104,14 @@ matching-sample context. `feature.used_for_probability = false` is recorded in
 the transform and the audit rejects any row that claims otherwise. The 12-match
 floor is disclosure only; it no longer gates publication.
 
+The matching-sample win rate is **not** a raw production probability. On the
+publishable surface `raw_probability` is always `null`; the value is renamed and
+exposed as `matching_hit_rate_disclosure_only`. Reports place it beside
+`causal_base_rate`, `p_vol` and the prior weight (`k / (n_eff + k)`) so the three
+production inputs stay distinct from the diagnostic hit rate. The internal
+researcher artifact keeps its audited replay field; only the user-facing bundle
+uses the disclosure name.
+
 ## Evidence vocabulary
 
 - **prefix walk-forward replay**: within one frozen 52-week snapshot, every

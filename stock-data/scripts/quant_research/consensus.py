@@ -6,6 +6,7 @@ import math
 from typing import Any
 
 from .forecast_policy import (
+    DRIFT_SHRINKAGE_K,
     DRIFT_SHRINKAGE_VERSION,
     FACTOR_BACKTEST_HOLDOUT_MIN,
     MIN_PROSPECTIVE_NONOVERLAP,
@@ -274,7 +275,8 @@ def build_consensus(
             "model_version": MODEL_VERSIONS[path],
             "status": item.get("status"),
             "probability": item.get("prob_up"),
-            "raw_probability": item.get("raw_probability"),
+            "raw_probability": None,
+            "matching_hit_rate_disclosure_only": item.get("raw_probability"),
             "note": "shadow research candidate; not part of the production probability and not a confidence vote",
             "production_probability": False,
         })
@@ -350,7 +352,8 @@ def build_consensus(
         "status": "available" if probability is not None else "unavailable",
         "prob_up": probability,
         "reportable_probability": probability,
-        "raw_probability": raw,
+        "raw_probability": None,
+        "matching_hit_rate_disclosure_only": raw,
         "calibrated_probability": None,
         "model_lean": lean,
         "probability_label": "uncalibrated_model_estimate",
@@ -364,7 +367,17 @@ def build_consensus(
             "path": "quant",
             "model_version": MODEL_VERSIONS["quant"],
             "prob_up": probability,
-            "raw_probability": raw,
+            "raw_probability": None,
+            "matching_hit_rate_disclosure_only": raw,
+            "causal_base_rate": transform.get("base_rate_at_origin"),
+            "p_vol": transform.get("p_vol"),
+            "prior_weight": (
+                DRIFT_SHRINKAGE_K / (float(transform["n_eff"]) + DRIFT_SHRINKAGE_K)
+                if isinstance(transform.get("n_eff"), (int, float))
+                and not isinstance(transform.get("n_eff"), bool)
+                and float(transform["n_eff"]) + DRIFT_SHRINKAGE_K > 0
+                else None
+            ),
             "model_lean": lean,
             "probability_label": "uncalibrated_model_estimate",
             "current_prediction_integrity_pass": bool(assessment.get("current_prediction_integrity_pass")),
@@ -385,7 +398,8 @@ def build_consensus(
         "directional_edge_supported": bool(assessment.get("directional_edge_supported")),
         "trading_signal_eligible": False,
         "prob_up": probability,
-        "raw_probability": raw,
+        "raw_probability": None,
+        "matching_hit_rate_disclosure_only": raw,
         "reportable_probability": probability,
         "calibrated_probability": None,
         "probability_basis": "drift_shrunk_causal_base_rate",
@@ -432,6 +446,7 @@ _PUBLISHABLE_KEYS = (
     "prob_up",
     "reportable_probability",
     "raw_probability",
+    "matching_hit_rate_disclosure_only",
     "calibrated_probability",
     "probability_range",
     "model_lean",

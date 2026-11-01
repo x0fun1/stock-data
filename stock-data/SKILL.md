@@ -22,7 +22,7 @@ metadata: {version: "3.3.1", runtime: "0.23.0"}
 - **覆盖**：记录 expected/observed/missing sessions。上市不足 52 周或窗口覆盖不完整时返回 `INSUFFICIENT_HISTORY_COVERAGE` 与真实缺口，不扩窗、不降门槛。
 - **路径**：A 为唯一生产路径；B（restricted/two-bucket）与 C（compact 日频重拟合）为影子研究，D 为 5D 描述性诊断。影子概率不投票、不填补 A 的缺失、不进入资格或方向优势。
 - **校准**：policy 禁用。`calibrated_probability` 恒为 null，`probability_label = uncalibrated_model_estimate`；不发布 0–100 confidence。
-- **A 估计器 v2**：`p = (n_eff·p0 + 50·p_vol)/(n_eff + 50)`，其中 `p0` 是决策收盘前已成熟 5D 标签的因果上涨率，`p_vol = Φ(6%/年 × 5 / (σ_日 × √5))`，`σ_日` 为最多 250 个 session 的日对数收益标准差，`n_eff = 已成熟标签数 / 5`。ROC20 仅作披露状态，不再进入概率；12 条匹配门槛仅披露，不再是资格条件。
+- **A 估计器 v2**：`p = (n_eff·p0 + 50·p_vol)/(n_eff + 50)`，其中 `p0` 是决策收盘前已成熟 5D 标签的因果上涨率，`p_vol = Φ(6%/年 × 5 / (σ_日 × √5))`，`σ_日` 为最多 250 个 session 的日对数收益标准差，`n_eff = 已成熟标签数 / 5`。ROC20 仅作披露状态，不再进入概率；12 条匹配门槛仅披露，不再是资格条件。匹配命中率对外只写 `matching_hit_rate_disclosure_only`，可发布 `raw_probability` 恒为 null；报告并列 `causal_base_rate` / `p_vol` / 先验权重。
 - **有效性对照**：每次运行同时给出相对因果基率与相对常数 0.5 的 Brier 技能、AUC、分块自助区间与有效样本量。可复现 ≠ 有效，两者分列。
 - **证据基础**：全量前缀回放（含重叠标签，块长 ≥ horizon+1）为主证据；真实前向台账为佐证。抽样相位只用于节流，不用于资格；日历不含锚点时报 `unanchored` 并评估全部记录。
 - **目标日**：第 5 个 session 必须由冻结日历解析；解析失败即 `TARGET_SESSION_UNRESOLVED` veto，不对“待定收盘”发布概率。

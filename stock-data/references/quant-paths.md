@@ -32,6 +32,8 @@ Version `quant_drift_shrinkage_v2`, feature `roc20_v1` (disclosure only), target
   ending at the decision close.
 - Probability: `(n_eff * base_rate + 50 * p_vol) / (n_eff + 50)`, where
   `n_eff = matured_labels / 5`.
+- The matching-sample win rate is disclosed as `matching_hit_rate_disclosure_only`
+  (publishable `raw_probability` is null); it is never a production probability.
 - ROC20 sign is still computed and used for the disclosed same-state matching
   sample (`matching_origins`, `wins`, `observations`), but it no longer enters the
   probability; the transform records `feature.used_for_probability = false`.
