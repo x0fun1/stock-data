@@ -731,9 +731,9 @@ def check_f17_ai_lean_layer() -> None:
     bars = synth_bars(60, seed=7)
     news_input = _news_input(bars, _f17_articles(bars))
     baseline = analyze_news(news_input)
-    core = ("overall_direction", "confidence", "event_strength", "market_confirmation", "status")
+    core = ("lexicon_diagnostic_direction", "confidence", "event_strength", "market_confirmation", "status")
 
-    risk_ids = {row["event_id"] for row in baseline["risks"]}
+    risk_ids = {row["event_id"] for row in baseline["lexicon_diagnostic_risks"]}
     mixed_ids = {row["event_id"] for row in baseline["mixed_events"]}
     assert not (risk_ids & mixed_ids), "mixed-direction events must not be reported as bearish risks"
     assert baseline["mixed_events"], "the conflicting-headline cluster should be reported as mixed"
@@ -772,7 +772,7 @@ def check_f17_ai_lean_layer() -> None:
     for key in core:
         assert scored[key] == baseline[key], f"lean must not change News {key}"
     assert [row["direction"] for row in scored["major_events"]] == [row["direction"] for row in baseline["major_events"]]
-    assert {row["event_id"] for row in scored["risks"]} == risk_ids
+    assert {row["event_id"] for row in scored["lexicon_diagnostic_risks"]} == risk_ids
     attached = {row["event_id"]: row for row in scored["major_events"]}
     assert attached[bullish_id]["ai_lean"] == "bullish" and attached[bullish_id]["direction"] == "positive"
 
@@ -4042,6 +4042,47 @@ def check_t49_news_coverage_is_disclosed() -> None:
         raise AssertionError("claiming a 90-day covered window must fail validation")
 
 
+def check_t50_ai_lean_is_the_only_user_direction() -> None:
+    """FIX-04: a bullish lexicon must not override an AI bearish judgement."""
+    from quant_research.news import AI_ASSESSMENT_SCHEMA_VERSION, analyze_news
+    from quant_research.report import required_response_lines
+
+    bars = synth_bars(60, seed=7)
+    last = bars[-1]["date"]
+    articles = [{
+        "article_id": "pos-1", "title": "MU raises guidance on strong demand",
+        "url": "https://example.com/pos-1", "source": "Reuters", "source_type": "news",
+        "record_type": "news", "published_at": f"{last}T13:00:00Z",
+        "tickers": ["MU"], "summary": None,
+    }]
+    news_input = _news_input(bars, articles)
+    baseline = analyze_news(news_input)
+    if baseline["lexicon_diagnostic_direction"] != "positive":
+        raise AssertionError(f"the lexicon fixture should be bullish: {baseline['lexicon_diagnostic_direction']}")
+    if baseline["overall_direction"] is not None:
+        raise AssertionError("without AI, the user-facing direction must be null, not the lexicon value")
+    if "catalysts" in baseline or "risks" in baseline:
+        raise AssertionError("lexicon catalysts/risks must be named as diagnostics")
+
+    candidate = baseline["ai_lean_candidates"][0]
+    assessed = analyze_news(news_input, None, {
+        "schema_version": AI_ASSESSMENT_SCHEMA_VERSION, "ticker": "MU",
+        "asof_timestamp": news_input.asof_timestamp,
+        "items": [{"news_id": candidate["news_id"], "lean": "bearish", "reason": "AI 判断为利空",
+                   "target_relevance": "direct", "importance": "major"}],
+    })
+    if assessed["overall_direction"] != "bearish":
+        raise AssertionError(f"the user-facing direction must follow AI, not the lexicon: {assessed['overall_direction']}")
+    if assessed["lexicon_diagnostic_direction"] != "positive":
+        raise AssertionError("the lexicon diagnostic must stay separate and unchanged")
+
+    result = _fake_delivery_result("complete")
+    result["news_result"] = assessed
+    line = required_response_lines(result)["news"]
+    if "利多0条" not in line or "利空1条" not in line:
+        raise AssertionError(f"the delivered counts must come from AI lean: {line}")
+
+
 RETIRED_CHECKS: dict[str, str] = {
     "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
     "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
@@ -4135,6 +4176,7 @@ CHECKS = [
     ("T47 direction claim abstain", check_t47_direction_claim_abstain),
     ("T48 cross-validation relations", check_t48_cross_validation_relations),
     ("T49 news coverage is disclosed", check_t49_news_coverage_is_disclosed),
+    ("T50 AI lean is the only user direction", check_t50_ai_lean_is_the_only_user_direction),
     ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
     ("F39 forward ledger", check_f39_forward_ledger),

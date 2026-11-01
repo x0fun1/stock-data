@@ -77,6 +77,25 @@ def _label(score: float | None) -> str:
     return "moderately_bullish" if score >= 0.35 else "slightly_bullish" if score > 0.15 else "moderately_bearish" if score <= -0.35 else "slightly_bearish" if score < -0.15 else "neutral"
 
 
+def _ai_direction(block: dict[str, Any]) -> str | None:
+    """User-facing News direction comes only from the host AI lean block."""
+
+    if block.get("status") not in {"assessed", "partial"}:
+        return None
+    counts = (block.get("coverage") or {}).get("direct_label_counts") or {}
+    bullish = int(counts.get("bullish") or 0)
+    bearish = int(counts.get("bearish") or 0)
+    if bullish and bearish:
+        return "mixed"
+    if bullish:
+        return "bullish"
+    if bearish:
+        return "bearish"
+    if int(counts.get("neutral") or 0):
+        return "neutral"
+    return "unclear"
+
+
 def _direction_aggregate(values: list[str]) -> str:
     if "mixed" in values:
         return "mixed"
@@ -644,7 +663,12 @@ def analyze_news(
             "coverage_short_code": "NEWS_COVERAGE_SHORT" if coverage_short else None,
             "evidence_max_age_calendar_days": age_limit,
         },
-        "overall_direction": overall_direction,
+        # The deterministic keyword aggregate is a diagnostic only.  The
+        # user-facing direction is filled from the AI lean block below.
+        "lexicon_diagnostic_direction": overall_direction,
+        "lexicon_direction_role": "deterministic_keyword_diagnostic_never_user_facing",
+        "overall_direction": None,
+        "overall_direction_status": "ai_not_assessed",
         "event_strength": _rounded(mean([float(event["event_strength"]) for event in events if event["event_strength"] is not None])) if any(event["event_strength"] is not None for event in events) else None,
         "sentiment": {
             "label": sentiment_label,
@@ -683,8 +707,8 @@ def analyze_news(
         },
         "major_events": events[:10],
         "background_records": [{key: item.get(key) for key in ("event_id", "opinion_id", "headline", "url", "first_published_at", "published_at", "ticker_relevance", "exclusion_reasons")} for item in excluded_evidence[:10]],
-        "catalysts": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in positive[:5]],
-        "risks": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in negative[:5]],
+        "lexicon_diagnostic_catalysts": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in positive[:5]],
+        "lexicon_diagnostic_risks": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in negative[:5]],
         "mixed_events": [{"event_id": event["event_id"], "event_type": event["event_type"], "headline": event["headline"]} for event in mixed_events[:5]],
         "opinion_records": opinions[:20],
         "unclassified_records": unclassified_records[:20],
@@ -696,6 +720,10 @@ def analyze_news(
         "ai_lean_candidates": lean_inputs,
     }
     result["ai_lean"] = _attach_ai_lean(result, news_input, lean_inputs, ai_assessment, warnings)
+    result["overall_direction"] = _ai_direction(result["ai_lean"])
+    result["overall_direction_status"] = (
+        f"ai_{result['ai_lean'].get('status')}" if result["overall_direction"] is not None else "ai_not_assessed"
+    )
     # Attaching the host AI review can add a disclosure (partial coverage or a
     # rejected artifact).  Recompute the derived fields so the frozen status and
     # the warning counters describe the final artifact, not the pre-AI state.
@@ -798,6 +826,11 @@ def run_news(
         candidates = list(reused.get("ai_lean_candidates") or [])
         warnings = list(reused.get("warnings") or [])
         reused["ai_lean"] = _attach_ai_lean(reused, news_input, candidates, ai_assessment, warnings)
+        reused["overall_direction"] = _ai_direction(reused["ai_lean"])
+        reused["overall_direction_status"] = (
+            f"ai_{reused['ai_lean'].get('status')}"
+            if reused["overall_direction"] is not None else "ai_not_assessed"
+        )
         # ``_attach_ai_lean`` may append an audit-trail warning; write the list and
         # its derived counters back so the frozen result describes what happened.
         assessed_any = reused.get("status") != "not_assessed"
