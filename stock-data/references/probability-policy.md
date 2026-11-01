@@ -43,7 +43,20 @@ prospective floor is `30`; the replay floor is a separate `30` paired observatio
 (`MIN_REPLAY_OBSERVATIONS`), so a short replay cannot be mistaken for a supported edge.
 
 A probability may be reportable while neither evidence level is satisfied. Those are
-different claims and must never be merged into one headline.
+different claims and must never be merged into one headline. The direction-conclusion
+layer is explicit in `consensus.direction_claim_status`:
+
+| Status | Meaning |
+|---|---|
+| `unavailable` | no publishable probability |
+| `abstain_negative_skill` | replay interval is reliably below the base rate |
+| `abstain_insufficient_edge` | interval contains zero, is not estimable, or independent support is missing |
+| `claimable_replay_only` | positive in-window replay interval only; weak wording permitted |
+| `claimable_independent` | prospective evidence supports a direction |
+
+Only the two `claimable_*` statuses allow a directional statement. Every other status
+must emit `模型倾向：方向结论 abstain（…）`; the probability stays visible but is
+prefixed as a diagnostic estimate, never a direction conclusion.
 
 ## Forward evidence and recording time
 

@@ -9,7 +9,12 @@ from typing import Any
 
 from .forecast_policy import POLICY_VERSION, REQUIRED_STAGES
 from .news import load_frozen_result
-from .report import reporting_status_for, required_response_lines
+from .report import (
+    direction_claim_status_for,
+    reporting_status_for,
+    required_response_lines,
+)
+from .consensus import direction_claim_is_claimable
 
 _INVISIBLE = re.compile(r"[\u200b-\u200f\u2060\ufeff]")
 _LEADING_MARKER = re.compile(r"^(?:(?:[-•*]|\(?\d{1,3}[.)、]|[①-⑳])\s*)+")
@@ -37,6 +42,11 @@ def validate_response_text(result: dict[str, Any], text: str) -> None:
     normalized = [_normalized_line(line) for line in raw_lines]
     expected_normalized = {_normalized_line(value) for value in expected.values()}
     missing = [name for name, value in expected.items() if _normalized_line(value) not in normalized]
+    claim_status = direction_claim_status_for(result)
+    if not direction_claim_is_claimable(claim_status) and "abstain" not in expected["model_lean"]:
+        raise ValueError(
+            "Final response failed Quant delivery contract: a non-claimable direction must emit an abstain line"
+        )
     conflicting = []
     for line in raw_lines:
         folded = _normalized_line(line)
@@ -123,6 +133,12 @@ def validate_final_response(analysis_dir: Path, response_file: Path) -> dict[str
         raise ValueError("Final audit rejected: production must use exactly one path")
     if consensus.get("prob_up") is not None and not consensus.get("production_probability_eligible"):
         raise ValueError("Final audit rejected: ineligible production probability is present")
+    claim_status = consensus.get("direction_claim_status")
+    if claim_status is not None:
+        if not direction_claim_is_claimable(claim_status) and not claim_status.startswith("abstain_") and claim_status != "unavailable":
+            raise ValueError("Final audit rejected: unknown direction_claim_status")
+        if bool(consensus.get("direction_claimable")) != direction_claim_is_claimable(claim_status):
+            raise ValueError("Final audit rejected: direction_claimable contradicts direction_claim_status")
     validate_response_text(result, response_file.read_text(encoding="utf-8-sig"))
     snapshot = result.get("snapshot") or {}
     return {

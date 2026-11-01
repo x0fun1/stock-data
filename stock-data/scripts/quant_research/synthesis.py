@@ -29,6 +29,8 @@ def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
         "calibrated_probability": None,
         "production_probability_eligible": bool(quant.get("production_probability_eligible")),
         "directional_edge_supported": bool(quant.get("directional_edge_supported")),
+        "direction_claim_status": quant.get("direction_claim_status"),
+        "direction_claimable": bool(quant.get("direction_claimable")),
         "evidence": quant.get("evidence") or {},
         "reason_codes": quant.get("reason_codes") or [],
         "confidence_score": None,
@@ -36,6 +38,7 @@ def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
     }
     if not allowed:
         fields.update(prob_up=None, raw_probability=None, direction="research_unavailable",
+                      direction_claim_status="unavailable", direction_claimable=False,
                       reporting_status="unavailable")
     else:
         fields["reporting_status"] = "reportable_uncalibrated"

@@ -13,11 +13,55 @@ from .forecast_policy import (
     MIN_REPLAY_EFFECTIVE_SAMPLES,
     dividend_label_disclosure,
 )
+from .consensus import (
+    DIRECTION_CLAIM_ABSTAIN_INSUFFICIENT,
+    DIRECTION_CLAIM_ABSTAIN_NEGATIVE,
+    DIRECTION_CLAIM_INDEPENDENT,
+    DIRECTION_CLAIM_REPLAY_ONLY,
+    DIRECTION_CLAIM_UNAVAILABLE,
+    derive_direction_claim_status,
+    direction_claim_is_claimable,
+)
 from .news import news_assessed, news_status_label
 from .security import markdown_text, safe_url
 
 AGENT_SUMMARY_BUDGET = 9000
 LEAN_LABELS = {"up": "点估计偏上涨", "down": "点估计偏下跌", "flat": "点估计持平", "unavailable": "不可用"}
+
+
+def direction_claim_status_for(result: dict[str, Any]) -> str:
+    """Read the frozen claim status, deriving it only for older artifacts."""
+
+    consensus = result.get("consensus") or {}
+    status = consensus.get("direction_claim_status")
+    if isinstance(status, str) and status:
+        return status
+    evidence = consensus.get("evidence") or {}
+    return derive_direction_claim_status(
+        consensus.get("prob_up"),
+        edge_state=evidence.get("directional_edge_state"),
+        independent_supported=bool(evidence.get("directional_edge_independent_supported")),
+        replay_interval_excludes_zero=bool(evidence.get("directional_edge_replay_interval_excludes_zero")),
+    )
+
+
+def _model_lean_line(result: dict[str, Any]) -> str:
+    """Non-claimable directions must say *abstain*, not merely "point estimate"."""
+
+    consensus = result.get("consensus") or {}
+    status = direction_claim_status_for(result)
+    label = LEAN_LABELS.get(str(consensus.get("model_lean")), "不可用")
+    if status == DIRECTION_CLAIM_UNAVAILABLE:
+        return "模型倾向：方向结论 abstain（unavailable；没有可发布概率）"
+    if status == DIRECTION_CLAIM_ABSTAIN_NEGATIVE:
+        return "模型倾向：方向结论 abstain（劣于纯基率，不构成涨跌预测）"
+    if status == DIRECTION_CLAIM_ABSTAIN_INSUFFICIENT:
+        return "模型倾向：方向结论 abstain（证据不足，不构成涨跌预测）"
+    if status == DIRECTION_CLAIM_INDEPENDENT:
+        return f"模型倾向：{label}（独立前向证据支持）"
+    if status == DIRECTION_CLAIM_REPLAY_ONLY:
+        return f"模型倾向：{label}（仅回放弱表述，非独立验证）"
+    return "模型倾向：方向结论 abstain（证据不足，不构成涨跌预测）"
 
 
 def _pct(value: Any, digits: int = 1) -> str:
@@ -198,8 +242,12 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
             else None
         )
         prior_text = f"；先验权重≈{_pct(prior_weight)}" if prior_weight is not None else ""
+        if direction_claim_is_claimable(direction_claim_status_for(result)):
+            caveat = "未校准，不可作为真实频率"
+        else:
+            caveat = "诊断估计，非方向结论；未校准，不可作为真实频率"
         probability_line = (
-            f"上涨概率：{_pct(probability)}（漂移收缩估计 k={k}{prior_text}；未校准，不可作为真实频率）"
+            f"上涨概率：{_pct(probability)}（漂移收缩估计 k={k}{prior_text}；{caveat}）"
         )
     else:
         probability_line = f"上涨概率：不可用（{_unavailable_reason(result)}）"
@@ -237,7 +285,7 @@ def required_response_lines(result: dict[str, Any]) -> dict[str, str]:
         "research_window": f"研究窗口：截至{end}的52周（{HISTORY_CALENDAR_DAYS}个自然日；{window_note}）",
         "forecast_target": f"预测目标：{target}收盘相对{decision}收盘的拆股调整价格涨跌（{FORECAST_HORIZON_SESSIONS}个交易日）",
         "probability": probability_line,
-        "model_lean": f"模型倾向：{LEAN_LABELS.get(str(consensus.get('model_lean')), '不可用')}（仅描述点估计）",
+        "model_lean": _model_lean_line(result),
         "directional_edge": _edge_line(result, prospective=prospective),
         "production_path": "生产路径：A；B/C为影子研究，D为描述性诊断",
         "validation": (
@@ -272,6 +320,8 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 "current_prediction_integrity_pass": consensus.get("current_prediction_integrity_pass"),
                 "oos_integrity_pass": consensus.get("oos_integrity_pass"),
                 "directional_edge_supported": consensus.get("directional_edge_supported"),
+                "direction_claim_status": direction_claim_status_for(result),
+                "direction_claimable": direction_claim_is_claimable(direction_claim_status_for(result)),
                 "trading_signal_eligible": False,
                 "probability_label": "uncalibrated_model_estimate",
                 "reason_codes": consensus.get("reason_codes") or [],
@@ -350,6 +400,7 @@ def render_final_response(result: dict[str, Any], summary: dict[str, Any] | None
         "",
         "证据边界：",
         "- 概率语义：漂移收缩的因果基率估计；未校准，不可解释为真实涨跌频率",
+        f"- 方向结论状态：{direction_claim_status_for(result)}；非 claimable 时价格上涨概率仅为诊断估计",
         f"- 资格状态：computable={consensus.get('computable')}；current_integrity={consensus.get('current_prediction_integrity_pass')}；"
         f"oos_integrity={consensus.get('oos_integrity_pass')}；production_eligible={consensus.get('production_probability_eligible')}；"
         f"directional_edge={consensus.get('directional_edge_supported')}；trading_signal=false",
@@ -390,7 +441,8 @@ def render_markdown(result: dict[str, Any]) -> str:
                f"缺失 {_window(result).get('missing_sessions')}")
     out.append(f"- 价格基础：{_window(result).get('price_basis')}（拆股调整，现金分红不再投资）")
     out.extend(["", "## 概率与证据", ""])
-    out.append(f"- 模型倾向：{LEAN_LABELS.get(str(consensus.get('model_lean')), '不可用')}")
+    out.append(f"- {lines['model_lean']}")
+    out.append(f"- 方向结论状态：{direction_claim_status_for(result)}")
     out.append(f"- 当前匹配样本：{production.get('matching_observations')}；因果基率：{_num(production.get('causal_base_rate'))}")
     out.append(f"- 前缀回放：类型 {evidence.get('replay_type')}；有效 {evidence.get('replay_valid')}；非重叠 {evidence.get('replay_nonoverlap')}；弃权 {evidence.get('replay_abstained')}")
     momentum = (((result.get("researchers") or {}).get("quant") or {}).get("validation") or {}).get("momentum_20d") or {}

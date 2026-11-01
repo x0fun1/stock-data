@@ -22,9 +22,50 @@ from .forecast_policy import (
 
 ROUND_TRIP_COST_SCENARIOS_BPS = (5, 10, 20)
 
+DIRECTION_CLAIM_UNAVAILABLE = "unavailable"
+DIRECTION_CLAIM_ABSTAIN_NEGATIVE = "abstain_negative_skill"
+DIRECTION_CLAIM_ABSTAIN_INSUFFICIENT = "abstain_insufficient_edge"
+DIRECTION_CLAIM_REPLAY_ONLY = "claimable_replay_only"
+DIRECTION_CLAIM_INDEPENDENT = "claimable_independent"
+CLAIMABLE_DIRECTION_STATUSES = frozenset({DIRECTION_CLAIM_REPLAY_ONLY, DIRECTION_CLAIM_INDEPENDENT})
+
 #: Compatibility shims retained for older hosts.  The live path uses
 #: ``forecast_assessment`` and the ``evidence`` block instead.
 LEGACY_UNUSED = ("oos_support_sessions",)
+
+
+def derive_direction_claim_status(
+    probability: float | None,
+    *,
+    edge_state: str | None,
+    independent_supported: bool,
+    replay_interval_excludes_zero: bool,
+) -> str:
+    """Decide whether a *directional conclusion* may be claimed.
+
+    A publishable probability is a diagnostic estimate, not automatically a
+    direction call.  The claim hierarchy is fixed:
+
+    * no publishable probability -> ``unavailable``;
+    * replay reliably worse than the base rate -> ``abstain_negative_skill``;
+    * independent prospective evidence -> ``claimable_independent``;
+    * a positive replay interval only -> ``claimable_replay_only`` (weak wording);
+    * everything else (including ``insufficient_evidence``) -> abstain.
+    """
+
+    if probability is None:
+        return DIRECTION_CLAIM_UNAVAILABLE
+    if edge_state == "negative_skill_with_estimated_interval_excluding_zero":
+        return DIRECTION_CLAIM_ABSTAIN_NEGATIVE
+    if independent_supported:
+        return DIRECTION_CLAIM_INDEPENDENT
+    if edge_state == "positive_skill_with_estimated_interval_excluding_zero" and replay_interval_excludes_zero:
+        return DIRECTION_CLAIM_REPLAY_ONLY
+    return DIRECTION_CLAIM_ABSTAIN_INSUFFICIENT
+
+
+def direction_claim_is_claimable(status: str | None) -> bool:
+    return status in CLAIMABLE_DIRECTION_STATUSES
 
 
 def _economic_viability(researchers: list[dict[str, Any]]) -> dict[str, Any]:
@@ -213,6 +254,14 @@ def build_consensus(
     transform = validation.get("probability_transform") or {}
     lean = _model_lean(probability)
     direction = {"up": "bullish", "down": "bearish", "flat": "neutral"}.get(lean, "unavailable")
+    edge = assessment.get("directional_edge") or {}
+    claim_status = derive_direction_claim_status(
+        probability,
+        edge_state=edge.get("state"),
+        independent_supported=bool(edge.get("independent_supported")),
+        replay_interval_excludes_zero=bool(edge.get("replay_interval_excludes_zero")),
+    )
+    claimable = direction_claim_is_claimable(claim_status)
 
     shadow = []
     for path in SHADOW_PATHS:
@@ -276,6 +325,8 @@ def build_consensus(
         "directional_edge_reasons": (assessment.get("directional_edge") or {}).get("reasons"),
         "directional_edge_state": (assessment.get("directional_edge") or {}).get("state"),
         "directional_edge_primary_evidence": (assessment.get("directional_edge") or {}).get("primary_evidence"),
+        "direction_claim_status": claim_status,
+        "direction_claimable": claimable,
         "calibration_status": "disabled_by_policy",
         "probability_label": "uncalibrated_model_estimate",
         "relative_baseline_skill": (assessment.get("directional_edge") or {}).get("intervals"),
@@ -294,6 +345,8 @@ def build_consensus(
         "calibrated_probability": None,
         "model_lean": lean,
         "probability_label": "uncalibrated_model_estimate",
+        "direction_claim_status": claim_status,
+        "direction_claimable": claimable,
     }
     return {
         "status": "available" if probability is not None else "unavailable",
@@ -309,6 +362,8 @@ def build_consensus(
             "oos_integrity_pass": bool(assessment.get("oos_integrity_pass")),
             "production_probability_eligible": eligible,
             "directional_edge_supported": bool(assessment.get("directional_edge_supported")),
+            "direction_claim_status": claim_status,
+            "direction_claimable": claimable,
             "trading_signal_eligible": False,
             "matching_observations": validation.get("n_raw"),
             "causal_base_rate": transform.get("base_rate_at_origin"),
@@ -333,6 +388,12 @@ def build_consensus(
         "probability_range": None,
         "direction": direction,
         "model_lean": lean,
+        "direction_claim_status": claim_status,
+        "direction_claimable": claimable,
+        "direction_claim_basis": (
+            "a publishable probability is a diagnostic estimate; a directional claim requires the "
+            "replay/independent evidence hierarchy, otherwise the direction conclusion abstains"
+        ),
         "confidence_score": None,
         "confidence_score_deprecated": True,
         "aggregation_method": "single_path",
@@ -399,15 +460,21 @@ def redact_publishable_prediction(consensus: dict[str, Any], *, audit: dict[str,
                 container[key] = None
     consensus["model_lean"] = "unavailable"
     consensus["direction"] = "unavailable"
+    consensus["direction_claim_status"] = DIRECTION_CLAIM_UNAVAILABLE
+    consensus["direction_claimable"] = False
     consensus["status"] = "unavailable"
     consensus["available_paths"] = 0
     if isinstance(prediction, dict):
         prediction["status"] = "unavailable"
         prediction["probability_label"] = "unavailable_after_audit_veto"
         prediction["model_lean"] = "unavailable"
+        prediction["direction_claim_status"] = DIRECTION_CLAIM_UNAVAILABLE
+        prediction["direction_claimable"] = False
     production["prob_up"] = None
     production["raw_probability"] = None
     production["model_lean"] = "unavailable"
+    production["direction_claim_status"] = DIRECTION_CLAIM_UNAVAILABLE
+    production["direction_claimable"] = False
     consensus["redaction"] = {
         "publishable": False,
         "cleared_fields": list(_PUBLISHABLE_KEYS),

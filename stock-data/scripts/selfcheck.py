@@ -3883,6 +3883,57 @@ def check_t45_compact_profile_and_single_economic_viability() -> None:
         raise AssertionError("the full replay rows must remain in the researcher artifact")
 
 
+def check_t47_direction_claim_abstain() -> None:
+    """FIX-01: non-claimable evidence must emit an explicit direction abstain."""
+    from quant_research.consensus import derive_direction_claim_status
+    from quant_research.delivery import validate_response_text
+    from quant_research.report import render_final_response, required_response_lines
+
+    insufficient = _fake_delivery_result("complete")
+    insufficient["consensus"]["evidence"]["directional_edge_state"] = "insufficient_evidence"
+    lines = required_response_lines(insufficient)
+    if "abstain" not in lines["model_lean"] or "证据不足" not in lines["model_lean"]:
+        raise AssertionError(f"insufficient evidence must abstain: {lines['model_lean']}")
+    if "偏上涨" in lines["model_lean"] or "偏下跌" in lines["model_lean"]:
+        raise AssertionError("an abstain line must not carry an unqualified direction")
+    if "非方向结论" not in lines["probability"]:
+        raise AssertionError("the diagnostic probability must be marked as non-directional")
+    validate_response_text(insufficient, render_final_response(insufficient))
+
+    negative = _fake_delivery_result("complete")
+    negative["consensus"]["evidence"]["directional_edge_state"] = (
+        "negative_skill_with_estimated_interval_excluding_zero"
+    )
+    lines = required_response_lines(negative)
+    if "劣于纯基率" not in lines["model_lean"] or "abstain" not in lines["model_lean"]:
+        raise AssertionError(f"negative skill must abstain and say so: {lines['model_lean']}")
+
+    replay = _fake_delivery_result("complete")
+    replay["consensus"]["evidence"].update({
+        "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+        "directional_edge_replay_interval_excludes_zero": True,
+    })
+    lines = required_response_lines(replay)
+    if "abstain" in lines["model_lean"] or "仅回放" not in lines["model_lean"]:
+        raise AssertionError(f"a positive replay interval allows only weak wording: {lines['model_lean']}")
+    if "非方向结论" in lines["probability"]:
+        raise AssertionError("a claimable replay direction need not mark the probability as non-directional")
+
+    independent = _fake_delivery_result("complete")
+    independent["consensus"]["evidence"].update({
+        "directional_edge_state": "positive_skill_with_estimated_interval_excluding_zero",
+        "directional_edge_replay_interval_excludes_zero": True,
+        "directional_edge_independent_supported": True,
+    })
+    lines = required_response_lines(independent)
+    if "独立前向证据支持" not in lines["model_lean"]:
+        raise AssertionError(f"independent evidence must be named: {lines['model_lean']}")
+
+    if derive_direction_claim_status(None, edge_state=None, independent_supported=False,
+                                     replay_interval_excludes_zero=False) != "unavailable":
+        raise AssertionError("no probability must be unavailable")
+
+
 RETIRED_CHECKS: dict[str, str] = {
     "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
     "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
@@ -3973,6 +4024,7 @@ CHECKS = [
     ("T43 registry accounts for every check", check_t43_registry_accounts_for_every_check),
     ("T44 documented versions match the runtime", check_t44_documented_versions_match_the_runtime),
     ("T45 compact profile and single viability block", check_t45_compact_profile_and_single_economic_viability),
+    ("T47 direction claim abstain", check_t47_direction_claim_abstain),
     ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
     ("F39 forward ledger", check_f39_forward_ledger),
