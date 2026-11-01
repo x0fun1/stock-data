@@ -31,6 +31,11 @@ vetoes/warnings, coverage gaps, replay and directional-edge state, News coverage
 PIT status, the dividend label bias and unmodelled execution costs. Its
 `probability_effect` is `none`.
 
+The matching-sample block is named `matching_sample_disclosure` and states
+`tradability_assessment=not_assessed_not_a_trade_signal` with
+`net_expected_return_published=false`; the retired `economic_viability` name must
+not reappear in consensus, synthesis or report text.
+
 ## Data gates
 
 `INSUFFICIENT_HISTORY_COVERAGE`, `PRICE_BASIS_UNVERIFIED`,

@@ -112,6 +112,12 @@ production inputs stay distinct from the diagnostic hit rate. The internal
 researcher artifact keeps its audited replay field; only the user-facing bundle
 uses the disclosure name.
 
+Matching-sample context is carried under `matching_sample_disclosure`, with
+`tradability_assessment = not_assessed_not_a_trade_signal` and
+`net_expected_return_published = false`. The old `economic_viability` name is
+retired: the block is a sample description, not a tradable net expected return,
+position size or trade instruction.
+
 ## Evidence vocabulary
 
 - **prefix walk-forward replay**: within one frozen 52-week snapshot, every

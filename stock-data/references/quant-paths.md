@@ -12,9 +12,11 @@ snapshot and the same split-adjusted close series.
 | B — Factor | `researchers/factor.py` | shadow; `researchers/factor.json` |
 | C — ML | `researchers/ml.py` | shadow; `researchers/ml.json` |
 | D — Factor diagnostic | `researchers/factor_backtest.py` | diagnostic; `researchers/factor_backtest.json` |
-| Consensus | `consensus.py` | single-path production + shadow isolation in `analysis.json.consensus` |
+| Consensus | `consensus.py` | single-path production, direction claim status + shadow isolation in `analysis.json.consensus` |
 | E — Audit | `audit.py` | production eligibility, transform replay, stage/claims checks |
 | News | `news/` | independent frozen result; never changes Quant |
+| Cross-validation | `cross_validation.py` | deterministic `relation`; never changes `prob_up` |
+| Risk | `synthesis.py` | completed disclosure stage; `risk_block`, `probability_effect=none` |
 | Synthesis / delivery | `synthesis.py`, `report.py`, `delivery.py` | fixed report block and literal reply contract |
 
 Fatal policy/data failures block A. A shadow failure is isolated and never
@@ -34,6 +36,10 @@ Version `quant_drift_shrinkage_v2`, feature `roc20_v1` (disclosure only), target
   `n_eff = matured_labels / 5`.
 - The matching-sample win rate is disclosed as `matching_hit_rate_disclosure_only`
   (publishable `raw_probability` is null); it is never a production probability.
+- The separate `matching_sample_disclosure` block states
+  `tradability_assessment=not_assessed_not_a_trade_signal` and
+  `net_expected_return_published=false`. It replaces the old `economic_viability`
+  name and is a disclosure, not a tradability or net-return claim.
 - ROC20 sign is still computed and used for the disclosed same-state matching
   sample (`matching_origins`, `wins`, `observations`), but it no longer enters the
   probability; the transform records `feature.used_for_probability = false`.
@@ -82,7 +88,16 @@ never enters consensus, eligibility or promotion.
 E verifies the snapshot identity, policy version, window coverage, price basis,
 current and OOS transform reproducibility, path roles, stage receipts and the
 absence of a confidence score. Vetoes clear the reportable probability; warnings
-bound the claim. See [reliability-gates.md](reliability-gates.md).
+bound the claim. `consensus.direction_claim_status` is a separate gate: only
+`claimable_replay_only` and `claimable_independent` allow a directional sentence;
+every other status forces an explicit `abstain` while keeping the diagnostic
+probability visible.
+
+Cross-validation compares the frozen Quant lean with the AI News lean and emits
+only a deterministic relation (`aligned`, `conflicting`, `mixed_news`,
+`news_unclear`, `news_not_assessed`, `news_partial`, `quant_unavailable`,
+`both_unavailable`). It computes no alignment score, joint probability or blended
+direction and never rewrites `prob_up`. See [reliability-gates.md](reliability-gates.md).
 
 ## Artifacts
 
