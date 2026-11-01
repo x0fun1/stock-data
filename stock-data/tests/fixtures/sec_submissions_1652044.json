@@ -1,0 +1,33 @@
+{
+  "cik": "1652044",
+  "entityName": "Alphabet Inc.",
+  "filings": {
+    "recent": {
+      "accessionNumber": [
+        "0001652044-26-000042",
+        "0001652044-26-000041",
+        "0001652044-26-000040",
+        "0001652044-25-000010",
+        "0001652044-26-000039"
+      ],
+      "filingDate": ["2026-10-29", "2026-10-28", "2026-10-27", "2025-02-05", "2026-10-26"],
+      "acceptanceDateTime": [
+        "2026-10-29T20:05:31.000Z",
+        "2026-10-28T16:02:11.000Z",
+        null,
+        "2025-02-05T21:14:00.000Z",
+        "2026-10-26T13:00:00.000Z"
+      ],
+      "form": ["10-Q", "8-K", "4", "10-K", "144"],
+      "primaryDocument": [
+        "goog-20260930.htm",
+        "goog-20261028.htm",
+        "xslF345X05/primary_doc.xml",
+        "goog-20241231.htm",
+        "primary_doc.xml"
+      ],
+      "items": ["", "2.02,9.01", "", "", ""]
+    }
+  },
+  "_fixture_note": "SEC submissions JSON field format copied from the documented filings.recent parallel arrays. Values are format-test inputs, not a live recorded response."
+}

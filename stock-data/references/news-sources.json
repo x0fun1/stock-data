@@ -1,0 +1,63 @@
+{
+  "version": "1.0",
+  "note": "Human-maintained source registry. New IR feeds require a person to verify robots.txt and a 200 response before adding; models must not add entries.",
+  "source_tiers": {
+    "A_primary": ["sec.gov", "abc.xyz", "investor.nvidia.com", "nvidianews.nvidia.com"],
+    "B_media": [
+      "reuters.com", "bloomberg.com", "wsj.com", "ft.com", "cnbc.com", "apnews.com",
+      "barrons.com", "marketwatch.com", "theinformation.com", "nikkei.com", "scmp.com"
+    ],
+    "C_aggregator": [
+      "finance.yahoo.com", "seekingalpha.com", "benzinga.com", "investing.com",
+      "marketscreener.com", "stocktwits.com", "reddit.com"
+    ]
+  },
+  "ir_rss": {
+    "GOOGL": [
+      {"url": "https://abc.xyz/rss/pressrelease.aspx", "name": "Alphabet IR", "crawl_delay_seconds": 10}
+    ],
+    "GOOG": [
+      {"url": "https://abc.xyz/rss/pressrelease.aspx", "name": "Alphabet IR", "crawl_delay_seconds": 10}
+    ],
+    "NVDA": [
+      {"url": "https://investor.nvidia.com/rss/pressrelease.aspx", "name": "NVIDIA Investor Relations", "crawl_delay_seconds": 10},
+      {"url": "https://nvidianews.nvidia.com/releases.xml", "name": "NVIDIA Newsroom", "crawl_delay_seconds": 10}
+    ]
+  },
+  "sec_forms": {
+    "included": {
+      "8-K": "current report",
+      "10-Q": "quarterly report",
+      "10-K": "annual report",
+      "6-K": "foreign issuer report",
+      "20-F": "foreign issuer annual report",
+      "S-3": "shelf registration",
+      "424B": "prospectus filing",
+      "SC 13D": "beneficial ownership",
+      "SC 13G": "beneficial ownership"
+    },
+    "count_only": ["4", "144"]
+  },
+  "sec_items": {
+    "1.01": "Entry into a Material Definitive Agreement",
+    "1.02": "Termination of a Material Definitive Agreement",
+    "2.01": "Completion of Acquisition or Disposition of Assets",
+    "2.02": "Results of Operations and Financial Condition",
+    "2.03": "Creation of a Direct Financial Obligation",
+    "2.05": "Costs Associated with Exit or Disposal Activities",
+    "2.06": "Material Impairments",
+    "3.01": "Notice of Delisting or Failure to Satisfy a Listing Rule",
+    "4.01": "Changes in Registrant's Certifying Accountant",
+    "4.02": "Non-Reliance on Previously Issued Financial Statements",
+    "5.01": "Changes in Control of Registrant",
+    "5.02": "Departure or Election of Directors or Officers",
+    "5.03": "Amendments to Articles of Incorporation or Bylaws",
+    "7.01": "Regulation FD Disclosure",
+    "8.01": "Other Events",
+    "9.01": "Financial Statements and Exhibits"
+  },
+  "reference_links": {
+    "yahoo_finance_news": "https://finance.yahoo.com/quote/{ticker}/news/",
+    "economist": "https://www.economist.com/"
+  }
+}

@@ -934,6 +934,22 @@ def check_forecast_removed() -> None:
         shutil.rmtree(work, ignore_errors=True)
 
 
+def check_news_collect_fixtures() -> None:
+    """FIX-13: recorded fixtures for SEC/IR/Finnhub parsing, window and status."""
+    import unittest
+
+    tests_dir = str(SCRIPTS.parent / "tests")
+    if tests_dir not in sys.path:
+        sys.path.insert(0, tests_dir)
+    import test_news_collect  # noqa: PLC0415 - fixture suite lives next to the package
+
+    suite = unittest.defaultTestLoader.loadTestsFromModule(test_news_collect)
+    stream = io.StringIO()
+    outcome = unittest.TextTestRunner(stream=stream, verbosity=0).run(suite)
+    if not outcome.wasSuccessful():
+        raise AssertionError(stream.getvalue()[-1200:])
+
+
 def check_t43_registry_accounts_for_every_check() -> None:
     """No check function may exist without being registered or explicitly retired."""
     defined = {name for name, value in globals().items() if name.startswith("check_") and callable(value)}
@@ -1002,6 +1018,7 @@ CHECKS = [
     ("T35 AI news counts and links", check_t35_ai_news_counts_and_links),
     ("T41 partial AI news delivery", check_t41_partial_ai_news_can_be_delivered_when_disclosed),
     ("T42 presentation warnings do not degrade news", check_t42_presentation_warnings_do_not_degrade_news),
+    ("FIX13 news collector fixtures", check_news_collect_fixtures),
     ("T43 registry accounts for every check", check_t43_registry_accounts_for_every_check),
     ("T44 documented versions match the runtime", check_t44_documented_versions_match_the_runtime),
     ("T49 news coverage is disclosed", check_t49_news_coverage_is_disclosed),

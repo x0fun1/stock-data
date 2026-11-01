@@ -1,0 +1,35 @@
+[
+  {
+    "category": "company",
+    "datetime": 1793220600,
+    "headline": "Alphabet announces third quarter 2026 results",
+    "id": 7300001,
+    "image": "https://example.invalid/image.jpg",
+    "related": "GOOGL,GOOG",
+    "source": "Example Wire",
+    "summary": "Alphabet reported quarterly results.",
+    "url": "https://example.invalid/googl-q3"
+  },
+  {
+    "category": "company",
+    "datetime": 1793307000,
+    "headline": "Alphabet wins a new cloud contract",
+    "id": 7300002,
+    "image": "",
+    "related": "GOOGL",
+    "source": "Example Wire",
+    "summary": "A cloud contract was announced.",
+    "url": "https://example.invalid/googl-cloud"
+  },
+  {
+    "category": "company",
+    "datetime": 1792700000,
+    "headline": "Unrelated issuer announces a buyback",
+    "id": 7300003,
+    "image": "",
+    "related": "MSFT",
+    "source": "Example Wire",
+    "summary": "Not about Alphabet.",
+    "url": "https://example.invalid/msft-buyback"
+  }
+]
