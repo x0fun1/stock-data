@@ -4083,6 +4083,20 @@ def check_t50_ai_lean_is_the_only_user_direction() -> None:
         raise AssertionError(f"the delivered counts must come from AI lean: {line}")
 
 
+def check_t51_pit_disclosure_is_forced() -> None:
+    """FIX-05: every formal delivery states that price history is not PIT-certified."""
+    analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    text = (analysis / "final_response.md").read_text(encoding="utf-8")
+    if "行情PIT：未认证" not in text:
+        raise AssertionError("final_response.md must carry the forced unsplit PIT line")
+    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
+    evidence = payload["consensus"]["evidence"]
+    if evidence.get("point_in_time_certified") is not False:
+        raise AssertionError("the evidence block must state that PIT is not certified")
+    if not evidence.get("historical_availability_status") or not evidence.get("provider_revision_status"):
+        raise AssertionError("both PIT status fields must be copied into consensus.evidence")
+
+
 RETIRED_CHECKS: dict[str, str] = {
     "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
     "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
@@ -4177,6 +4191,7 @@ CHECKS = [
     ("T48 cross-validation relations", check_t48_cross_validation_relations),
     ("T49 news coverage is disclosed", check_t49_news_coverage_is_disclosed),
     ("T50 AI lean is the only user direction", check_t50_ai_lean_is_the_only_user_direction),
+    ("T51 PIT disclosure is forced", check_t51_pit_disclosure_is_forced),
     ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
     ("F39 forward ledger", check_f39_forward_ledger),

@@ -460,6 +460,9 @@ def render_final_response(result: dict[str, Any], summary: dict[str, Any] | None
         "",
         "证据边界：",
         "- 概率语义：漂移收缩的因果基率估计；未校准，不可解释为真实涨跌频率",
+        f"- 行情PIT：未认证（historical_availability_status={evidence.get('historical_availability_status') or 'date_only_no_per_bar_available_at'}；"
+        f"provider_revision_status={evidence.get('provider_revision_status') or 'provider_history_may_be_revised_not_point_in_time_certified'}；"
+        "provider 可修订历史）",
         f"- 方向结论状态：{direction_claim_status_for(result)}；非 claimable 时价格上涨概率仅为诊断估计",
         f"- 资格状态：computable={consensus.get('computable')}；current_integrity={consensus.get('current_prediction_integrity_pass')}；"
         f"oos_integrity={consensus.get('oos_integrity_pass')}；production_eligible={consensus.get('production_probability_eligible')}；"
@@ -570,6 +573,8 @@ def render_markdown(result: dict[str, Any]) -> str:
     out.append(f"- 否决：{'；'.join(audit.get('vetoes') or []) or '无'}")
     out.append(f"- 警告：{'；'.join(audit.get('warnings') or []) or '无'}")
     out.append("- 收益为拆股调整收盘价的 5 交易日方向，不含分红再投资；未建模执行、价差、滑点与费用。")
+    out.append(f"- 行情PIT：未认证（{evidence.get('historical_availability_status') or 'date_only_no_per_bar_available_at'}；"
+               f"{evidence.get('provider_revision_status') or 'provider_history_may_be_revised_not_point_in_time_certified'}）。")
     label_basis = dividend_label_disclosure()
     out.append(f"- 标签口径：拆股调整={label_basis['price_basis']}；分红调整={label_basis['dividend_adjusted']}；"
                f"股息翻转率={label_basis['flip_rate']}（{label_basis['status']}）")

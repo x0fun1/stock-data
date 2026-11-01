@@ -26,7 +26,9 @@ is published.
 - For text and fundamentals use publication/filing time, not period end.
 - Provider price history is download-time revised. Snapshot manifests disclose
   `provider_revision_status` and `historical_availability_status`; bars do not
-  claim a per-bar `available_at` unless supplied.
+  claim a per-bar `available_at` unless supplied. Both statuses are copied into
+  `consensus.evidence`, and every formal `final_response.md` carries a forced
+  evidence-boundary line: `行情PIT：未认证（…；provider 可修订历史）`.
 - No historical universe or index membership is inferred from today's data.
 - No time decay or half-life is applied to the production estimator.
 

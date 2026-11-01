@@ -105,6 +105,7 @@ python stock-data/scripts/quant_research.py validate-response --analysis-dir <�
 - `上涨概率` 为 null 时不得展示影子路径概率来填空。
 - `direction_claim_status` 非 `claimable_*` 时，`模型倾向` 必须含 `abstain`，且不得出现未限定的“偏上涨/偏下跌”方向结论；上涨概率仅作诊断展示。
 - `综合` 行只描述关系，不得出现 `alignment` 分数、联合概率或“综合看涨”式混合结论；冲突必须显式写“冲突”。
+- 证据边界必须含 `行情PIT：未认证（… provider 可修订历史）`；`historical_availability_status` 与 `provider_revision_status` 同时写入 `consensus.evidence`。
 - `方向优势` 只有 `directional_edge_independent_supported = true` 时才可称“已支持”：需要 ≥30 条按时录入、锚定相位的前向记录，且其改善区间下界 > 0。窗口内回放区间下界 > 0 只能写成“仅回放区间下界大于0（非独立留出）”；回放上界 < 0 必须写“劣于纯基率”；含零或不可估计写“证据不足”。`consensus.evidence.prospective_unanchored` 非零时，前向非重叠数应视为不可用而不是 0。
 - `交易信号` 恒为不可；未建模入场、价差、滑点与费用。
 - 消息面必须给出逐条 AI 判断及全部候选覆盖数。每个重大利多/利空列出原文链接、发布时间和具体理由；无链接的新闻不得列为重大。宏观、同业或大盘标题只能列为间接相关，不计入 INTC 等标的的直接利多/利空数量。

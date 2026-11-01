@@ -327,6 +327,15 @@ def build_consensus(
         "directional_edge_primary_evidence": (assessment.get("directional_edge") or {}).get("primary_evidence"),
         "direction_claim_status": claim_status,
         "direction_claimable": claimable,
+        "historical_availability_status": (
+            (manifest.get("policy") or {}).get("historical_availability_status")
+            or "date_only_no_per_bar_available_at"
+        ),
+        "provider_revision_status": (
+            (manifest.get("policy") or {}).get("provider_revision_status")
+            or "provider_history_may_be_revised_not_point_in_time_certified"
+        ),
+        "point_in_time_certified": False,
         "calibration_status": "disabled_by_policy",
         "probability_label": "uncalibrated_model_estimate",
         "relative_baseline_skill": (assessment.get("directional_edge") or {}).get("intervals"),
