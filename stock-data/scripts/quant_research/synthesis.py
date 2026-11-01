@@ -57,10 +57,70 @@ def reportable_quant_fields(quant_result: dict[str, Any]) -> dict[str, Any]:
     return fields
 
 
+def build_risk_block(
+    quant_result: dict[str, Any], news_result: dict[str, Any],
+) -> dict[str, Any]:
+    """Assemble a deterministic, disclosure-only risk and uncertainty block."""
+
+    consensus = quant_result.get("consensus") or {}
+    snapshot = quant_result.get("snapshot") or {}
+    evidence = consensus.get("evidence") or {}
+    audit = quant_result.get("adversarial_audit") or {}
+    window = snapshot.get("policy") or {}
+    items: list[dict[str, str]] = []
+
+    def add(source: str, severity: str, detail: str) -> None:
+        items.append({"source": source, "severity": severity, "detail": bounded_text(detail, 500)})
+
+    for message in (audit.get("vetoes") or []):
+        add("audit_veto", "high", str(message))
+    for message in (audit.get("warnings") or []):
+        add("audit_warning", "medium", str(message))
+    for message in (snapshot.get("data_validation") or {}).get("blockers") or []:
+        add("data_blocker", "high", str(message))
+    if window.get("coverage_status") != "complete":
+        add("coverage", "high", f"52周覆盖状态为 {window.get('coverage_status') or 'unknown'}，正式概率不可用")
+    elif int(window.get("missing_sessions") or 0):
+        add("coverage", "medium", f"窗口缺失 {window.get('missing_sessions')} 个交易日")
+    effective = evidence.get("oos_effective_samples")
+    required = evidence.get("oos_support_required_effective_samples")
+    if isinstance(effective, (int, float)) and isinstance(required, (int, float)) and effective < required:
+        add("replay_support", "high", f"有效回放样本 {effective}/{required}，方向优势证据不足")
+    state = evidence.get("directional_edge_state") or "insufficient_evidence"
+    if state == "negative_skill_with_estimated_interval_excluding_zero":
+        add("directional_edge", "high", "回放劣于纯基率，方向结论 abstain")
+    elif not evidence.get("directional_edge_independent_supported"):
+        add("directional_edge", "medium", "方向优势缺少独立前向证据，方向结论不可 claim")
+    if not evidence.get("point_in_time_certified", False):
+        add("point_in_time", "medium", "行情PIT未认证，provider 历史可能被修订")
+    news_status = news_result.get("status") or "not_assessed"
+    if news_status not in {"complete", "partial", "valid"}:
+        add("news", "medium", "新闻未评估，消息面方向不可用")
+    coverage = (news_result.get("coverage") or {})
+    if coverage.get("coverage_short"):
+        add("news_coverage", "medium",
+            f"新闻观测跨度仅 {coverage.get('observed_publication_span_days')} 天，低于披露下限")
+    label_basis = evidence.get("label_basis") or {}
+    if label_basis.get("dividend_adjusted") is False:
+        add("label_basis", "low", "5D 标签不含分红再投资，除息可能单向压低接近持平的标签")
+    add("execution_cost", "medium", "未建模执行、价差、滑点、费用与冲击成本，收益为毛收益")
+    add("calibration", "low", "政策禁用校准；上涨概率不是真实频率")
+    unique = list({(row["source"], row["detail"]): row for row in items}.values())
+    return {
+        "status": "disclosed" if unique else "no_disclosed_risks",
+        "disclosure_only": True,
+        "items": unique,
+        "count": len(unique),
+        "probability_effect": "none",
+        "note": "assembled deterministically from frozen eligibility, evidence, coverage and news state",
+    }
+
+
 def build_synthesis(
     quant_result: dict[str, Any],
     news_result: dict[str, Any],
     cross_validation: dict[str, Any] | None = None,
+    risk_block: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     quant = quant_result.get("consensus", {})
     snapshot = quant_result.get("snapshot", {})
@@ -96,6 +156,7 @@ def build_synthesis(
             "joint_probability": None,
         },
         "comparison_basis": "frozen_independent_sections_no_score",
+        "risk_block": risk_block or build_risk_block(quant_result, news_result),
         "quantitative_bias": fields["direction"],
         "quant_direction_claim_status": fields.get("direction_claim_status"),
         "quant_prob_up": q_probability,

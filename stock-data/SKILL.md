@@ -51,7 +51,7 @@ metadata: {version: "3.3.1", runtime: "0.23.0"}
 | 审计/复审/质量验收 | `references/audit-protocol.md`、`references/probability-policy.md` | `references/reliability-gates.md`、`references/forward-ledger.md` |
 | Finnhub 工具调用 | `references/finnhub-mcp-1.21.3-schema.md` 中所需函数 | 仅在能力未知时浏览完整 schema |
 
-`SKILL.md` 负责路由和顺序；`quant-paths.md`、`reliability-gates.md`、`probability-policy.md`、`news-analysis.md`、`news-impact-rubric.md` 分别是量化路径、资格门槛、概率交付、News 和影响分级的权威规则。
+`SKILL.md` 负责路由和顺序；`quant-paths.md`、`reliability-gates.md`、`probability-policy.md`、`news-analysis.md`、`news-impact-rubric.md` 分别是量化路径、资格门槛、概率交付、News 和影响分级的权威规则。`risk` 阶段为披露型 `complete`：`risk_block` 从否决/警告、覆盖缺口、回放与方向优势状态、新闻覆盖、PIT、分红标签偏差及未建模执行成本确定性组装，`probability_effect=none`。
 
 ## 来源路由
 

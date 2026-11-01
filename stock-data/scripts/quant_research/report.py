@@ -216,6 +216,15 @@ RELATION_LABELS = {
 }
 
 
+def _risk_block(result: dict[str, Any]) -> dict[str, Any]:
+    block = result.get("risk_block")
+    if isinstance(block, dict) and block.get("items") is not None:
+        return block
+    synthesis = result.get("synthesis") or {}
+    block = synthesis.get("risk_block")
+    return block if isinstance(block, dict) else {}
+
+
 def _cross_validation_block(result: dict[str, Any]) -> dict[str, Any]:
     block = result.get("cross_validation")
     if isinstance(block, dict) and block.get("relation"):
@@ -413,6 +422,12 @@ def build_agent_summary(result: dict[str, Any]) -> dict[str, Any]:
                 for row in consensus.get("shadow_predictions") or []
             ],
             "diagnostics": consensus.get("diagnostics") or {},
+            "risk": {
+                "status": _risk_block(result).get("status"),
+                "count": _risk_block(result).get("count"),
+                "items": _risk_block(result).get("items"),
+                "probability_effect": "none",
+            },
             "cross_validation": {
                 "relation": _cross_validation_block(result).get("relation"),
                 "quant_lean": _cross_validation_block(result).get("quant_lean"),
@@ -589,6 +604,14 @@ def render_markdown(result: dict[str, Any]) -> str:
     for explanation in cross.get("explanation_lines") or []:
         out.append(f"- {explanation}")
     out.append("- 关系字段不含分数；Quant 与 News 仍各自冻结，禁止联合概率或联合校准。")
+    risk = _risk_block(result)
+    out.extend(["", "## 风险与不确定性", ""])
+    if risk.get("items"):
+        for row in risk["items"]:
+            out.append(f"- [{row.get('severity') or 'medium'}] {row.get('source')}：{row.get('detail')}")
+    else:
+        out.append("- 本次未记录额外风险项；仍不建模执行与费用。")
+    out.append("- 本节为确定性披露列表，不改变概率，也不构成交易建议。")
     audit = result.get("adversarial_audit") or {}
     out.extend(["", "## 审计与限制", ""])
     out.append(f"- 审计状态：{audit.get('status')}；may_report_probability={audit.get('may_report_probability')}")

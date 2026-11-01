@@ -15,6 +15,22 @@ The gate answers separate questions. No single 0–100 score is published.
 The 12-match ROC20 floor is **not** an eligibility condition: the matching hit
 rate carries no probability weight in v2 and is disclosed as context only.
 
+`direction_claim_status` is the separate direction-conclusion gate:
+`unavailable`, `abstain_negative_skill`, `abstain_insufficient_edge`,
+`claimable_replay_only`, `claimable_independent`. Only the two `claimable_*`
+values permit a directional sentence; every other value forces an explicit
+`abstain` line while leaving the diagnostic probability visible.
+
+## Stage contract
+
+`cross-validation` is a real stage: it emits a deterministic `relation`
+(`aligned|conflicting|mixed_news|news_unclear|news_not_assessed|news_partial|
+quant_unavailable|both_unavailable`) and never changes `prob_up`. `risk` is a
+completed disclosure stage, not `not_assessed`: `risk_block` is assembled from
+vetoes/warnings, coverage gaps, replay and directional-edge state, News coverage,
+PIT status, the dividend label bias and unmodelled execution costs. Its
+`probability_effect` is `none`.
+
 ## Data gates
 
 `INSUFFICIENT_HISTORY_COVERAGE`, `PRICE_BASIS_UNVERIFIED`,

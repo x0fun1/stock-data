@@ -46,7 +46,7 @@ from .report import (
 from .researchers import factor, factor_backtest, ml, quant
 from .security import bounded_text
 from .snapshot import load_snapshot
-from .synthesis import build_synthesis
+from .synthesis import build_risk_block, build_synthesis
 
 RUNNERS: dict[str, Callable[[Path, tuple[dict[str, Any], dict[str, Any]] | None], dict[str, Any]]] = {
     "quant": quant.run,
@@ -358,12 +358,12 @@ def run_analysis(
         cross_reason = None
     _stage(stages, "cross-validation", cross_status, payload=cross_validation,
            reason=cross_reason, run_id=run_id, snapshot_id=snapshot_id)
-    _stage(stages, "risk", "not_assessed",
-           reason="returns are gross close-to-close observations; execution, spread, slippage and fees are not modelled", run_id=run_id, snapshot_id=snapshot_id)
+    quant_bundle = {**run, "snapshot": report_manifest, "consensus": consensus,
+                    "adversarial_audit": adversarial, "researchers": results}
+    risk_block = build_risk_block(quant_bundle, news_result)
+    _stage(stages, "risk", "complete", payload=risk_block, run_id=run_id, snapshot_id=snapshot_id)
 
-    synthesis = build_synthesis({**run, "snapshot": report_manifest, "consensus": consensus,
-                                 "adversarial_audit": adversarial, "researchers": results}, news_result,
-                                cross_validation)
+    synthesis = build_synthesis(quant_bundle, news_result, cross_validation, risk_block)
     elapsed_seconds = round(time.perf_counter() - started, 3)
     final = {
         **run,
@@ -375,6 +375,7 @@ def run_analysis(
         "adversarial_audit": adversarial,
         "news_result": news_result,
         "cross_validation": cross_validation,
+        "risk_block": risk_block,
         "synthesis": synthesis,
         "analysis_status": _analysis_status(
             adversarial=adversarial, researchers=results, news_status=news_status,

@@ -3063,6 +3063,11 @@ def check_t23_delivery_and_stage_contract() -> None:
     assert [row["stage"] for row in payload["stages"]] == [
         "request", "collection", "data", "quant", "audit", "news", "cross-validation", "risk", "final"
     ]
+    stages = {row["stage"]: row for row in payload["stages"]}
+    if stages["risk"]["status"] != "complete":
+        raise AssertionError("the risk stage must be a completed disclosure block, not not_assessed")
+    if stages["cross-validation"]["status"] == "not_applicable":
+        raise AssertionError("cross-validation must not be hard-coded not_applicable")
     # Drop a stage, duplicate one, or change the order: all must fail.
     broken = {**payload, "stages": payload["stages"][:-1]}
     target = analysis / "broken.json"
@@ -4122,6 +4127,25 @@ def check_t52_matching_hit_rate_is_disclosure_only() -> None:
             raise AssertionError(f"agent_summary must report {key} beside the probability")
 
 
+def check_t53_risk_block_is_complete_disclosure() -> None:
+    """FIX-07: risk is a deterministic disclosure stage, not an empty stage."""
+    analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
+    stages = {row["stage"]: row for row in payload["stages"]}
+    if stages["risk"]["status"] != "complete":
+        raise AssertionError(f"risk stage status must be complete: {stages['risk']}")
+    block = payload["risk_block"]
+    if block.get("status") != "disclosed" or not block.get("items"):
+        raise AssertionError("risk_block must carry deterministic disclosure items")
+    sources = {row.get("source") for row in block["items"]}
+    for expected in ("point_in_time", "execution_cost", "calibration"):
+        if expected not in sources:
+            raise AssertionError(f"risk_block is missing {expected}: {sources}")
+    markdown = (analysis / "report.md").read_text(encoding="utf-8")
+    if "## 风险与不确定性" not in markdown:
+        raise AssertionError("report.md must contain the risk and uncertainty section")
+
+
 RETIRED_CHECKS: dict[str, str] = {
     "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
     "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
@@ -4218,6 +4242,7 @@ CHECKS = [
     ("T50 AI lean is the only user direction", check_t50_ai_lean_is_the_only_user_direction),
     ("T51 PIT disclosure is forced", check_t51_pit_disclosure_is_forced),
     ("T52 matching hit rate is disclosure only", check_t52_matching_hit_rate_is_disclosure_only),
+    ("T53 risk block is complete disclosure", check_t53_risk_block_is_complete_disclosure),
     ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
     ("F39 forward ledger", check_f39_forward_ledger),
