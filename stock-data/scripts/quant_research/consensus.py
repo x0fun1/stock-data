@@ -69,7 +69,7 @@ def direction_claim_is_claimable(status: str | None) -> bool:
     return status in CLAIMABLE_DIRECTION_STATUSES
 
 
-def _economic_viability(researchers: list[dict[str, Any]]) -> dict[str, Any]:
+def _matching_sample_disclosure(researchers: list[dict[str, Any]]) -> dict[str, Any]:
     returns = [
         float(result["expected_return"])
         for result in researchers
@@ -79,23 +79,27 @@ def _economic_viability(researchers: list[dict[str, Any]]) -> dict[str, Any]:
     ]
     gross = sum(returns) / len(returns) if returns else None
     if gross is None:
-        return {"status": "not_assessed", "gross_expected_return": None, "scenarios": [],
+        return {"status": "not_assessed", "matching_sample_mean_forward_return": None,
+                "cost_scenarios": [],
                 "cost_model_status": "assumed_scenario_sensitivity_not_actual_cost_estimate",
-                "execution_validation": "not_assessed"}
+                "execution_validation": "not_assessed",
+                "tradability_assessment": "not_assessed_not_a_trade_signal"}
     return {
-        "status": "scenario_sensitivity_only",
-        "gross_expected_return": gross,
-        "expected_return_definition": (
+        "status": "matching_sample_disclosure_only",
+        "matching_sample_mean_forward_return": gross,
+        "return_definition": (
             "mean realised forward return of the matching-sample origins; not the probability-weighted "
             "expected return of the production estimator and not a tradable forecast"
         ),
-        "scenarios": [
-            {"round_trip_cost_bps": cost, "net_expected_return": gross - cost / 10000.0,
-             "expected_return_below_cost": gross < cost / 10000.0}
+        "cost_scenarios": [
+            {"round_trip_cost_bps": cost, "gross_minus_assumed_cost": gross - cost / 10000.0,
+             "below_assumed_cost": gross < cost / 10000.0}
             for cost in ROUND_TRIP_COST_SCENARIOS_BPS
         ],
         "cost_model_status": "assumed_scenario_sensitivity_not_actual_cost_estimate",
         "execution_validation": "not_assessed",
+        "tradability_assessment": "not_assessed_not_a_trade_signal",
+        "net_expected_return_published": False,
     }
 
 
@@ -438,7 +442,7 @@ def build_consensus(
         "warnings": assessment.get("warnings") or [],
         "assessment": assessment,
         "prediction": prediction,
-        "economic_viability": _economic_viability([production] if production else []),
+        "matching_sample_disclosure": _matching_sample_disclosure([production] if production else []),
     }
 
 

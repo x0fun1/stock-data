@@ -127,10 +127,11 @@ def build_synthesis(
     if snapshot and any(news_result.get(key) != snapshot.get(key) for key in ("ticker", "market", "horizon", "snapshot_id", "asof_timestamp")):
         raise ValueError("Quant/News identity or as-of mismatch")
     fields = reportable_quant_fields(quant_result)
-    viability = dict(quant.get("economic_viability") or {})
-    viability.setdefault("status", "not_assessed")
-    viability["source"] = "quant_result.json.consensus.economic_viability"
-    viability["single_source"] = True
+    matching_disclosure = dict(quant.get("matching_sample_disclosure") or {})
+    matching_disclosure.setdefault("status", "not_assessed")
+    matching_disclosure["source"] = "quant_result.json.consensus.matching_sample_disclosure"
+    matching_disclosure["single_source"] = True
+    matching_disclosure["probability_effect"] = "none"
     q_probability = fields["prob_up"]
     ai = news_result.get("ai_lean") or {}
 
@@ -148,7 +149,7 @@ def build_synthesis(
     return {
         "quant": fields,
         "quant_field_source": "quant_result.json.consensus",
-        "economic_viability": viability,
+        "matching_sample_disclosure": matching_disclosure,
         "cross_validation": cross_validation or {
             "relation": "both_unavailable",
             "explanation_lines": ["量化与新闻均不可用，综合结论不可计算。"],

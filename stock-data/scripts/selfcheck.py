@@ -3874,8 +3874,10 @@ def check_t45_compact_profile_and_single_economic_viability() -> None:
         raise AssertionError(payload["consensus"]["probability_basis"])
     if payload.get("analysis_status") not in {"complete_with_limitations", "degraded", "abstain"}:
         raise AssertionError(f"analysis_status must use the documented vocabulary: {payload.get('analysis_status')}")
-    if payload["synthesis"]["economic_viability"]["source"] != "quant_result.json.consensus.economic_viability":
-        raise AssertionError(payload["synthesis"]["economic_viability"])
+    if payload["synthesis"]["matching_sample_disclosure"]["source"] != "quant_result.json.consensus.matching_sample_disclosure":
+        raise AssertionError(payload["synthesis"]["matching_sample_disclosure"])
+    if "economic_viability" in payload["consensus"] or "economic_viability" in payload["synthesis"]:
+        raise AssertionError("the ambiguous economic_viability name must be gone")
 
     compact = run_analysis(snapshot, analysis.parent.parent / "research_compact", artifact_profile="compact")
     compact_payload = json.loads((compact / "analysis.json").read_text(encoding="utf-8"))
@@ -4146,6 +4148,24 @@ def check_t53_risk_block_is_complete_disclosure() -> None:
         raise AssertionError("report.md must contain the risk and uncertainty section")
 
 
+def check_t54_matching_sample_disclosure_naming() -> None:
+    """FIX-09: the matching-sample mean return is a disclosure, not a viability claim."""
+    analysis, _snapshot, _bars, _sessions = _policy_analysis()
+    payload = json.loads((analysis / "analysis.json").read_text(encoding="utf-8"))
+    block = payload["consensus"]["matching_sample_disclosure"]
+    if block.get("tradability_assessment") != "not_assessed_not_a_trade_signal":
+        raise AssertionError("the block must deny tradability explicitly")
+    if block.get("net_expected_return_published") is not False:
+        raise AssertionError("a net expected return must not be published")
+    if any("net_expected_return" in scenario for scenario in block.get("cost_scenarios") or []):
+        raise AssertionError("cost scenarios must not imply a tradable net expected return")
+    if "economic_viability" in payload["synthesis"]:
+        raise AssertionError("synthesis must use the matching-sample disclosure name")
+    text = (analysis / "report.md").read_text(encoding="utf-8")
+    if "净预期收益可交易" in text:
+        raise AssertionError("the report must not imply a tradable net expected return")
+
+
 RETIRED_CHECKS: dict[str, str] = {
     "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
     "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
@@ -4243,6 +4263,7 @@ CHECKS = [
     ("T51 PIT disclosure is forced", check_t51_pit_disclosure_is_forced),
     ("T52 matching hit rate is disclosure only", check_t52_matching_hit_rate_is_disclosure_only),
     ("T53 risk block is complete disclosure", check_t53_risk_block_is_complete_disclosure),
+    ("T54 matching sample disclosure naming", check_t54_matching_sample_disclosure_naming),
     ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
     ("F39 forward ledger", check_f39_forward_ledger),
