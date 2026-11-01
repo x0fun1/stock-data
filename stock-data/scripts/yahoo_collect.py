@@ -249,6 +249,25 @@ def _market(envelope: dict[str, Any], request: dict[str, Any], start: str, end: 
         block["price_basis"] = "split_and_dividend_adjusted"
         block["price_basis_source"] = "provider_adjusted_close_includes_dividends"
         block["price_basis_note"] = "not the policy basis; dividends are reinvested in this series"
+    # Yahoo history metadata exposes a currency (for example USD); it does not
+    # expose a trade/volume unit.  Record the actual evidence and leave unit null
+    # rather than treating the missing unit as a policy failure.
+    if block.get("currency"):
+        block["currency_evidence"] = {
+            "field": "currency",
+            "source": "Yahoo Finance metadata",
+            "value": block["currency"],
+        }
+    else:
+        block["currency"] = None
+        block["currency_evidence"] = {"field": "currency", "source": "Yahoo Finance metadata", "value": None}
+    block["unit"] = block.get("unit")
+    block["unit_evidence"] = {
+        "status": "provided" if block.get("unit") else "not_provided_by_yahoo_history",
+        "note": "Yahoo history metadata exposes currency, not a trade/volume unit; unit stays null",
+    }
+    if not block.get("unit"):
+        block["warnings"].append("trade/volume unit was not provided by Yahoo history metadata; unit stays null")
     is_forecast = request.get("intent") == "forecast"
     policy: dict[str, Any] | None = None
     if is_forecast:
@@ -294,6 +313,8 @@ def _market(envelope: dict[str, Any], request: dict[str, Any], start: str, end: 
         if policy is not None:
             data["policy_window"] = {**policy, **_policy_coverage(policy, schedule, kept)}
             block["policy_status"] = "ineligible"
+        else:
+            block["policy_status"] = "not_applicable"
         return block
     first, last = kept[0]["date"], kept[-1]["date"]
     if policy is None:
@@ -343,7 +364,7 @@ def _market(envelope: dict[str, Any], request: dict[str, Any], start: str, end: 
                 block.pop("source_timestamp", None)
         except (TypeError, ValueError):
             block.pop("source_timestamp", None)
-    missing = [key for key in ("currency", "unit", "source_symbol", "source_timestamp", "adjustment") if not block.get(key)]
+    missing = [key for key in ("currency", "source_symbol", "source_timestamp", "adjustment") if not block.get(key)]
     if policy is None:
         if block["last_bar_closed"] is None:
             missing.append("calendar-backed closure")
@@ -353,6 +374,9 @@ def _market(envelope: dict[str, Any], request: dict[str, Any], start: str, end: 
             expected = [day for day, row in sessions.items() if start <= day <= end and parse_timestamp(row["close_at"]) <= asof]
             if expected != [row["date"] for row in kept]:
                 missing.append("requested exchange session coverage")
+        # News/descriptive collection is not subject to a forecast policy;
+        # records still disclose missing unit/calendar evidence via status and warnings.
+        block["policy_status"] = "not_applicable"
     else:
         coverage = data["policy_window"]
         if policy.get("status") != "resolved":

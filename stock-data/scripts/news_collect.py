@@ -22,6 +22,7 @@ from datetime import date, datetime, timedelta, timezone
 from email.utils import parsedate_to_datetime
 from pathlib import Path
 from typing import Any, Callable
+from zoneinfo import ZoneInfo
 
 TOOL_USER_AGENT = "stock-data-skill/4.0"
 SEC_TICKERS_URL = "https://www.sec.gov/files/company_tickers.json"
@@ -227,6 +228,12 @@ def _collect_sec(ticker: str, market: str, start: datetime, end: datetime, refs:
     if not user_agent:
         status.update(status="not_configured", reason="SEC_USER_AGENT is not set")
         return
+    # SEC asks for a declarative UA with contact details.  Do not send a bare
+    # tool identifier when no contact information is present.
+    if "@" not in user_agent and "http" not in user_agent.lower():
+        status.update(status="not_configured",
+                      reason="SEC_USER_AGENT must include contact details")
+        return
     headers = {"User-Agent": user_agent, "Accept": "application/json"}
     limiter.wait()
     code, body, error = fetch(SEC_TICKERS_URL, headers)
@@ -290,7 +297,8 @@ def _collect_sec(ticker: str, market: str, start: datetime, end: datetime, refs:
                 dropped += 1
                 continue
             # Filing dates are US/Eastern calendar days; midnight ET -> UTC.
-            acceptance = datetime(filed_day.year, filed_day.month, filed_day.day, 5, tzinfo=timezone.utc)
+            acceptance = datetime(filed_day.year, filed_day.month, filed_day.day,
+                                  tzinfo=ZoneInfo("America/New_York")).astimezone(timezone.utc)
             precision = "date"
         if not _in_window(acceptance, start, end):
             outside += 1

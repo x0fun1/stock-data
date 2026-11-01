@@ -40,6 +40,7 @@ REASON_CATALOG: dict[str, dict[str, Any]] = {
     "DESCRIPTIVE_REQUEST": {"severity": "fatal", "scope": "reporting", "can_veto_prediction": True},
     "SNAPSHOT_IDENTITY_INVALID": {"severity": "fatal", "scope": "data", "can_veto_prediction": True},
     "CALENDAR_OFFICIAL_MISSING": {"severity": "degraded", "scope": "data", "can_veto_prediction": False},
+    "CALENDAR_LIB_MISSING": {"severity": "degraded", "scope": "data", "can_veto_prediction": False},
     "CALENDAR_FALLBACK_USED": {"severity": "degraded", "scope": "data", "can_veto_prediction": False},
     "CALENDAR_SOURCE_INVALID": {"severity": "degraded", "scope": "data", "can_veto_prediction": False},
     "ADJUSTMENT_UNKNOWN": {"severity": "degraded", "scope": "data", "can_veto_prediction": False},

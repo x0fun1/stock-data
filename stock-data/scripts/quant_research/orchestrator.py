@@ -200,8 +200,8 @@ def run_analysis(
                 collected=news_collected,
                 verification=news_verification or {"items": [], "counts": {}, "tinyfish_status": "not_assessed"},
                 ai_items=ai_items, ai_status=ai_status, snapshot=report_manifest,
-                news_result=news_result, refs=__import__("json").loads(
-                    __import__("pathlib").Path(__file__).resolve().parent.parent.parent.joinpath(
+                news_result=news_result, refs=json.loads(
+                    Path(__file__).resolve().parent.parent.parent.joinpath(
                         "references", "news-sources.json").read_text(encoding="utf-8")),
                 analysis_at=analysis_time(),
             )

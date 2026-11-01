@@ -15,7 +15,7 @@ python stock-data/scripts/global_stock_data.py --list
 python stock-data/scripts/global_stock_data.py --function yahoo_history --params-file history-request.json --output history-envelope.json --cache-dir runtime/yfinance-cache
 python stock-data/scripts/yahoo_collect.py --help
 python stock-data/scripts/yahoo_collect.py --request request.json --output gateway-responses.json --cache-dir runtime/yfinance-cache
-python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
+python3 stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
 ```
 
 新 Yahoo gateway CLI 必须传 `--cache-dir runtime/yfinance-cache`，或明确设置 `STOCK_DATA_YAHOO_CACHE_DIR`；不传时无法执行 Yahoo 调用。collector 必须显式传 `--cache-dir`，不以 gateway 环境变量替代。目录需用户可写；仅实际 Yahoo 调用初始化缓存，离线发现不会创建缓存。示例中的 `python` 指已安装 `requirements.txt` 必需依赖的实际 gateway 解释器。
@@ -65,7 +65,7 @@ python stock-data/scripts/quant_research.py pipeline --request request.json --re
 
 adjusted OHLC 由同根 `Adj Close / Close` 等比例转换；保留 ratio、provider 值和变换记录。缺失/非有限/无效 ratio 记录缺口，不能冒称已复权。repair 默认 False；显式要求或已记录异常条件才修复一次，保留修复前后 OHLC、Adj Close、行动、币种及差异。`Repaired?` 不是完整修复证据。
 
-日线 `date` 为来源交易所时区的 session 日期，同时保留 UTC 时间和时区。本地午夜索引不是成交/收盘时间；chart regularMarketTime 不替代历史 bar 的源时间。研究 request 的 history_window.end 为闭合 session 日期，转换到 yfinance 时 end 使用下一本地自然日并留档。用户窗口优先，默认 52 周（364 个自然日，约 252 个交易日）；不因样本不足扩窗。日内各 interval 的覆盖限制分别检查，不能把 1m/分钟/小时线同等承诺，不能送入现有日线预测器。
+日线 `date` 为来源交易所时区的 session 日期，同时保留 UTC 时间和时区。本地午夜索引不是成交/收盘时间；chart regularMarketTime 不替代历史 bar 的源时间。研究 request 的 history_window.end 为闭合 session 日期，转换到 yfinance 时 end 使用下一本地自然日并留档。用户窗口优先，描述性走势默认最多 52 周（364 个自然日，约 252 个交易日）；不因样本不足扩窗。日内各 interval 的覆盖限制分别检查，不能把 1m/分钟/小时线同等承诺，也不能转成方向结论。
 
 最后一根闭合状态须有覆盖该日期的交易日历或具体时段证据；未知时交给中央检查，不用主机时钟/固定 16:00 假定收盘。currentTradingPeriod/tradingPeriods 不构成完整 52 周日历；metadata 惰性读取仅限所需字段。`adjustment_evidence` 保留 source、price_basis、checked_through、实际行动与覆盖；覆盖未知的空行动不是“无行动”。今天下载的历史复权数据保留下载/修订时间，不伪造历史 vintage。
 
@@ -93,9 +93,9 @@ adjusted OHLC 由同根 `Adj Close / Close` 等比例转换；保留 ratio、pro
 
 ## 研究衔接与兼容
 
-[yahoo_collect.py](../scripts/yahoo_collect.py) 只采 market 域，复用宿主已有 Finnhub 成功结果；不把 yfinance 参数塞进研究 request，不让 pipeline 隐式联网。字段与 provenance 见 [collection-adapter.md](collection-adapter.md)。使用 snapshot schema 1.3；forecast 必须提供 `policy_window` 与拆股调整的 provider close。
+[yahoo_collect.py](../scripts/yahoo_collect.py) 只采 market 域；新闻由 `news_collect.py` 单独采集。不把 yfinance 参数塞进研究 request，不让 pipeline 隐式联网。字段与 provenance 见 [collection-adapter.md](collection-adapter.md)。使用 snapshot schema 1.3；描述性统计最多最近 52 周。
 
-方向研究仍按 Quant → 验证/审计 → News → Final Synthesis；新闻失败记 not_assessed，不能当 neutral 或改 Quant P(up)。中央 [reliability-gates.md](reliability-gates.md) 权威：复权/日历未知是降级，不自动致命；明确污染/身份/价格冲突按原 gate 处理。
+市场数据质量与新闻流程独立：复权/日历/单位未知时如实披露并降级，不猜测补齐；明确的价格冲突、身份冲突或时间越界按数据校验处理。新闻失败记 not_assessed，不能当 neutral。
 
 **当前采集不是已审计合格预测输入的承诺。** 单标的 history 的 `source_timestamp_kind=bar_label_not_trade_time` 明示日线索引时间，不是收盘/行情更新时间；即使交易日历确认该 bar 已闭合，仍不能把此标签改写为收盘时刻或 fetched_at。该真实源时间可能触发现有 24h freshness / `source_before_close` gate；保持 gate 不变，审计失败时报告阻断而非伪造时间。来源未确认的 `unit` 留 null，不从 currency 猜补；缺 unit、calendar-backed closure、身份或覆盖时 collector 记录 partial，freezer 对缺失 unit 记 `MARKET_UNITS_UNVERIFIED` 降级置信度（不单独否决），unit 与其他元数据**相互矛盾**才是数据完整性问题（`MARKET_UNITS_CONFLICT`，致命）。`fast_info` 报价当前不提供可靠源时间；batch 的对齐轴、空位来源、交易所身份/币种/时区及修复覆盖也不能视为已证实。只有实际数据通过既有完整验证后才可称为有效研究输入。
 

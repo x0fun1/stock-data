@@ -1,48 +1,8 @@
-# Point-in-Time Policy
+# Point-in-Time Policy (v4)
 
-## Primary research window
-
-The forecast window is fixed: `(decision_session - 364 calendar days,
-decision_session]`. Decision is the latest completed exchange session at the
-as-of instant. The window does not slide with the run date, does not widen to
-buy samples and has no warm-up bars outside it.
-
-Features, matching samples, the base rate, factor selection, ML training and
-calibration all read only data inside this window. A bar outside it is dropped
-(and counted) or rejected; it is never used.
-
-## Signal and target timing
-
-For a decision at session `t`, features may use data available through that
-close. The target is the close of the fifth exchange session after `t` divided
-by the close at `t`, minus one, on the split-adjusted basis. It is not a natural
-day approximation or an executable fill model. With a verified calendar, the
-fifth session is resolved by session index; without one, no formal probability
-is published.
-
-## Availability and revisions
-
-- Preserve source event time separately from fetch time.
-- For text and fundamentals use publication/filing time, not period end.
-- Provider price history is download-time revised. Snapshot manifests disclose
-  `provider_revision_status` and `historical_availability_status`; bars do not
-  claim a per-bar `available_at` unless supplied. Both statuses are copied into
-  `consensus.evidence`, and every formal `final_response.md` carries a forced
-  evidence-boundary line: `行情PIT：未认证（…；provider 可修订历史）`.
-- No historical universe or index membership is inferred from today's data.
-- No time decay or half-life is applied to the production estimator.
-
-## Leakage controls
-
-- Future returns are labels only; they never enter features.
-- Research A: at decision `t`, a matching origin's label is eligible only when
-  `origin + 5 <= t`; the base rate uses only labels matured by `t`. Every replay
-  row rebuilds its own history from its boundary.
-- Research B: factor selection uses only the chronological selection segment;
-  the reported bucket probability uses only labels matured after that segment.
-- Research C: every origin refits from labels matured by that origin inside the
-  snapshot; the live entry and replay share the same function.
-- Research D: 5-session labels only; training quantile cuts are fixed before the
-  chronological holdout.
-- If source timing, adjustment status or label boundary cannot be established,
-  downgrade to diagnostic or reject; never silently repair lineage.
+- The news window is `(as-of − 60 days, as-of]`. Records without a timezone-aware publication timestamp, or with `published_at > as-of`, are excluded and counted.
+- The collector can query historical dates, but publication time does not prove the item was visible then. Historical output therefore carries `pit_status=published_at_only` and must not claim a reconstructed information set.
+- Market data is a download-time revised series, not a historical vintage. Descriptive price reactions use only sessions already present in the frozen snapshot; no forward session is inferred.
+- Verification uses live Search/Fetch when as-of is the run date (`verification_pit=live`). An earlier as-of is `post_hoc`; those items cannot be rated strong.
+- Updated timestamps are not publication timestamps. A record updated after the as-of is excluded.
+- The runtime keeps no local news archive and does not fall back to a previous fetch. A failed source is `error`, not stale data.

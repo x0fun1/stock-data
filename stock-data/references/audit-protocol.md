@@ -1,125 +1,47 @@
-# Audit Protocol
+# Audit Protocol (v4)
 
-Procedure version: `audit-protocol-1.0`. Applies to any audit or review of a
-forecast produced by this Skill, and to the audit of the audit itself.
+The former probability audit was removed with the direction-prediction path. This document now covers the checks that remain: frozen-input integrity, news collection/verification disclosure, and delivery validation.
 
-The rules below exist because a previous audit passed 40 self-checks, reported
-zero lint findings and still certified a model that lost to the naive base rate on
-15 of 15 real series. The failure was not in the arithmetic; it was in what the
-audit agreed to look at.
+## 1. Input integrity
 
-## Mandatory shape of an audit report
+- Every analysis reads one frozen snapshot; `load_snapshot` verifies the manifest digest, per-domain digests, ticker/market/as-of identity and bar count.
+- Market bars must be ascending, unique, numeric and not after the as-of date. Unclosed same-as-of bars are excluded and disclosed.
+- Unknown currency/unit/calendar evidence stays null or `unverified`; it is never replaced with a guessed value.
 
-Every audit report must contain, in this order:
+## 2. News disclosure
 
-1. **Conclusion with skill numbers** (`R1`). The first paragraph states Brier
-   skill against the causal base rate and against a constant 0.5, the AUC, and
-   the interval. An audit without an effectiveness section may not use the words
-   "deliverable", "approved" or "pass".
-2. **Two independent scores** (`R2`): reproducibility (can the number be rebuilt
-   bit-for-bit?) and effectiveness (is the number better than a naive baseline?).
-   They are orthogonal. A in one and D in the other is a valid outcome and must be
-   shown as two separate rows, never averaged into one grade.
-3. **Version anchor** (`R13`): `policy_version`, `model_version`,
-   `feature_version`, `target_version`. Conclusions are valid only for those
-   versions.
-4. **Evidence source per conclusion** (`R8`): `real_market`, `synthetic`,
-   `derived`, or `not_executed`. Synthetic data may support conclusions about
-   *process* only, never about *effectiveness*.
-5. **Failure-mode column** (`R7`) on every finding: `correctness`, `accounting`,
-   `data`, `reporting`, `presentation`. Session-phase bookkeeping is `accounting`
-   and must not be ranked with "the probability is computed wrong" (`correctness`).
-6. **Effective sample size** (`R5`) next to every accuracy or skill claim:
-   `n_overlapping`, `n_effective = n / horizon`, base-rate standard error, and
-   the share of weight the estimator puts on its prior. Any claim resting on
-   `n_effective < 30` may not use "proves", "confirms" or "validated".
-7. **Power of any evidence floor** (`R6`). For a binomial floor, publish the pass
-   probability at the plausible true rates. A 30-outcome floor at a true 60% hit
-   rate passes 29% of the time; that number belongs in the report, not in a
-   footnote.
-8. **Calendar and coverage provenance** (`R4`): `source_supplied_schedule`, `library_verified`,
-   `observed_ohlcv`, `synthetic_weekday`, or `not_executed`. A weekday count may
-   never be described as a real exchange calendar, and `expected_sessions` may
-   never be hardcoded.
-9. **Label basis** (`R9`): split adjustment, dividend treatment, point-in-time
-   availability lag, and the direction of any resulting label bias.
-10. **Remediation mapping** (`R10`): every "structural limitation" sentence must
-    carry an item number in the remediation list. A limitation with no item is a
-    disclaimer, not a finding.
-11. **Reproducibility package** (`R12`): scripts, data snapshot and random seeds
-    sufficient for a third party to reproduce every number.
-12. **Status vocabulary** (`R11`): `observed`, `synthetic`, `not_executed`.
-    Do not write "real" about a source that was not executed or observed.
+- The fixed window is `(as-of − 60 days, as-of]`; recent 30 days and days 31–60 are reported separately.
+- Every source is reported independently with `ok/empty/not_configured/not_configured_for_ticker/not_applicable/rate_limited/error`, HTTP status where available, observed first/last publication time, and `partial_window`.
+- All stored records satisfy `published_at <= as-of`; the output states `pit_status=published_at_only`.
+- One source failure never erases another source, and a failed request is never replaced by a cached result.
 
-## Independent verification (`R3`)
+## 3. Verification
 
-The verification of a probability transform must not call the producer's
-function. A shared implementation can only detect tampering with the record; a
-wrong formula is reproduced identically on both sides and passes.
+- SEC/IR records are `primary_confirmed` without an extra request.
+- At most 30 third-party records are verified per run; the remainder are `not_assessed` with the cap reason.
+- Search/Fetch request counts are reported; Fetch is limited to 3 whitelisted URLs per record.
+- Fetch text and Search snippets are never written to artifacts.
+- `verification_pit=post_hoc` items cannot be rated strong.
 
-In this repository the auditor re-implements the transform in
-`validation/probability_quality.py` (`_recompute_v2`, `_recompute_legacy_v1`)
-and deliberately imports nothing from `researchers/`.
+## 4. AI assessment and summary
 
-Verification is only credible if it fails on a mutated implementation. Three
-mutations are mandatory and are executed by `selfcheck` (`T29`):
+- Every candidate ID must exist in the run, must be unique, and ticker/as-of must match the snapshot.
+- Identity fields (`headline`, `source`, `published_at`, `url`) are copied, never authored; a mismatch rejects the artifact.
+- `strength_v1` is recomputed from source tier, verification status, event table and the presence of a quantity. An AI-declared strength that disagrees is rejected.
+- The matrix must equal a fresh recomputation from the direct items; key items must have an original URL.
+- No probability, composite score, direction conclusion, or buy/sell/position advice is allowed.
 
-| Mutation | Expected detection |
-|---|---|
-| shrink weight `k` set to 0 | `PRIOR_STRENGTH_TAMPERED` |
-| probability flipped (`p -> 1 - p`) | `PROBABILITY_TAMPERED` |
-| base-rate label boundary moved one session | `BASE_RATE_LABEL_BOUNDARY_TAMPERED` |
+## 5. Delivery mutation checks
 
-A mutation that is not detected is a defect in the audit, not a curiosity.
+`validate-response` rejects:
 
-## Effectiveness block (`R1`)
+- changed matrix counts;
+- a key item without its original link;
+- added forbidden language (the exact tokens are intentionally not repeated as user-facing output);
+- a missing `局限` line;
+- `partial_window` rewritten as full coverage;
+- a `post_hoc` item labelled strong.
 
-Every probability audit reports:
+## 6. Limitations
 
-- `brier_model`, `brier_causal_base_rate`, `brier_constant_half`;
-- `skill.vs_causal_base_rate` and `skill.vs_constant_half`;
-- `auc` with tie handling;
-- a moving-block bootstrap interval on the paired improvement, with the primary
-  block length at least `horizon + 1`; a shorter block treats overlapping labels
-  as independent and understates the interval;
-- `effective_sample_size`, `base_rate_standard_error`;
-- a three-state verdict: positive, negative or insufficient. **Negative must be
-  reportable**: a model that is reliably worse than the base rate is a finding,
-  not a missing value.
-
-## Effective sample size (`R5`)
-
-With 5-session labels on a 250-session window there are about 250 overlapping
-rows but only about 50 independent equivalents. Every statement of the form
-"15 of 21 wins" must be accompanied by the paired interval and by the base-rate
-standard error; otherwise the binomial noise is presented as skill.
-
-## Evidence floors (`R6`)
-
-Any floor (`n` outcomes, "three positive intervals", the pre-v2 "12
-non-overlapping OOS predictions") must be published with its power curve. A floor that no realistic
-sample can pass does not protect quality; it makes the system unfalsifiable. The
-current design therefore treats the full prefix replay as primary evidence,
-keeps the prospective ledger as corroboration, and publishes the curve.
-
-## Re-audit checklist
-
-- [ ] conclusion quotes skill against both baselines
-- [ ] reproducibility and effectiveness scored separately
-- [ ] version anchor present
-- [ ] calendar provenance named; session count not hardcoded
-- [ ] 52-week coverage recomputed from the calendar and the frozen bars; the declared
-      `coverage_status` treated as a claim, not evidence (`coverage_basis`,
-      `declared_coverage_status`, expected/observed counts and missing dates reported);
-      unverified calendar means `unverified` coverage and no published probability
-- [ ] effective sample size and prior weight disclosed
-- [ ] power curve attached to every floor
-- [ ] failure mode labelled on every finding
-- [ ] label basis (dividends, splits, PIT lag) checked
-- [ ] every limitation mapped to a remediation item
-- [ ] mutation tests executed and reported
-- [ ] package (scripts, data, seeds) attached
-- [ ] sampling phase reported as `anchored` / `unanchored_calendar` with a null
-      `decision_sampled` when unanchored
-- [ ] forward evidence filtered by recording time and full model identity
-- [ ] a veto leaves no publishable probability or direction anywhere in the payload
+The audit does not prove provider authenticity, same-event semantics, syndication independence, or statistical validity of the event tables. Those are disclosed as limitations, not scored.

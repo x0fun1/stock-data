@@ -1,143 +1,95 @@
 # Stock-Data Collection Adapter
 
-Schema 1.3 source evidence, the fixed-window policy and the five eligibility flags are defined in [reliability-gates.md](reliability-gates.md) and [probability-policy.md](probability-policy.md). The illustrative minimal envelope below does not pass the minimum OHLCV history requirement. Never invent source, timestamp, adjustment or calendar evidence. For a forecast, the collector resolves the decision session from the confirmed exchange close, trims bars to `(decision-364d, decision]`, records `policy_window` coverage and requires a split-adjusted provider close. A missing calendar permits diagnostics only; an incomplete 52-week window returns the real gap and publishes no formal probability. `make_receipt()` retains caller-normalized data; raw envelopes cannot replace bars/articles, and known outer/inner provider failures discard their payloads.
+The adapter is a file contract, not another data fetcher. Collect market data with the Yahoo gateway; collect news with `scripts/news_collect.py` (SEC + IR RSS + Finnhub) and verify with `scripts/news_verify.py` (TinyFish). Preserve every provider response, normalize only documented fields, then pass the response map through `quant_research.py adapt` and the receipt to `quant_research.py freeze`.
 
-The adapter is a file contract, not another data fetcher. Collect data with this Skill's Finnhub/global route, preserve every gateway response, normalize only the fields required for research, then pass the response map through `quant_research.py adapt` and the receipt to `quant_research.py freeze`.
+## Market collection
 
-## Yahoo collector response map
-
-`yahoo_collect.py` collects only the market domain. The collector does not rerun Finnhub or execute research. Keep the existing request schema; provider-specific settings belong to collection CLI/config, not research parameters. News is not collected here: the host supplies `news.data.articles[]` from the Finnhub MCP `get-news-pulse` tool during Step 2. See [yfinance-data.md](yfinance-data.md) and current CLI help.
+`yahoo_collect.py` collects only the `market` domain. It does not fetch news and does not run research.
 
 ```text
-python stock-data/scripts/yahoo_collect.py --request request.json --output gateway-responses.json --cache-dir runtime/yfinance-cache
-python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime
+python3 stock-data/scripts/yahoo_collect.py --request request.json --output gateway-responses.json --cache-dir runtime/yfinance-cache
+python3 stock-data/scripts/quant_research.py adapt --request request.json --responses gateway-responses.json --output collected.json
+python3 stock-data/scripts/quant_research.py freeze --input collected.json --output-root runtime/snapshots
 ```
 
-### Declared benchmark (relative-strength factor)
+Rules:
 
-`momentum_20d_v1` needs an explicitly declared comparison series for its 20% relative-strength factor. Declare it in the request; the collector fetches it with the same provider and stores it under `domains.market.data.benchmark` (`symbol`, `selection="declared"`, `status`, `adjustment`, `source`, `bars`) without touching `domains.market.data.bars` or any existing provenance field:
+- `market.data.bars[]` must be strictly ascending, unique daily `date/open/high/low/close/volume`; no future-dated bars.
+- Descriptive trend statistics use at most the latest 52 weeks (about 250 exchange sessions). Do not extend the window to manufacture samples.
+- Provider metadata exposes a currency (for example `USD`) but not a trade/volume unit. Record the currency as evidence; leave `unit` null and disclose it. A missing unit is not a reason to mark a news-focused collection ineligible.
+- Optional `session_calendar` must be source-backed, timezone-aware and ordered. Without a verified calendar, only descriptive output is allowed and the missing-calendar state is disclosed. If no calendar library (`exchange_calendars` / `pandas_market_calendars`) is installed, emit `CALENDAR_LIB_MISSING` explicitly instead of silently degrading.
+- Keep the original provider envelope under `gateway_envelope`; remove credentials, cookies and sensitive query strings before writing.
+- Domain status is `complete`, `partial`, `available`, `unavailable` or `failed`. A failed domain does not erase other domains.
 
-```json
-{"ticker": "INTC", "market": "US", "horizon": "5D", "asset_type": "stock",
- "instrument": {"benchmark": "SPY"}}
+## News collection
+
+```text
+python3 stock-data/scripts/news_collect.py --ticker GOOGL --as-of 2026-11-01T21:00:00Z --output news_collected.json
+python3 stock-data/scripts/news_verify.py --candidates news_collected.json --output news_verified.json
+python3 stock-data/scripts/quant_research.py news-candidates --snapshot-dir <snapshot> --collected news_collected.json --verification news_verified.json --output news_candidates.json
 ```
 
-The system never infers a benchmark (index membership, sector, ETF strategy) and never substitutes another symbol when the declared one fails. No declaration, a provider failure, or an incomplete aligned window leaves the factor `unavailable` and the composite score `null`; the remaining two factors are **not** renormalised to 50/30. Choose per the plan's table: `QQQ` for NASDAQ-100 constituents, `SPY` for broad US equities, the matching sector ETF for sector plays, and the market/strategy benchmark for ETFs. The declaration travels into the frozen snapshot, so the disclosure is reproducible. See [momentum-model.md](momentum-model.md).
+- Fixed window: `(as-of − 60 days, as-of]`; report recent 30 days and days 31–60 separately.
+- `pit_status=published_at_only`: the collector keeps `published_at <= as-of`, but cannot reconstruct what was visible at that historical instant.
+- Each source has its own status: `ok`, `empty`, `not_configured`, `not_configured_for_ticker`, `not_applicable`, `rate_limited`, `error`; IR feeds add `partial_window` when the earliest item is later than the window start.
+- SEC filings use `acceptanceDateTime` (UTC) or `filingDate` as a date-only fallback. Form 4 and Form 144 are counted only, not sent to the AI.
+- Finnhub `related` is matched against the ticker and caller-supplied company aliases. The key travels only in `X-Finnhub-Token`.
+- Source tiers (`A_primary`, `B_media`, `C_aggregator`) and IR feeds live in [news-sources.json](news-sources.json), maintained by a person.
+- Yahoo Finance and The Economist are static reference links only; they are never requested or parsed.
 
-Each top-level market/news domain uses complete/partial/unavailable/failed, actual_source identifying the interface actually used, distinct source identity/time and fetched_at_utc, confirmed currency/unit/frequency, and data.bars/data.articles. Fallback metadata (`fallback_attempted`, `fallback_used`, `fallback_route`, `fallback_reason`) is retained through the collector and adapter. Market retains actual history_window, adjustment/evidence, `price_basis` (`split_adjusted`; dividends not reinvested), `policy_window` (decision, target, expected/observed/missing sessions, coverage status, dropped-outside count) and evidenced last_bar_closed/session_calendar. gateway_envelope retains sanitized provider-native results, library/version, parameters and transformations; raw HTTP provenance is claimed only when captured. Missing evidence stays unknown. In particular, history `source_timestamp_kind=bar_label_not_trade_time` is an index label, not a close/quote update; it may fail the existing 24h freshness/source_before_close gates even for a calendar-confirmed closed bar. Unconfirmed source `unit` remains null. Never replace these with fetched_at, an invented close time or currency-derived unit. Response-file generation is not proof of valid predictive input; actual audit must pass unchanged gates. A forecast under schema 1.3 requires `data.policy_window` with a resolved decision and complete session coverage; a supplied request window must equal the policy boundary or the collector returns `FIXED_WINDOW_CONFLICT`.
-
-Bars use exchange session dates with UTC timestamp/timezone preserved. Inclusive research end becomes next local day's exclusive provider end. Keep provider OHLC/Adj Close/actions and explicit adjusted ratios; do not fill absent bars or volume. Current metadata/empty actions do not prove complete calendar/action coverage. Compare matching session/currency/price basis only; old Yahoo direct access and yfinance are one source.
-
-Stream and Search news are independently mapped. Query symbol is not an article ticker tag; source publication time and explicit related-ticker evidence follow existing NewsInput rules. Updated time is not publication time; advertisements excluded, unverified type unknown, absent sentiment/relevance scores not invented. Short feeds disclose limited coverage, not historical PIT availability.
-
-Domain failures are independent: failed news does not erase valid bars; network failure is not successful empty data. Partial exposes gaps even with exit 0. Freeze gates and Quant → audit → News → synthesis unchanged; news unavailable becomes not_assessed, never neutral. Existing non-Yahoo normalization remains supported.
-
-## Receipt shape
+## Receipt shape (illustrative)
 
 ```json
 {
-  "request": {
-    "ticker": "NVDA",
-    "market": "US",
-    "horizon": "5D",
-    "asof": null,
-    "mode": "standard"
-  },
+  "request": {"ticker": "NVDA", "market": "US", "horizon": "60D", "intent": "news", "asof": null},
   "captured_at_utc": "2026-10-07T00:00:00Z",
   "domains": {
     "market": {
       "status": "complete",
-      "actual_source": "source actually used",
-      "source_timestamp": "source-provided market timestamp or null",
-      "fetched_at_utc": "gateway fetch time with timezone",
+      "actual_source": "Yahoo Finance",
+      "source_timestamp": "2026-10-06T20:00:00Z",
+      "fetched_at_utc": "2026-10-07T00:00:00Z",
       "currency": "USD",
-      "unit": "share and native volume units",
+      "unit": null,
       "adjustment": "provider",
       "price_basis": "split_adjusted",
-      "fallback_used": false,
-      "fallback_reason": null,
       "data": {
-        "history_window": {
-          "start": "2026-10-06",
-          "end": "2026-10-06",
-          "selection": "illustrative one-bar actual normalized window"
-        },
-        "bars": [
-          {"date": "2026-10-06", "open": 180.0, "high": 182.0, "low": 179.0, "close": 181.0, "volume": 1000000}
-        ]
-      },
-      "gateway_envelope": {"data_role": "redacted provider DATA; no action fields"}
+        "history_window": {"start": "2025-10-07", "end": "2026-10-06", "selection": "trailing 52 weeks"},
+        "bars": [{"date": "2026-10-06", "open": 180.0, "high": 182.0, "low": 179.0, "close": 181.0, "volume": 1000000}]
+      }
     },
     "fundamentals": {"status": "unavailable", "actual_source": null, "data": null},
-    "expectations": {"status": "unavailable", "actual_source": null, "data": null},
     "news": {
       "status": "complete",
-      "actual_source": "source actually used",
-      "fetched_at_utc": "gateway fetch time with timezone",
+      "actual_source": "news_collect.py",
+      "fetched_at_utc": "2026-10-07T00:00:00Z",
       "data": {"articles": [
-        {"article_id": "source id or null", "url": "source URL or null", "title": "source headline",
-         "summary": "source summary or null", "source": "publisher", "source_type": "news",
-         "record_type": "event", "published_at": "source timestamp with timezone",
-         "updated_at": "source update timestamp with timezone or null", "tickers": ["NVDA"],
-         "event_type": "GUIDANCE_RAISE", "event_strength": null, "relevance": null,
-         "magnitude": null, "novelty": null, "source_quality": null}
-      ], "source_sentiment": {"source": "provider", "period": "source-defined window",
-        "ticker": "NVDA", "available_at": null, "percent_scale": "fraction",
-        "sentiment_source": "source name", "sentiment_score": null,
-        "bullish_percent": null, "bearish_percent": null}}
-    },
-    "insider": {"status": "unavailable", "actual_source": null, "data": null},
-    "options": {"status": "unavailable", "actual_source": null, "data": null},
-    "short_volume": {"status": "unavailable", "actual_source": null, "data": null},
-    "sec": {"status": "unavailable", "actual_source": null, "data": null},
-    "macro": {"status": "unavailable", "actual_source": null, "data": null}
+        {"article_id": "sec_0000000000-26-000001", "url": "https://www.sec.gov/Archives/edgar/data/0/000000000026000001/0000000000-26-000001-index.htm",
+         "title": "8-K filing", "summary": null, "source": "SEC EDGAR", "source_type": "sec",
+         "record_type": "filing", "published_at": "2026-10-06T20:05:00Z", "tickers": ["NVDA"]}
+      ]}
+    }
   }
 }
 ```
 
-The example bar is illustrative, not market data. Do not copy its values into a report.
+Values are illustrative, not market data. Never copy example values into a report.
 
-## Adapter invocation
+## Analyze
 
-Save the standardized research request in `request.json`. Save the actual gateway responses in `gateway-responses.json`, keyed by data domain (`market`, `fundamentals`, etc.). Run:
-
-```text
-python stock-data/scripts/quant_research.py adapt --request request.json --responses gateway-responses.json --output collected.json
-```
-
-For the market response, first map provider-specific candles to `data.bars` using the gateway schema and the exchange's session dates. Retain the provider DATA in `gateway_envelope`; archiving removes credentials/action fields. The adapter will not infer Finnhub/Yahoo field mappings or synthesize timestamps.
-
-## Rules
-
-- `market.data.bars` is required, with strictly ascending unique daily observations and fields `date`, `open`, `high`, `low`, `close`, `volume`. A complete resolved exchange calendar must match every confirmed session; otherwise missing confirmed bars are fatal. With no complete calendar, use the observed rows in order and declare an estimated-observation horizon (do not invent holiday/session rows or claim calendar verification). Weekend observations and severe unexplained date gaps are fatal.
-- The default research window is the latest one year through the latest confirmed closed observation. If a provider returns a longer series, retain its complete envelope under `gateway_envelope` but put only the selected window in normalized `market.data.bars`. Record the actual start, end, and selection rule in `market.data.history_window`. Honor an explicit user-specified window.
-- Do not extend the selected window just to meet a path's sample threshold. That path must return `partial`/`insufficient_data` and a null path probability when its own evidence is too small; other valid paths may still supply an available degraded reportable estimate. A longer-window sensitivity run is a separate, clearly labeled analysis.
-- Record adjustment and company-action evidence separately. Unknown adjustment does not mean contaminated, but a forecast requires the declared split-adjusted basis; otherwise `PRICE_BASIS_UNVERIFIED` blocks the formal probability. Confirmed in-window corporate action plus unadjusted OHLCV is fatal. Unknown adjustment is not allowed to support total-return, dividend or long-horizon-return claims.
-- `session_calendar` is optional. If supplied, it must include source, timezone, `coverage_start`, `coverage_end`, and an ordered `sessions[]` list with date and timezone-aware `close_at`. A supplied calendar establishes a bar's closure only when it contains that bar's date; otherwise a same-as-of-date bar still requires `last_bar_closed: true`. Optional `latest_price_observations[]` contains independent `source`, `session_date`, `price`, `currency`, `kind: daily_close`, and `adjustment` or `price_basis` fields. Only same-session/same-currency closes with the same recognized OHLCV adjustment convention are compared; if both basis fields are supplied they must agree. Unknown or incompatible bases are retained but cannot verify or conflict with the normalized close. A >0.3% conflict among compatible closes is fatal, while matching independent closes can verify the latest close without an official calendar.
-- When the request omits `asof` and the collector recorded the as-of it actually used (`market.collection_provenance.asof`, as `yahoo_collect.py` does), the adapter freezes that value into the receipt request instead of letting the freeze step recompute an as-of at adapt time. A collection that was coherent at its own as-of — for example an intraday capture whose latest confirmed session is the prior day — must not be re-judged against a later adapt-time as-of and rejected as stale or latest-unresolved. An explicit request `asof` still wins, and the receipt's `captured_at_utc` remains the receipt-creation time; never replace either with a fetched/source timestamp.
-- Include corporate-action evidence as `adjustment_evidence` with source, `price_basis`, `checked_through`, and `actions[]` records (`date`, `type`). `action_coverage_confirmed: false` (or another present value other than boolean `true`) leaves action coverage unknown with a warning, even when `checked_through` covers the latest bar and the action list is empty. Legacy evidence without this optional flag retains the existing source/checked-through/actions coverage rule. Confirmed action records are still assessed independently of complete-coverage confirmation. Missing/unverified evidence remains `unavailable`; do not convert it into an assertion that there were no actions.
-- `mode: strict` does not make unknown adjustment/OOS/calibration a prediction blocker. Such deficiencies bound the claim and production eligibility; they do not silently change the probability.
-- Keep envelopes under `gateway_envelope`; credentials and externally proposed actions are removed before archiving. The freezer copies that redacted block to `raw/<domain>.json`.
-- Use `actual_source`, `source_timestamp`, `fetched_at_utc`, `currency`, `unit`, `fallback_used`, and `fallback_reason` only when the gateway supplied or confirmed them. Do not invent missing provenance.
-- Domain `status` must be `complete`, `partial`, `available`, `unavailable`, or `failed`.
-- For observations such as news, filings, analyst changes and financial facts, preserve `published_at`, `filed_at`, `period_start`, `period_end`, revision/vintage, units and currency when available.
-- Normalize news only into `news.data.articles[]`. Preserve source headline/summary, ID/URL, exact publication/update timestamps with timezone, publisher/source type, explicit record type (`event`, `report`, `news`, `opinion`, `analyst_opinion`, `social`, or `unknown`), tickers and any source-supplied score metadata. Use `unknown` when the source does not distinguish fact from opinion; the classifier will keep unsupported records unclassified. The example values are schema examples only.
-- Optional `news.data.source_sentiment` retains raw values without rescaling. Directional use requires recent as-of-valid availability and exact `ticker`. `percent_scale` is `fraction` (default 0..1) or `percent` (0..100); invalid values are excluded. Unknown target/time aggregates are background-only.
-- Optional article-level `sentiment_score` is a source-supplied signed value in `[-1,+1]`; retain it separately from the local opinion-text lexicon and never combine or rescale it without a documented source mapping.
-- Do not infer article timestamps from gateway fetch time, map undocumented provider fields, manufacture source-quality/relevance/novelty scores, or claim that a truncated source window is a complete archive. Keep the original response under `gateway_envelope`.
-- Articles lacking a timezone-aware `published_at`, published after the snapshot as-of, or updated after as-of are excluded from News analysis. `record_type` and `source_type` determine whether a record enters event analysis or opinion/sentiment analysis; preserve ambiguous values as `unknown`.
-- A point-in-time record without availability evidence may be retained for current descriptive context but cannot be used as a historical feature.
-- Do not combine data fetched at incompatible as-of times or mix currencies, bar frequencies, or adjustment conventions.
+`analyze --snapshot-dir <snapshot> --news-collected news_collected.json --news-verification news_verified.json --news-ai-assessment assessment.json` validates the assessment against collector candidate IDs, computes deterministic price reaction/volatility fields, and writes the descriptive summary. `news_result.json` and `analysis.json` remain frozen and digest-checked; `validate-response` must pass before delivery.
 
 ## Known news-field mappings
 
-Use these only when the named source/tool and schema are actually used; keep the full provider envelope:
-
-| Source response | Normalized News field | Rule |
+| Source response | Normalized field | Rule |
 |---|---|---|
-| Finnhub `get-news-pulse.top_headlines[]`: `headline`, `url`, `source`, `datetime_utc` | article `title`, `url`, `source`, `published_at` | Preserve the UTC timestamp; `count` and `delta_vs_prev_week` are source context, not event strength or duplicate article count. This tool returns headlines only: `summary` stays null and `record_type` defaults to `news`; opinion lexicons that depend on body text are correspondingly weakened and must be disclosed. |
-| Finnhub `get-news-pulse` query `symbol` | article `exposure_tickers: [SYMBOL]`, `exposure_basis: "provider_news_pulse_query_symbol"` | The feed returns no per-article ticker tag and headlines usually name the company, not the symbol, so the target-relevance gate would otherwise drop every record. Recording the tool's own query symbol as an *exposure* claim (never as a source `tickers` tag) keeps relevance honest and inspectable; it is disclosed in the report and keeps `ticker_relevance = documented_exposure`. Do not write it into `tickers`, which would claim the publisher tagged the instrument. |
-| Finnhub `get-news-pulse`: `sentiment_score`, `bullish_percent`, `bearish_percent`, `sentiment_source`, `period` | `data.source_sentiment` | Preserve raw values/period, target and available time. Directional use also requires the recent target-specific eligibility gate and declared percent scale. |
-Do not infer a sentiment aggregate for a source that returned headlines only. For any other provider, use its current documented schema; otherwise leave the field unavailable.
+| Finnhub company-news `headline` | article `title` | Preserve headline text; no body text is fetched |
+| Finnhub `url` | article `url` | Keep provider URL; never fetch forbidden domains |
+| Finnhub `source` | article `source` | Publisher name as supplied |
+| Finnhub `datetime` | article `published_at` | Unix seconds → UTC ISO |
+| Finnhub `related` | article `related` | Comma-separated provider tags; match ticker/aliases |
+| SEC `acceptanceDateTime` | article `published_at` | UTC; `filingDate` fallback is date-only |
+| SEC `items` | article `items` | 8-K item codes; titles from the human-maintained map |
+| IR RSS `pubDate` | article `published_at` | RFC 822 → UTC ISO |
 
-A headline-only feed cannot support body-level opinion scoring. Disclose that limit, keep the deterministic screen as the only automatic direction, and route the per-item bullish/bearish reading to the host AI lean artifact described in [news-analysis.md](news-analysis.md) — a headline count or a subjective reading must never stand in for a quantified sentiment score.
+A headline-only feed cannot support body-level analysis. The report must disclose title/summary-level judgement, and the AI assessment must not claim to have read the body.

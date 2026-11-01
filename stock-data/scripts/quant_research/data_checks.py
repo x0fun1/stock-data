@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import importlib.util
 import math
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -58,6 +59,13 @@ def calendar_sessions(block: dict[str, Any], market: str) -> list[dict[str, Any]
             raise ValueError("session_calendar dates/close timestamps must be ordered, unique and within coverage")
         previous = day
     return sessions
+
+
+def calendar_library_available() -> bool:
+    """Whether a supported exchange-calendar library can be imported."""
+
+    return (importlib.util.find_spec("exchange_calendars") is not None
+            or importlib.util.find_spec("pandas_market_calendars") is not None)
 
 
 def _library_calendar(market: str, start: str, end: str) -> dict[str, Any] | None:
@@ -356,6 +364,11 @@ def _resolve_session_axis(
             sessions = resolved["sessions"]
             calendar_status = "library_verified"
     if not sessions:
+        if calendar is None and allow_library_calendar and not calendar_library_available():
+            findings.degraded(
+                "CALENDAR_LIB_MISSING",
+                "no exchange-calendar library is installed; the session calendar and descriptive price-reaction windows cannot be calendar-verified",
+            )
         if calendar is None:
             findings.degraded("CALENDAR_OFFICIAL_MISSING", "no complete source-backed exchange calendar is available")
         findings.degraded("CALENDAR_FALLBACK_USED", "session horizon uses ordered OHLCV observations; calendar holidays and missing sessions are not independently verified")

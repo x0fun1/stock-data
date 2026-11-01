@@ -207,8 +207,7 @@ def build_summary(*, collected: dict[str, Any], verification: dict[str, Any],
             direct_rows.append(row)
         elif item.get("target_relevance") == "indirect":
             indirect_rows.append(row)
-    recent = [row for row in direct_rows
-              if recent_cutoff is not None and (row.get("published_at") or "") > recent_cutoff.isoformat()]
+    recent = [row for row in direct_rows if _is_recent(row.get("published_at"), recent_cutoff)]
     older = [row for row in direct_rows if row not in recent]
     recent_matrix = _matrix(recent)
     older_matrix = _matrix(older)
@@ -219,9 +218,7 @@ def build_summary(*, collected: dict[str, Any], verification: dict[str, Any],
     top: dict[str, list[dict[str, Any]]] = {}
     for lean in LEANS:
         rows = [row for row in direct_rows if row.get("lean") == lean]
-        rows.sort(key=lambda row: (rank.get(row.get("strength"), 3), row.get("published_at") or ""), reverse=False)
-        # Newest first within the same strength.
-        rows.sort(key=lambda row: (rank.get(row.get("strength"), 3), _negative_time(row)), reverse=False)
+        rows.sort(key=lambda row: (rank.get(row.get("strength"), 3), _negative_time(row)))
         top[lean] = rows[:3]
 
     counts = collected.get("counts") or {}
@@ -337,6 +334,16 @@ def build_summary(*, collected: dict[str, Any], verification: dict[str, Any],
         "reference_links": {"yahoo_finance_news": yahoo, "economist": economist},
         "lines": lines,
     }
+
+
+def _is_recent(value: Any, cutoff: datetime | None) -> bool:
+    if cutoff is None:
+        return False
+    try:
+        moment = datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return False
+    return moment > cutoff
 
 
 def _negative_time(row: dict[str, Any]) -> float:

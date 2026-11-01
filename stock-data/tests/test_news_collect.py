@@ -15,7 +15,7 @@ import news_collect as nc  # noqa: E402
 FIXTURES = ROOT / "fixtures"
 AS_OF = "2026-11-01T21:00:00Z"
 # Fixture-only tokens: never real credentials and never written to output.
-TEST_ENV = {"SEC_USER_AGENT": "stock-data-skill/4.0 (offline fixture)", "FINNHUB_API_KEY": "fixture-token"}
+TEST_ENV = {"SEC_USER_AGENT": "stock-data-skill/4.0 (offline-fixture@example.invalid)", "FINNHUB_API_KEY": "fixture-token"}
 
 
 def _body(name: str) -> str:

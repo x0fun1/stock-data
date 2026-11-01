@@ -107,6 +107,16 @@ def _validate_stages(result: dict[str, Any]) -> dict[str, Any]:
     return {"stage_count": len(stages), "order": [row["stage"] for row in stages]}
 
 
+def _is_recent(value: Any, cutoff: datetime | None) -> bool:
+    if cutoff is None:
+        return False
+    try:
+        moment = datetime.fromisoformat(str(value).replace("Z", "+00:00")).astimezone(timezone.utc)
+    except ValueError:
+        return False
+    return moment > cutoff
+
+
 def _validate_summary(summary: dict[str, Any]) -> None:
     """Recompute the descriptive matrix and enforce the fixed strength rules."""
     if not summary or summary.get("status") == "invalid":
@@ -123,7 +133,7 @@ def _validate_summary(summary: dict[str, Any]) -> None:
     except ValueError:
         cutoff = None
     for row in direct:
-        bucket = "recent_30_days" if cutoff and str(row.get("published_at") or "") > cutoff.isoformat() else "days_31_60"
+        bucket = "recent_30_days" if _is_recent(row.get("published_at"), cutoff) else "days_31_60"
         lean = row.get("lean") if row.get("lean") in expected[bucket] else "unclear"
         strength = row.get("strength") if row.get("strength") in {"strong", "medium", "weak"} else "weak"
         expected[bucket][lean][strength] += 1
@@ -132,7 +142,7 @@ def _validate_summary(summary: dict[str, Any]) -> None:
                 raise ValueError("Final audit rejected: a post_hoc item cannot be rated strong")
             if str(row.get("source_tier") or "") != "A_primary" and str(row.get("verification_status") or "") not in {"primary_confirmed", "multi_source"}:
                 raise ValueError("Final audit rejected: a strong item needs primary/multi-source evidence")
-            if not any(str(row.get("url") or "") for _ in [0]):
+            if not row.get("url"):
                 raise ValueError("Final audit rejected: a strong item needs an original URL")
     if matrices != expected:
         raise ValueError("Final audit rejected: summary matrix does not match the direct items")
@@ -148,11 +158,13 @@ def require_ai_news_coverage(news: dict[str, Any], summary: dict[str, Any] | Non
         status = coverage.get("status")
         if status == "invalid":
             raise ValueError("Final audit rejected: host AI assessment is invalid")
-        if status in {"assessed", "partial"}:
+        if status == "assessed":
             assessed = int(coverage.get("assessed_count") or 0)
             direct = int(coverage.get("direct_count") or 0)
-            if status == "assessed" and assessed < direct:
+            if assessed < direct:
                 raise ValueError("Final audit rejected: AI review does not cover every direct candidate")
+        elif status == "partial":
+            raise ValueError("Final audit rejected: AI review is incomplete; every direct candidate needs a judgement")
         return
     _require_ai_news_coverage_legacy(news)
 

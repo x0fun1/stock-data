@@ -982,6 +982,50 @@ def check_news_summary_fixtures() -> None:
         raise AssertionError(stream.getvalue()[-1200:])
 
 
+def check_yahoo_collect_metadata() -> None:
+    """FIX-16: GOOGL/QQQ currency evidence, missing unit not ineligible, CALENDAR_LIB_MISSING."""
+    import unittest
+
+    tests_dir = str(SCRIPTS.parent / "tests")
+    if tests_dir not in sys.path:
+        sys.path.insert(0, tests_dir)
+    import test_yahoo_collect  # noqa: PLC0415 - fixture suite lives next to the package
+
+    suite = unittest.defaultTestLoader.loadTestsFromModule(test_yahoo_collect)
+    stream = io.StringIO()
+    outcome = unittest.TextTestRunner(stream=stream, verbosity=0).run(suite)
+    if not outcome.wasSuccessful():
+        raise AssertionError(stream.getvalue()[-1200:])
+
+
+def check_docs_convergence() -> None:
+    """FIX-16: entry docs route to the four task classes and contain no dead links."""
+    root = SCRIPTS.parent
+    skill = (root / "SKILL.md").read_text(encoding="utf-8")
+    lowered = skill.casefold()
+    for forbidden in ("duck" + "duckgo", "bai" + "du", "ji" + "na", "news" + "now", "ak" + "share",
+                      "yahoo " + "rss", "economist " + "rss"):
+        if forbidden in lowered:
+            raise AssertionError(f"SKILL.md still routes to {forbidden}")
+    for path in ("references/news-analysis.md", "references/news-impact-rubric.md",
+                 "references/source-policies.md", "references/collection-adapter.md",
+                 "references/snapshot-schema.md", "references/upstream-provenance.md"):
+        if not (root / path).is_file():
+            raise AssertionError(f"missing converged doc: {path}")
+    docs = "\n".join([(root / "SKILL.md").read_text(encoding="utf-8"),
+                       (root.parent / "README.md").read_text(encoding="utf-8"),
+                       (root / "references" / "collection-adapter.md").read_text(encoding="utf-8")])
+    for dead in ("probability-policy.md", "quant-paths.md", "reliability-gates.md",
+                 "forward-ledger.md", "consensus-protocol.md", "momentum-model.md"):
+        if dead in docs:
+            raise AssertionError(f"dead reference remains: {dead}")
+    for source in ("SEC EDGAR", "IR RSS", "Finnhub", "TinyFish"):
+        if source not in (root / "references" / "source-policies.md").read_text(encoding="utf-8"):
+            raise AssertionError(f"source-policies.md is missing {source}")
+    if re.search(r"(?<![\w/])python \S+stock-data/", skill):
+        raise AssertionError("SKILL.md command examples must use python3")
+
+
 def check_t43_registry_accounts_for_every_check() -> None:
     """No check function may exist without being registered or explicitly retired."""
     defined = {name for name, value in globals().items() if name.startswith("check_") and callable(value)}
@@ -1053,6 +1097,8 @@ CHECKS = [
     ("FIX13 news collector fixtures", check_news_collect_fixtures),
     ("FIX14 news verification fixtures", check_news_verify_fixtures),
     ("FIX15 news summary fixtures", check_news_summary_fixtures),
+    ("FIX16 yahoo collection metadata", check_yahoo_collect_metadata),
+    ("FIX16 docs convergence", check_docs_convergence),
     ("T43 registry accounts for every check", check_t43_registry_accounts_for_every_check),
     ("T44 documented versions match the runtime", check_t44_documented_versions_match_the_runtime),
     ("T49 news coverage is disclosed", check_t49_news_coverage_is_disclosed),

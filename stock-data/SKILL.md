@@ -17,16 +17,16 @@ metadata: {version: "4.0.0", runtime: "4.0.0"}
 | 报价、历史价格、股票/ETF 资料 | 最小查询；[analysis-paths.md](references/analysis-paths.md) |
 | 基本面、财报、估值、历史走势、指定技术指标 | 描述性分析；不得转成未来方向结论 |
 | 新闻、情绪、评级、日历、内部人、期权、资金流、SEC、宏观 | 专项查询；事件事实、观点与推断分开 |
-| 筛选、多标的比较 | 每个标的分别执行新闻流程，不把单标的结论当横截面模型 |
+| 专项查询（筛选、内部人、期权、资金流、SEC、宏观、多标的比较） | 每个标的分别执行新闻流程；事件事实、观点与推断分开 |
 
 ### 最小阅读集与权威来源
 
 | 任务 | 必须读取 | 按需读取 |
 |---|---|---|
 | 报价/历史/资料 | `references/analysis-paths.md` | `references/source-policies.md` |
-| 新闻/事件/情绪 | `references/news-analysis.md`、`references/news-impact-rubric.md`、`references/source-policies.md` | `references/collection-adapter.md`、`references/point-in-time-policy.md` |
-| 采集与审计 | `references/collection-adapter.md`、`references/audit-protocol.md` | `references/snapshot-schema.md` |
-| Finnhub 工具调用 | `references/finnhub-mcp-1.21.3-schema.md` 中所需函数 | 仅在能力未知时浏览完整 schema |
+| 基本面/财报/估值 | `references/analysis-paths.md` | `references/yfinance-data.md`、`references/point-in-time-policy.md` |
+| 新闻/事件/情绪 | `references/news-analysis.md`、`references/news-impact-rubric.md`、`references/source-policies.md` | `references/collection-adapter.md`、`references/snapshot-schema.md` |
+| 专项查询（筛选、内部人、期权、资金流、SEC、宏观） | `references/collection-adapter.md`、`references/audit-protocol.md` | `references/finnhub-mcp-1.21.3-schema.md` 中所需函数 |
 
 `SKILL.md` 负责路由和顺序；`news-analysis.md`、`news-impact-rubric.md`、`collection-adapter.md` 分别是新闻流程、影响分级和采集契约的权威规则。
 
@@ -53,13 +53,14 @@ metadata: {version: "4.0.0", runtime: "4.0.0"}
 
 ```text
 python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
-python3 stock-data/scripts/news_collect.py --ticker GOOGL --as-of 2026-11-01T21:00:00Z --output news_candidates.json
-python3 stock-data/scripts/news_verify.py --candidates news_candidates.json --output news_verified.json
+python3 stock-data/scripts/yahoo_collect.py --request request.json --output gateway-responses.json --cache-dir runtime/yfinance-cache
 python3 stock-data/scripts/quant_research.py adapt --request request.json --responses gateway-responses.json --output collected.json
 python3 stock-data/scripts/quant_research.py freeze --input collected.json --output-root runtime/snapshots
-python3 stock-data/scripts/quant_research.py news-candidates --snapshot-dir <实际返回的 snapshot_dir> --output news_candidates.json
-# 宿主 AI 逐条填写 news_ai_assessment.json；与候选文件同 ticker、as-of、news_id
-python3 stock-data/scripts/quant_research.py analyze --snapshot-dir <同一 snapshot_dir> --news-ai-assessment news_ai_assessment.json --output-root runtime/research
+python3 stock-data/scripts/news_collect.py --ticker GOOGL --as-of 2026-11-01T21:00:00Z --output news_collected.json
+python3 stock-data/scripts/news_verify.py --candidates news_collected.json --output news_verified.json
+python3 stock-data/scripts/quant_research.py news-candidates --snapshot-dir <实际返回的 snapshot_dir> --collected news_collected.json --verification news_verified.json --output news_candidates.json
+# 宿主 AI 逐条填写 news_ai_assessment.json；与候选文件同 ticker、as-of、news_id，并给出 lean/reason/strength
+python3 stock-data/scripts/quant_research.py analyze --snapshot-dir <同一 snapshot_dir> --news-collected news_collected.json --news-verification news_verified.json --news-ai-assessment news_ai_assessment.json --output-root runtime/research
 python3 stock-data/scripts/quant_research.py validate-response --analysis-dir <实际返回的 report_dir> --response-file <待发送的完整回复.md>
 ```
 

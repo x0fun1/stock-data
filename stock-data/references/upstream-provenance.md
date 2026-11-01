@@ -1,23 +1,32 @@
 # Upstream Provenance
 
-The gateway retains its historical source integration; the A–E and News modules implement local adaptations of architecture/protocol ideas without loading upstream Skills, invoking their scripts, vendoring their source, or copying factor implementations. License observations below are historical records, not a new remote verification or a repository-wide license grant.
+The gateway retains its historical source integrations. This v4 runtime is news-focused: the former prediction paths (A–E), factor/ML researchers and forward ledger were removed. License observations below are historical records, not a new remote verification or a repository-wide license grant.
 
 ## Historical gateway sources
 
 - **Finnhub stock analysis 0.1.0**: archived Skill metadata named the authors as `xo, Hermes Agent` and declared `license: MIT`. No complete license text accompanied that archive; the declaration is retained here without claiming independent verification. Finnhub MCP connectivity remains supplied by the host.
 - **global-stock-data 2.0.3** (archived filename/version label): [simonlin1212/global-stock-data](https://github.com/simonlin1212/global-stock-data), author Simon 林. The historical archive included gateway source; its repository-level reuse license was not established. Removing that archive does not remove applicable attribution or license obligations.
+- **Gateway**: [x0fun1/stock-data](https://github.com/x0fun1/stock-data). Local source-routing/schema references, gateway functions and offline tests; retains the existing Yahoo/Finnhub/global routes. Repository-level reuse license was not established in that review; this is an update within this repository.
 
-## Research and News adaptations
+## News sources (v4)
 
-| Role | Repository | Reviewed material / adaptation | Recorded license and runtime boundary |
-|---|---|---|---|
-| Gateway | [x0fun1/stock-data](https://github.com/x0fun1/stock-data) | Local source-routing/schema references, gateway functions and offline tests; retains existing Finnhub/global routes | Repository-level reuse license was not established in that review; this is an update within this repository |
-| A | [quantskills/skill-quant-research](https://github.com/quantskills/skill-quant-research) | Skill, data/statistics/risk references and validation script; hypothesis-first PIT/OOS baselines | GPL-3.0-only; locally specified fixed-momentum frequency path, no upstream code copied |
-| B | [quantskills/skill-quant-factor-skill-factory](https://github.com/quantskills/skill-quant-factor-skill-factory) | Skill, acceptance checklist and generator; factor contracts, coverage/IC/redundancy | GPL-3.0-only; local OHLCV factors, not the upstream generator |
-| C | [quantskills/skill-ml-purged-cv](https://github.com/quantskills/skill-ml-purged-cv) | Skill/public API/license; closed interval purge, embargo and fold-local transforms | MIT; local logistic baseline, not imported package or boosted-model suite; the local validation was later replaced by a production-consistent non-overlapping replay, so upstream purge/embargo code is retained only as a helper and is not the production path; some upstream references/source/tests were unavailable during review |
-| D | [quantskills/skill-factor-backtest](https://github.com/quantskills/skill-factor-backtest) | Skill, README, backtest contract; IC, forward windows and training-only quantile boundaries | GPL-3.0-only; `researchers/factor_backtest.py` is single-security time-series diagnostics. No upstream cross-sectional portfolio/benchmark/tradable matrix engine is invoked |
-| E | [quantskills/skill-backtesting-bias-avoidance](https://github.com/quantskills/skill-backtesting-bias-avoidance) | Skill, backtest guide and license; look-ahead, overfitting, costs and survivorship taxonomy | GPL-3.0-only; `audit.py` checks local declarations/results and vetoes. Full strategy trials, PBO/DSR, transaction-cost and PIT-universe calculations are not implemented |
-| News | [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents), [quantskills/skill-news-sentiment-analyst](https://github.com/quantskills/skill-news-sentiment-analyst) | Separate news/opinion contracts, event deduplication, PIT and frozen price association | Apache-2.0 identified in repository declarations; local deterministic screen, no copied source/prompts/text. The News Skill's standalone license file was unavailable during review |
-| News impact rubric | [tradermonty/claude-trading-skills](https://github.com/tradermonty/claude-trading-skills) (`skills/market-news-analyst`) | Impact-magnitude bands, breadth taxonomy, pattern comparison, source tiers and attribution pitfalls | MIT (Copyright (c) 2026 TraderMonty); taxonomy only, reimplemented deterministically in `news/impact.py`. The composite Impact Score, cross-asset reaction analysis, WebSearch/WebFetch collection and English-only reporting were deliberately not adopted — see [news-impact-rubric.md](news-impact-rubric.md). No upstream source, prompt or text was copied |
+| Source | What is used | Terms / limits |
+|---|---|---|
+| SEC EDGAR `data.sec.gov` / `www.sec.gov` | `company_tickers.json` and `submissions/CIK##########.json`; filings metadata only, no document body | No API key; requires a User-Agent with contact details; official limit 10 requests/second, this package uses ≤2/second. US issuers only. |
+| Company IR RSS | Publisher press-release feeds registered in [news-sources.json](news-sources.json) | Feed use follows each publisher's robots.txt and `Crawl-delay` (currently 10 s). Feeds are capped and may not cover 60 days; `partial_window` is disclosed. New feeds require a person to verify robots and a 200 response. |
+| Finnhub REST | `GET /api/v1/company-news` headlines, source, URL, summary, `related`, Unix timestamp | Free tier is for personal use only and must not be redistributed. Quota and history depth follow the official page; 429 is reported as `rate_limited` without retry. Key is passed only in `X-Finnhub-Token`. |
+| TinyFish Search | `GET https://api.search.tinyfish.ai` ranked news results (title, URL, date, publisher) | Free daily allowance; per-minute rate limit; snippets are not stored. |
+| TinyFish Fetch | `POST https://api.fetch.tinyfish.ai` up to 3 whitelisted URLs per candidate | Free daily URL allowance; Fetch text is discarded at runtime and never written to an artifact. Its content-storage/AI-processing terms were not verified. |
+| Yahoo Finance / The Economist | Static reader links only | The program never requests, parses or stores their pages or feeds. |
 
-Historical source archives and review reports are not part of this runtime package. Providing more inputs does not turn the local D/E modules into the full upstream engines. Report unsupported checks as not assessed; see [quant-paths.md](quant-paths.md).
+## Removed prediction components
+
+The 52-week/5-session probability estimator, factor and ML shadow paths, factor backtest diagnostic, forward ledger, consensus/direction-claim layer and their self-check fixtures were deleted in v4. No direction probability, composite score or trading signal is produced. Market OHLCV and descriptive price-reaction statistics remain.
+
+## News impact taxonomy
+
+The deterministic impact-magnitude taxonomy and source-tier ideas were adapted from the MIT-licensed `market-news-analyst` skill (<https://github.com/tradermonty/claude-trading-skills>, Copyright (c) 2026 TraderMonty). Only the deterministic, frozen-bar computable parts were reused; the composite Impact Score, cross-asset reaction analysis and web-search collection were deliberately not adopted. No upstream source, prompt or text was copied.
+
+`strength_v1` event tables, the `minimum_direct_items=5` threshold and source tiers are human-maintained conventions, not statistical estimates. They are recorded in [news-sources.json](news-sources.json) and [news-impact-rubric.md](news-impact-rubric.md).
+
+Historical source archives and review reports are not part of this runtime package. Providing more inputs does not turn local code into a full upstream engine. Report unsupported checks as not assessed.
