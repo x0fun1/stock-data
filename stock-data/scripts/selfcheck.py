@@ -3998,6 +3998,50 @@ def check_t48_cross_validation_relations() -> None:
         raise AssertionError("cross-validation must attest the probability is unchanged")
 
 
+def check_t49_news_coverage_is_disclosed() -> None:
+    """FIX-03: a seven-day sample must disclose its real span, not 90 days."""
+    from quant_research.delivery import validate_response_text
+    from quant_research.news import analyze_news
+    from quant_research.report import render_final_response, required_response_lines
+
+    bars = synth_bars(60, seed=7)
+    last = dt.date.fromisoformat(bars[-1]["date"])
+    first = last - dt.timedelta(days=6)
+    articles = [{
+        "article_id": "short-1", "title": "MU raises guidance on strong demand",
+        "url": "https://example.com/short-1", "source": "Reuters", "source_type": "news",
+        "record_type": "news", "published_at": f"{first.isoformat()}T13:00:00Z",
+        "tickers": ["MU"], "summary": None,
+    }, {
+        "article_id": "short-2", "title": "MU misses estimates as demand weak",
+        "url": "https://example.com/short-2", "source": "Bloomberg", "source_type": "news",
+        "record_type": "news", "published_at": f"{last.isoformat()}T13:00:00Z",
+        "tickers": ["MU"], "summary": None,
+    }]
+    news = analyze_news(_news_input(bars, articles))
+    coverage = news["coverage"]
+    if coverage.get("observed_publication_span_days") != 7 or coverage.get("coverage_short") is not True:
+        raise AssertionError(f"a seven-calendar-day sample must be disclosed as short: {coverage}")
+    if not any("NEWS_COVERAGE_SHORT" in warning for warning in news.get("warnings") or []):
+        raise AssertionError("short coverage must emit NEWS_COVERAGE_SHORT")
+    if news.get("status") != "partial":
+        raise AssertionError(f"short coverage must degrade to partial: {news.get('status')}")
+
+    result = _fake_delivery_result("complete")
+    result["news_result"] = news
+    line = required_response_lines(result)["news"]
+    if first.isoformat() not in line or last.isoformat() not in line or "（7 天" not in line:
+        raise AssertionError(f"the news line must carry the actual observed span: {line}")
+    text = render_final_response(result)
+    validate_response_text(result, text)
+    try:
+        validate_response_text(result, text + "\n新闻：已采集（90天已覆盖）\n")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("claiming a 90-day covered window must fail validation")
+
+
 RETIRED_CHECKS: dict[str, str] = {
     "check_f02_causal_calibration_fields": "tests the removed per-origin Platt calibration fields",
     "check_f02_audit_accepts_and_rejects": "imports the removed _audit_oos_path helper",
@@ -4090,6 +4134,7 @@ CHECKS = [
     ("T45 compact profile and single viability block", check_t45_compact_profile_and_single_economic_viability),
     ("T47 direction claim abstain", check_t47_direction_claim_abstain),
     ("T48 cross-validation relations", check_t48_cross_validation_relations),
+    ("T49 news coverage is disclosed", check_t49_news_coverage_is_disclosed),
     ("F01 current probability is not clobbered", check_f01_current_probability_not_clobbered),
     ("F02 prefix invariance under truncation", check_f02_prefix_invariance),
     ("F39 forward ledger", check_f39_forward_ledger),

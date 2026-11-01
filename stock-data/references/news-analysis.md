@@ -78,6 +78,13 @@ The News result has exactly three states and they are not interchangeable:
 count is part of the line so a reader can distinguish a clean run from one that
 dropped twenty records.
 
+The delivery line always discloses the observed publication span:
+`新闻覆盖：观测首末 YYYY-MM-DD～YYYY-MM-DD（D 天；策略证据窗 90 天）`. When the
+inclusive calendar span is below 14 days, the News stage emits
+`NEWS_COVERAGE_SHORT`, moves to `partial`, and the line appends the short-coverage
+code. A seven-day sample must never be described as a covered 90-day window; the
+delivery validator rejects "90天已覆盖" / "已覆盖90天".
+
 Two non-directional outputs are allowed and must never enter the probability:
 
 - `expected_volatility_regime` (`elevated` / `normal`): the forecast window

@@ -41,6 +41,26 @@ from .reaction import validate_reaction
 from .status import EVIDENCE_AFFECTING, warning_details, warning_severity_counts
 from .timing import aggregate_priced_in, event_time_bucket, priced_in_assessment
 
+#: Below this observed publication span the News coverage is disclosed as short.
+NEWS_COVERAGE_SHORT_DAYS = 14
+
+
+def _coverage_span(articles: list[dict[str, Any]]) -> tuple[str | None, str | None, int | None]:
+    """Observed publication first/last date and inclusive calendar-day span."""
+
+    dates: list[str] = []
+    for row in articles:
+        published = str(row.get("published_at") or "")[:10]
+        try:
+            datetime.fromisoformat(published)
+        except ValueError:
+            continue
+        dates.append(published)
+    if not dates:
+        return None, None, None
+    start, end = min(dates), max(dates)
+    return start, end, (datetime.fromisoformat(end) - datetime.fromisoformat(start)).days + 1
+
 
 def _rounded(value: float | None) -> float | None:
     return round(value, 6) if value is not None and math.isfinite(value) else None
@@ -454,6 +474,15 @@ def analyze_news(
     if unclassified_clusters:
         warnings.append(f"{len(unclassified_clusters)} records could not be classified as a factual event or explicit opinion and were left unclassified")
 
+    observed_start, observed_end, observed_span = _coverage_span(articles)
+    coverage_short = bool(observed_span is not None and observed_span < NEWS_COVERAGE_SHORT_DAYS)
+    if coverage_short:
+        warnings.append(
+            f"NEWS_COVERAGE_SHORT: observed publication span {observed_start}~{observed_end} "
+            f"is {observed_span} calendar day(s), below the {NEWS_COVERAGE_SHORT_DAYS}-day disclosure floor; "
+            "the 90-day policy evidence window is not covered"
+        )
+
     bars = [dict(row) for row in news_input.bars]
     # Snapshot validation accepts numeric strings; preserve one close per date.
     frozen_closes = [float(row["close"]) for row in bars]
@@ -607,8 +636,12 @@ def analyze_news(
             "eligible_event_count": len(events), "eligible_opinion_count": len(opinions),
             "excluded_evidence_count": len(excluded_evidence) + int((news_input.coverage.get("excluded_at_normalization") or {}).get("over_analysis_cap", 0)),
             "retrieved_window": news_input.coverage.get("retrieved_window"),
-            "observed_publication_start": min((item["published_at"] for item in articles), default=None),
-            "observed_publication_end": max((item["published_at"] for item in articles), default=None),
+            "observed_publication_start": observed_start,
+            "observed_publication_end": observed_end,
+            "observed_publication_span_days": observed_span,
+            "coverage_short_threshold_days": NEWS_COVERAGE_SHORT_DAYS,
+            "coverage_short": coverage_short,
+            "coverage_short_code": "NEWS_COVERAGE_SHORT" if coverage_short else None,
             "evidence_max_age_calendar_days": age_limit,
         },
         "overall_direction": overall_direction,

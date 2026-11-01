@@ -163,7 +163,20 @@ def _news_line(result: dict[str, Any]) -> str:
     else:
         judgement = f"AI逐条未评估，候选{coverage.get('candidate_count', 0)}条"
     regime = str((news.get("expected_volatility_regime") or {}).get("regime") or "unknown")
-    return f"新闻：已采集（{state}；{warnings} 条警告；{judgement}；波动状态 {regime}）"
+    coverage_block = news.get("coverage") or {}
+    start = str(coverage_block.get("observed_publication_start") or "")[:10]
+    end = str(coverage_block.get("observed_publication_end") or "")[:10]
+    span = coverage_block.get("observed_publication_span_days")
+    window_days = coverage_block.get("evidence_max_age_calendar_days") or 90
+    if start and end and isinstance(span, int):
+        coverage_text = (
+            f"新闻覆盖：观测首末 {start}～{end}（{span} 天；策略证据窗 {window_days} 天）"
+        )
+    else:
+        coverage_text = "新闻覆盖：观测首末日期不可用（策略证据窗 90 天）"
+    if coverage_block.get("coverage_short"):
+        coverage_text += "；短覆盖 NEWS_COVERAGE_SHORT"
+    return f"新闻：已采集（{state}；{warnings} 条警告；{judgement}；波动状态 {regime}；{coverage_text}）"
 
 
 def _news_link(item: dict[str, Any]) -> str:

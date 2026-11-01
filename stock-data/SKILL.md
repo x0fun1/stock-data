@@ -97,7 +97,7 @@ python stock-data/scripts/quant_research.py validate-response --analysis-dir <�
 生产路径：A；B/C为影子研究，D为描述性诊断
 验证：前缀回放N条（其中非重叠K条；有效样本≈E）；真实前向M条；覆盖率X%
 相对因果基率技能：数值；区间：[…]；Brier 模型… vs 基率… vs 常数0.5…；AUC …；有效样本≈E
-新闻：已采集（complete/partial；N 条警告；AI逐条已完成，覆盖A/B；直接相关利多X条、利空Y条、中性Z条、混合M条、不明U条；波动状态…） | 未提供
+新闻：已采集（complete/partial；N 条警告；AI逐条已完成，覆盖A/B；直接相关利多X条、利空Y条、中性Z条、混合M条、不明U条；波动状态…；新闻覆盖：观测首末YYYY-MM-DD～YYYY-MM-DD（D 天；策略证据窗 90 天）[；短覆盖 NEWS_COVERAGE_SHORT]） | 未提供
 综合：Quant=LEAN；News直接利多X条/利空Y条；关系=一致/冲突/新闻未评估/…；说明：…；禁止将两者平均为单一上涨概率
 ```
 
