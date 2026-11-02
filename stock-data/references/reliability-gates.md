@@ -1,86 +1,34 @@
 # Reliability Gates
 
-The gate answers separate questions. No single 0–100 score is published.
+The gates answer separate questions. No single numerical confidence score is published.
 
-| Flag | Positive condition | Failure action |
+| Dimension | Meaning | Failure action |
 |---|---|---|
-| `computable` | A returned a probability or a reasoned abstention | report `上涨概率：不可用` with the reason |
-| `current_prediction_integrity_pass` | current probability replays exactly from frozen bars and fixed parameters | veto the probability |
-| `oos_integrity_pass` | every non-abstained replay row replays exactly; every label matured by its origin | veto the probability |
-| `production_probability_eligible` | policy version, complete 52-week coverage, verified exchange calendar, **resolved 5th-session target**, split-adjusted basis, current integrity, replay integrity, ≥12 **effective** replay samples | `prob_up = null`; no formal probability |
-| `directional_edge_supported` | ≥30 matured replay decisions and the paired-improvement interval excludes zero on the positive side (primary block ≥ horizon+1) | `false`; no edge claim |
-| `directional_edge_state` | `positive…` / `negative…` / `insufficient_evidence` | the delivered line must say 已支持 / 无（劣于纯基率）/ 证据不足 |
-| `trading_signal_eligible` | never in this version | always `false` |
-
-The 12-match ROC20 floor is **not** an eligibility condition: the matching hit
-rate carries no probability weight in v2 and is disclosed as context only.
-
-`direction_claim_status` is the separate direction-conclusion gate:
-`unavailable`, `abstain_negative_skill`, `abstain_insufficient_edge`,
-`claimable_replay_only`, `claimable_independent`. Only the two `claimable_*`
-values permit a directional sentence; every other value forces an explicit
-`abstain` line while leaving the diagnostic probability visible.
+| Collection | Queries and pagination completed, partially completed, failed or unavailable | Preserve errors and usable evidence; never turn an API failure into successful zero news |
+| Window coverage | Configured sources/intervals have supported completion receipts | Mark `partial`/`unknown`; disclose gaps, not just article span |
+| Evidence | Source, text, time, target association and version support the claim | Keep unconfirmed context but exclude unsupported major drivers |
+| Assessment | Host output matches the frozen run and cites admitted evidence | Preserve collection, reject invalid output and leave analysis incomplete |
+| Delivery | Actual outgoing text matches the validated report | Reject altered/missing facts, citations and status disclosures |
 
 ## Stage contract
 
-`cross-validation` is a real stage: it emits a deterministic `relation`
-(`aligned|conflicting|mixed_news|news_unclear|news_not_assessed|news_partial|
-quant_unavailable|both_unavailable`) and never changes `prob_up`. `risk` is a
-completed disclosure stage, not `not_assessed`: `risk_block` is assembled from
-vetoes/warnings, coverage gaps, replay and directional-edge state, News coverage,
-PIT status, the dividend label bias and unmodelled execution costs. Its
-`probability_effect` is `none`.
-
-The matching-sample block is named `matching_sample_disclosure` and states
-`tradability_assessment=not_assessed_not_a_trade_signal` with
-`net_expected_return_published=false`; the retired `economic_viability` name must
-not reappear in consensus, synthesis or report text.
+`collect → prepare → analyze → report → validate-report` is the current news-first route. Quotes and OHLCV are not required. Analysis is offline after preparation; sources and scope changes require new frozen evidence. The source registry is a capability declaration, not proof of account access or current coverage.
 
 ## Data gates
 
-`INSUFFICIENT_HISTORY_COVERAGE`, `PRICE_BASIS_UNVERIFIED`,
-`FIXED_WINDOW_CONFLICT`, `OHLCV_OUT_OF_WINDOW`, `DECISION_SESSION_UNRESOLVED` and
-`TARGET_SESSION_UNRESOLVED` prevent a formal probability. `CALENDAR_UNVERIFIED`
-permits diagnostics only. A calendar fallback based on observed bars is not a
-verified session axis and cannot certify the 5th-session target: publishing a
-probability against an undetermined close is vetoed rather than disclosed.
+The request has a timezone-aware cutoff and 30–60-day window (default 60). Source text published after the cutoff, unavailable historical revisions, unsafe URLs, unsupported identities and missing permissions cannot enter conclusions. Failed, partial and empty source responses remain distinct.
 
-Structural violations are rejected at freeze time. A blocked snapshot may still
-exist for diagnosis, but it cannot publish a probability.
+A short feed is partial even if every returned article is valid. A sparse feed can be complete for its configured queries when interval and pagination receipts establish that fact. Under 30 days must explicitly state the target was not reached.
 
 ## Evidence gates
 
-- `OOS_SUPPORT_INSUFFICIENT`: fewer than 12 effective replay samples
-  (`valid rows / 5`). This replaced the phase-sampled 12-row count; the phase is
-  a computation throttle and never gates eligibility.
-- `NO_VALID_OOS_PROBABILITY`: no non-abstained replay probability.
-- `OOS_INTEGRITY_FAILED`: at least one row failed transform/sample/label replay.
-- `REPLAY_SUPPORT_INSUFFICIENT`: fewer than 30 matured decisions, so the interval
-  cannot be estimated.
-- `PROSPECTIVE_SUPPORT_INSUFFICIENT`: fewer than 30 prospective records. This is
-  a corroboration warning, not the only admissible evidence; the forward floor's
-  power curve is published with every run.
-- `INTERVAL_CROSSES_ZERO` / `INTERVAL_UNESTIMABLE` / `INTERVAL_BELOW_ZERO`: the
-  relative-skill claim is not supported, or is supported in the negative
-  direction (the model is worse than the base rate and the report says so).
-
-These bound claim language, not the arithmetic. A computable probability can be
-reportable while the edge is unsupported; it must never be presented as a
-supported direction.
-
-## Failure-mode column
-
-Every reason code carries `failure_mode ∈ {correctness, accounting, data,
-reporting, presentation}`. Session-phase bookkeeping is `accounting`; a wrong
-probability is `correctness`. Two findings in different modes must not share a
-priority tier just because both are labelled P0.
+- Event direction requires sufficient evidence; `neutral` does not mean missing data.
+- Major drivers require substantive text, target linkage and no invalidating update; headline-only material stays unconfirmed.
+- Macro/industry and ETF impact require dated actual exposure evidence.
+- Selection uses only admitted major bullish/bearish events, prioritizes 7 days then 30 days, and permits null rather than forced ranking.
+- The same admitted set supports event direction, dominant reasons and selection. The host cannot revive excluded records.
+- Partial coverage or unassessed events constrain synthesis status even when a limited judgment is possible.
 
 ## Claim boundaries
 
-- Gross close-to-close returns; execution, spread, slippage, fees and market
-  impact are not modelled.
-- The 5D target excludes cash dividends; the one-sided label bias is disclosed,
-  not corrected.
-- Provider history is download-time revised, not point-in-time certified.
-- No PBO, DSR, cross-sectional portfolio backtest or survivorship audit.
-- News is independent evidence and never a re-scoring input.
+Disclose missing text, source/account failures, revision precision, inconsistent financial periods/currencies, unconfirmed exposures and analysis omissions. No model-invented sources, dates or numbers may appear. Lint/schema success is not real-world data acceptance; report untested access honestly. See [audit-protocol.md](audit-protocol.md) and [news-first-workflow.md](news-first-workflow.md).

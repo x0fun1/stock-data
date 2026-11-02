@@ -63,22 +63,9 @@ def _has_data(value):
 
 def _safe(value):
     """Sanitize archives without preserving credentials, URLs with query tokens."""
+    from news_research.common.security import sanitize_data
     from yfinance_normalize import json_safe
-    value = json_safe(value)
-    def clean(v):
-        if isinstance(v, dict):
-            return {k: clean(x) for k, x in v.items()
-                    if not re.search(r'cookie|crumb|token|password|proxy|authorization|sessionid', str(k), re.IGNORECASE)}
-        if isinstance(v, list):
-            return [clean(x) for x in v]
-        if isinstance(v, str) and v.startswith(('http://', 'https://')):
-            p = urlsplit(v)
-            if p.username or p.password:
-                return '[redacted URL]'
-            if re.search(r'crumb|token|sessionid', p.query, re.IGNORECASE):
-                return p._replace(query='', fragment='').geturl()
-        return v
-    return clean(value)
+    return sanitize_data(json_safe(value))
 
 
 class TransportPolicy:
@@ -250,7 +237,7 @@ def _legacy_yahoo_fallback(function, params, reason, policy=None):
 
 
 class YahooProvider:
-    NAMES = frozenset(['yahoo_history', 'yahoo_history_batch', 'yahoo_quote', 'yahoo_profile', 'yahoo_financials', 'yahoo_search', 'yahoo_statistics', 'yahoo_analysis', 'yahoo_holders', 'yahoo_options', 'yahoo_earnings', 'yahoo_funds', 'yahoo_screen'])
+    NAMES = frozenset(['yahoo_history', 'yahoo_history_batch', 'yahoo_quote', 'yahoo_profile', 'yahoo_financials', 'yahoo_search', 'yahoo_statistics', 'yahoo_analysis', 'yahoo_holders', 'yahoo_earnings', 'yahoo_funds'])
 
     def __init__(self, cache_dir=None, *, timeout=15, deadline=None, max_requests=None,
                  budget=None, yf_module=None, session=None, proxy=None, **kwargs):
@@ -402,8 +389,7 @@ class YahooProvider:
                         'yahoo_financials': self._financials,
                         'yahoo_search': self._search, 'yahoo_statistics': self._statistics,
                         'yahoo_analysis': self._analysis, 'yahoo_holders': self._holders,
-                        'yahoo_options': self._options, 'yahoo_earnings': self._earnings,
-                        'yahoo_funds': self._funds, 'yahoo_screen': self._screen}
+                        'yahoo_earnings': self._earnings, 'yahoo_funds': self._funds}
             result = dispatch[name](**params)
         except GatewayError:
             raise
@@ -674,17 +660,6 @@ class YahooProvider:
         return normalized, {'status': 'success' if successes == len(states) else 'partial' if successes else 'empty',
                             'module_status': states, 'warnings': warnings}
 
-    def _options(self, symbol, expiration=None):
-        t = self._ticker(symbol)
-        dates = list(t.options)
-        if expiration is None:
-            return {'expirations': dates}
-        if expiration not in dates:
-            raise GatewayError('DataUnavailable', 'Requested expiry not listed by source')
-        chain = t.option_chain(expiration)
-        from yfinance_normalize import normalize_options
-        return normalize_options(chain, expiration=expiration, underlying=chain.underlying)
-
     def _earnings(self, symbol, modules=None, limit=12):
         if not isinstance(limit, int) or not 1 <= limit <= 100:
             raise GatewayError('InvalidParameters', 'Invalid earnings count')
@@ -699,35 +674,3 @@ class YahooProvider:
                                'operations': lambda: f.fund_operations, 'asset_classes': lambda: f.asset_classes,
                                'top_holdings': lambda: f.top_holdings, 'sector_weightings': lambda: f.sector_weightings},
                               modules or ['description','overview'])
-
-    def _screen(self, query, query_type='equity', size=25, max_pages=1, max_results=250, offset=0):
-        kind = query_type
-        if kind not in ('equity','etf') or not 1 <= size <= 250 or not 1 <= max_pages <= 10 or not 1 <= max_results <= 1000 or offset < 0:
-            raise GatewayError('InvalidParameters', 'Invalid screen bounds')
-        query_class = self._yf.EquityQuery if kind == 'equity' else self._yf.ETFQuery
-        def build(node, depth=0):
-            if depth > 8 or not isinstance(node, dict) or set(node) != {'operator','operands'}:
-                raise GatewayError('InvalidParameters', 'Invalid structured query')
-            op, values = node['operator'], node['operands']
-            if op not in ('AND','OR','EQ','IS-IN','BTWN','GT','GTE','LT','LTE') or not isinstance(values, list) or len(values) > 30:
-                raise GatewayError('InvalidParameters', 'Unregistered query operator')
-            try:
-                return query_class(op, [build(v, depth+1) if isinstance(v, dict) else v for v in values])
-            except GatewayError:
-                raise
-            except (ValueError, TypeError):
-                raise GatewayError('InvalidParameters', 'Unsupported query field or operands') from None
-        q = build(query)
-        pages, collected = [], 0
-        for _ in range(max_pages):
-            n = min(size, max_results-collected)
-            if n <= 0:
-                break
-            page = self._yf.screen(q, offset=offset, size=n, session=self._session)
-            pages.append({'offset': offset, 'result': page})
-            got = len(page.get('quotes', []))
-            collected += got
-            offset += got
-            if got < n:
-                break
-        return {'pages': pages, 'count': collected, 'historical_universe': False}

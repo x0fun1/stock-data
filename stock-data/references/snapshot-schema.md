@@ -1,64 +1,29 @@
 # Frozen Snapshot Schema
 
-Current schema is **1.3**. Schema 1.0/1.1/1.2 remain readable for diagnosis and
-legacy reproduction but are not prediction-eligible under the fixed policy.
+Current schema is **news-1**. The authoritative request, assessment and import contracts are emitted by `news_research.py schema --kind request|assessment|import`. Prior-version research outputs are not compatible evidence imports.
 
 ## Identity and integrity
 
-`manifest.json` is authoritative. It contains the schema version, `snapshot_id`,
-ticker, market, horizon, normalized request and as-of time, source receipt
-digest, normalized-content digest, per-domain normalized/raw hashes and
-`manifest_sha256`. Hashes establish content integrity, not supplier
-authentication. Existing directories are never overwritten; `raw/` keeps the
-redacted source receipt and the top-level domain files keep the normalized view.
+Each run has `snapshot.json` and `manifest.json`. The manifest records run identity, creation time, input digest, snapshot filename and replay status. The snapshot includes normalized request, records/evidence/events, financial/exposure context, coverage and limitations. Hashes establish content integrity, not supplier authentication.
 
-## Policy block
+A new run uses its own directory. `prepare` reads the frozen snapshot and emits `prepared.json`; the host writes the assessment outside the evidence snapshot. `analyze` validates it before storing results and rendering `report.md`. `validate-report` checks the actual outgoing response and records delivery identity. Paths must remain contained; symlinks, tampering and unregistered artifacts must not bypass safety checks.
 
-Forecast snapshots carry `manifest.policy` with:
+## Request and evidence
 
-- `policy_version` (`fixed_52w_5d_v1`), window length (364 calendar days),
-  horizon (5 sessions), target/model/feature versions;
-- `decision_session`, `target_session`, `window_start_exclusive`,
-  `window_end_inclusive`;
-- `expected_sessions`, `observed_sessions`, `missing_sessions`,
-  `coverage_status`, `calendar_verified`;
-- price basis (`split_adjusted`, dividends not reinvested) and its source.
+The request binds symbol, US/HK market, currency, stock/ETF type, timezone-aware `as_of`, explicit sources, budget and policy/prompt/model identity. The news window is `(as_of-lookback_days, as_of]`, default 60 calendar days and allowed 30–60; recent major selection starts at 7 days.
 
-`data.policy_window` records the same window plus `dropped_out_of_window_count`.
-Any bar on or before the left-open boundary is rejected with
-`OHLCV_OUT_OF_WINDOW`. A forecast with a missing/unverified calendar may freeze
-for diagnosis but cannot publish a formal probability.
-
-## Market data
-
-Normalized daily bars contain date, OHLCV and the split-adjusted close. The
-decision session is the latest exchange session whose close is at or before the
-as-of instant; an intraday run uses the previous completed close. The target is
-the fifth exchange session after the decision, not "five bars that happen to
-exist".
-
-The builder rejects missing/duplicate/unsorted/future dates, invalid OHLCV,
-booleans, provider failure and contradictory identity/frequency/provenance/window
-metadata. With a verified schedule the bar axis must match confirmed sessions;
-missing sessions are `INSUFFICIENT_HISTORY_COVERAGE`. Without a schedule the
-result is diagnostic only.
+Quotes and OHLCV are optional background, never required to freeze or complete sufficiently evidenced news research. Records preserve source identity, safe links, publication/update/fetch precision, text scope, permissions and content versions. Articles, evidence and events are separate objects so reposts do not multiply events or reset recency.
 
 ## Data quality
 
-`data_quality` is `data_completeness_v2`: observed/expected sessions, coverage
-ratio, prediction eligibility and issue list. `score`, `confidence_score` and
-`confidence_penalties` are deprecated and null; no 0–100 confidence is published.
+Coverage records successful and failed query intervals, pagination completion, truncation and budget omissions. Collection status, window coverage and analysis sufficiency are independent. `complete_for_configured_sources` means only the configured source/query scope, not the whole internet. A host assessment cannot override an excluded record or claim missing coverage was complete.
 
 ## News
 
-The optional `news.json` domain is preserved inside the same content-addressed
-snapshot. The post-Quant News layer reads only normalized articles, shared
-identity/as-of metadata and frozen bars; it never sees Quant results before its
-own result is frozen, and it cannot change Quant probability.
+The prepared data includes frozen evidence and analysis batches, plus an omitted queue when the analysis budget is reached. Host prose cites registered IDs; source titles, URLs, dates and numbers are not authored by the model. A changed input digest, policy, prompt, model, evidence or context invalidates prior assessment reuse.
 
 ## Retention
 
-Cleanup ownership is tracked in `runtime/runs/<run_id>/run_manifest.json`.
-`cleanup-run` deletes only registered JSON whose hashes still match and keeps
-`report.md`, `final_response.md` and a minimal `cleanup_receipt.txt`. The snapshot
-and ledger are outside the run and are never deleted by run cleanup.
+Shared SQLite evidence and coverage records are separate from per-run artifacts. Subject to content permission, retain at least 120 days of required evidence; shorter license retention takes precedence and must disclose loss of local replayability. Do not clear every JSON file after delivery.
+
+`gc` defaults to dry-run. Preview `gc --output-root runtime --dry-run --retention-days 120`; actual authorized cleanup requires explicit `--apply`. The cleanup implementation handles only known owned artifacts and permitted expirations, never arbitrary external paths or the shared database itself. See [news-first-workflow.md](news-first-workflow.md) for the operational flow.

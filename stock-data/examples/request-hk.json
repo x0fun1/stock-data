@@ -1,0 +1,20 @@
+{
+  "schema_version": "news-1",
+  "symbol": "0700.HK",
+  "market": "HK",
+  "currency": "HKD",
+  "asset_type": "stock",
+  "as_of": "2026-11-02T22:00:00+08:00",
+  "lookback_days": 60,
+  "recent_days": 7,
+  "sources": [
+    {"source_id": "hkex"},
+    {"source_id": "company_ir"},
+    {"source_id": "china_macro", "topics": ["growth", "industry_policy"]},
+    {"source_id": "hkma", "topics": ["interest_rate", "liquidity"]}
+  ],
+  "budget": {"max_requests": 0, "batch_size": 100, "max_analysis_events": 1000},
+  "policy_version": "news-policy-1",
+  "prompt_version": "news-prompt-1",
+  "model_id": "host"
+}

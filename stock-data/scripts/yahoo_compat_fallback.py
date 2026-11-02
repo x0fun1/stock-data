@@ -137,8 +137,6 @@ def _route(function: str, params: dict[str, Any]) -> tuple[str, str, Any, list[s
         return "analyst_estimates", "Yahoo Finance", {"symbol": symbol}, []
     if function == "yahoo_holders":
         return "institutional_holders", "Yahoo Finance", {"symbol": symbol}, []
-    if function == "yahoo_options":
-        return "options_chain", "Yahoo Finance", None, ["Legacy options route supports U.S. tickers and Unix expiry values only."]
     if function == "yahoo_earnings":
         modules = ["calendarEvents", "earnings", "earningsHistory", "earningsTrend"]
         return "yahoo_quote_summary", "Yahoo Finance", {"symbol": symbol, "modules": modules}, ["Legacy quoteSummary earnings fields have no module-level completeness guarantee."]
@@ -173,22 +171,6 @@ def _call_legacy(gateway: Any, function: str, params: dict[str, Any], policy: An
         any_data = any(_has_data(item.get("data")) for item in symbols_result.values())
         status = "partial" if any_data else "empty"
         return {"status": status, "data": {"symbols": symbols_result}}, "Yahoo Finance", "stock_kline_yahoo", ["Legacy batch fallback performs bounded per-symbol compatibility calls."]
-    if function == "yahoo_options":
-        symbol, expiration = params.get("symbol"), params.get("expiration")
-        if expiration is None:
-            _reserve(policy)
-            data = gateway.options_chain(symbol)
-        else:
-            target = date.fromisoformat(expiration)
-            _reserve(policy)
-            listing = gateway.options_chain(symbol)
-            expiries = listing.get("expiration_dates", []) if isinstance(listing, dict) else []
-            matches = [value for value in expiries if datetime.fromtimestamp(value, timezone.utc).date() == target]
-            if not matches:
-                raise ValueError("Legacy options route did not list the requested expiration.")
-            _reserve(policy)
-            data = gateway.options_chain(symbol, expiration=matches[0])
-        return data, "Yahoo Finance", "options_chain", ["Legacy option-chain field names and coverage differ from yfinance."]
     route = _route(function, params)
     if route is None:
         raise LookupError("No legacy compatibility route is registered for this yfinance capability.")
@@ -222,7 +204,7 @@ def fallback(function: str, params: dict[str, Any], reason: dict[str, Any], poli
                 "error": {"category": latched[0], "exception_type": "JobCircuitOpen",
                           "message": "Yahoo job circuit is open; legacy fallback is not permitted."},
                 "warnings": ["Automatic legacy fallback was blocked by an open Yahoo job circuit."]}
-    special_routes = {"yahoo_history", "yahoo_history_batch", "yahoo_options"}
+    special_routes = {"yahoo_history", "yahoo_history_batch"}
     if function not in special_routes and _route(function, params) is None:
         return {"status": "error", "data": None, "actual_source": "Yahoo Finance",
                 "fetched_at_utc": datetime.now(timezone.utc).isoformat().replace("+00:00", "Z"),
@@ -258,8 +240,6 @@ def fallback(function: str, params: dict[str, Any], reason: dict[str, Any], poli
         category = "NoLegacyRoute" if isinstance(exc, LookupError) else "LegacyFallbackFailed"
         if function in {"yahoo_history", "yahoo_history_batch"}:
             attempted_route = "stock_kline_yahoo"
-        elif function == "yahoo_options":
-            attempted_route = "options_chain"
         else:
             mapped_route = _route(function, params)
             attempted_route = mapped_route[0] if mapped_route else None

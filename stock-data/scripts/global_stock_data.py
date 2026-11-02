@@ -23,9 +23,9 @@ from typing import Any
 from urllib.parse import quote, quote_plus, urljoin, urlparse
 
 import requests
-from quant_research.security import sanitize_data
+from news_research.common.security import sanitize_data
 
-PROVIDER_HOSTS = frozenset({"hq.sinajs.cn", "qt.gtimg.cn", "stock.finance.sina.com.cn", "push2.eastmoney.com", "push2his.eastmoney.com", "datacenter-web.eastmoney.com", "searchapi.eastmoney.com", "fc.yahoo.com", "query2.finance.yahoo.com", "www.sec.gov", "sec.gov", "data.sec.gov", "efts.sec.gov", "cdn.cboe.com", "cdn.finra.org", "home.treasury.gov", "publicreporting.cftc.gov", "api.nasdaq.com"})
+PROVIDER_HOSTS = frozenset({"hq.sinajs.cn", "qt.gtimg.cn", "stock.finance.sina.com.cn", "push2.eastmoney.com", "datacenter-web.eastmoney.com", "searchapi.eastmoney.com", "fc.yahoo.com", "query2.finance.yahoo.com", "www.sec.gov", "sec.gov", "data.sec.gov", "efts.sec.gov", "home.treasury.gov", "publicreporting.cftc.gov", "api.nasdaq.com"})
 MAX_RESPONSE_BYTES = 20 * 1024 * 1024
 
 
@@ -88,10 +88,6 @@ class ConfigurationError(RuntimeError):
     """The caller must supply required provider configuration."""
 
 
-class AuthorizationRequired(RuntimeError):
-    """Provider authorization has not been recorded in the environment."""
-
-
 class ProviderError(RuntimeError):
     """The provider reported an error or an invalid response."""
 
@@ -100,9 +96,6 @@ def _nonempty_text(value, name: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise ValueError(f"{name} must be a nonempty string.")
     return value.strip()
-
-
-_MAX_UNIX_TIMESTAMP = 4102444800  # 2100-01-01; ceiling for Unix-seconds fields (option expiries)
 
 
 def _positive_int(value, name: str, maximum: int = 10000) -> int:
@@ -127,64 +120,6 @@ def _date(value, name: str, format_: str = "%Y-%m-%d") -> str:
     if parsed.strftime(format_) != value:
         raise ValueError(f"{name} has an invalid date format.")
     return value
-
-
-def _candle_sort_key(candle: dict, index: int) -> tuple[str, float]:
-    """Use the most precise provided key without the host's local timezone."""
-    if "timestamp_epoch" in candle:
-        value = candle["timestamp_epoch"]
-        if (not isinstance(value, (int, float)) or isinstance(value, bool)
-                or not math.isfinite(value)):
-            raise ValueError(f"Candle {index} has invalid timestamp_epoch.")
-        return "timestamp_epoch", value
-    field = "timestamp_utc" if "timestamp_utc" in candle else "date"
-    value = candle.get(field)
-    if not isinstance(value, str):
-        raise ValueError(f"Candle {index} has invalid {field}.")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
-    try:
-        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    except ValueError as exc:
-        raise ValueError(f"Candle {index} has invalid {field}.") from exc
-    if field == "timestamp_utc":
-        if parsed.tzinfo is None or parsed.utcoffset() != timedelta(0):
-            raise ValueError(f"Candle {index} timestamp_utc must contain a UTC timezone.")
-    elif parsed.tzinfo is None:
-        # Legacy date labels are calendar keys. UTC is an explicit ordering
-        # convention here; it does not assert the source exchange's timezone.
-        parsed = parsed.replace(tzinfo=timezone.utc)
-    return field, parsed.timestamp()
-
-
-def _validate_klines(klines, fields: tuple[str, ...] = ("close",)) -> None:
-    if not isinstance(klines, list):
-        raise ValueError("klines must be a list of candles.")  # noqa: TRY004 - repo-wide validation contract: input errors raise ValueError
-    key_field = None
-    previous = None
-    for index, candle in enumerate(klines):
-        if not isinstance(candle, dict) or not candle.get("date"):
-            raise ValueError(f"Candle {index} must contain a date.")
-        for field in fields:
-            value = candle.get(field)
-            if (not isinstance(value, (int, float)) or isinstance(value, bool)
-                    or not math.isfinite(value)):
-                raise ValueError(f"Candle {index} has missing or invalid {field}.")
-        if "high" in fields and candle["high"] < candle["low"]:
-            raise ValueError(f"Candle {index} has high below low.")
-        field, current = _candle_sort_key(candle, index)
-        if key_field is not None and key_field != field:
-            raise ValueError("Candles must use the same timestamp field throughout the series.")
-        if previous is not None and current <= previous:
-            raise ValueError(
-                "Candles must be strictly ascending with no duplicates. "
-                "Same-day intraday candles require explicit timestamp_epoch or timestamp_utc.")
-        key_field, previous = field, current
-
-
-def _periods(values, name: str = "periods") -> None:
-    if not isinstance(values, list) or not values:
-        raise ValueError(f"{name} must be a nonempty list of positive integers.")
-    for value in values:
-        _positive_int(value, name)
 
 
 def _bootstrap_yahoo(session: requests.Session) -> None:
@@ -295,8 +230,6 @@ class _RateLimiter:
 # 各源限速：SEC 官方硬上限 10/s，此处取 8/s 留余量；其余为自律保护值
 _LIMITS = {
     "sec.gov": _RateLimiter(8),
-    "finra.org": _RateLimiter(4),
-    "cboe.com": _RateLimiter(4),
     "nasdaq.com": _RateLimiter(2),
     "_default": _RateLimiter(5),
 }
@@ -331,10 +264,6 @@ def official_get(url: str, params: dict | None = None, headers: dict | None = No
     """Rate limited HTTP; only confirmed absent resources become DataNotAvailable."""
     host = (_validated_origin(url).hostname or "").lower()
     is_sec = host == "sec.gov" or host.endswith(".sec.gov")
-    is_cboe = host == "cboe.com" or host.endswith(".cboe.com")
-    if is_cboe and os.environ.get("CBOE_AUTHORIZED") != "1":
-        raise AuthorizationRequired(
-            "CBOE retrieval requires existing authorization and CBOE_AUTHORIZED=1.")
     if is_sec:
         contact = os.environ.get("SEC_CONTACT", "").strip()
         placeholder = any(value in contact.lower() for value in (
@@ -691,210 +620,6 @@ def stock_kline_yahoo(symbol: str, interval: str = "1d",
     return result
 
 
-def _ema(values: list[float], period: int) -> list[float]:
-    """EMA 指数移动平均（内部辅助）"""
-    result = [values[0]]
-    k = 2 / (period + 1)
-    for v in values[1:]:
-        result.append(v * k + result[-1] * (1 - k))
-    return result
-
-
-def calc_ma(klines: list[dict], periods: list[int] | None = None) -> list[dict]:
-    """
-    移动平均线 MA + EMA
-    klines: K线数据 [{date, open, high, low, close, volume}, ...]
-    periods: 周期列表，默认 [5, 10, 20, 60]
-    返回: [{date, close, ma5, ma10, ma20, ma60, ema12, ema26}, ...]
-    """
-    _validate_klines(klines)
-    if periods is None:
-        periods = [5, 10, 20, 60]
-    _periods(periods)
-    if not klines:
-        return []
-    closes = [k["close"] for k in klines]
-
-    # EMA 12/26（MACD 常用）
-    ema12 = _ema(closes, 12)
-    ema26 = _ema(closes, 26)
-
-    result = []
-    for i, k in enumerate(klines):
-        row = {"date": k["date"], "close": k["close"]}
-        for p in periods:
-            if i >= p - 1:
-                row[f"ma{p}"] = round(sum(closes[i - p + 1:i + 1]) / p, 4)
-            else:
-                row[f"ma{p}"] = None
-        row["ema12"] = round(ema12[i], 4)
-        row["ema26"] = round(ema26[i], 4)
-        result.append(row)
-    return result
-
-
-def calc_macd(klines: list[dict], fast: int = 12, slow: int = 26,
-              signal: int = 9) -> list[dict]:
-    """
-    MACD (Moving Average Convergence Divergence)
-    klines: K线数据
-    fast/slow/signal: 快线/慢线/信号线周期（默认 12/26/9）
-    返回: [{date, close, dif, dea, macd_hist}, ...]
-
-    dif = EMA(fast) - EMA(slow)        金叉/死叉看 dif 穿越 dea
-    dea = EMA(signal) of dif           信号线
-    macd_hist = (dif - dea) * 2        柱状图（红涨绿跌）
-    """
-    _validate_klines(klines)
-    for name, value in (("fast", fast), ("slow", slow), ("signal", signal)):
-        _positive_int(value, name)
-    if not klines:
-        return []
-    closes = [k["close"] for k in klines]
-    ema_fast = _ema(closes, fast)
-    ema_slow = _ema(closes, slow)
-
-    dif = [round(f - s, 4) for f, s in zip(ema_fast, ema_slow, strict=True)]
-    dea = _ema(dif, signal)
-
-    result = []
-    for i, k in enumerate(klines):
-        result.append({
-            "date": k["date"],
-            "close": k["close"],
-            "dif": round(dif[i], 4),
-            "dea": round(dea[i], 4),
-            "macd_hist": round((dif[i] - dea[i]) * 2, 4),
-        })
-    return result
-
-
-def calc_rsi(klines: list[dict],
-             periods: list[int] | None = None) -> list[dict]:
-    """
-    RSI (Relative Strength Index)，保留原 simple-average 版本。
-    涨跌幅使用最近 N 期的简单平均，未使用 Wilder 平滑。
-    klines: K线数据
-    periods: 周期列表（默认 [6, 12, 24]）
-    返回: [{date, close, rsi6, rsi12, rsi24}, ...]
-
-    RSI > 70 / < 30 为常见分析阈值，本计算不预测价格变化。
-    """
-    _validate_klines(klines)
-    if periods is None:
-        periods = [6, 12, 24]
-    _periods(periods)
-    closes = [k["close"] for k in klines]
-
-    # 涨跌额序列
-    changes = [0.0] + [closes[i] - closes[i - 1] for i in range(1, len(closes))]
-    gains = [max(c, 0) for c in changes]
-    losses = [max(-c, 0) for c in changes]
-
-    result = []
-    for i, k in enumerate(klines):
-        row = {"date": k["date"], "close": k["close"]}
-        for p in periods:
-            if i < p:
-                row[f"rsi{p}"] = None
-                continue
-            avg_gain = sum(gains[i - p + 1:i + 1]) / p
-            avg_loss = sum(losses[i - p + 1:i + 1]) / p
-            if avg_loss == 0:
-                row[f"rsi{p}"] = 100.0
-            else:
-                rs = avg_gain / avg_loss
-                row[f"rsi{p}"] = round(100 - 100 / (1 + rs), 2)
-        result.append(row)
-    return result
-
-
-def calc_kdj(klines: list[dict], n: int = 9,
-             m1: int = 3, m2: int = 3) -> list[dict]:
-    """
-    KDJ 随机指标
-    klines: K线数据
-    n: RSV 周期（默认9）
-    m1/m2: K/D 平滑系数（默认3/3）
-    返回: [{date, close, k, d, j}, ...]
-
-    K/D > 80 超买，K/D < 20 超卖
-    J > 100 或 J < 0 为极端信号
-    金叉: K 上穿 D；死叉: K 下穿 D
-    """
-    _validate_klines(klines, ("close", "high", "low"))
-    for name, value in (("n", n), ("m1", m1), ("m2", m2)):
-        _positive_int(value, name)
-    k_val, d_val = 50.0, 50.0
-    result = []
-
-    for i, kline in enumerate(klines):
-        if i < n - 1:
-            result.append({"date": kline["date"], "close": kline["close"],
-                           "k": None, "d": None, "j": None})
-            continue
-
-        window = klines[i - n + 1:i + 1]
-        high_n = max(w["high"] for w in window)
-        low_n = min(w["low"] for w in window)
-
-        rsv = (kline["close"] - low_n) / (high_n - low_n) * 100 if high_n != low_n else 50.0
-        k_val = (1 / m1) * rsv + (1 - 1 / m1) * k_val
-        d_val = (1 / m2) * k_val + (1 - 1 / m2) * d_val
-        j_val = 3 * k_val - 2 * d_val
-
-        result.append({
-            "date": kline["date"],
-            "close": kline["close"],
-            "k": round(k_val, 2),
-            "d": round(d_val, 2),
-            "j": round(j_val, 2),
-        })
-    return result
-
-
-def calc_boll(klines: list[dict], period: int = 20,
-              num_std: float = 2.0) -> list[dict]:
-    """
-    布林带 (Bollinger Bands)
-    klines: K线数据
-    period: 中轨 MA 周期（默认20）
-    num_std: 标准差倍数（默认2）
-    返回: [{date, close, upper, middle, lower, bandwidth}, ...]
-
-    bandwidth 描述波动带宽度；收窄不确定未来价格方向或变化时点。
-    """
-    _validate_klines(klines)
-    _positive_int(period, "period")
-    if _num(num_std) is None or num_std < 0:
-        raise ValueError("num_std must be a finite nonnegative number.")
-    closes = [k["close"] for k in klines]
-    result = []
-
-    for i, k in enumerate(klines):
-        if i < period - 1:
-            result.append({"date": k["date"], "close": k["close"],
-                           "upper": None, "middle": None, "lower": None,
-                           "bandwidth": None})
-            continue
-
-        window = closes[i - period + 1:i + 1]
-        ma = sum(window) / period
-        std = (sum((x - ma) ** 2 for x in window) / period) ** 0.5
-        upper = ma + num_std * std
-        lower = ma - num_std * std
-
-        result.append({
-            "date": k["date"],
-            "close": k["close"],
-            "upper": round(upper, 4),
-            "middle": round(ma, 4),
-            "lower": round(lower, 4),
-            "bandwidth": round((upper - lower) / ma * 100, 2) if ma else None,
-        })
-    return result
-
-
 def financial_statements_eastmoney(secucode: str, statement: str = "balance",
                                      page_size: int = 200) -> list[dict]:
     """
@@ -1146,101 +871,6 @@ def financial_statements_yahoo(symbol: str,
     }
 
 
-def fund_flow_daily(ticker_or_code: str, secid_prefix: int = 105,
-                      limit: int = 100) -> list[dict]:
-    """
-    东财 push2his 日级资金流 — 主力/大单/中单/小单净流入
-    美股: fund_flow_daily("AAPL", 105)  # NASDAQ
-          fund_flow_daily("BABA", 106)  # NYSE
-    港股: fund_flow_daily("00700", 116)
-    返回: [{date, main_net, big_net, mid_net, small_net, main_pct, ...}, ...]
-    """
-    _positive_int(limit, "limit")
-    _nonempty_text(ticker_or_code, "ticker_or_code")
-    if secid_prefix not in (105, 106, 107, 116):
-        raise ValueError("secid_prefix must be 105, 106, 107 or 116.")
-    url = "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get"
-    params = {
-        "secid": f"{secid_prefix}.{ticker_or_code}",
-        "klt": 101,
-        "fields1": "f1,f2,f3,f7",
-        "fields2": "f51,f52,f53,f54,f55,f56,f57",
-        "lmt": limit,
-    }
-    r = _provider_get(url, params=params, timeout=15)
-    r.raise_for_status()
-    d = r.json()
-    data = d.get("data")
-    if not data or not data.get("klines"):
-        return []
-
-    result = []
-    for line in data["klines"]:
-        parts = line.split(",")
-        # f51=日期, f52=主力净流入, f53=小单净流入, f54=中单净流入, f55=大单净流入, f56=超大单净流入
-        result.append({
-            "date": parts[0],
-            "main_net": float(parts[1]),       # 主力净流入（元）
-            "small_net": float(parts[2]),       # 小单净流入
-            "mid_net": float(parts[3]),         # 中单净流入
-            "big_net": float(parts[4]),         # 大单净流入
-            "super_big_net": float(parts[5]),   # 超大单净流入
-            "main_pct": float(parts[6]) if len(parts) > 6 and parts[6] else 0,  # 主力净占比%
-        })
-    return result
-
-
-# 依赖「官方源统一出口」的 official_get / assert_us_ticker
-
-CBOE_BASE = "https://cdn.cboe.com/api/global/delayed_quotes"
-# OCC 合约代码: 标的 + YYMMDD + C/P + 8位行权价(千分之一美元)
-# root 允许含数字：拆股/分拆等公司行为会产生调整后合约（如 NVDA1、BRKB1）。
-# 后面全是定宽组（6+1+8=15 字符），正则回溯能正确对齐，标准合约解析结果不变。
-_OSI = re.compile(r"^(?P<root>[A-Z][A-Z0-9]*)(?P<y>\d{2})(?P<m>\d{2})(?P<d>\d{2})"
-                  r"(?P<cp>[CP])(?P<strike>\d{8})$")
-
-
-def parse_osi(symbol: str) -> dict:
-    """解析 OCC 合约代码 → {expiry, type, strike}；无法解析返回 {}"""
-    m = _OSI.match(symbol)
-    if not m:
-        return {}
-    g = m.groupdict()
-    return {"expiry": f"20{g['y']}-{g['m']}-{g['d']}",
-            "type": "call" if g["cp"] == "C" else "put",
-            "strike": int(g["strike"]) / 1000.0}
-
-
-def options_chain_cboe(ticker: str) -> dict:
-    """
-    CBOE 官方延时期权全链（仅美股）。
-    返回 {"ticker","timestamp","spot","contracts":[{symbol,expiry,type,strike,bid,ask,
-          volume,open_interest,iv,delta,gamma,vega,theta,rho,last_trade_price}]}
-    """
-    ticker = assert_us_ticker(ticker)
-    raw = official_get(f"{CBOE_BASE}/options/{ticker}.json", as_json=True)
-    data = raw.get("data") or {}
-    contracts = []
-    for o in data.get("options") or []:
-        meta = parse_osi(o.get("option", ""))
-        if not meta:
-            continue
-        contracts.append({
-            "symbol": o["option"], **meta,
-            "bid": o.get("bid"), "ask": o.get("ask"),
-            "volume": _num(o.get("volume")),
-            "open_interest": _num(o.get("open_interest")),
-            "iv": o.get("iv"), "delta": o.get("delta"), "gamma": o.get("gamma"),
-            "vega": o.get("vega"), "theta": o.get("theta"), "rho": o.get("rho"),
-            "last_trade_price": o.get("last_trade_price"),
-        })
-    if not contracts:
-        raise DataNotAvailable(f"{ticker} 未返回任何期权合约 —— 该标的可能无期权，"
-                               f"或不在 CBOE 覆盖范围（CBOE 仅覆盖美股）")
-    return {"ticker": ticker, "timestamp": raw.get("timestamp"),
-            "spot": data.get("current_price"), "contracts": contracts}
-
-
 try:
     from zoneinfo import ZoneInfo
     _ET_TZ = ZoneInfo("America/New_York")
@@ -1249,12 +879,7 @@ except (ImportError, KeyError):      # Python < 3.9 或 Windows 缺 tzdata（Zon
 
 
 def _et_today() -> str:
-    """
-    美东今日 YYYY-MM-DD，用于 0DTE 判定。
-
-    ⚠️ 必须区分 EDT(UTC-4) 与 EST(UTC-5)：硬编码 UTC-4 会让冬令时
-    UTC 04:00–05:00 这一小时算成次日，导致 0DTE 选错到期日。
-    """
+    """US-local date for filing and earnings-calendar lookups, with DST handling."""
     now = datetime.now(timezone.utc)
     if _ET_TZ is not None:
         return now.astimezone(_ET_TZ).strftime("%Y-%m-%d")
@@ -1272,148 +897,6 @@ def _et_today() -> str:
                ).replace(hour=6)
     offset = 4 if dst_start <= now < dst_end else 5
     return (now - timedelta(hours=offset)).strftime("%Y-%m-%d")
-
-
-def filter_expiry(chain: dict, expiry: str | None = None, dte_max: int | None = None) -> list[dict]:
-    """按到期日筛选。expiry='0DTE' 取当日到期；dte_max 取 N 天内到期"""
-    if expiry is not None and expiry != "0DTE":
-        _date(expiry, "expiry")
-    if dte_max is not None and (not isinstance(dte_max, int) or isinstance(dte_max, bool) or dte_max < 0):
-        raise ValueError("dte_max must be a nonnegative integer.")
-    cs = chain["contracts"]
-    if expiry == "0DTE":
-        return [c for c in cs if c["expiry"] == _et_today()]
-    if expiry:
-        return [c for c in cs if c["expiry"] == expiry]
-    if dte_max is not None:
-        today = datetime.strptime(_et_today(), "%Y-%m-%d")
-        return [c for c in cs
-                if 0 <= (datetime.strptime(c["expiry"], "%Y-%m-%d") - today).days <= dte_max]
-    return cs
-
-
-def unusual_activity(contracts: list[dict], min_volume: int = 500,
-                     vol_oi_min: float = 1.0) -> list[dict]:
-    """Screen high volume relative to reported OI.
-
-    The ratio cannot establish opening/closing trades or trade direction.
-    Missing or zero OI gives an undefined ratio and is excluded.
-    """
-    _positive_int(min_volume, "min_volume")
-    if _num(vol_oi_min) is None or vol_oi_min < 0:
-        raise ValueError("vol_oi_min must be a finite nonnegative number.")
-    result = []
-    for contract in contracts:
-        volume = _num(contract.get("volume"))
-        interest = _num(contract.get("open_interest"))
-        if volume is None or interest is None or interest <= 0 or volume < min_volume:
-            continue
-        ratio = volume / interest
-        if ratio >= vol_oi_min:
-            result.append({**contract, "vol_oi_ratio": ratio})
-    return sorted(result, key=lambda item: -item["volume"])
-
-
-def chain_summary(contracts: list[dict]) -> dict:
-    """Aggregate contract activity. The delta value is a volume proxy.
-
-    volume_weighted_delta_proxy_shares assumes a standard 100-share multiplier;
-    it is neither directional trade flow nor an investor/dealer net exposure.
-    Adjusted contracts may use a different multiplier not supplied here.
-    Missing volumes/OI/IV/delta are excluded and counted.
-    """
-    calls = [c for c in contracts if c.get("type") == "call"]
-    puts = [c for c in contracts if c.get("type") == "put"]
-    def total(rows, field):
-        values = [_num(c.get(field)) for c in rows]
-        present = [v for v in values if v is not None]
-        return sum(present) if present else None
-    cv, pv = total(calls, "volume"), total(puts, "volume")
-    coi, poi = total(calls, "open_interest"), total(puts, "open_interest")
-    traded = [c for c in contracts if (_num(c.get("volume")) or 0) > 0]
-    iv_rows = [c for c in traded if _num(c.get("iv")) is not None]
-    iv_volume = sum(_num(c["volume"]) for c in iv_rows)
-    vwiv = (sum(_num(c["iv"]) * _num(c["volume"]) for c in iv_rows) / iv_volume
-            if iv_volume else None)
-    delta_rows = [c for c in contracts if _num(c.get("delta")) is not None
-                  and _num(c.get("volume")) is not None]
-    delta_proxy = (sum(_num(c["delta"]) * _num(c["volume"]) * 100 for c in delta_rows)
-                   if delta_rows else None)
-    return {
-        "call_volume": cv, "put_volume": pv,
-        "put_call_volume_ratio": pv / cv if cv and pv is not None else None,
-        "call_oi": coi, "put_oi": poi,
-        "put_call_oi_ratio": poi / coi if coi and poi is not None else None,
-        "volume_weighted_iv": vwiv,
-        "volume_weighted_delta_proxy_shares": delta_proxy,
-        "delta_proxy_contract_multiplier": 100,
-        "delta_proxy_note": "Volume proxy; trade direction and position ownership are unknown.",
-        "contracts_total": len(contracts), "contracts_traded": len(traded),
-        "contracts_missing_volume": sum(_num(c.get("volume")) is None for c in contracts),
-        "contracts_missing_open_interest": sum(_num(c.get("open_interest")) is None for c in contracts),
-        "contracts_missing_iv": sum(_num(c.get("iv")) is None for c in traded),
-        "contracts_missing_delta": sum(_num(c.get("delta")) is None for c in contracts),
-    }
-
-
-def cboe_quote(ticker: str) -> dict:
-    """CBOE 个股快照（含现价，可与期权链配合定 ATM）"""
-    return official_get(f"{CBOE_BASE}/quotes/{assert_us_ticker(ticker)}.json",
-                        as_json=True)["data"]
-
-
-def options_chain(symbol: str, expiration: int | None = None) -> dict:
-    """
-    Yahoo 期权链 — calls + puts 完整数据（仅美股）
-    symbol: "AAPL", "TSLA" 等美股 ticker
-    港股代码会在发起请求前被拒绝。
-    expiration: Unix timestamp (不传则返回最近到期日 + 所有到期日列表)
-    返回: {"expiration_dates": [...], "calls": [...], "puts": [...]}
-    """
-    symbol = assert_us_ticker(symbol)
-    if expiration is not None:
-        _positive_int(expiration, "expiration", maximum=_MAX_UNIX_TIMESTAMP)
-    s = get_yahoo_session()
-    params = {"crumb": s._crumb}
-    if expiration:
-        params["date"] = expiration
-
-    r = _session_get(s, f"https://query2.finance.yahoo.com/v7/finance/options/{symbol}",
-              params=params, timeout=15)
-    r.raise_for_status()
-
-    payload = r.json().get("optionChain") or {}
-    if payload.get("error"):
-        raise ProviderError("Yahoo options returned a provider error.")
-    results = payload.get("result") or []
-    oc = results[0] if results else {}
-
-    exp_dates = oc.get("expirationDates", [])
-    options = oc.get("options", [{}])[0] if oc.get("options") else {}
-
-    def _parse_options(opts):
-        def _val(option, key):
-            v = option.get(key, {})
-            return v.get("raw") if isinstance(v, dict) else v
-        return [{
-            "strike": _val(o, "strike"),
-            "last_price": _val(o, "lastPrice"),
-            "bid": _val(o, "bid"),
-            "ask": _val(o, "ask"),
-            "volume": _val(o, "volume"),
-            "open_interest": _val(o, "openInterest"),
-            "implied_volatility": _val(o, "impliedVolatility"),
-            "in_the_money": o.get("inTheMoney"),
-            "expiration": o.get("expiration", {}).get("fmt") if isinstance(o.get("expiration"), dict) else None,
-            "contract_symbol": o.get("contractSymbol"),
-        } for o in opts]
-
-    return {
-        "expiration_dates": exp_dates,  # Unix timestamps, 可依次传入获取各期
-        "calls": _parse_options(options.get("calls", [])),
-        "puts": _parse_options(options.get("puts", [])),
-        "underlying_price": oc.get("quote", {}).get("regularMarketPrice"),
-    }
 
 
 # SEC 请求统一使用 official_get（SEC_CONTACT、User-Agent 与限速在上方配置）。
@@ -1560,76 +1043,6 @@ def ticker_to_cik(ticker: str) -> dict:
     return {}
 
 
-def market_stock_list(market: str = "us_nasdaq", sort_field: str = "f3",
-                       sort_desc: bool = True, page: int = 1,
-                       page_size: int = 20) -> dict:
-    """
-    东财 push2 全市场股票列表 — 涨跌幅/成交量/成交额排名
-    market: "us_nasdaq" (m:105), "us_nyse" (m:106), "hk" (m:116)
-    sort_field: 排序字段
-      f3=涨跌幅, f5=成交量, f6=成交额, f2=最新价, f7=振幅, f15=最高, f16=最低
-    sort_desc: True=降序(默认), False=升序
-    page/page_size: 分页（默认第1页，每页20条）
-    返回股票原始价格及来源 precision；未经确认的缩放规则不推导真实价格。
-
-    典型用途:
-    - 今日涨幅 TOP 20: market_stock_list("us_nasdaq", "f3", True)
-    - 今日跌幅 TOP 20: market_stock_list("us_nasdaq", "f3", False)
-    - 成交量 TOP 20: market_stock_list("hk", "f5", True)
-    - 遍历全市场: 循环 page=1..N, 每页100条做筛选
-    """
-    _positive_int(page, "page")
-    _positive_int(page_size, "page_size")
-    market_map = {"us_nasdaq": "m:105", "us_nyse": "m:106", "us_etf": "m:107", "hk": "m:116"}
-    fs = market_map.get(market, market)
-
-    url = "https://push2.eastmoney.com/api/qt/clist/get"
-    params = {
-        "fs": fs,
-        "fields": "f2,f3,f4,f5,f6,f7,f12,f14,f15,f16,f17,f18,f152",
-        "pn": page,
-        "pz": page_size,
-        "fid": sort_field,
-        "po": 1 if sort_desc else 0,
-    }
-    r = _provider_get(url, params=params, timeout=15)
-    r.raise_for_status()
-    d = r.json()
-    data = d.get("data") or {}
-
-    total = data.get("total", 0)
-    diff = data.get("diff", [])
-    # 东财 push2 的 diff 有时是 list、有时是按序号为键的 dict（如 {"0":{...},"1":{...}}）。
-    # 直接 for item in diff 遇到 dict 会拿到字符串键 → AttributeError，统一成列表。
-    if isinstance(diff, dict):
-        diff = list(diff.values())
-
-    stocks = [{
-        "code": item.get("f12"),         # 股票代码
-        "name": item.get("f14"),         # 中文名
-        "precision": _int_or_none(item.get("f152")),
-        "raw_price": _num(item.get("f2")),
-        "raw_change_amount": _num(item.get("f4")),
-        "raw_high": _num(item.get("f15")),
-        "raw_low": _num(item.get("f16")),
-        "raw_open": _num(item.get("f17")),
-        "raw_prev_close": _num(item.get("f18")),
-        "price": None, "change_amount": None,
-        "high": None, "low": None, "open": None, "prev_close": None,
-        "normalization_note": (
-            "Raw clist price scaling has not been verified; use stock_quote_eastmoney "
-            "for normalized quotes. precision is retained without assuming a divisor."),
-        "raw_change_pct": _num(item.get("f3")),
-        "change_pct": _num(item["f3"]) / 100 if _num(item.get("f3")) is not None else None,
-        "volume": _int_or_none(item.get("f5")),
-        "amount": _num(item.get("f6")),
-        "raw_amplitude": _num(item.get("f7")),
-        "amplitude": _num(item["f7"]) / 100 if _num(item.get("f7")) is not None else None,
-    } for item in diff]
-
-    return {"total": total, "stocks": stocks}
-
-
 # 依赖「官方源统一出口」的 official_get
 
 
@@ -1640,70 +1053,6 @@ def _recent_weekdays(days_back: int = 7) -> list[str]:
             out.append(d.strftime("%Y%m%d"))
         d -= timedelta(days=1)
     return out
-
-
-def short_volume_all(date: str | None = None, market: str = "CNMS") -> dict:
-    """
-    FINRA 全市场每日空头成交量。
-    market: CNMS(合并全市场) / FNSQ(Nasdaq) / FNYX(NYSE) / FNRA(TRF)
-    date: YYYYMMDD；不传则自动回退找最近有数据的交易日
-    返回 {"date","market","count","data":{SYMBOL:{short,short_exempt,total,ratio}}}
-    """
-    if date is not None:
-        _date(date, "date", "%Y%m%d")
-    if market not in ("CNMS", "FNSQ", "FNYX", "FNRA"):
-        raise ValueError("Unknown FINRA market.")
-    for d in ([date] if date else _recent_weekdays(7)):
-        try:
-            raw = official_get(
-                f"https://cdn.finra.org/equity/regsho/daily/{market}shvol{d}.txt")
-        except DataNotAvailable:
-            continue   # 该日无文件（非交易日/尚未发布），回退下一日
-        # 其余异常（网络/限流/配置）直接抛出，不伪装成「没数据」
-        rows = {}
-        for line in raw.splitlines()[1:]:
-            p = line.split("|")
-            if len(p) < 5 or not p[1]:
-                continue
-            try:
-                sv, se, tv = float(p[2]), float(p[3]), float(p[4])
-            except ValueError:
-                continue
-            rows[p[1]] = {"short": sv, "short_exempt": se, "total": tv,
-                          "ratio": round(sv / tv, 4) if tv else None}
-        if rows:
-            return {"date": d, "market": market, "count": len(rows), "data": rows}
-    # 抛 DataNotAvailable 而非 RuntimeError：指定日期无数据时，
-    # 调用方（如 short_volume_symbol 的多日循环）要能捕获并跳过这一天
-    raise DataNotAvailable(f"未找到 {market} "
-                           f"{'该日' if date else '近 7 个工作日'}的 Reg SHO 数据")
-
-
-def short_volume_symbol(symbol: str, days: int = 5, market: str = "CNMS") -> list[dict]:
-    """单只股票近 N 个交易日的空头成交占比时间序列"""
-    symbol = assert_us_ticker(symbol)
-    _positive_int(days, "days")
-    out = []
-    for d in _recent_weekdays(days * 2):
-        if len(out) >= days:
-            break
-        try:
-            snap = short_volume_all(date=d, market=market)
-        except DataNotAvailable:
-            continue
-        rec = snap["data"].get(symbol.upper())
-        if rec:
-            out.append({"date": d, **rec})
-    return out
-
-
-def short_volume_ranking(snapshot: dict, min_total: float = 1_000_000,
-                         top: int = 20) -> list[dict]:
-    """空头占比排行（先按最小成交量过滤，避免小票噪音）"""
-    rows = [{"symbol": s, **v} for s, v in snapshot["data"].items()
-            if v["total"] >= min_total and v["ratio"] is not None]
-    return sorted(rows, key=lambda x: -x["ratio"])[:top]
-
 
 
 _FORM_LABEL = {"4": "内部人交易", "8-K": "重大事件", "13F-HR": "机构持仓",
@@ -1865,23 +1214,6 @@ def market_frame(tag: str, year: int, quarter: int | None = None, unit: str = "U
     raise last_err
 
 
-def frame_ranking(frame: dict, top: int = 20, ascending: bool = False) -> list[dict]:
-    return sorted(frame["data"], key=lambda x: x["value"], reverse=not ascending)[:top]
-
-
-def frame_screen(frame: dict, min_value: float | None = None,
-                 max_value: float | None = None) -> list[dict]:
-    """按数值区间筛选全市场公司"""
-    out = frame["data"]
-    if min_value is not None:
-        out = [r for r in out if r["value"] >= min_value]
-    if max_value is not None:
-        out = [r for r in out if r["value"] <= max_value]
-    return out
-
-
-
-
 def treasury_yield_curve(year: int | None = None) -> list[dict]:
     """美国国债收益率曲线（每日，1M~30Y）。政府数据，S 级。返回 [0] 为最新一日"""
     if year is not None:
@@ -1975,10 +1307,6 @@ def yahoo_holders(symbol: str, modules: list[str] | None = None) -> dict:
     return _yfinance_call("yahoo_holders", **locals())
 
 
-def yahoo_options(symbol: str, expiration: str | None = None) -> dict:
-    return _yfinance_call("yahoo_options", **locals())
-
-
 def yahoo_earnings(symbol: str, modules: list[str] | None = None, limit: int = 12) -> dict:
     return _yfinance_call("yahoo_earnings", **locals())
 
@@ -1987,17 +1315,11 @@ def yahoo_funds(symbol: str, modules: list[str] | None = None) -> dict:
     return _yfinance_call("yahoo_funds", **locals())
 
 
-def yahoo_screen(query: dict, query_type: str = "equity", size: int = 25,
-                 max_pages: int = 1, max_results: int = 250) -> dict:
-    return _yfinance_call("yahoo_screen", **locals())
-
-
 YFINANCE_FUNCTIONS = {
     "yahoo_history", "yahoo_history_batch", "yahoo_quote", "yahoo_profile",
     "yahoo_financials", "yahoo_search", "yahoo_statistics",
-    "yahoo_analysis", "yahoo_holders", "yahoo_options", "yahoo_earnings",
-    "yahoo_funds", "yahoo_screen",
-}# Explicit data/analysis entry points. Low-level HTTP and session helpers are
+    "yahoo_analysis", "yahoo_holders", "yahoo_earnings", "yahoo_funds",
+}# Explicit factual-background entry points. Low-level HTTP and session helpers are
 # importable library functions, but are intentionally unavailable to the CLI.
 FUNCTION_SOURCES = {
     "yahoo_quote_summary": "Yahoo Finance",
@@ -2008,38 +1330,19 @@ FUNCTION_SOURCES = {
     "stock_quote_eastmoney": "Eastmoney push2",
     "us_stock_kline_sina": "Sina",
     "stock_kline_yahoo": "Yahoo Finance",
-    "calc_ma": "local",
-    "calc_macd": "local",
-    "calc_rsi": "local",
-    "calc_kdj": "local",
-    "calc_boll": "local",
     "financial_statements_eastmoney": "Eastmoney datacenter",
     "key_indicators_eastmoney": "Eastmoney datacenter",
     "key_statistics": "Yahoo Finance",
     "analyst_estimates": "Yahoo Finance",
     "institutional_holders": "Yahoo Finance",
     "financial_statements_yahoo": "Yahoo Finance",
-    "fund_flow_daily": "Eastmoney push2his",
-    "parse_osi": "local",
-    "options_chain_cboe": "CBOE",
-    "filter_expiry": "local",
-    "unusual_activity": "local",
-    "chain_summary": "local",
-    "cboe_quote": "CBOE",
-    "options_chain": "Yahoo Finance",
     "sec_filings": "SEC EDGAR",
     "sec_xbrl_facts": "SEC EDGAR",
     "stock_search": "Eastmoney search",
     "ticker_to_cik": "SEC EDGAR",
-    "market_stock_list": "Eastmoney push2",
-    "short_volume_all": "FINRA Reg SHO",
-    "short_volume_symbol": "FINRA Reg SHO",
-    "short_volume_ranking": "local",
     "daily_filings": "SEC EDGAR",
     "fulltext_search": "SEC EDGAR",
     "market_frame": "SEC EDGAR",
-    "frame_ranking": "local",
-    "frame_screen": "local",
     "treasury_yield_curve": "US Treasury",
     "cftc_cot": "CFTC",
     "earnings_calendar": "Nasdaq",

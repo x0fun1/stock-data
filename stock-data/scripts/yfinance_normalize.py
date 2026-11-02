@@ -128,7 +128,7 @@ def normalize_history(frame, metadata, *, price_basis="provider", symbol=None, i
         if ratio is not None and (not math.isfinite(ratio) or ratio <= 0):
             ratio = None
         # Preserve a conventional timestamp field as well as the explicit UTC
-        # alias. The forecast pipeline uses `date` as its daily session key.
+        # alias. Factual history uses `date` as its source-local daily key.
         bar = {"date": local.date().isoformat(), "timestamp": _utc(stamp), "timestamp_utc": _utc(stamp),
                "timezone": tz_name, "provider_ohlc": raw, "adj_close": adj,
                "volume": _number(row.get("Volume", row.get("volume"))),
@@ -261,18 +261,3 @@ def normalize_financials(statements, frequency, currency=None):
     return {"status": "success" if success and success == len(statuses) else "partial" if success else "empty",
             "statements": statuses, "records": output, "currency": currency,
             "warnings": ["period_end_is_not_disclosure_date", "units_not_confirmed"]}
-
-
-def normalize_options(chain, *, expiration=None, underlying=None):
-    """Map native OptionChain or calls/puts dict. No Greeks or trade direction."""
-    output = {}
-    for side in ("calls", "puts"):
-        frame = chain.get(side) if isinstance(chain, Mapping) else getattr(chain, side, None)
-        rows = []
-        for _, row in _rows(frame):
-            normalized = json_safe(row)
-            normalized["lastTradeDate"] = _utc(row.get("lastTradeDate"))
-            rows.append(normalized)
-        output[side] = rows
-    return {"expiration": expiration, "underlying": json_safe(underlying), **output,
-            "warnings": ["no_greeks_or_trade_direction_inferred"]}

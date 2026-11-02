@@ -1,15 +1,15 @@
-# Stock Data & Quant Research
+# Stock Data — News Research
 
-`stock-data` 是面向美股、港股及相应 ETF 的可安装 Skill。行情、基本面、技术指标、专项数据经已连接的 Finnhub MCP 或本包 global gateway 获取；新闻唯一来源为宿主 Finnhub MCP `get-news-pulse`。量化研究脚本只处理已采集的数据，不联网更新快照。
+`stock-data` 是面向美股、港股及相应 ETF 的新闻消息面研究 Skill。普通“分析、简析、怎么看”默认执行 **来源规划 → 历史采集/授权导入 → 冻结证据 → 宿主离线分析 → 报告与交付校验**。
 
-普通个股/ETF 的“分析、简析、怎么看、综合分析”和方向判断默认执行 **数据验证 → Quant → 验证/审计 → News → 综合 → 交付校验**，使用 `intent=forecast`，horizon 固定 `5D`，窗口固定为 `(decision-364 个自然日, decision]`，价格基础为拆股调整、不含分红再投资。只有 A 路径（`quant`）在窗口覆盖完整、日历可验证、目标日可解析、当前/回放可重算且有效回放样本 ≥12（=有效条数/5）时才发布正式概率；B/C 为影子研究，D 为 5D 描述性诊断。简析只缩短篇幅，不省略 Quant。完整规则以 [SKILL.md](stock-data/SKILL.md) 及其引用文档为准。
+当前版本为 **4.0.0 / news-1**。默认最近 **60 个自然日**，支持显式 30～60 天；没有 OHLCV 但有足够新闻证据也可完成研究。分析宏观、公司事件和财务背景，形成利多/利空/中性或证据不足的判断，选择唯一合格重大近期事件或明确返回空值。结论针对已知消息影响，不提供价格预测、数值情绪、技术指标、排名筛选或交易策略入口。完整流程见 [SKILL.md](stock-data/SKILL.md) 和 [新闻工作流](stock-data/references/news-first-workflow.md)。
 
 ## 安装
 
 复制以下指令给支持本地 Skill 的 Agent：
 
 ```text
-请从 https://github.com/x0fun1/stock-data 的当前默认分支安装 stock-data Skill，仓库内路径为 stock-data。先读取 README.md 和 stock-data/SKILL.md，定位当前 Agent 实际支持的 Skill 安装目录；Codex 使用自带的 skill-installer，目录为 $CODEX_HOME/skills，未设置时为 ~/.codex/skills，其他 Agent 不猜路径。只安装 stock-data/ 整个目录，包含 scripts/、references/ 和两份 requirements，不改动其他 Skill、配置、密钥或长期 memory。已有同名 Skill 时不要覆盖，按升级流程处理。检查实际执行脚本的 Python 3.10+ 环境，按权限安装 requirements.txt 中的运行依赖，不自动改装其他全局环境。用已安装脚本的 --list、--help 和 schema --kind request 做离线自检，并检查 reference 链接。报告安装路径、Skill 版本、下载 commit、依赖和自检结果；按 Agent 加载机制刷新，Codex 提示重启。此步骤不配置 Finnhub MCP，也不把离线自检表述为实时数据源连通成功。
+请从 https://github.com/x0fun1/stock-data 的当前默认分支安装 stock-data Skill，仓库内路径为 stock-data。先读取 README.md 和 stock-data/SKILL.md，定位当前 Agent 实际支持的 Skill 安装目录；Codex 使用自带的 skill-installer，目录为 $CODEX_HOME/skills，未设置时为 ~/.codex/skills，其他 Agent 不猜路径。只安装 stock-data/ 整个目录，包含 scripts/、references/、examples/ 和两份 requirements，不改动其他 Skill、配置、密钥或长期 memory。已有同名 Skill 时不要覆盖，按升级流程处理。检查实际执行脚本的 Python 3.10+ 环境，按权限安装 requirements.txt 中的运行依赖，不自动改装其他全局环境。用已安装的 news_research.py --help、sources、schema --kind request、schema --kind assessment、schema --kind import 及 global_stock_data.py --list 做离线自检，并检查 reference 链接。报告安装路径、Skill 版本、下载 commit、依赖和自检结果；按 Agent 加载机制刷新，Codex 提示重启。此步骤不配置 Finnhub MCP，也不把离线自检表述为实时数据源连通成功。
 ```
 
 安装结构：
@@ -21,6 +21,7 @@
   requirements-yahoo.txt
   scripts/
   references/
+  examples/
 ```
 
 在实际执行 gateway 的 Python 环境中安装依赖：
@@ -29,7 +30,9 @@
 python -m pip install -r stock-data/requirements.txt
 ```
 
-量化运行使用标准库、IANA 时区数据库和 `exchange_calendars`（XNYS/XHKG）验证交易所 session；Windows 缺时区数据库时需要 `tzdata`。未安装 `exchange_calendars` 时只能输出诊断，不能发布正式 5 交易日概率（`CALENDAR_UNVERIFIED`）。gateway 需要 `requests`；Yahoo 路由依赖由 `requirements-yahoo.txt` 引入并按需加载。Finnhub 连接、API key、网络权限与来源授权由宿主提供，见 [source-policies.md](stock-data/references/source-policies.md)。
+核心运行使用 Python 3.10+、HTTP 依赖与 IANA 时区数据库（包括 Windows 的 `tzdata`）。**Yahoo 是可选背景来源**；只有需要且获得安装/访问授权时再运行 `python -m pip install -r stock-data/requirements-yahoo.txt`，不自动改动其他 Python 环境。新闻来源由 request 显式规划，允许已授权历史适配器和宿主证据导入；账户、网络权限及内容保存许可分别核对，见 [来源矩阵](stock-data/references/source-matrix.md) 与 [source-policies.md](stock-data/references/source-policies.md)。
+
+下载或解压的仓库放在 Skill 扫描目录之外的新空暂存目录；核对文件与 commit 后再执行受信任脚本，不从未经检查的下载目录启动解释器或构建工具。
 
 ## 升级
 
@@ -43,33 +46,33 @@ python -m pip install -r stock-data/requirements.txt
 
 示例从仓库根目录执行；安装后使用已安装脚本的绝对路径。输入与输出位于用户可写工作目录，不写入 Skill 安装目录。
 
-### 数据采集
+### 新闻采集、离线分析与交付
 
-美股优先实际已连接且覆盖字段的 Finnhub；港股及缺项按 Skill 来源规则调用 gateway。选择 Yahoo 时强制优先 `yahoo_*` yfinance 路由，失败后仅在网络授权与请求限额允许时使用语义等价的旧接口，保留实际来源和失败原因；不提供后端切换，不覆盖已有 partial 数据。可用函数和参数以 `--list` 为准，见 [yfinance-data.md](stock-data/references/yfinance-data.md)。
-
-```sh
-python stock-data/scripts/global_stock_data.py --function yahoo_history --params-file history-request.json --output history-envelope.json --cache-dir runtime/yfinance-cache
-python stock-data/scripts/yahoo_collect.py --request request.json --output gateway-responses.json --cache-dir runtime/yfinance-cache
-```
-
-`yahoo_collect.py` 仅采行情。新闻由宿主 Finnhub 映射为 `news.data.articles[]`；未连接时记为 `not_assessed`，不二次联网补新闻。采集字段映射见 [collection-adapter.md](stock-data/references/collection-adapter.md)。取得响应不代表通过预测数据门槛，不能补造收盘、复权、日历或单位证据。
-
-### 离线研究与交付
+先读取 `sources` 与三份 schema，按 [新闻工作流](stock-data/references/news-first-workflow.md) 创建 request 和授权导入材料。可复制 [美股请求](stock-data/examples/request-us.json) 或 [港股请求](stock-data/examples/request-hk.json)，并更新截止时间与实际来源配置；这些是配置示例，不是已验收的真实市场报告。`RUN` 为 collect 回执返回的实际目录。
 
 ```sh
-python stock-data/scripts/quant_research.py pipeline --request request.json --responses gateway-responses.json --output-root runtime --cleanup-json
-python stock-data/scripts/quant_research.py validate-response --analysis-dir <实际返回的_report_dir> --response-file <待发送的完整回复.md>
-python stock-data/scripts/quant_research.py cleanup-run --run-dir <实际返回的_run_dir> --analysis-dir <实际返回的_report_dir> --response-file <同一待发送的完整回复.md>
-python stock-data/scripts/quant_research.py gc --output-root runtime --dry-run
+python stock-data/scripts/news_research.py sources
+python stock-data/scripts/news_research.py schema --kind request
+python stock-data/scripts/news_research.py schema --kind import
+python stock-data/scripts/news_research.py schema --kind assessment
+python stock-data/scripts/news_research.py collect --request request.json --imports evidence.json --output-root runtime
+python stock-data/scripts/news_research.py prepare --run-dir RUN
+# 宿主离线阅读冻结证据，按 schema 生成 host-assessment.json
+python stock-data/scripts/news_research.py analyze --run-dir RUN --assessment host-assessment.json
+python stock-data/scripts/news_research.py report --run-dir RUN
+python stock-data/scripts/news_research.py validate-report --run-dir RUN --response-file reply.md
+python stock-data/scripts/news_research.py gc --output-root runtime --dry-run --retention-days 120
 ```
 
-`pipeline` 完成 request → adapt → freeze → analyze。A 是唯一生产路径，B/C 影子研究，D 做 5D 单证券诊断，E 审计；Quant 与 E 冻结后才运行独立 News，再冻结并综合。`pipeline` 默认用内置半衰期运行 News（`--news-policy` 可覆盖），不再默认跳过。News 不修改 Quant 概率。优先读取生成的 `final_response.md`，实际待发送文本必须通过校验；CLI `status: success` 仅表示产物写出，还需检查 `consensus.production_probability_eligible`、`consensus.evidence.directional_edge_state`、`consensus.evidence.directional_edge_independent_supported` 和阶段回执。`--artifact-profile compact` 只把 `analysis.json` 的逐条回放行改为引用 `researchers/<path>.json`，完整行仍保留在研究者产物中。
+适配器采集可省略 `--imports`；后续更新可加 `collect --incremental`。宿主只能引用登记 ID，不自行写来源标题、URL、日期或数字。分析阶段不联网替换冻结输入；模型输出缺失或非法时报告分析未完成，不自动生成中性结论。
 
-`news-candidates` 会同时冻结 `news_preview.json`；`analyze` 在 `news_input_digest` 一致时直接复用，避免同一次工作流重复运行确定性 News 管线。`--focus major` 只导出 direct 且 major 的候选并记录排除数，默认 `all` 保持全量覆盖。
+报告披露请求区间、实际来源/正文覆盖、候选与已分析/遗漏数量。60 天只取回 7 天仍为部分覆盖；来源注册和 HTTP 成功不证明全网完整。近期唯一重大事件优先最近 7 天，无合格候选扩至 30 天并披露，再无候选则为空。
 
-`--cleanup-json` 将本次运行隔离到 `runtime/runs/<run_id>/`。宿主读取/复制已校验回复后，`cleanup-run` 再次校验并仅删除本次登记的 JSON，保留 `report.md`、`final_response.md`、`cleanup_receipt.txt`。可先加 `--dry-run` 预览。外部输入、其他运行和 provider 缓存都不在 run 清理范围内；失败/中断运行默认保留。需要复现或审计时使用 `--keep-json`；清理后不能再进行依赖原 JSON 的交付校验。
+共享证据库与单次运行分开；许可允许时默认保留至少 120 天所需证据。不要在交付后清空 JSON。`gc` 默认 dry-run；先审阅 `gc --dry-run`，实际清理必须经用户授权并显式添加 `--apply`，且受路径、引用、已登记产物与许可约束，不清理外部输入、未知文件或共享数据库。
 
-清理前会先删除两类崩溃残留：原子写临时文件 `.<文件名>.<12位hex>.tmp` 与快照构建临时目录 `.<snapshot_id>.<8位随机>`；其他未知文件仍会阻断删除。宿主拿不到实际发送文本时可用 `cleanup-run --assume-delivered`，回执记 `delivery=unverified`。`gc` 负责长期保留：默认把超过 1 天仍未交付的 `awaiting_cleanup` 运行补清理，把超过 30 天、回执 `complete` 且已无 JSON 的 run 目录整体删除，并按 7 天清理 provider 缓存；`pipeline` 启动前会节流执行同一套清扫（两种布局模式都触发，每 24 小时一次，`--no-gc` 关闭）。链接、未知文件、未完成回执和存活进程一律跳过并给出原因。逐阶段命令与更多参数见 `--help`。
+### 可选事实背景
+
+仅在解释新闻需要或用户明确查询时调用 [global gateway](stock-data/references/global-stock-data.md) 的证券身份、报价、财务、公告、宏观等接口。Yahoo 路由按需安装，保留实际来源、失败和 partial 数据；日期、币种、单位、发布与观测期不可猜测。行情或财务背景不是新闻完整覆盖的证明。
 
 ## 离线自检
 
@@ -77,14 +80,16 @@ python stock-data/scripts/quant_research.py gc --output-root runtime --dry-run
 
 ```sh
 python -B stock-data/scripts/global_stock_data.py --list
-python -B stock-data/scripts/yahoo_collect.py --help
-python -B stock-data/scripts/quant_research.py --help
-python -B stock-data/scripts/quant_research.py gc --help
-python -B stock-data/scripts/quant_research.py schema --kind request
+python -B stock-data/scripts/news_research.py --help
+python -B stock-data/scripts/news_research.py sources
+python -B stock-data/scripts/news_research.py schema --kind request
+python -B stock-data/scripts/news_research.py schema --kind assessment
+python -B stock-data/scripts/news_research.py schema --kind import
+python -B stock-data/scripts/news_research.py gc --help
 python -B stock-data/scripts/selfcheck.py
 ```
 
-前五步只确认入口、参数和请求 schema 可用，不验证实时来源连通或预测有效性；`selfcheck.py` 额外用合成数据运行离线回归校验，且**登记表、退役表和已定义函数必须互相覆盖**（未登记或未退役的检查会直接失败）。T01–T35 覆盖固定 5 日 horizon、52 周窗口、窗口冲突、越界 K 线、价格基础、目标 session、日历、标签成熟、有效样本、当前概率重算、transform/参数/版本篡改、台账、单生产路径、影子隔离、因子/ML 边界、新闻三态与注入防护；T36–T45 覆盖覆盖重算与伪造申报、抽样三态、veto 全字段清除、前向录入时限与模型版本隔离、拆股与价格序列对账、partial AI 新闻交付、警告分级、登记完整性、版本一致性与 compact 产物；F01/F02/F39–F42/F46 覆盖 ML 前缀不变性、台账语义、影子校准禁用、实时=回放与 v2 收缩公式。仓库内历史检查若测试已被移除的功能，列在 `RETIRED_CHECKS` 并写明原因，不执行也不隐藏。合成数据只验证流程，不构成效能证据；效能结论必须来自真实数据并附有效样本量与区间。
+入口/schema 检查只确认离线契约可用；新闻回归应覆盖无 OHLCV、US/HK/ETF、30～60 天窗口、部分来源、历史分页、PIT、去重/更新、证据准入、非法引用、宿主注入和安全清理。以本次真实执行结果为准，不将合成数据或自检成功称为实时数据源连通、账户权限已确认或真实样例已验收。
 
 ## 代码质量
 
@@ -95,15 +100,15 @@ ruff check stock-data/scripts
 
 `pyproject.toml` 固定 lint 契约，不是可选的风格偏好：`target-version = "py310"` 与运行环境下限一致（因此不自动套用 3.11 才有的 `datetime.UTC`、原生 `Z` 解析等写法）；`line-length = 120`；忽略项都带理由——单行数据契约字面量（E501）、CLI 统一用 `ValueError` 传递机器可读文案（TRY003/TRY301）、中文全角标点（RUF001-003）。刻意保留的写法用带理由的 `# noqa` 就地标注，`ruff check` 应保持零告警。
 
-JSON 序列化集中在 `quant_research/jsonio.py`：快照 manifest、冻结阶段结果和清理回执都对 JSON 字节取哈希，键序、分隔符、NaN 策略与结尾换行属于磁盘契约，只允许在一个地方定义。
+冻结输入与报告的摘要、路径边界和 JSON 写入由 `news_research/common/` 及新闻存储模块统一处理；不要由宿主重写证据 ID、摘要或来源元数据。
 
 ## 边界与参考
 
-- [专项分析路径](stock-data/references/analysis-paths.md)：事实、财务、技术、新闻、ETF 和多标的路由。
-- [量化路径](stock-data/references/quant-paths.md)、[数据门槛](stock-data/references/reliability-gates.md)、[概率规则](stock-data/references/probability-policy.md)：当前实现、证据限制及降级规则。
-- [审计规程](stock-data/references/audit-protocol.md)：可复现性与有效性的正交评分、独立第二实现、变异测试、有效样本量与门槛功效披露。
-- [News 契约](stock-data/references/news-analysis.md)、[影响分级](stock-data/references/news-impact-rubric.md)：确定性事件筛查与关联，不产生融合概率，也不证明因果关系。
-- [快照契约](stock-data/references/snapshot-schema.md)：冻结输入、完整性和输出路径边界。
-- [来源限制](stock-data/references/source-policies.md)、[来源与许可记录](stock-data/references/upstream-provenance.md)：网络授权、来源声明及集成边界。
+- [新闻工作流](stock-data/references/news-first-workflow.md)：request、CLI、宿主离线分析、交付和保留策略。
+- [来源矩阵](stock-data/references/source-matrix.md)、[来源限制](stock-data/references/source-policies.md)：历史能力、权限和本次覆盖缺口。
+- [分析路径](stock-data/references/analysis-paths.md)：新闻、最小事实查询与 ETF 暴露。
+- [新闻证据](stock-data/references/news-analysis.md)、[重大影响规则](stock-data/references/news-impact-rubric.md)：宏观传导、准入、唯一重大事件和综合判断。
+- [采集映射](stock-data/references/collection-adapter.md)、[快照契约](stock-data/references/snapshot-schema.md)、[时点政策](stock-data/references/point-in-time-policy.md)：来源、日期、数字和冻结证据边界。
+- [验收规程](stock-data/references/audit-protocol.md)、[证据门槛](stock-data/references/reliability-gates.md)、[上游记录](stock-data/references/upstream-provenance.md)：校验与能力声明限制。
 
-当前 Skill `3.3.1`，research runtime `0.23.0`，snapshot schema `1.3`，analysis schema `analysis-3.0`，forward ledger schema `ledger-3.1`。生产估计器为 `quant_drift_shrinkage_v2`（因果基率 + 波动率标定漂移先验收缩，`k=50`、`μ=6%/年`）；ROC20 仅作披露状态。52 周覆盖由冻结时的交易日历逐日重算，申报值只作对照；方向优势区分“窗口内回放”与“独立前向证据”，回放区间下界大于 0 不再等同于已支持。审计规则见 [audit-protocol.md](stock-data/references/audit-protocol.md)。没有实现正式 CPCV/PBO/DSR、多资产组合执行回测、XGBoost/LightGBM 或 ETF 穿透模型；缺失能力须记为未评估。合成数据和离线验收不构成真实市场预测改善证据。概率是有不确定性的研究结果，不是交易指令或收益保证。
+版本 `4.0.0 / news-1` 是不兼容入口迁移；旧运行产物不直接作为新证据导入。证据不足时明确保留缺口，不以模型推断补造事实。本说明不代表已完成真实联网验收；研究不是交易指令或收益保证。

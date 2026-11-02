@@ -1,8 +1,5 @@
-# Required gateway and Yahoo Finance collection dependencies.
+# Core news-source and factual-background HTTP dependency; Yahoo is optional.
 requests>=2.31,<3
--r requirements-yahoo.txt
 
-# Required for formal 5-session forecasts: verified exchange calendars (XNYS/XHKG).
-# Without it the runtime can only produce diagnostics (CALENDAR_UNVERIFIED), because
-# observed bar labels cannot certify that the fifth session exists or that a bar is missing.
-exchange_calendars>=4,<5
+# IANA timezone data for environments without a system database (notably Windows).
+tzdata>=2024.1
