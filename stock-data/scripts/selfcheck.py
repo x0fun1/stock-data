@@ -982,6 +982,22 @@ def check_news_summary_fixtures() -> None:
         raise AssertionError(stream.getvalue()[-1200:])
 
 
+def check_descriptive_window_fixtures() -> None:
+    """FIX-21: the news snapshot keeps at most the latest 52 weeks of bars."""
+    import unittest
+
+    tests_dir = str(SCRIPTS.parent / "tests")
+    if tests_dir not in sys.path:
+        sys.path.insert(0, tests_dir)
+    import test_snapshot_window  # noqa: PLC0415 - fixture suite lives next to the package
+
+    suite = unittest.defaultTestLoader.loadTestsFromModule(test_snapshot_window)
+    stream = io.StringIO()
+    outcome = unittest.TextTestRunner(stream=stream, verbosity=0).run(suite)
+    if not outcome.wasSuccessful():
+        raise AssertionError(stream.getvalue()[-1200:])
+
+
 def check_yahoo_collect_metadata() -> None:
     """FIX-16: GOOGL/QQQ currency evidence, missing unit not ineligible, CALENDAR_LIB_MISSING."""
     import unittest
@@ -1098,6 +1114,7 @@ CHECKS = [
     ("FIX14 news verification fixtures", check_news_verify_fixtures),
     ("FIX15 news summary fixtures", check_news_summary_fixtures),
     ("FIX16 yahoo collection metadata", check_yahoo_collect_metadata),
+    ("FIX21 descriptive window fixtures", check_descriptive_window_fixtures),
     ("FIX16 docs convergence", check_docs_convergence),
     ("T43 registry accounts for every check", check_t43_registry_accounts_for_every_check),
     ("T44 documented versions match the runtime", check_t44_documented_versions_match_the_runtime),

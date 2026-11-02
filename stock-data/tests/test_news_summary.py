@@ -158,6 +158,15 @@ class SummaryTests(unittest.TestCase):
         self.assertEqual(rows["a3"]["ticker_relevance"], "unclear")
         self.assertEqual(rows["a3"]["relevance_basis"], "relevance_unassessed")
 
+    def test_ir_date_precision_is_disclosed(self):
+        articles = [_article("a1", headline="Q3 revenue rises to $2 billion", published="2026-10-29T12:00:00Z")]
+        articles[0]["time_precision"] = "date"
+        summary = build_summary(collected=_collected(articles), verification=_verification(articles),
+                                ai_items=_ai(articles), ai_status="assessed",
+                                snapshot={"ticker": "GOOGL", "market": "US", "asset_type": "stock"},
+                                news_result={}, refs=REFS, analysis_at="2026-11-02 09:00")
+        self.assertIn("time_precision=date", summary["limitations"])
+
     def test_no_ai_has_no_matrix(self):
         articles = [_article("a1", headline="Q3 revenue rises to $2 billion", published="2026-10-29T12:00:00Z")]
         summary = build_summary(collected=_collected(articles), verification=_verification(articles),
@@ -206,6 +215,27 @@ class DeliveryMutationTests(unittest.TestCase):
             except ValueError:
                 continue
             raise AssertionError(f"mutation was accepted: {mutated[:120]!r}")
+
+    def test_english_and_synonym_direction_phrases_are_rejected(self):
+        result = self._result()
+        text = render_final_response(result)
+        phrases = (
+            "Probability of upside: 55%",
+            "Downside probability is high",
+            "Overall view: bullish, composite score 7/10",
+            "Overall view: bearish",
+            "The setup is bullish overall",
+            "整体偏多",
+            "整体偏空",
+            "综合看涨",
+            "综合看跌",
+            "倾向看跌",
+            "偏多",
+            "偏空",
+        )
+        for phrase in phrases:
+            with self.assertRaises(ValueError, msg=phrase):
+                validate_response_text(result, text + "\n" + phrase)
 
     def test_post_hoc_strong_is_rejected(self):
         result = self._result()

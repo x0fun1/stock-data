@@ -431,7 +431,13 @@ def _collect_ir(ticker: str, market: str, start: datetime, end: datetime, refs: 
             if not title or moment is None:
                 dropped += 1
                 continue
+            precision = str(feed.get("time_precision") or "date")
             if not _in_window(moment, start, end):
+                outside += 1
+                continue
+            # A feed whose timezone declaration cannot be proven is date-only for
+            # PIT purposes: do not let a same-day timestamp imply intraday visibility.
+            if precision == "date" and moment.date() >= end.date():
                 outside += 1
                 continue
             summary = _xml_text(entry, ("description", "summary", "{*}description", "{*}summary"))
@@ -439,7 +445,7 @@ def _collect_ir(ticker: str, market: str, start: datetime, end: datetime, refs: 
                 article_id=f"ir_{_norm_title(title)[:24]}_{int(moment.timestamp())}",
                 title=title, url=link, source=str(feed.get("name") or "Company IR"),
                 source_type="ir", record_type="news", published_at=_iso(moment),
-                ticker=ticker, summary=summary, source_id="ir_rss",
+                ticker=ticker, summary=summary, source_id="ir_rss", time_precision=precision,
             ))
     status["http_status"] = http_status
     status["dropped_invalid_timestamp"] = dropped

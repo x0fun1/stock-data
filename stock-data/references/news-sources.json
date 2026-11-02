@@ -80,26 +80,30 @@
       {
         "url": "https://abc.xyz/rss/pressrelease.aspx",
         "name": "Alphabet IR",
-        "crawl_delay_seconds": 10
+        "crawl_delay_seconds": 10,
+        "time_precision": "date"
       }
     ],
     "GOOG": [
       {
         "url": "https://abc.xyz/rss/pressrelease.aspx",
         "name": "Alphabet IR",
-        "crawl_delay_seconds": 10
+        "crawl_delay_seconds": 10,
+        "time_precision": "date"
       }
     ],
     "NVDA": [
       {
         "url": "https://investor.nvidia.com/rss/pressrelease.aspx",
         "name": "NVIDIA Investor Relations",
-        "crawl_delay_seconds": 10
+        "crawl_delay_seconds": 10,
+        "time_precision": "date"
       },
       {
         "url": "https://nvidianews.nvidia.com/releases.xml",
         "name": "NVIDIA Newsroom",
-        "crawl_delay_seconds": 10
+        "crawl_delay_seconds": 10,
+        "time_precision": "date"
       }
     ]
   },

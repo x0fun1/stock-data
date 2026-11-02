@@ -24,6 +24,12 @@ FORBIDDEN = (
     "建议" + "买入", "建议" + "卖出", "买入" + "建议", "卖出" + "建议", "仓位" + "建议",
     "Quant " + "Confidence", "置信度" + "评分", "校准" + "概率",
     "方向" + "结论", "看涨", "看跌", "买入", "卖出", "仓位", "加仓", "减仓",
+    "整体" + "偏多", "整体" + "偏空", "综合" + "看涨", "综合" + "看跌",
+    "倾向" + "看涨", "倾向" + "看跌", "偏多", "偏空", "看多", "看空",
+    "probability", "probability of upside", "probability of downside",
+    "upside probability", "downside probability", "odds of upside", "odds of downside",
+    "overall view", "overall bullish", "overall bearish", "bullish overall", "bearish overall",
+    "composite score",
 )
 
 
@@ -54,7 +60,8 @@ def validate_response_text(result: dict[str, Any], text: str) -> None:
             if folded.startswith(_normalized_line(label)) and folded not in expected_normalized:
                 conflicting.append(folded)
                 break
-        if any(token in line for token in FORBIDDEN):
+        lowered = line.casefold()
+        if any(token.casefold() in lowered for token in FORBIDDEN):
             conflicting.append(folded)
     if missing or conflicting:
         raise ValueError(

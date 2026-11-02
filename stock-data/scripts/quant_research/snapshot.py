@@ -23,6 +23,7 @@ from .paths import safe_output_destination, validate_path_component
 from .security import provider_failed, sanitize_data
 
 SCHEMA_VERSION = "1.3"
+DESCRIPTIVE_WINDOW_BARS = 250
 READABLE_SCHEMA_VERSIONS = frozenset({"1.0", "1.1", "1.2", SCHEMA_VERSION})
 DOMAINS = (
     "market",
@@ -60,6 +61,33 @@ def _unwrap_domain(block: Any) -> dict[str, Any]:
         "status": "failed" if failed else block.get("status", "complete" if data is not None else "unavailable"),
         "actual_source": block.get("actual_source", block.get("source")),
     }
+
+
+def _truncate_descriptive_window(market: dict[str, Any],
+                                  max_bars: int = DESCRIPTIVE_WINDOW_BARS) -> tuple[dict[str, Any], str | None]:
+    """Keep at most the latest 52 weeks (about 250 sessions) of frozen bars."""
+    data = market.get("data")
+    bars = data.get("bars") if isinstance(data, dict) else None
+    if not isinstance(bars, list) or len(bars) <= max_bars:
+        return market, None
+    retained = bars[-max_bars:]
+    omitted = len(bars) - len(retained)
+    updated_data = dict(data)
+    updated_data["bars"] = retained
+    window = dict(updated_data.get("history_window") or {})
+    window.update({"start": retained[0].get("date"), "end": retained[-1].get("date"),
+                   "selection": "trailing 52 weeks"})
+    updated_data["history_window"] = window
+    updated = dict(market)
+    updated["data"] = updated_data
+    updated["history_truncated"] = True
+    updated["history_truncation"] = {"policy": "latest_52_weeks", "max_bars": max_bars,
+                                     "original_bar_count": len(bars), "retained_bar_count": len(retained),
+                                     "omitted_bar_count": omitted, "selection": "trailing 52 weeks"}
+    warning = (f"market history truncated to the latest 52 weeks ({max_bars} bars); "
+               f"{omitted} older bars omitted")
+    updated["warnings"] = [*(market.get("warnings") or []), warning]
+    return updated, warning
 
 
 def validate_collection(collection: dict[str, Any], request: dict[str, Any]) -> tuple[list[str], list[str], int]:
@@ -258,6 +286,11 @@ def freeze_snapshot(
             bar_count -= 1
             if bar_count <= 0:
                 raise ValueError("snapshot rejected: no closed market bars remain after excluding an unverified same-day bar")
+    market, truncation_warning = _truncate_descriptive_window(market)
+    if truncation_warning:
+        warnings.append(truncation_warning)
+        market_data = market.get("data") if isinstance(market, dict) else None
+        bar_count = len(market_data.get("bars") or []) if isinstance(market_data, dict) else bar_count
     normalized_market_data = market
 
     created_at = utc_now()

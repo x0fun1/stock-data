@@ -90,6 +90,6 @@ Values are illustrative, not market data. Never copy example values into a repor
 | Finnhub `related` | article `related` | Comma-separated provider tags; match ticker/aliases |
 | SEC `acceptanceDateTime` | article `published_at` | UTC; `filingDate` fallback is date-only |
 | SEC `items` | article `items` | 8-K item codes; titles from the human-maintained map |
-| IR RSS `pubDate` | article `published_at` | RFC 822 → UTC ISO |
+| IR RSS `pubDate` | article `published_at` | RFC 822 → UTC ISO; when the feed timezone cannot be proven, keep `time_precision=date` and do not use it for intraday sorting or PIT intraday comparison |
 
 A headline-only feed cannot support body-level analysis. The report must disclose title/summary-level judgement, and the AI assessment must not claim to have read the body.

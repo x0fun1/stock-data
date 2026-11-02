@@ -156,6 +156,9 @@ def _limitations(collected: dict[str, Any], verification: dict[str, Any], direct
     ir = (collected.get("sources") or {}).get("ir_rss") or {}
     if ir.get("partial_window"):
         pieces.append("IR feed 未覆盖整个 60 天窗口（partial_window）")
+    if any(row.get("source_id") == "ir_rss" and row.get("time_precision") == "date"
+           for row in collected.get("articles") or [] if isinstance(row, dict)):
+        pieces.append("IR feed 的时区声明不可靠，条目按 time_precision=date 处理，不用于日内排序或 PIT 日内比较")
     counts = collected.get("counts") or {}
     finnhub_origin = int(counts.get("finnhub_origin") or 0)
     yahoo_origin = int(counts.get("yahoo_origin") or 0)

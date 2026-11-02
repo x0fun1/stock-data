@@ -12,6 +12,6 @@
 
 ## 行情字段
 
-`market.data.bars[]` 使用 `date/open/high/low/close/volume`，严格按交易日升序、唯一、无未来日期。`history_window` 必须描述实际保留的 bar 范围；描述性走势窗口最多最近 52 周（约 250 个交易日）。
+`market.data.bars[]` 使用 `date/open/high/low/close/volume`，严格按交易日升序、唯一、无未来日期。`history_window` 必须描述实际保留的 bar 范围；描述性走势窗口最多最近 52 周（约 250 个交易日）。输入 bar 超过该上限时，新闻路径必须截断到最近 250 根并在 `history_truncated` / `history_truncation` 与警告中标注，不得静默接收更长的序列。
 
 `session_calendar` 可选；缺失时只能使用观测日期，并披露未验证。价格基础必须明确；未知单位保持 null，不猜币种或交易单位。

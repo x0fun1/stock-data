@@ -69,6 +69,7 @@ class CollectTests(unittest.TestCase):
                      if row["title"] == "Alphabet announces third quarter 2026 results"]
         self.assertEqual(len(duplicate), 1, duplicate)
         self.assertEqual(duplicate[0]["source_id"], "ir_rss")
+        self.assertEqual(duplicate[0]["time_precision"], "date")
         self.assertIn("Example Wire", duplicate[0]["also_seen_in"])
         self.assertTrue(result["sources"]["ir_rss"]["partial_window"])
         self.assertTrue(result["sources"]["finnhub_rest"]["partial_window"])
@@ -82,6 +83,11 @@ class CollectTests(unittest.TestCase):
         for row in result["articles"]:
             self.assertLessEqual(row["published_at"], "2026-10-28T18:00:00Z")
         self.assertFalse(any("third quarter" in row["title"].lower() for row in result["articles"]))
+
+    def test_same_day_ir_timestamp_is_not_treated_as_intraday_visible(self):
+        result = self.collect(as_of="2026-10-28T23:00:00Z")
+        self.assertFalse(any("third quarter" in row["title"].lower() and row["source_id"] == "ir_rss"
+                             for row in result["articles"]))
 
     def test_missing_credentials_do_not_crash(self):
         result = self.collect(env={})
