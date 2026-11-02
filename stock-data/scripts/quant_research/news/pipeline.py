@@ -163,11 +163,11 @@ VOLATILITY_CATALYST_TYPES = ("EARNINGS", "GUIDANCE", "MACRO", "MERGER_ACQUISITIO
 
 
 def _volatility_regime(events: list[dict[str, Any]], horizon: int) -> dict[str, Any]:
-    """Non-directional volatility state for the forecast window.
+    """Non-directional volatility state for the analysis horizon.
 
     The News layer is allowed to say "this window contains a scheduled
     information release that historically widens 5-day dispersion" without
-    saying which way.  It never enters the probability.
+    saying which way.  It never feeds a direction prediction.
     """
 
     recent = [
@@ -177,7 +177,7 @@ def _volatility_regime(events: list[dict[str, Any]], horizon: int) -> dict[str, 
     catalysts = [event for event in recent if str(event.get("event_type") or "") in VOLATILITY_CATALYST_TYPES]
     return {
         "regime": "elevated" if catalysts else "normal",
-        "basis": "declared_event_type_rule_within_the_forecast_window",
+        "basis": "declared_event_type_rule_within_the_analysis_horizon",
         "lookback_sessions": horizon,
         "event_ids": [event.get("event_id") for event in catalysts][:10],
         "event_types": sorted({str(event.get("event_type")) for event in catalysts}),
@@ -230,8 +230,8 @@ def prepare_news_input(
 ) -> NewsInput:
     """Read only normalized news, snapshot identity and frozen market bars.
 
-    This function never opens researcher outputs. Its returned contract has no
-    Quant fields or Quant result path.
+    This function never opens researcher outputs. Its returned contract contains
+    only news and frozen market data.
     """
     manifest, market = loaded_snapshot if loaded_snapshot is not None else load_snapshot(snapshot_dir)
     if loaded_news_domain is None:
@@ -442,7 +442,7 @@ def analyze_news(
     policy: dict[str, Any] | None = None,
     ai_assessment: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
-    """Analyze news records without Quant results, probabilities, or provider access.
+    """Analyze news records without model results, probabilities, or provider access.
 
     ``ai_assessment`` is an optional host-supplied, headline-level lean artifact.
     It is validated against this run's own records and attached as display-only
@@ -600,7 +600,7 @@ def analyze_news(
     confidence = "medium" if len(events) >= 3 and independent_count >= 2 and all(event["source_quality"] is not None and event["source_quality"] >= 0.5 for event in events) and market_confirmation in {"positive", "negative"} and news_input.coverage.get("calendar_verification") in {"source_supplied_schedule", "library_verified"} else "low"
     limitations = [
         "Event classification and opinion tone use deterministic keyword screening; they are not a calibrated semantic model.",
-        "News direction and sentiment are descriptive and do not generate or adjust Quant P(up).",
+        "News direction and sentiment are descriptive only; the skill produces no direction prediction.",
         "Daily-bar market reactions are temporal associations, not proof that a headline caused the price move.",
         "Events whose member headlines disagree are listed as mixed and are never counted as one-sided bullish or bearish evidence.",
     ]
@@ -699,9 +699,9 @@ def analyze_news(
         "already_priced_in": priced_in,
         "event_time_bucket_counts": bucket_counts,
         "market_confirmation": market_confirmation,
-        # The price reaction is computed from the same frozen OHLCV the Quant paths
-        # consume, so it is a consistency check on one dataset, not independent
-        # confirmation from a second market.
+        # The price reaction is computed from the same frozen OHLCV the market-data
+        # layer consumes, so it is a consistency check on one dataset, not
+        # independent confirmation from a second market.
         "price_reaction": {
             "basis": "frozen_snapshot_ohlcv",
             "independence": "not_independent_same_market_data",

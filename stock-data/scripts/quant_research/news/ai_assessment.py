@@ -15,8 +15,8 @@ Hard invariants enforced here:
   direction into the News result.
 * The merged lean never touches ``direction``, ``overall_direction``,
   ``confidence``, ``sentiment``, ``market_confirmation``, ``event_strength`` or
-  ``effective_event_score``. It cannot change Quant ``P(up)`` either, because the
-  News stage never sees a Quant result.
+  ``effective_event_score``. It cannot feed a direction prediction either,
+  because the News stage produces none.
 """
 
 from __future__ import annotations
@@ -342,7 +342,7 @@ def build_ai_lean_block(
         "model": (validated or {}).get("model"),
         "lean_id": (validated or {}).get("lean_id"),
         "display_only": True,
-        "probability_effect": "none: lean never enters aggregation, confidence, cross-validation or Quant P(up)",
+        "probability_effect": "none: lean never enters aggregation, confidence, cross-validation or any direction prediction",
         "coverage": {
             "candidate_count": len(candidates),
             "assessed_count": len(items),

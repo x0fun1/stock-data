@@ -13,8 +13,8 @@ Two findings drive this module.
    event-session move with no continuation is evidence the information was
    absorbed immediately.
 
-Neither output is a probability, neither has a direction, and neither ever enters
-Quant ``P(up)``.
+Neither output is a probability, neither has a direction, and both are
+descriptive only.
 """
 
 from __future__ import annotations
@@ -117,7 +117,8 @@ def priced_in_assessment(
     ``likely_priced_in`` requires both a large event-session move
     (``|move| >= sigma_multiple * sigma_5d``) and no continuation in the event's
     direction over the next ``horizon`` sessions.  It is a descriptive state, not
-    a forecast: it says the news is probably in the price, not what happens next.
+    a direction prediction: it says the news is probably in the price, not what
+    happens next.
     """
 
     base = {"display_only": True, "probability_effect": "none", "direction_neutral": True}

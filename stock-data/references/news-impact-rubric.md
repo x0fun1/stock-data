@@ -81,7 +81,7 @@ Unknown names stay `unclassified_publisher` and are never promoted. A publisher 
 
 ## Where the grading appears
 
-The impact block is computed inside the frozen News stage. Because a normal prediction run executes `cleanup-run`, which deletes every JSON artifact and keeps only `report.md` and `final_response.md`, the grading is also projected into the retained reports:
+The impact block is computed inside the frozen News stage. Because a normal analysis run executes `cleanup-run`, which deletes every JSON artifact and keeps only `report.md` and `final_response.md`, the grading is also projected into the retained reports:
 
 - `report.md` — one `Impact grading:` line per event with magnitude, observed return, pattern, sigma ratio, source tier, declared vs observed breadth and composite status, followed by the full caveat block above.
 - `agent_summary.json` — a compact per-event projection plus a single `impact_rubric` marker. This file is itself deleted by cleanup and its size is budget-bounded, so it carries only short fields.
@@ -129,7 +129,7 @@ direction and never enters any score.
 
 At the result level the state is `likely_priced_in` when at least three event
 windows are assessable and at least half of them show no continuation. This is
-the honest answer to "was the news already in the price?"; it is not a forecast.
+the honest answer to "was the news already in the price?"; it is not a direction prediction.
 
 ## Boundaries
 

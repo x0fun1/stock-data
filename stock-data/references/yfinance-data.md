@@ -95,9 +95,9 @@ adjusted OHLC 由同根 `Adj Close / Close` 等比例转换；保留 ratio、pro
 
 [yahoo_collect.py](../scripts/yahoo_collect.py) 只采 market 域；新闻由 `news_collect.py` 单独采集。不把 yfinance 参数塞进研究 request，不让 pipeline 隐式联网。字段与 provenance 见 [collection-adapter.md](collection-adapter.md)。使用 snapshot schema 1.3；描述性统计最多最近 52 周。
 
-市场数据质量与新闻流程独立：复权/日历/单位未知时如实披露并降级，不猜测补齐；明确的价格冲突、身份冲突或时间越界按数据校验处理。新闻失败记 not_assessed，不能当 neutral。
+市场数据质量与新闻流程独立：复权/日历/单位未知时如实披露，并在数据质量结果中记为 `warnings`，不猜测补齐；明确的价格冲突、身份冲突或时间越界按数据校验处理。新闻失败记 not_assessed，不能当 neutral。
 
-**当前采集不是已审计合格预测输入的承诺。** 单标的 history 的 `source_timestamp_kind=bar_label_not_trade_time` 明示日线索引时间，不是收盘/行情更新时间；即使交易日历确认该 bar 已闭合，仍不能把此标签改写为收盘时刻或 fetched_at。该真实源时间可能触发现有 24h freshness / `source_before_close` gate；保持 gate 不变，审计失败时报告阻断而非伪造时间。来源未确认的 `unit` 留 null，不从 currency 猜补；缺 unit、calendar-backed closure、身份或覆盖时 collector 记录 partial，freezer 对缺失 unit 记 `MARKET_UNITS_UNVERIFIED` 降级置信度（不单独否决），unit 与其他元数据**相互矛盾**才是数据完整性问题（`MARKET_UNITS_CONFLICT`，致命）。`fast_info` 报价当前不提供可靠源时间；batch 的对齐轴、空位来源、交易所身份/币种/时区及修复覆盖也不能视为已证实。只有实际数据通过既有完整验证后才可称为有效研究输入。
+**当前采集不保证数据已通过审计或可直接使用。** 单标的 history 的 `source_timestamp_kind=bar_label_not_trade_time` 明示日线索引时间，不是收盘/行情更新时间；即使交易日历确认该 bar 已闭合，仍不能把此标签改写为收盘时刻或 fetched_at。该真实源时间可能触发现有 24h freshness / `source_before_close` 审计；保持审计不变，审计失败时报告 blocker 而非伪造时间。来源未确认的 `unit` 留 null，不从 currency 猜补；缺 unit、calendar-backed closure、身份或覆盖时 collector 记录 partial，freezer 对缺失 unit 记 `MARKET_UNITS_UNVERIFIED`，作为 `warnings` 保留且不使 `data_usable` 为 false（不单独阻断）；unit 与其他元数据**相互矛盾**才是数据完整性问题（`MARKET_UNITS_CONFLICT`，作为 `blockers` 使 `data_usable=false`）。`fast_info` 报价当前不提供可靠源时间；batch 的对齐轴、空位来源、交易所身份/币种/时区及修复覆盖也不能视为已证实。只有实际数据通过既有完整验证后才可称为可用研究数据。
 
 旧 `stock_kline_yahoo`、`yahoo_quote_summary`、`financial_statements_yahoo`、`key_statistics`、`analyst_estimates`、`institutional_holders`、`options_chain` 保留原签名/返回结构，并作为 yfinance 失败后的强制自动回退路径。历史、报价/资料、财报、统计、预期、持仓、期权、财报事件和基金有明确映射；`yahoo_search` 自动映射到旧 `stock_search`，因此 provenance 标记其实际来源为 Eastmoney search。结构化筛选没有语义等价旧入口，返回 `NoLegacyRoute`。特别是旧 K 线 date 仍为 UTC 日期、range_ 仍非精确 start/end，不能与新交易所日期混同；结果标 partial 并保留窗口覆盖警告。
 
