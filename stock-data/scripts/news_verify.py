@@ -41,16 +41,22 @@ FetchJson = Callable[[str, str, dict[str, str], dict[str, str] | None],
 
 
 class RateLimiter:
-    def __init__(self, *, max_calls: int, window_seconds: float,
+    def __init__(self, *, max_calls: int, window_seconds: float, min_interval_seconds: float = 0.0,
                  sleep: Callable[[float], None] = time.sleep) -> None:
         self.max_calls = max_calls
         self.window_seconds = window_seconds
+        self.min_interval_seconds = min_interval_seconds
         self.sleep = sleep
         self.calls: list[float] = []
 
     def wait(self) -> None:
         now = time.monotonic()
         self.calls = [item for item in self.calls if now - item < self.window_seconds]
+        if self.min_interval_seconds > 0 and self.calls:
+            delay = self.min_interval_seconds - (now - self.calls[-1])
+            if delay > 0:
+                self.sleep(delay)
+                now = time.monotonic()
         if len(self.calls) >= self.max_calls:
             delay = self.window_seconds - (now - self.calls[0])
             if delay > 0:
@@ -156,19 +162,41 @@ def _search_query(candidate: dict[str, Any]) -> str:
     return title[:300]
 
 
-def _result_date(result: dict[str, Any]) -> datetime | None:
-    for key in ("date", "published_at", "published_date"):
-        value = result.get(key)
-        moment = _parse_instant(value)
-        if moment is not None:
-            return moment
-        if isinstance(value, str) and re.fullmatch(r"\d{4}-\d{2}-\d{2}", value):
-            return datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+def _relative_date(value: str, now: datetime) -> datetime | None:
+    text = re.sub(r"\s+", " ", value.strip().casefold())
+    match = re.fullmatch(r"(\d+)\s*(minute|hour|day|week|month|year)s?\s+ago", text)
+    if match:
+        amount = int(match.group(1))
+        unit = match.group(2)
+        seconds = {"minute": 60, "hour": 3600, "day": 86400, "week": 604800,
+                   "month": 2592000, "year": 31536000}[unit]
+        return now - timedelta(seconds=amount * seconds)
+    if text == "today":
+        return now
+    if text == "yesterday":
+        return now - timedelta(days=1)
     return None
 
 
-def _search(candidate: dict[str, Any], *, key: str, as_of: datetime, refs: dict[str, Any],
-            fetch_json: FetchJson, limiter: RateLimiter) -> dict[str, Any]:
+def _result_date(result: dict[str, Any], now: datetime) -> tuple[datetime | None, str]:
+    for key in ("date", "published_at", "published_date"):
+        value = result.get(key)
+        if not isinstance(value, str) or not value.strip():
+            continue
+        text = value.strip()
+        moment = _parse_instant(text)
+        if moment is not None:
+            precision = "date" if re.fullmatch(r"\d{4}-\d{2}-\d{2}", text) else "timestamp"
+            return moment, precision
+        relative = _relative_date(text, now)
+        if relative is not None:
+            return relative, "relative"
+        return None, "date_unknown"
+    return None, "date_unknown"
+
+
+def _search(candidate: dict[str, Any], *, key: str, as_of: datetime, now: datetime,
+            refs: dict[str, Any], fetch_json: FetchJson, limiter: RateLimiter) -> dict[str, Any]:
     published = _parse_instant(candidate.get("published_at")) or as_of
     after = (published - timedelta(days=1)).date().isoformat()
     before = as_of.date().isoformat()
@@ -193,9 +221,11 @@ def _search(candidate: dict[str, Any], *, key: str, as_of: datetime, refs: dict[
         for row in raw_results:
             if not isinstance(row, dict) or not row.get("url"):
                 continue
-            moment = _result_date(row)
+            moment, precision = _result_date(row, now)
             # Search date filters are calendar-day bounds; compare by date so a
-            # date-only result on the after_date day is not dropped.
+            # date-only result on the after_date day is not dropped.  A result
+            # whose date cannot be resolved is retained for disclosure but is not
+            # usable verification evidence.
             if moment is not None and not (published.date() - timedelta(days=1) <= moment.date() <= as_of.date()):
                 continue
             host = _host(str(row["url"]))
@@ -204,7 +234,10 @@ def _search(candidate: dict[str, Any], *, key: str, as_of: datetime, refs: dict[
                 "domain": host,
                 "registrable_domain": _registrable_domain(host),
                 "tier": _tier_for_domain(host, refs),
+                "title": str(row.get("title") or ""),
                 "date": _iso(moment) if moment else None,
+                "date_precision": precision,
+                "usable": moment is not None,
             })
     return {"status": "ok", "http_status": code, "error": None, "results": results}
 
@@ -240,18 +273,42 @@ def _fetch_evidence(urls: list[str], *, key: str, refs: dict[str, Any], fetch_js
             "results": results, "errors": errors}
 
 
+def _norm_title(value: Any) -> str:
+    text = str(value or "").strip().casefold()
+    text = re.sub(r"\s+[-–—]\s+[^-–—]{1,50}$", "", text)
+    return re.sub(r"[^a-z0-9\u4e00-\u9fff]+", "", text)
+
+
 def _status_from_evidence(candidate: dict[str, Any], results: list[dict[str, Any]],
                           refs: dict[str, Any]) -> str:
-    original_domain = _registrable_domain(_host(str(candidate.get("url") or "")))
-    if any(row["tier"] == "A_primary" for row in results):
+    usable = [row for row in results if row.get("usable")]
+    if any(row["tier"] == "A_primary" for row in usable):
         return "primary_confirmed"
-    media_domains = {row["registrable_domain"] for row in results
+    original_domain = _registrable_domain(_host(str(candidate.get("url") or "")))
+    candidate_title = _norm_title(candidate.get("title"))
+    matched_original = next(
+        (row for row in usable
+         if (original_domain and row["registrable_domain"] == original_domain)
+         or (candidate_title and _norm_title(row.get("title")) == candidate_title)),
+        None,
+    )
+    media_domains = {row["registrable_domain"] for row in usable
                      if row["tier"] == "B_media" and row["registrable_domain"] != original_domain}
     if len(media_domains) >= 2:
         return "multi_source"
-    if results:
-        return "single_source"
+    if matched_original is not None:
+        other_domains = media_domains - {matched_original["registrable_domain"]}
+        if not other_domains:
+            return "single_source"
     return "unverified"
+
+
+def _eligible_for_verification(candidate: dict[str, Any]) -> bool:
+    relevance = str(candidate.get("relevance") or "").casefold()
+    if relevance in {"unrelated", "unassessed", "indirect", "not_explicitly_matched"}:
+        return False
+    ticker_relevance = str(candidate.get("ticker_relevance") or "").casefold()
+    return ticker_relevance not in {"unrelated", "unassessed", "indirect"}
 
 
 def verify(*, candidates: dict[str, Any], as_of: str | None = None, key: str | None = None,
@@ -260,14 +317,16 @@ def verify(*, candidates: dict[str, Any], as_of: str | None = None, key: str | N
            max_items: int = MAX_VERIFY_ITEMS,
            search_limiter: RateLimiter | None = None,
            fetch_limiter: RateLimiter | None = None,
-           today: date | None = None) -> dict[str, Any]:
+           today: date | None = None,
+           now: datetime | None = None) -> dict[str, Any]:
     reference = refs or load_sources()
     ticker = str(candidates.get("ticker") or "").upper()
     as_of_text = as_of or candidates.get("as_of")
     as_of_moment = _parse_instant(as_of_text)
     if as_of_moment is None:
         raise ValueError("as_of must be a timezone-aware ISO-8601 timestamp")
-    run_day = today or datetime.now(timezone.utc).date()
+    now_moment = now or datetime.now(timezone.utc)
+    run_day = today or now_moment.date()
     verification_pit = "live" if as_of_moment.date() >= run_day else "post_hoc"
     articles = candidates.get("articles") if isinstance(candidates.get("articles"), list) else []
     source_rows = [row for row in articles if isinstance(row, dict)]
@@ -282,6 +341,10 @@ def verify(*, candidates: dict[str, Any], as_of: str | None = None, key: str | N
             "url": row.get("url"),
             "published_at": row.get("published_at"),
             "source": row.get("source"),
+            "via": row.get("via"),
+            "origin_source": row.get("origin_source"),
+            "relevance": row.get("relevance"),
+            "ticker_relevance": row.get("ticker_relevance"),
             "source_id": source_id,
             "source_tier": row.get("source_tier"),
             "verification_pit": verification_pit,
@@ -306,40 +369,71 @@ def verify(*, candidates: dict[str, Any], as_of: str | None = None, key: str | N
         return _envelope(candidates, ticker, as_of_moment, verification_pit, "not_assessed",
                          items, requests={"search": 0, "fetch": 0}, limits=max_items)
 
+    # Relevance filtering happens before the fixed-order selection.  Items that
+    # are not directly relevant are disclosed as not assessed, never searched.
+    direct: list[dict[str, Any]] = []
+    for item in third_party:
+        if _eligible_for_verification(item):
+            direct.append(item)
+        else:
+            item.update(status="not_assessed", search_status="not_assessed",
+                        fetch_status="not_requested", reason="not_directly_relevant")
     rank = {"B_media": 0, "C_aggregator": 1, "unclassified": 2}
-    ordered = sorted(third_party, key=lambda item: (
+    ordered = sorted(direct, key=lambda item: (
         rank.get(str(item.get("source_tier")), 2),
         -(_parse_instant(item.get("published_at")).timestamp() if _parse_instant(item.get("published_at")) else 0),
     ))
-    search_limiter = search_limiter or RateLimiter(max_calls=30, window_seconds=60)
-    fetch_limiter = fetch_limiter or RateLimiter(max_calls=30, window_seconds=60)
+    search_limiter = search_limiter or RateLimiter(max_calls=30, window_seconds=60,
+                                                   min_interval_seconds=1.0)
+    fetch_limiter = fetch_limiter or RateLimiter(max_calls=30, window_seconds=60,
+                                                  min_interval_seconds=1.0)
     search_requests = fetch_requests = 0
+    rate_limited = False
     for index, item in enumerate(ordered):
+        if rate_limited:
+            item.update(status="not_assessed", search_status="not_assessed",
+                        fetch_status="not_requested", reason="rate_limited")
+            continue
         if index >= max_items:
             item.update(status="not_assessed", search_status="not_assessed",
-                        fetch_status="not_assessed", reason=f"verification cap {max_items} reached")
+                        fetch_status="not_requested", reason=f"verification cap {max_items} reached")
             continue
         search_requests += MAX_SEARCH_PER_ITEM
-        search = _search(item, key=key, as_of=as_of_moment, refs=reference,
+        search = _search(item, key=key, as_of=as_of_moment, now=now_moment, refs=reference,
                          fetch_json=fetch_json, limiter=search_limiter)
         item["search_status"] = search["status"]
+        if search["status"] == "rate_limited":
+            rate_limited = True
+            item.update(status="not_assessed", fetch_status="not_requested", reason="rate_limited")
+            continue
         if search["status"] != "ok":
-            item.update(status="not_assessed", reason=search.get("error") or search["status"])
+            item.update(status="not_assessed", fetch_status="not_requested",
+                        reason=search.get("error") or search["status"])
             continue
         evidence = search["results"]
-        status = _status_from_evidence(item, evidence, reference)
-        if status == "unverified" and not evidence:
+        usable = [row for row in evidence if row.get("usable")]
+        item["date_unknown_results"] = len(evidence) - len(usable)
+        status = _status_from_evidence(item, usable, reference)
+        if status == "unverified" and not usable:
             item.update(status="unverified", evidence_links=[], fetch_status="not_requested",
-                        reason="search returned no usable result")
+                        reason="search returned no usable dated result")
             continue
-        fetch = _fetch_evidence([row["url"] for row in evidence], key=key, refs=reference,
+        fetch = _fetch_evidence([row["url"] for row in usable], key=key, refs=reference,
                                 fetch_json=fetch_json, limiter=fetch_limiter, max_urls=MAX_FETCH_PER_ITEM)
         fetch_requests += fetch.get("requested", 0)
         item["fetch_status"] = fetch["status"]
-        item["evidence_links"] = evidence[:MAX_FETCH_PER_ITEM]
+        item["evidence_links"] = usable[:MAX_FETCH_PER_ITEM]
         item["status"] = status
         item["reason"] = None
-    return _envelope(candidates, ticker, as_of_moment, verification_pit, "ok",
+        if fetch["status"] == "rate_limited":
+            rate_limited = True
+            item["reason"] = "rate_limited"
+    tinyfish_status = "ok"
+    if rate_limited:
+        assessed = any(item.get("status") in {"primary_confirmed", "multi_source", "single_source", "unverified"}
+                       for item in items)
+        tinyfish_status = "partial" if assessed else "rate_limited"
+    return _envelope(candidates, ticker, as_of_moment, verification_pit, tinyfish_status,
                      items, requests={"search": search_requests, "fetch": fetch_requests},
                      limits=max_items)
 

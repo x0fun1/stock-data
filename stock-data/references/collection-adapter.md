@@ -1,6 +1,6 @@
 # Stock-Data Collection Adapter
 
-The adapter is a file contract, not another data fetcher. Collect market data with the Yahoo gateway; collect news with `scripts/news_collect.py` (SEC + IR RSS + Finnhub) and verify with `scripts/news_verify.py` (TinyFish). Preserve every provider response, normalize only documented fields, then pass the response map through `quant_research.py adapt` and the receipt to `quant_research.py freeze`.
+The adapter is a file contract, not another data fetcher. Collect market data with the Yahoo gateway; collect news with `scripts/news_collect.py` (SEC + IR RSS + Finnhub) and verify with `scripts/news_verify.py` (TinyFish; relevance first, relative dates resolved at request time, first 429 stops further requests). Preserve every provider response, normalize only documented fields, then pass the response map through `quant_research.py adapt` and the receipt to `quant_research.py freeze`.
 
 ## Market collection
 

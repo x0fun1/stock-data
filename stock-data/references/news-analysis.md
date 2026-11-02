@@ -60,7 +60,7 @@ Yahoo Finance 与 The Economist 只作为读者可点击的参考链接，程序
 | `single_source` | 只找到原条目来源 |
 | `unverified` | 搜索无结果或结果不能确认为同一事件 |
 
-程序只做域名与日期过滤，不做语义判断。核实按域名计独立，无法识别转载同源，这一局限必须写进交付。`verification_pit=post_hoc` 的条目不得进入“强”档。
+程序只做域名与日期过滤，不做语义判断。核实时先做相关性过滤，再只在直接相关条目里按固定顺序取至多 30 条；`single_source` 必须已找到原条目且没有其他独立域名，搜索无结果记 `unverified`。TinyFish Search 的相对日期（如 “4 days ago”）以请求时刻为基准解析并标 `date_precision=relative`；无法解析的日期标 `date_unknown`，不作为有效核实证据。收到第一个 429 后停止后续请求，余下条目记 `not_assessed/rate_limited`，总状态不得为 `ok`，`fetch_status` 不得停在 `pending`。核实按域名计独立，无法识别转载同源，这一局限必须写进交付。`verification_pit=post_hoc` 的条目不得进入“强”档。
 
 ## 描述性汇总
 

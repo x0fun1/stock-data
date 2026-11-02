@@ -1,0 +1,26 @@
+{
+  "query": "Alphabet wins a new cloud contract",
+  "results": [
+    {
+      "position": 1,
+      "site_name": "bloomberg.com",
+      "title": "Alphabet wins a new cloud contract",
+      "snippet": "Fixture snippet; must not be stored.",
+      "url": "https://www.bloomberg.com/news/articles/2026-10-29/alphabet-cloud-contract",
+      "date": "4 days ago",
+      "publisher": "Bloomberg"
+    },
+    {
+      "position": 2,
+      "site_name": "wsj.com",
+      "title": "Undated fixture result",
+      "snippet": "Fixture snippet; must not be stored.",
+      "url": "https://www.wsj.com/tech/undated-fixture",
+      "date": "not-a-date",
+      "publisher": "The Wall Street Journal"
+    }
+  ],
+  "total_results": 2,
+  "page": 0,
+  "_fixture_note": "TinyFish Search response shape from the recorded structure; relative and unparseable date strings are format fixtures, not live records."
+}

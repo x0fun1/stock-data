@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import sys
 import unittest
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
@@ -122,6 +122,77 @@ class VerifyTests(unittest.TestCase):
         self.assertEqual(result["verification_pit"], "post_hoc")
         self.assertEqual(result["items"][0]["search_status"], "rate_limited")
         self.assertEqual(result["items"][0]["status"], "not_assessed")
+        self.assertNotEqual(result["items"][0]["fetch_status"], "pending")
+        self.assertEqual(result["tinyfish_status"], "rate_limited")
+
+    def test_relative_dates_are_parsed_and_unknown_dates_are_not_evidence(self):
+        def fetch(method, url, headers, body):
+            if method == "GET":
+                return 200, _fx("tinyfish_search_relative_date.json"), None
+            return 200, _fx("tinyfish_fetch_result.json"), None
+
+        result = nv.verify(candidates=_candidates([_candidate("f1", "Alphabet wins a new cloud contract")]),
+                           key="fixture-token", refs=self.refs, fetch_json=fetch,
+                           search_limiter=self.limiter, fetch_limiter=self.limiter,
+                           now=datetime(2026, 11, 2, tzinfo=timezone.utc))
+        item = result["items"][0]
+        self.assertEqual(item["status"], "single_source")
+        self.assertEqual(item["date_unknown_results"], 1)
+        self.assertEqual(len(item["evidence_links"]), 1)
+        self.assertEqual(item["evidence_links"][0]["date_precision"], "relative")
+
+    def test_unrelated_results_are_not_single_source(self):
+        def fetch(method, url, headers, body):
+            return 200, {"results": [{
+                "url": "https://www.bloomberg.com/news/articles/unrelated",
+                "title": "A different company reports earnings", "date": "2026-10-29",
+                "site_name": "bloomberg.com"}], "total_results": 1, "page": 0}, None
+
+        result = nv.verify(candidates=_candidates([_candidate("f1", "Alphabet wins a new cloud contract")]),
+                           key="fixture-token", refs=self.refs, fetch_json=fetch,
+                           search_limiter=self.limiter, fetch_limiter=self.limiter,
+                           now=datetime(2026, 11, 2, tzinfo=timezone.utc))
+        self.assertEqual(result["items"][0]["status"], "unverified")
+
+    def test_relevance_filter_runs_before_selection(self):
+        calls = []
+
+        def fetch(method, url, headers, body):
+            calls.append(url)
+            return 200, {"results": [], "total_results": 0, "page": 0}, None
+
+        rows = [
+            _candidate("f1", "Unrelated story", published="2026-10-30T20:00:00Z"),
+            _candidate("f2", "Alphabet wins a new cloud contract", published="2026-10-29T20:00:00Z"),
+        ]
+        rows[0]["relevance"] = "unrelated"
+        rows[1]["relevance"] = "relevant"
+        result = nv.verify(candidates=_candidates(rows), key="fixture-token", refs=self.refs,
+                           fetch_json=fetch, search_limiter=self.limiter, fetch_limiter=self.limiter,
+                           now=datetime(2026, 11, 2, tzinfo=timezone.utc))
+        item = {row["article_id"]: row for row in result["items"]}
+        self.assertEqual(item["f1"]["status"], "not_assessed")
+        self.assertEqual(item["f1"]["reason"], "not_directly_relevant")
+        self.assertEqual(result["requests"]["search"], 1)
+        self.assertEqual(len(calls), 1)
+
+    def test_rate_limit_stops_remaining_requests(self):
+        calls = []
+
+        def fetch(method, url, headers, body):
+            calls.append(url)
+            return 429, None, "HTTP 429"
+
+        rows = [_candidate("f1", "Alphabet story one"), _candidate("f2", "Alphabet story two")]
+        result = nv.verify(candidates=_candidates(rows), key="fixture-token", refs=self.refs,
+                           fetch_json=fetch, search_limiter=self.limiter, fetch_limiter=self.limiter,
+                           now=datetime(2026, 11, 2, tzinfo=timezone.utc))
+        self.assertEqual(len(calls), 1)
+        self.assertEqual(result["requests"]["search"], 1)
+        self.assertEqual(result["tinyfish_status"], "rate_limited")
+        for row in result["items"]:
+            self.assertEqual(row["status"], "not_assessed")
+            self.assertNotEqual(row["fetch_status"], "pending")
 
 
 if __name__ == "__main__":
