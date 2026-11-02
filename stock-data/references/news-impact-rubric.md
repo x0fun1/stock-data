@@ -135,11 +135,15 @@ the honest answer to "was the news already in the price?"; it is not a forecast.
 
 These grades are descriptive heuristics inside the News stage. They never produce a probability, never produce a direction conclusion, and never feed any score. They are descriptive context only.
 
-## strength_v1 (v4 news judgement)
+## strength_v2 (v4 news judgement)
 
-每条直接相关候选由宿主 AI 给出 `lean`（`bullish|bearish|neutral|mixed|unclear`）与 `reason`，可给出 `strength` 与 `event_type`。程序按以下固定规则复核；若 AI 声明的 `strength` 与规则结果不一致，整个评估被拒绝。规则版本固定为 `strength_v1`；看到结果后不得改规则，要改只能升版本号并记录原因。
+每次评估使用当前规则版本；`validate-response` 会拒绝旧版本（例如 `strength_v1`）的评估文件并要求重新生成。
 
-- **强**：同时满足 (a) 直接相关；(b) 来源为 `A_primary`，或核实状态为 `primary_confirmed` / `multi_source`，且 `verification_pit != post_hoc`；(c) 事件类型属于强事件表；(d) 标题或摘要含具体数量（金额、比例、日期、数量之一）。
+版本升到 `strength_v2` 的原因是 `strength_v1` 的实现缺陷，而不是根据结果调参：旧规则用裸整数匹配“具体数量”，把 `10-Q filing`、`8-K filing` 里的表单编号误当成数量，从而把纯申报条目判为“强”。`strength_v2` 只承认带货币符号、百分号、数量单位（million/billion/亿/万等）或明确股份/金额表述的数值；表单编号、日期、季度、页码、条目编号都不算数量。事件表本身未改。
+
+每条直接相关候选由宿主 AI 给出 `lean`（`bullish|bearish|neutral|mixed|unclear`）与 `reason`，可给出 `strength` 与 `event_type`。程序按以下固定规则复核；若 AI 声明的 `strength` 与规则结果不一致，整个评估被拒绝。看到结果后不得改规则，要改只能升版本号并记录原因。
+
+- **强**：同时满足 (a) 直接相关；(b) 来源为 `A_primary`，或核实状态为 `primary_confirmed` / `multi_source`，且 `verification_pit != post_hoc`；(c) 事件类型属于强事件表；(d) 标题或摘要含具体数量（带货币符号、百分号、数量单位或明确股份/金额表述的数值）。
 - **中**：直接相关，且满足 (b)，但事件类型属于中事件表，或属于强事件表却缺具体数量。
 - **弱**：间接相关；或核实状态为 `single_source` / `unverified` / `not_assessed`；或事件类型属于弱事件表。
 

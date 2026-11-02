@@ -1,4 +1,4 @@
-"""Offline tests for the strength_v1 descriptive summary and delivery contract."""
+"""Offline tests for the strength_v2 descriptive summary and delivery contract."""
 
 from __future__ import annotations
 
@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "scripts"))
 
 from quant_research.delivery import _validate_summary, validate_response_text  # noqa: E402
-from quant_research.news.summary import build_summary, collector_candidates, derive_strength  # noqa: E402
+from quant_research.news.summary import build_summary, collector_candidates, derive_strength, has_quantity  # noqa: E402
 from quant_research.report import render_final_response  # noqa: E402
 
 AS_OF = "2026-10-30T12:00:00Z"
@@ -83,6 +83,22 @@ class StrengthTests(unittest.TestCase):
                                          no_quantity_article, {"status": "primary_confirmed", "verification_pit": "live"}, REFS)
         self.assertEqual(medium2, "medium", basis)
 
+    def test_form_numbers_are_not_quantities(self):
+        for headline in ("10-Q filing", "8-K filing", "Alphabet files 10-K for fiscal 2026",
+                         "Alphabet 8-K item 2.02", "Alphabet reports Q3 results"):
+            self.assertFalse(has_quantity(headline), headline)
+            article = _article("a1", headline=headline, published="2026-10-29T12:00:00Z")
+            item = {"news_id": "a1", "target_relevance": "direct", "event_type": "earnings_results",
+                    "headline": headline, "reason": "纯申报条目"}
+            strength, basis = derive_strength(item, article,
+                                              {"status": "primary_confirmed", "verification_pit": "live"}, REFS)
+            self.assertEqual(strength, "medium", (headline, basis))
+
+    def test_real_amounts_and_units_are_quantities(self):
+        for headline in ("Revenue rises to $2 billion", "Revenue grows 12%", "Buyback of 3亿港元",
+                         "Company repurchases 5 million shares", "Stake reaches 8%"):
+            self.assertTrue(has_quantity(headline), headline)
+
 
 class SummaryTests(unittest.TestCase):
     def test_matrix_and_partial_window(self):
@@ -97,7 +113,7 @@ class SummaryTests(unittest.TestCase):
                                   news_result={}, refs=REFS, analysis_at="2026-11-02 09:00")
         self.assertEqual(summary["direct_count"], 3)
         self.assertIn("partial_window", summary["lines"]["source_status"])
-        self.assertEqual(summary["strength_version"], "strength_v1")
+        self.assertEqual(summary["strength_version"], "strength_v2")
         self.assertIn("样本过少", summary["lines"]["matrix"])
         total = sum(summary["matrices"]["recent_30_days"][lean][strength]
                     for lean in summary["matrices"]["recent_30_days"] for strength in ("strong", "medium", "weak"))
@@ -197,6 +213,13 @@ class DeliveryMutationTests(unittest.TestCase):
         summary["direct_items"][0]["verification_pit"] = "post_hoc"
         summary["direct_items"][0]["strength"] = "strong"
         with self.assertRaises(ValueError):
+            _validate_summary(summary)
+
+    def test_old_strength_version_is_rejected(self):
+        result = self._result()
+        summary = result["news_summary"]
+        summary["strength_version"] = "strength_v1"
+        with self.assertRaisesRegex(ValueError, "strength_v2"):
             _validate_summary(summary)
 
 

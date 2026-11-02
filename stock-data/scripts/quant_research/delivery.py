@@ -10,6 +10,7 @@ from typing import Any
 
 from .forecast_policy import POLICY_VERSION, REQUIRED_STAGES
 from .news import load_frozen_result
+from .news.summary import STRENGTH_VERSION
 from .report import required_response_lines
 
 _INVISIBLE = re.compile(r"[\u200b-\u200f\u2060\ufeff]")
@@ -121,6 +122,12 @@ def _validate_summary(summary: dict[str, Any]) -> None:
     """Recompute the descriptive matrix and enforce the fixed strength rules."""
     if not summary or summary.get("status") == "invalid":
         raise ValueError(f"Final audit rejected: news summary is invalid: {summary.get('reason') if summary else 'missing'}")
+    declared_version = summary.get("strength_version")
+    if declared_version != STRENGTH_VERSION:
+        raise ValueError(
+            f"Final audit rejected: news summary strength version {declared_version!r} "
+            f"is not the required {STRENGTH_VERSION!r}; regenerate the assessment"
+        )
     direct = summary.get("direct_items") or []
     matrices = summary.get("matrices") or {}
     expected = {"recent_30_days": {}, "days_31_60": {}}

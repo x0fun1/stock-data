@@ -967,7 +967,7 @@ def check_news_verify_fixtures() -> None:
 
 
 def check_news_summary_fixtures() -> None:
-    """FIX-15: strength_v1 matrix, delivery mutations and post_hoc rejection."""
+    """FIX-15/19: strength_v2 matrix, delivery mutations and post_hoc rejection."""
     import unittest
 
     tests_dir = str(SCRIPTS.parent / "tests")

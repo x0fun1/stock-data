@@ -1,4 +1,4 @@
-"""Descriptive news summary and fixed delivery lines (strength_v1).
+"""Descriptive news summary and fixed delivery lines (strength_v2).
 
 No probability, composite score or direction conclusion is produced.  The host
 AI supplies per-headline ``lean``/``reason`` and may supply ``strength``; this
@@ -14,14 +14,16 @@ from zoneinfo import ZoneInfo
 
 from ..security import markdown_text, safe_url
 
-STRENGTH_VERSION = "strength_v1"
+STRENGTH_VERSION = "strength_v2"
 LEANS = ("bullish", "bearish", "neutral", "mixed", "unclear")
 LEAN_LABELS = {"bullish": "利多", "bearish": "利空", "neutral": "中性", "mixed": "混合", "unclear": "不明"}
 STRENGTHS = ("strong", "medium", "weak")
 STRENGTH_LABELS = {"strong": "强", "medium": "中", "weak": "弱"}
 _QUANTITY = re.compile(
-    r"(\d+(?:\.\d+)?\s?%|\d+(?:\.\d+)?\s?(?:million|billion|trillion|万|亿|美元|港元|元)"
-    r"|\d{4}[-/年]\d{1,2}|\b\d+(?:\.\d+)?\b)", re.IGNORECASE)
+    r"(?:[$€£¥]\s?\d+(?:[.,]\d+)?(?:\s?(?:million|billion|trillion|bn|mn))?"
+    r"|\d+(?:[.,]\d+)?\s?%"
+    r"|\d+(?:[.,]\d+)?\s?(?:million|billion|trillion|bn|mn|thousand|万|亿|美元|港元|元|股|股份|份额))",
+    re.IGNORECASE)
 
 
 def has_quantity(text: str) -> bool:
@@ -34,7 +36,7 @@ def _table(refs: dict[str, Any], name: str) -> dict[str, Any]:
 
 def derive_strength(item: dict[str, Any], article: dict[str, Any], verification: dict[str, Any],
                     refs: dict[str, Any]) -> tuple[str, list[str]]:
-    """Return ``(strength, basis)`` under the fixed strength_v1 rules."""
+    """Return ``(strength, basis)`` under the fixed strength_v2 rules."""
     tables = refs.get("event_tables") or {}
     event_type = str(item.get("event_type") or article.get("event_type") or "")
     tier = str(article.get("source_tier") or item.get("source_tier") or "")

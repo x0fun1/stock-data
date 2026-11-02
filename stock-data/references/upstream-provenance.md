@@ -27,6 +27,6 @@ The 52-week/5-session probability estimator, factor and ML shadow paths, factor 
 
 The deterministic impact-magnitude taxonomy and source-tier ideas were adapted from the MIT-licensed `market-news-analyst` skill (<https://github.com/tradermonty/claude-trading-skills>, Copyright (c) 2026 TraderMonty). Only the deterministic, frozen-bar computable parts were reused; the composite Impact Score, cross-asset reaction analysis and web-search collection were deliberately not adopted. No upstream source, prompt or text was copied.
 
-`strength_v1` event tables, the `minimum_direct_items=5` threshold and source tiers are human-maintained conventions, not statistical estimates. They are recorded in [news-sources.json](news-sources.json) and [news-impact-rubric.md](news-impact-rubric.md).
+`strength_v2` event tables, the `minimum_direct_items=5` threshold and source tiers are human-maintained conventions, not statistical estimates. They are recorded in [news-sources.json](news-sources.json) and [news-impact-rubric.md](news-impact-rubric.md).
 
 Historical source archives and review reports are not part of this runtime package. Providing more inputs does not turn local code into a full upstream engine. Report unsupported checks as not assessed.

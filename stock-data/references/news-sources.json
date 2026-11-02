@@ -143,7 +143,7 @@
     "economist": "https://www.economist.com/"
   },
   "event_tables": {
-    "note": "Human-maintained convention, not a statistical estimate. Change only by bumping strength_v1.",
+    "note": "Human-maintained convention, not a statistical estimate. Change only by bumping strength_v2.",
     "strong": {
       "earnings_results": "业绩与指引变化",
       "guidance_change": "指引变化",
@@ -168,7 +168,7 @@
       "repost": "转载重复",
       "opinion": "观点"
     },
-    "strength_version": "strength_v1",
+    "strength_version": "strength_v2",
     "minimum_direct_items": 5
   }
 }

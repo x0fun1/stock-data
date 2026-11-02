@@ -75,7 +75,7 @@ python3 stock-data/scripts/quant_research.py validate-response --analysis-dir <�
 来源状态：sec_edgar ok N；ir_rss ok N（partial_window，最早 YYYY-MM-DD）；finnhub_rest ok N；tinyfish ok/not_assessed（逐项真实状态）
 候选：采集 X → 去重 Y → 相关 Z（直接 a、间接 b、丢弃 c）；来源分级 A_primary/B_media/C_aggregator 数量
 核实：primary_confirmed p、multi_source m、single_source s、unverified u、not_assessed n（上限 30 条；verification_pit=live/post_hoc）
-AI 逐条判断：已完成，覆盖 N/N；规则版本 strength_v1
+AI 逐条判断：已完成，覆盖 N/N；规则版本 strength_v2
 汇总矩阵：近30天（lean × 强/中/弱 条数）；第31–60天（同上）
 重点条目：每类 lean 最强至多 3 条（发布时间、来源与分级、核实状态、原文链接、事件类型、理由）
 披露类：Form 4 共 N 笔（不逐条判断）

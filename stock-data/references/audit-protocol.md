@@ -27,7 +27,7 @@ The former probability audit was removed with the direction-prediction path. Thi
 
 - Every candidate ID must exist in the run, must be unique, and ticker/as-of must match the snapshot.
 - Identity fields (`headline`, `source`, `published_at`, `url`) are copied, never authored; a mismatch rejects the artifact.
-- `strength_v1` is recomputed from source tier, verification status, event table and the presence of a quantity. An AI-declared strength that disagrees is rejected.
+- `strength_v2` is recomputed from source tier, verification status, event table and the presence of a quantity. An AI-declared strength that disagrees is rejected.
 - The matrix must equal a fresh recomputation from the direct items; key items must have an original URL.
 - No probability, composite score, direction conclusion, or buy/sell/position advice is allowed.
 
