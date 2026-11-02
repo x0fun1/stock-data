@@ -32,6 +32,9 @@ REQUEST_TIMEOUT_SECONDS = 8
 NEWS_WINDOW_DAYS = 60
 RECENT_WINDOW_DAYS = 30
 MAX_ARTICLES = 500
+FINNHUB_SEGMENT_DAYS = 2
+FINNHUB_RESULT_CAP = 250
+FINNHUB_RESULT_CAP_MARGIN = 10
 DEFAULT_REFS = Path(__file__).resolve().parent.parent / "references" / "news-sources.json"
 
 Fetch = Callable[[str, dict[str, str]], tuple[int | None, str | None, str | None]]
@@ -176,6 +179,7 @@ def _article(*, article_id: str, title: str, url: str | None, source: str, sourc
 def _new_status() -> dict[str, Any]:
     return {"status": "not_configured", "http_status": None, "count": 0,
             "observed_first": None, "observed_last": None,
+            "covered_first": None, "covered_last": None,
             "feed_truncated": False, "partial_window": False, "reason": None}
 
 
@@ -184,7 +188,7 @@ def _in_window(moment: datetime, start: datetime, end: datetime) -> bool:
 
 
 def _finalize_status(status: dict[str, Any], rows: list[dict[str, Any]], start: datetime,
-                     *, consider_truncation: bool) -> None:
+                     *, consider_truncation: bool = True) -> None:
     status["count"] = len(rows)
     if rows:
         moments = sorted(_parse_instant(row["published_at"]) for row in rows)
@@ -195,6 +199,8 @@ def _finalize_status(status: dict[str, Any], rows: list[dict[str, Any]], start: 
             if consider_truncation and moments[0] > start:
                 status["feed_truncated"] = True
                 status["partial_window"] = True
+                if status["status"] == "ok":
+                    status["status"] = "partial_window"
     if status["status"] == "ok" and not rows:
         status["status"] = "empty"
 
@@ -281,11 +287,7 @@ def _collect_sec(ticker: str, market: str, start: datetime, end: datetime, refs:
     for index in range(length):
         form = str(recent["form"][index] or "").strip()
         include, count_only = _sec_forms(refs, form)
-        if count_only:
-            form4 += form == "4"
-            form144 += form == "144"
-            continue
-        if not include:
+        if not include and not count_only:
             continue
         acceptance = _parse_instant(recent["acceptanceDateTime"][index])
         precision = "timestamp"
@@ -302,6 +304,10 @@ def _collect_sec(ticker: str, market: str, start: datetime, end: datetime, refs:
             precision = "date"
         if not _in_window(acceptance, start, end):
             outside += 1
+            continue
+        if count_only:
+            form4 += form == "4"
+            form144 += form == "144"
             continue
         accession = str(recent["accessionNumber"][index] or "")
         if not re.fullmatch(r"\d{10}-\d{2}-\d{6}", accession):
@@ -324,7 +330,7 @@ def _collect_sec(ticker: str, market: str, start: datetime, end: datetime, refs:
     status["dropped_outside_window"] = outside
     if status["status"] == "not_configured":
         status["status"] = "ok"
-    _finalize_status(status, rows, start, consider_truncation=False)
+    _finalize_status(status, rows, start)
     result["_primary_rows"].extend(rows)
 
 
@@ -402,7 +408,7 @@ def _collect_ir(ticker: str, market: str, start: datetime, end: datetime, refs: 
     else:
         status["status"] = "error"
         status["reason"] = "; ".join(errors)
-    _finalize_status(status, rows, start, consider_truncation=True)
+    _finalize_status(status, rows, start)
     result["_primary_rows"].extend(rows)
 
 
@@ -414,69 +420,99 @@ def _collect_finnhub(ticker: str, start: datetime, end: datetime, refs: dict[str
     if not key:
         status.update(status="not_configured", reason="FINNHUB_API_KEY is not set")
         return
-    query = urllib.parse.urlencode({
-        "symbol": ticker,
-        "from": start.date().isoformat(),
-        "to": end.date().isoformat(),
-    })
     headers = {"X-Finnhub-Token": key, "User-Agent": TOOL_USER_AGENT, "Accept": "application/json"}
-    limiter.wait()
-    code, body, error = fetch(f"{FINNHUB_URL}?{query}", headers)
-    status["http_status"] = code
-    if code == 429:
-        status.update(status="rate_limited", reason="HTTP 429; not retried")
-        return
-    if error or code != 200 or not body:
-        status.update(status="error", reason=error or f"HTTP {code}")
-        return
-    try:
-        payload = json.loads(body)
-    except json.JSONDecodeError:
-        status.update(status="error", reason="company-news response is not valid JSON")
-        return
-    if not isinstance(payload, list):
-        status.update(status="error", reason="company-news response is not an array")
-        return
     wanted = {ticker.upper(), *[alias.upper() for alias in aliases if alias]}
     rows: list[dict[str, Any]] = []
     dropped = outside = irrelevant = 0
-    for item in payload:
-        if not isinstance(item, dict):
-            dropped += 1
-            continue
-        raw_time = item.get("datetime")
-        if isinstance(raw_time, bool) or not isinstance(raw_time, (int, float)):
-            dropped += 1
-            continue
+    segments = 0
+    truncated = False
+    covered_last: date | None = None
+    cursor = start.date()
+    last_day = end.date()
+    status["status"] = "ok"
+    while cursor <= last_day:
+        segment_end = min(cursor + timedelta(days=FINNHUB_SEGMENT_DAYS - 1), last_day)
+        query = urllib.parse.urlencode({
+            "symbol": ticker,
+            "from": cursor.isoformat(),
+            "to": segment_end.isoformat(),
+        })
+        segments += 1
+        limiter.wait()
+        code, body, error = fetch(f"{FINNHUB_URL}?{query}", headers)
+        if code is not None:
+            status["http_status"] = code
+        if code == 429:
+            status.update(status="rate_limited",
+                          reason=f"HTTP 429 at segment {cursor.isoformat()}..{segment_end.isoformat()}; "
+                                 f"covered {start.date().isoformat()}..{covered_last.isoformat() if covered_last else 'none'}; not retried")
+            break
+        if error or code != 200 or not body:
+            status.update(status="error",
+                          reason=f"{error or f'HTTP {code}'} at segment {cursor.isoformat()}..{segment_end.isoformat()}; "
+                                 f"covered {start.date().isoformat()}..{covered_last.isoformat() if covered_last else 'none'}")
+            break
         try:
-            moment = datetime.fromtimestamp(float(raw_time), tz=timezone.utc)
-        except (OverflowError, OSError, ValueError):
-            dropped += 1
-            continue
-        if not _in_window(moment, start, end):
-            outside += 1
-            continue
-        related = [part.strip() for part in str(item.get("related") or "").split(",") if part.strip()]
-        if related and not ({part.upper() for part in related} & wanted):
-            irrelevant += 1
-            continue
-        title = str(item.get("headline") or "").strip()
-        if not title:
-            dropped += 1
-            continue
-        url = str(item.get("url") or "").strip() or None
-        article_id = str(item.get("id") or f"fh_{int(moment.timestamp())}_{_norm_title(title)[:20]}")
-        rows.append(_article(
-            article_id=f"finnhub_{article_id}", title=title, url=url,
-            source=str(item.get("source") or "Finnhub"), source_type="news", record_type="news",
-            published_at=_iso(moment), ticker=ticker, summary=item.get("summary"),
-            source_id="finnhub_rest", related=related,
-        ))
+            payload = json.loads(body)
+        except json.JSONDecodeError:
+            status.update(status="error",
+                          reason=f"company-news response is not valid JSON at segment {cursor.isoformat()}..{segment_end.isoformat()}; "
+                                 f"covered {start.date().isoformat()}..{covered_last.isoformat() if covered_last else 'none'}")
+            break
+        if not isinstance(payload, list):
+            status.update(status="error",
+                          reason=f"company-news response is not an array at segment {cursor.isoformat()}..{segment_end.isoformat()}; "
+                                 f"covered {start.date().isoformat()}..{covered_last.isoformat() if covered_last else 'none'}")
+            break
+        if len(payload) >= FINNHUB_RESULT_CAP - FINNHUB_RESULT_CAP_MARGIN:
+            truncated = True
+        for item in payload:
+            if not isinstance(item, dict):
+                dropped += 1
+                continue
+            raw_time = item.get("datetime")
+            if isinstance(raw_time, bool) or not isinstance(raw_time, (int, float)):
+                dropped += 1
+                continue
+            try:
+                moment = datetime.fromtimestamp(float(raw_time), tz=timezone.utc)
+            except (OverflowError, OSError, ValueError):
+                dropped += 1
+                continue
+            if not _in_window(moment, start, end):
+                outside += 1
+                continue
+            related = [part.strip() for part in str(item.get("related") or "").split(",") if part.strip()]
+            if related and not ({part.upper() for part in related} & wanted):
+                irrelevant += 1
+                continue
+            title = str(item.get("headline") or "").strip()
+            if not title:
+                dropped += 1
+                continue
+            url = str(item.get("url") or "").strip() or None
+            article_id = str(item.get("id") or f"fh_{int(moment.timestamp())}_{_norm_title(title)[:20]}")
+            rows.append(_article(
+                article_id=f"finnhub_{article_id}", title=title, url=url,
+                source=str(item.get("source") or "Finnhub"), source_type="news", record_type="news",
+                published_at=_iso(moment), ticker=ticker, summary=item.get("summary"),
+                source_id="finnhub_rest", related=related,
+            ))
+        covered_last = segment_end
+        status["covered_first"] = start.date().isoformat()
+        status["covered_last"] = covered_last.isoformat()
+        cursor = segment_end + timedelta(days=1)
+    status["segments"] = segments
     status["dropped_invalid_timestamp"] = dropped
     status["dropped_outside_window"] = outside
     status["dropped_irrelevant"] = irrelevant
-    status["status"] = "ok"
-    _finalize_status(status, rows, start, consider_truncation=False)
+    if truncated:
+        status["feed_truncated"] = True
+        status["partial_window"] = True
+        if status["status"] == "ok":
+            status["status"] = "partial_window"
+        status["reason"] = "a segment returned a result count near the provider cap"
+    _finalize_status(status, rows, start)
     result["_third_party_rows"].extend(rows)
 
 
@@ -519,7 +555,7 @@ def _collect_mcp(path: Path | None, ticker: str, start: datetime, end: datetime,
             ticker=ticker, summary=item.get("summary"), source_id="finnhub_mcp",
         ))
     status.update(status="ok", dropped_invalid_timestamp=dropped, dropped_outside_window=outside)
-    _finalize_status(status, rows, start, consider_truncation=False)
+    _finalize_status(status, rows, start)
     result["_third_party_rows"].extend(rows)
 
 
@@ -544,21 +580,22 @@ def _deduplicate(rows: list[dict[str, Any]], refs: dict[str, Any]) -> tuple[list
         label = f"{row.get('source')}"
         if label and label not in existing["also_seen_in"] and label != existing.get("source"):
             existing["also_seen_in"].append(label)
-    # A third-party repost carries a different URL, so title+URL dedup alone
-    # cannot link it to the issuer's own release.  Merge a third-party row into
-    # an A_primary row with the same normalized title and keep the primary copy.
-    primary_by_title = {_norm_title(row["title"]): row for row in kept
-                        if classify_source(row, refs) == "A_primary"}
+    # A repost carries a different URL, so title+URL dedup alone cannot link it
+    # to the issuer's own release.  Merge both third-party rows and duplicate
+    # A_primary feeds into the first A_primary row with the same normalized title.
+    primary_by_title: dict[str, dict[str, Any]] = {}
+    for row in kept:
+        if classify_source(row, refs) == "A_primary":
+            primary_by_title.setdefault(_norm_title(row["title"]), row)
     remaining: list[dict[str, Any]] = []
     for row in kept:
-        if classify_source(row, refs) != "A_primary":
-            primary = primary_by_title.get(_norm_title(row["title"]))
-            if primary is not None:
-                label = str(row.get("source") or "")
-                if label and label not in primary["also_seen_in"] and label != primary.get("source"):
-                    primary["also_seen_in"].append(label)
-                merged += 1
-                continue
+        primary = primary_by_title.get(_norm_title(row["title"]))
+        if primary is not None and primary is not row:
+            label = str(row.get("source") or "")
+            if label and label not in primary["also_seen_in"] and label != primary.get("source"):
+                primary["also_seen_in"].append(label)
+            merged += 1
+            continue
         remaining.append(row)
     for row in remaining:
         row["source_tier"] = classify_source(row, refs)

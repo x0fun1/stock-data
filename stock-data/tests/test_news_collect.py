@@ -53,9 +53,9 @@ class CollectTests(unittest.TestCase):
     def test_window_status_and_dedupe(self):
         result = self.collect()
         self.assertEqual(result["pit_status"], "published_at_only")
-        self.assertEqual(result["sources"]["sec_edgar"]["status"], "ok")
-        self.assertEqual(result["sources"]["ir_rss"]["status"], "ok")
-        self.assertEqual(result["sources"]["finnhub_rest"]["status"], "ok")
+        self.assertEqual(result["sources"]["sec_edgar"]["status"], "partial_window")
+        self.assertEqual(result["sources"]["ir_rss"]["status"], "partial_window")
+        self.assertEqual(result["sources"]["finnhub_rest"]["status"], "partial_window")
         self.assertEqual(result["form4_count"], 1)
         self.assertEqual(result["form144_count"], 1)
         self.assertGreaterEqual(result["sources"]["sec_edgar"]["dropped_outside_window"], 1)
@@ -71,6 +71,9 @@ class CollectTests(unittest.TestCase):
         self.assertEqual(duplicate[0]["source_id"], "ir_rss")
         self.assertIn("Example Wire", duplicate[0]["also_seen_in"])
         self.assertTrue(result["sources"]["ir_rss"]["partial_window"])
+        self.assertTrue(result["sources"]["finnhub_rest"]["partial_window"])
+        self.assertEqual(result["sources"]["finnhub_rest"]["covered_first"], result["window"]["start_exclusive"][:10])
+        self.assertGreater(result["sources"]["finnhub_rest"]["segments"], 1)
         self.assertIn("yahoo_finance_news", result["reference_links"])
         self.assertIn("economist", result["reference_links"])
 
@@ -84,7 +87,7 @@ class CollectTests(unittest.TestCase):
         result = self.collect(env={})
         self.assertEqual(result["sources"]["sec_edgar"]["status"], "not_configured")
         self.assertEqual(result["sources"]["finnhub_rest"]["status"], "not_configured")
-        self.assertEqual(result["sources"]["ir_rss"]["status"], "ok")
+        self.assertEqual(result["sources"]["ir_rss"]["status"], "partial_window")
 
     def test_hk_sec_not_applicable(self):
         result = self.collect(market="HK", env={})
@@ -105,6 +108,27 @@ class CollectTests(unittest.TestCase):
         result = self.collect(fetch=fetch)
         self.assertEqual(result["sources"]["finnhub_rest"]["status"], "error")
         self.assertNotEqual(result["status"], "error")
+
+    def test_form_counts_are_window_filtered(self):
+        result = self.collect()
+        self.assertEqual(result["form4_count"], 1)
+        self.assertEqual(result["form144_count"], 1)
+        self.assertGreaterEqual(result["sources"]["sec_edgar"]["dropped_outside_window"], 2)
+
+    def test_primary_feed_duplicates_merge_by_title(self):
+        rows = [
+            {"article_id": "ir_a", "title": "NVIDIA announces a new platform",
+             "url": "https://investor.nvidia.com/a", "source": "NVIDIA Investor Relations",
+             "source_id": "ir_rss", "published_at": "2026-10-30T12:00:00Z", "tickers": ["NVDA"]},
+            {"article_id": "ir_b", "title": "NVIDIA announces a new platform",
+             "url": "https://nvidianews.nvidia.com/b", "source": "NVIDIA Newsroom",
+             "source_id": "ir_rss", "published_at": "2026-10-30T12:05:00Z", "tickers": ["NVDA"]},
+        ]
+        kept, merged = nc._deduplicate(rows, nc.load_sources())
+        self.assertEqual(len(kept), 1)
+        self.assertEqual(merged, 1)
+        self.assertEqual({kept[0]["source"], *kept[0]["also_seen_in"]},
+                         {"NVIDIA Investor Relations", "NVIDIA Newsroom"})
 
     def test_rate_limiter_min_interval(self):
         slept = []
