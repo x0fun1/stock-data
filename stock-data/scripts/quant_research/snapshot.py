@@ -17,7 +17,7 @@ from zoneinfo import ZoneInfo
 
 from .contracts import normalize_request, parse_timestamp, utc_now
 from .data_checks import EXCHANGE_TIMEZONES, calendar_sessions, check_market
-from .gate_policy import classify_reasons
+from .data_quality import classify_reasons
 from .jsonio import canonical_bytes, write_json
 from .paths import safe_output_destination, validate_path_component
 from .security import provider_failed, sanitize_data
@@ -195,10 +195,10 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
         gate["reason_codes"].append("SNAPSHOT_IDENTITY_INVALID")
         classification = classify_reasons(gate["reason_codes"])
         gate["blockers"] = classification["blockers"]
-        gate["prediction_eligibility"] = {"status": "blocked", "blockers": classification["blockers"]}
+        gate["data_eligibility"] = {"status": "blocked", "blockers": classification["blockers"]}
         gate["reporting_eligibility"] = {"status": "veto", "warnings": classification["warnings"]}
         gate["reporting_status"] = "veto"
-        gate["forecast_eligible"] = False
+        gate["data_usable"] = False
     warnings = sorted(set(warnings + gate["blockers"] + gate["warnings"]))
     statuses = {name: str(domains[name].get("status", "unavailable")) for name in DOMAINS}
     sources = {name: {key: block.get(key) for key in ("actual_source", "source_timestamp", "currency", "unit", "adjustment", "price_basis", "price_basis_source", "adjustment_evidence", "session_calendar", "latest_price_observations", "fallback_used", "fallback_reason")} | {"fetched_at": block.get("fetched_at_utc", block.get("fetched_at"))} for name, block in domains.items()}
@@ -213,7 +213,7 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
         if isinstance(expected_sessions, int) and expected_sessions > 0
         else None
     )
-    if not gate["forecast_eligible"]:
+    if not gate["data_usable"]:
         quality = "blocked"
     elif gate["warnings"] or (coverage_ratio is not None and coverage_ratio < 1.0):
         quality = "partial"
@@ -231,7 +231,7 @@ def _derived_metadata(domains: dict[str, Any], request: dict[str, Any], *, captu
                     "observed_sessions": observed_sessions,
                     "expected_sessions": expected_sessions,
                     "coverage_ratio": coverage_ratio,
-                    "prediction_eligible": gate["forecast_eligible"],
+                    "data_usable": gate["data_usable"],
                     "required_domains": ["market"],
                 },
                 "issues": warnings, "reason_codes": gate["reason_codes"]}}

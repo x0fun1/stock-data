@@ -57,7 +57,7 @@ def synth_market(bars: list[dict]) -> dict:
         "data": {"currency": "USD", "exchange": "US", "adjustment": "unadjusted", "bars": bars,
                  "source_symbol": "SYN", "fetched_at_utc": "2026-01-02T00:00:00Z",
                  "source_timestamp": "2026-01-02T00:00:00Z"},
-        "_data_validation": {"forecast_eligible": True},
+        "_data_validation": {"data_usable": True},
     }
 
 
@@ -998,6 +998,23 @@ def check_descriptive_window_fixtures() -> None:
         raise AssertionError(stream.getvalue()[-1200:])
 
 
+def check_fix22_data_quality_policy() -> None:
+    """FIX-22: the prediction gate module and its eligibility vocabulary are gone."""
+    if (SCRIPTS / "quant_research" / "gate_policy.py").exists():
+        raise AssertionError("gate_policy.py must not exist")
+    forbidden = ("prediction_" + "eligible", "can_veto_" + "prediction", "forecast_" + "eligible")
+    offenders = []
+    for path in sorted(SCRIPTS.rglob("*.py")):
+        if "__pycache__" in path.parts:
+            continue
+        text = path.read_text(encoding="utf-8")
+        for token in forbidden:
+            if token in text:
+                offenders.append(f"{path.relative_to(SCRIPTS)}: {token}")
+    if offenders:
+        raise AssertionError("retired prediction-gate vocabulary remains: " + ", ".join(offenders))
+
+
 def check_yahoo_collect_metadata() -> None:
     """FIX-16: GOOGL/QQQ currency evidence, missing unit not ineligible, CALENDAR_LIB_MISSING."""
     import unittest
@@ -1115,6 +1132,7 @@ CHECKS = [
     ("FIX15 news summary fixtures", check_news_summary_fixtures),
     ("FIX16 yahoo collection metadata", check_yahoo_collect_metadata),
     ("FIX21 descriptive window fixtures", check_descriptive_window_fixtures),
+    ("FIX22 data-quality policy", check_fix22_data_quality_policy),
     ("FIX16 docs convergence", check_docs_convergence),
     ("T43 registry accounts for every check", check_t43_registry_accounts_for_every_check),
     ("T44 documented versions match the runtime", check_t44_documented_versions_match_the_runtime),

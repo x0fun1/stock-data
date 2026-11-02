@@ -21,7 +21,7 @@ from .forecast_policy import (
     PRICE_BASIS,
     window_bounds,
 )
-from .gate_policy import classify_reasons
+from .data_quality import classify_reasons
 
 EXCHANGE_TIMEZONES = {"US": "America/New_York", "HK": "Asia/Hong_Kong"}
 ADJUSTMENTS = {"adjusted", "unadjusted", "split_adjusted", "total_return"}
@@ -180,8 +180,8 @@ def _gate(reason_codes: list[str], errors: list[str], blockers: list[str], warni
     fatal = classification["blockers"]
     warning_codes = classification["warnings"]
     return {
-        "forecast_eligible": classification["prediction_eligible"],  # Compatibility alias: computable, not high-confidence.
-        "prediction_eligibility": {"status": "blocked" if fatal else "eligible", "blockers": fatal},
+        "data_usable": classification["data_usable"],
+        "data_eligibility": {"status": "usable" if classification["data_usable"] else "blocked", "blockers": fatal},
         "reporting_eligibility": {"status": classification["status"], "warnings": warning_codes,
                                   "informational": classification["informational"]},
         "reporting_status": classification["status"],
