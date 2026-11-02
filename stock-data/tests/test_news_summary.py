@@ -11,7 +11,7 @@ ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT.parent / "scripts"))
 
 from quant_research.delivery import _validate_summary, validate_response_text  # noqa: E402
-from quant_research.news.summary import build_summary, derive_strength  # noqa: E402
+from quant_research.news.summary import build_summary, collector_candidates, derive_strength  # noqa: E402
 from quant_research.report import render_final_response  # noqa: E402
 
 AS_OF = "2026-10-30T12:00:00Z"
@@ -36,7 +36,9 @@ def _collected(articles: list[dict], *, partial: bool = True) -> dict:
                        "observed_first": "2026-10-01T00:00:00Z", "observed_last": "2026-10-29T00:00:00Z"},
             "finnhub_rest": {"status": "ok", "count": 1, "partial_window": False},
         },
-        "counts": {"collected": len(articles) + 1, "deduplicated": 1, "kept": len(articles),
+        "counts": {"collected": len(articles) + 1, "deduplicated": 1, "truncated": 0,
+                   "kept": len(articles), "dropped_irrelevant": 2, "relevance_unassessed": 0,
+                   "yahoo_origin": 1, "finnhub_origin": len(articles),
                    "recent_30_days": len([row for row in articles if row["published_at"] > "2026-09-30T12:00:00Z"]),
                    "days_31_60": len([row for row in articles if row["published_at"] <= "2026-09-30T12:00:00Z"]),
                    "by_tier": {"A_primary": len(articles), "B_media": 0, "C_aggregator": 0}},
@@ -102,6 +104,43 @@ class SummaryTests(unittest.TestCase):
         total += sum(summary["matrices"]["days_31_60"][lean][strength]
                      for lean in summary["matrices"]["days_31_60"] for strength in ("strong", "medium", "weak"))
         self.assertEqual(total, 3)
+
+    def test_candidate_funnel_uses_ai_counts_and_reconciles(self):
+        articles = [
+            _article("a1", headline="Q3 revenue rises to $2 billion", published="2026-10-29T12:00:00Z"),
+            _article("a2", headline="Alphabet announces cloud partnership", published="2026-10-20T12:00:00Z"),
+            _article("a3", headline="Analyst rating update", published="2026-09-01T12:00:00Z"),
+        ]
+        ai = _ai(articles)
+        ai[1]["target_relevance"] = "indirect"
+        ai[2]["target_relevance"] = "unrelated"
+        summary = build_summary(collected=_collected(articles), verification=_verification(articles),
+                                ai_items=ai, ai_status="assessed",
+                                snapshot={"ticker": "GOOGL", "market": "US", "asset_type": "stock"},
+                                news_result={}, refs=REFS, analysis_at="2026-11-02 09:00")
+        line = summary["lines"]["candidates"]
+        self.assertIn("采集 6", line)
+        self.assertIn("不相关 2", line)
+        self.assertIn("Yahoo 来源 1", line)
+        self.assertIn("直接 1、间接 1、丢弃 1", line)
+        self.assertIn("AI 判无关 1", line)
+        self.assertEqual(summary["direct_count"] + summary["indirect_count"] + 1,
+                         summary["collection_counts"]["kept"])
+        self.assertIn("第三方聚合转载占比", summary["limitations"])
+
+    def test_collector_candidates_does_not_treat_every_query_as_direct(self):
+        articles = [
+            _article("a1", headline="Alphabet releases results", published="2026-10-29T12:00:00Z"),
+            {**_article("a2", headline="Unrelated issuer buyback", published="2026-10-20T12:00:00Z"),
+             "source_tier": "C_aggregator", "source_id": "finnhub_rest", "relevance": "unrelated"},
+            {**_article("a3", headline="Unknown relevance", published="2026-10-19T12:00:00Z"),
+             "source_tier": "C_aggregator", "source_id": "finnhub_rest", "relevance": "unassessed"},
+        ]
+        rows = {row["news_id"]: row for row in collector_candidates(_collected(articles))}
+        self.assertEqual(rows["a1"]["ticker_relevance"], "direct")
+        self.assertEqual(rows["a2"]["ticker_relevance"], "unclear")
+        self.assertEqual(rows["a3"]["ticker_relevance"], "unclear")
+        self.assertEqual(rows["a3"]["relevance_basis"], "relevance_unassessed")
 
     def test_no_ai_has_no_matrix(self):
         articles = [_article("a1", headline="Q3 revenue rises to $2 billion", published="2026-10-29T12:00:00Z")]

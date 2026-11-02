@@ -109,6 +109,36 @@ class CollectTests(unittest.TestCase):
         self.assertEqual(result["sources"]["finnhub_rest"]["status"], "error")
         self.assertNotEqual(result["status"], "error")
 
+    def test_finnhub_source_tier_uses_publisher_name(self):
+        refs = nc.load_sources()
+        self.assertEqual(nc.classify_source({"source_id": "finnhub_rest", "source": "Reuters",
+                                             "url": "https://finnhub.io/api/news?id=x"}, refs), "B_media")
+        self.assertEqual(nc.classify_source({"source_id": "finnhub_rest", "source": "Yahoo",
+                                             "url": "https://finnhub.io/api/news?id=x"}, refs), "C_aggregator")
+        self.assertEqual(nc.classify_source({"source_id": "finnhub_rest", "source": "Unknown Blog",
+                                             "url": "https://finnhub.io/api/news?id=x"}, refs), "C_aggregator")
+        self.assertEqual(nc.classify_source({"source_id": "ir_rss", "source": "Alphabet IR",
+                                             "url": "https://abc.xyz/x"}, refs), "A_primary")
+
+    def test_yahoo_items_keep_summary_and_origin(self):
+        result = self.collect()
+        yahoo = [row for row in result["articles"] if row.get("origin_source") == "Yahoo"]
+        self.assertEqual(len(yahoo), 1)
+        self.assertEqual(yahoo[0]["via"], "finnhub")
+        self.assertEqual(yahoo[0]["source_tier"], "C_aggregator")
+        self.assertIn("Alphabet", yahoo[0]["summary"])
+        self.assertEqual(result["counts"]["yahoo_origin"], 1)
+        self.assertGreaterEqual(result["counts"]["dropped_irrelevant"], 1)
+
+    def test_unmapped_ticker_is_relevance_unassessed_not_dropped(self):
+        result = nc.collect(
+            ticker="MSFT", as_of=AS_OF, market="US", aliases=[], fetch=fixture_fetch,
+            env=TEST_ENV, refs=nc.load_sources(), min_intervals={"sec": 0, "finnhub": 0},
+        )
+        self.assertGreater(result["counts"]["relevance_unassessed"], 0)
+        self.assertTrue(any(row.get("relevance") == "unassessed" for row in result["articles"]))
+        self.assertTrue(any(row.get("origin_source") == "Yahoo" for row in result["articles"]))
+
     def test_form_counts_are_window_filtered(self):
         result = self.collect()
         self.assertEqual(result["form4_count"], 1)

@@ -29,7 +29,18 @@
     "image": "",
     "related": "MSFT",
     "source": "Example Wire",
-    "summary": "Not about Alphabet.",
+    "summary": "Not about the query issuer.",
     "url": "https://example.invalid/msft-buyback"
+  },
+  {
+    "category": "company",
+    "datetime": 1793120000,
+    "headline": "Alphabet shares climb after cloud deal",
+    "id": 7300004,
+    "image": "",
+    "related": "GOOGL",
+    "source": "Yahoo",
+    "summary": "Alphabet drew attention after the cloud agreement.",
+    "url": "https://finnhub.io/api/news?id=fixture-yahoo"
   }
 ]

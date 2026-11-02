@@ -33,8 +33,8 @@ Yahoo Finance 与 The Economist 只作为读者可点击的参考链接，程序
 ## 通用规则
 
 - 去重：标题规范化（去掉尾部“ - 来源”、转小写、去标点）加 URL。一手披露与第三方转载并存时保留一手条目，转载写入 `also_seen_in`。
-- 相关性：Finnhub `related` 字段与本地 ticker 和公司名别名匹配；不相关条目丢弃并计数。
-- 来源分级：`A_primary`（SEC 与公司 IR）、`B_media`（白名单主流媒体）、`C_aggregator`（聚合与个人站）。C 级不得单独构成“重大”。
+- 相关性：Finnhub 的 `related` 恒为查询代码，不能用于过滤；改用标题与摘要匹配 ticker 及 `references/news-sources.json` 的公司名别名。未登记别名的 ticker 标 `relevance_unassessed` 并披露，不静默丢弃也不直接放行。
+- 来源分级：`A_primary`（SEC 与公司 IR）、`B_media`（白名单主流媒体）、`C_aggregator`（聚合与个人站）。Finnhub 条目按返回的 `source` 字段查 `finnhub_source_tiers` 映射，未映射一律 C；C 级不得单独构成“重大”。
 - 覆盖披露：每个来源输出实际观测首末时间、条数、是否 `feed_truncated` / `partial_window`。不得把任何来源说成完整覆盖 60 天，除非实测首条早于窗口起点。
 - 失败语义：各来源独立 try，一个失败不影响其他；429 标 `rate_limited`，不重试；断网/4xx/5xx 标 `error`，不崩溃，不用旧缓存顶替。
 - 只保存标题、时间、来源、链接与摘要字段，不保存正文。

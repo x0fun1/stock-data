@@ -33,9 +33,9 @@ python3 stock-data/scripts/quant_research.py news-candidates --snapshot-dir <sna
 - `pit_status=published_at_only`: the collector keeps `published_at <= as-of`, but cannot reconstruct what was visible at that historical instant.
 - Each source has its own status: `ok`, `empty`, `not_configured`, `not_configured_for_ticker`, `not_applicable`, `rate_limited`, `error`; IR feeds add `partial_window` when the earliest item is later than the window start.
 - SEC filings use `acceptanceDateTime` (UTC) or `filingDate` as a date-only fallback. Form 4 and Form 144 are counted only, not sent to the AI.
-- Finnhub `related` is matched against the ticker and caller-supplied company aliases. The key travels only in `X-Finnhub-Token`.
-- Source tiers (`A_primary`, `B_media`, `C_aggregator`) and IR feeds live in [news-sources.json](news-sources.json), maintained by a person.
-- Yahoo Finance and The Economist are static reference links only; they are never requested or parsed.
+- Finnhub `related` is always the query symbol, so relevance uses title+summary matching against `company_aliases` and the ticker. Tickers without aliases are marked `relevance_unassessed` and disclosed rather than passed silently or dropped. The key travels only in `X-Finnhub-Token`.
+- Source tiers (`A_primary`, `B_media`, `C_aggregator`) and IR feeds live in [news-sources.json](news-sources.json), maintained by a person. Finnhub rows use the `finnhub_source_tiers` map keyed by the provider `source` name; unmapped names are `C_aggregator`.
+- Yahoo Finance and The Economist are static reference links only. Finnhub rows whose `origin_source` is Yahoo may keep their summaries for host-AI review; their original links are never fetched, and Yahoo itself is never requested or parsed.
 
 ## Receipt shape (illustrative)
 

@@ -31,6 +31,50 @@
       "reddit.com"
     ]
   },
+  "finnhub_source_tiers": {
+    "Reuters": "B_media",
+    "Bloomberg": "B_media",
+    "The Wall Street Journal": "B_media",
+    "WSJ": "B_media",
+    "Financial Times": "B_media",
+    "CNBC": "B_media",
+    "The Associated Press": "B_media",
+    "AP News": "B_media",
+    "Barron's": "B_media",
+    "MarketWatch": "B_media",
+    "The Information": "B_media",
+    "Nikkei": "B_media",
+    "Nikkei Asia": "B_media",
+    "South China Morning Post": "B_media",
+    "Yahoo": "C_aggregator",
+    "Yahoo Finance": "C_aggregator",
+    "Seeking Alpha": "C_aggregator",
+    "Benzinga": "C_aggregator",
+    "Investing.com": "C_aggregator",
+    "MarketScreener": "C_aggregator",
+    "Stocktwits": "C_aggregator",
+    "Reddit": "C_aggregator"
+  },
+  "company_aliases": {
+    "GOOGL": [
+      "Alphabet",
+      "Alphabet Inc.",
+      "Google",
+      "Google LLC"
+    ],
+    "GOOG": [
+      "Alphabet",
+      "Alphabet Inc.",
+      "Google",
+      "Google LLC"
+    ],
+    "NVDA": [
+      "NVIDIA",
+      "NVIDIA Corporation",
+      "NVIDIA Corp.",
+      "Nvidia"
+    ]
+  },
   "ir_rss": {
     "GOOGL": [
       {

@@ -154,6 +154,19 @@ def _limitations(collected: dict[str, Any], verification: dict[str, Any], direct
     ir = (collected.get("sources") or {}).get("ir_rss") or {}
     if ir.get("partial_window"):
         pieces.append("IR feed 未覆盖整个 60 天窗口（partial_window）")
+    counts = collected.get("counts") or {}
+    finnhub_origin = int(counts.get("finnhub_origin") or 0)
+    yahoo_origin = int(counts.get("yahoo_origin") or 0)
+    relevance_unassessed = int(counts.get("relevance_unassessed") or 0)
+    if finnhub_origin:
+        pieces.append(
+            f"第三方聚合转载占比：Finnhub 来源 {finnhub_origin} 条，其中 Yahoo 来源 {yahoo_origin} 条"
+            "（经 Finnhub 接口取得，未请求 Yahoo 网页或 RSS）"
+        )
+    if relevance_unassessed:
+        pieces.append(
+            f"另有 {relevance_unassessed} 条候选缺少公司名别名，相关性未评估（relevance_unassessed），未被静默丢弃"
+        )
     pieces.extend([
         "核实按可注册域名计独立，无法识别转载同源",
         "事件表与“少于 5 条”阈值为约定，无统计依据",
@@ -225,10 +238,17 @@ def build_summary(*, collected: dict[str, Any], verification: dict[str, Any],
     kept = int(counts.get("kept") or 0)
     collected_count = int(counts.get("collected") or 0)
     deduped = int(counts.get("deduplicated") or 0)
+    truncated = int(counts.get("truncated") or 0)
+    irrelevant = int(counts.get("dropped_irrelevant") or 0)
+    relevance_unassessed = int(counts.get("relevance_unassessed") or 0)
+    yahoo_origin = int(counts.get("yahoo_origin") or 0)
+    finnhub_origin = int(counts.get("finnhub_origin") or 0)
     by_tier = counts.get("by_tier") or {}
     direct_count = len(direct_rows)
     indirect_count = len(indirect_rows)
-    dropped = max(0, collected_count - kept)
+    unrelated_ai = sum(1 for item in ai_items if item.get("target_relevance") == "unrelated")
+    unassessed_ai = max(0, kept - len(ai_items))
+    discarded = max(0, kept - direct_count - indirect_count)
     ai_coverage = {
         "status": ai_status,
         "assessed_count": len(ai_items),
@@ -270,8 +290,10 @@ def build_summary(*, collected: dict[str, Any], verification: dict[str, Any],
                f"PIT：{pit}"
     source_line = "来源状态：" + _source_status(collected, verification)
     candidate_line = (
-        f"候选：采集 {collected_count} → 去重 {deduped} → 相关 {kept}"
-        f"（直接 {direct_count}、间接 {indirect_count}、丢弃 {dropped}）；"
+        f"候选：采集 {collected_count + irrelevant} → 不相关 {irrelevant} → 去重 {deduped}"
+        f" → 截断 {truncated} → 保留 {kept}（Yahoo 来源 {yahoo_origin}；相关性未评估 {relevance_unassessed}）"
+        f" → 直接 {direct_count}、间接 {indirect_count}、丢弃 {discarded}"
+        f"（AI 判无关 {unrelated_ai}、未评估 {unassessed_ai}）；"
         f"来源分级 A_primary/{int(by_tier.get('A_primary') or 0)} "
         f"B_media/{int(by_tier.get('B_media') or 0)} C_aggregator/{int(by_tier.get('C_aggregator') or 0)}"
     )
@@ -367,18 +389,27 @@ def collector_candidates(collected: dict[str, Any], verification: dict[str, Any]
         if not article_id:
             continue
         verify = verification_map.get(article_id, {})
-        related = [str(item).upper() for item in article.get("related") or []]
-        tickers = [str(item).upper() for item in article.get("tickers") or []]
-        direct = ticker in tickers or ticker in related or article.get("source_tier") == "A_primary"
+        relevance = str(article.get("relevance") or "")
+        if article.get("source_tier") == "A_primary":
+            ticker_relevance, relevance_basis = "direct", "primary_source"
+        elif relevance == "relevant":
+            ticker_relevance, relevance_basis = "direct", "company_name_alias"
+        elif relevance == "unassessed":
+            ticker_relevance, relevance_basis = "unclear", "relevance_unassessed"
+        else:
+            ticker_relevance, relevance_basis = "unclear", "relevance_filtered"
         rows.append({
             "news_id": article_id,
             "record_kind": "event",
             "headline": article.get("title"),
             "summary": article.get("summary"),
             "source": article.get("source"),
+            "origin_source": article.get("origin_source"),
+            "via": article.get("via"),
             "published_at": article.get("published_at"),
             "url": article.get("url"),
-            "ticker_relevance": "direct" if direct else "unclear",
+            "ticker_relevance": ticker_relevance,
+            "relevance_basis": relevance_basis,
             "eligible_evidence": True,
             "exclusion_reasons": [],
             "event_type": article.get("event_type"),

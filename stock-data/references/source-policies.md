@@ -9,7 +9,7 @@
 | Finnhub REST | `FINNHUB_API_KEY`（请求头 `X-Finnhub-Token`） | 免费档条款为**仅限个人使用、不得再分发**。该来源的内容与派生结果只用于用户本人；技能输出不得作为对外分发材料。免费档历史深度与额度以官方页面为准，代码不写死额度；429 标 `rate_limited`，不重试。 |
 | Finnhub MCP | 宿主连接 | 可选；宿主已连接时可合并去重，未连接不报错。 |
 | TinyFish Search/Fetch | `TINYFISH_API_KEY`（请求头 `X-API-Key`） | 仅用于核实；额度以官方文档为准。条款中关于内容存储和交给 AI 处理的部分尚未核实，因此不保存 Fetch 正文或搜索摘要。 |
-| Yahoo Finance / The Economist | 无 | **只作读者可点击的参考链接**；程序不请求、不解析、不存储、不交给 AI 判断，不计入任何计数。 |
+| Yahoo Finance / The Economist | 无 | **只作读者可点击的参考链接**；程序不直接请求或解析其网页/RSS。经 Finnhub 返回且 `origin_source=Yahoo` 的条目按 Finnhub 条款处理，摘要可交 AI 判断；核实时不 Fetch 其原链接。The Economist 仍只作链接展示。 |
 
 密钥只经环境变量读取；不打印、不写文件、不写快照、不进日志、不放进 URL 查询串。来源状态里只写“已配置/未配置”。
 

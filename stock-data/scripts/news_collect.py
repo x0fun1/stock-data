@@ -144,6 +144,15 @@ def classify_source(article: dict[str, Any], refs: dict[str, Any]) -> str:
     source_id = article.get("source_id")
     if source_id in {"sec_edgar", "ir_rss"}:
         return "A_primary"
+    if source_id in {"finnhub_rest", "finnhub_mcp"}:
+        # Finnhub URLs are redirect links on finnhub.io, so the publisher name is
+        # the only usable classification input.  Unmapped names stay conservative.
+        mapping = refs.get("finnhub_source_tiers") or {}
+        name = str(article.get("source") or "").strip().casefold()
+        for label, tier in mapping.items():
+            if str(label).strip().casefold() == name and tier in {"A_primary", "B_media", "C_aggregator"}:
+                return str(tier)
+        return "C_aggregator"
     tiers = refs.get("source_tiers") or {}
     host = _host(str(article.get("url") or ""))
     if _domain_in(host, list(tiers.get("B_media") or [])):
@@ -154,10 +163,39 @@ def classify_source(article: dict[str, Any], refs: dict[str, Any]) -> str:
     return "C_aggregator"
 
 
+def _alias_terms(ticker: str, aliases: list[str], refs: dict[str, Any]) -> set[str] | None:
+    table = refs.get("company_aliases") or {}
+    configured = [str(item) for item in (table.get(ticker) or []) if str(item).strip()]
+    configured.extend(alias for alias in aliases if str(alias).strip())
+    if not configured:
+        return None
+    return {ticker, *configured}
+
+
+def _term_in_text(text: str, term: str) -> bool:
+    value = text.casefold()
+    token = term.casefold().strip()
+    if not token:
+        return False
+    if re.search(r"[a-z0-9]", token):
+        return re.search(r"(?<![a-z0-9])" + re.escape(token) + r"(?![a-z0-9])", value) is not None
+    return token in value
+
+
+def _relevance(text: str, terms: set[str] | None) -> tuple[str, str]:
+    if terms is None:
+        return "unassessed", "relevance_unassessed"
+    if any(_term_in_text(text, term) for term in terms):
+        return "relevant", "company_name_alias"
+    return "unrelated", "company_name_alias"
+
+
 def _article(*, article_id: str, title: str, url: str | None, source: str, source_type: str,
              record_type: str, published_at: str, ticker: str, summary: str | None = None,
              source_id: str, time_precision: str = "timestamp", form: str | None = None,
-             items: list[str] | None = None, related: list[str] | None = None) -> dict[str, Any]:
+             items: list[str] | None = None, related: list[str] | None = None,
+             via: str | None = None, origin_source: str | None = None,
+             relevance: str | None = None, relevance_basis: str | None = None) -> dict[str, Any]:
     return {
         "article_id": article_id,
         "title": title,
@@ -173,6 +211,10 @@ def _article(*, article_id: str, title: str, url: str | None, source: str, sourc
         "form": form,
         "items": items or [],
         "related": related or [],
+        "via": via,
+        "origin_source": origin_source,
+        "relevance": relevance,
+        "relevance_basis": relevance_basis,
     }
 
 
@@ -421,9 +463,9 @@ def _collect_finnhub(ticker: str, start: datetime, end: datetime, refs: dict[str
         status.update(status="not_configured", reason="FINNHUB_API_KEY is not set")
         return
     headers = {"X-Finnhub-Token": key, "User-Agent": TOOL_USER_AGENT, "Accept": "application/json"}
-    wanted = {ticker.upper(), *[alias.upper() for alias in aliases if alias]}
+    terms = _alias_terms(ticker, aliases, refs)
     rows: list[dict[str, Any]] = []
-    dropped = outside = irrelevant = 0
+    dropped = outside = irrelevant = unassessed = 0
     segments = 0
     truncated = False
     covered_last: date | None = None
@@ -483,20 +525,26 @@ def _collect_finnhub(ticker: str, start: datetime, end: datetime, refs: dict[str
                 outside += 1
                 continue
             related = [part.strip() for part in str(item.get("related") or "").split(",") if part.strip()]
-            if related and not ({part.upper() for part in related} & wanted):
-                irrelevant += 1
-                continue
             title = str(item.get("headline") or "").strip()
             if not title:
                 dropped += 1
                 continue
+            summary = item.get("summary")
+            relevance, basis = _relevance(f"{title} {summary or ''}", terms)
+            if relevance == "unrelated":
+                irrelevant += 1
+                continue
+            if relevance == "unassessed":
+                unassessed += 1
             url = str(item.get("url") or "").strip() or None
             article_id = str(item.get("id") or f"fh_{int(moment.timestamp())}_{_norm_title(title)[:20]}")
+            origin_source = str(item.get("source") or "Finnhub")
             rows.append(_article(
                 article_id=f"finnhub_{article_id}", title=title, url=url,
-                source=str(item.get("source") or "Finnhub"), source_type="news", record_type="news",
-                published_at=_iso(moment), ticker=ticker, summary=item.get("summary"),
-                source_id="finnhub_rest", related=related,
+                source=origin_source, source_type="news", record_type="news",
+                published_at=_iso(moment), ticker=ticker, summary=summary,
+                source_id="finnhub_rest", related=related, via="finnhub",
+                origin_source=origin_source, relevance=relevance, relevance_basis=basis,
             ))
         covered_last = segment_end
         status["covered_first"] = start.date().isoformat()
@@ -506,6 +554,7 @@ def _collect_finnhub(ticker: str, start: datetime, end: datetime, refs: dict[str
     status["dropped_invalid_timestamp"] = dropped
     status["dropped_outside_window"] = outside
     status["dropped_irrelevant"] = irrelevant
+    status["relevance_unassessed"] = unassessed
     if truncated:
         status["feed_truncated"] = True
         status["partial_window"] = True
@@ -672,14 +721,21 @@ def collect(*, ticker: str, as_of: str, market: str = "US", aliases: list[str] |
 
     raw = list(result.pop("_primary_rows")) + list(result.pop("_third_party_rows"))
     deduped, merged = _deduplicate(raw, reference)
+    kept_before_cap = len(deduped)
     deduped = deduped[:MAX_ARTICLES]
     for row in deduped:
         row.setdefault("source_tier", classify_source(row, reference))
     result["articles"] = deduped
+    source_rows = result["sources"].values()
     result["counts"] = {
         "collected": len(raw),
         "deduplicated": merged,
+        "truncated": max(0, kept_before_cap - len(deduped)),
         "kept": len(deduped),
+        "dropped_irrelevant": sum(int(row.get("dropped_irrelevant") or 0) for row in source_rows),
+        "relevance_unassessed": sum(int(row.get("relevance_unassessed") or 0) for row in source_rows),
+        "yahoo_origin": sum(1 for row in deduped if str(row.get("origin_source") or "").casefold() == "yahoo"),
+        "finnhub_origin": sum(1 for row in deduped if row.get("via") == "finnhub"),
         **_count_windows(deduped, end),
         "by_tier": {tier: sum(1 for row in deduped if row.get("source_tier") == tier)
                     for tier in ("A_primary", "B_media", "C_aggregator")},
