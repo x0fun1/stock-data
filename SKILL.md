@@ -1,6 +1,6 @@
 ---
 name: stock-research
-description: Evidence-first US/HK stock research with bundled Kronos-small and native multifactor analysis. Use for daily factor/fundamental/risk research, hourly OHLCV prediction, historical masked model comparison and validated probabilities from authorized data. No trading execution or position sizing.
+description: Evidence-first US/HK stock research with bundled Kronos-small and native multifactor analysis. Use for daily factor/fundamental/risk research, hourly OHLCV prediction, historical masked research, validation and validated probabilities from authorized data. No trading execution or position sizing.
 ---
 
 # Stock Research Skill
@@ -9,7 +9,7 @@ description: Evidence-first US/HK stock research with bundled Kronos-small and n
 
 ## 完整安装与模型
 
-本包包含固定版本的Kronos完整模型与微调源码（含LICENSE）、small/tokenizer权重与哈希清单、skill分析代码，以及独立Python环境安装器。官方示例程序及其教程、回归测试所需资源保留；历史生成报告、预测图片和Git本地配置不随发布。模型由本包代码直接调用，不依赖MCP、在线模型服务或外部试验目录。
+本包包含固定版本的Kronos模型与微调源码（含LICENSE）、small/tokenizer固定权重清单、skill分析代码，以及独立Python环境安装器。GitHub源码不上传大体积权重，安装时按固定官方revision下载并校验SHA256；便携包可包含已核验权重。旧横向模型比较、全部本地生成数据与报告、预测图片和Git本地配置不随发布或安装；本地数据保留。模型由本包代码直接调用，不依赖MCP、在线模型服务或外部试验目录。
 
 多因子源码同样位于包内：日期截面处理、条件行业/市值中性化、家族等权、Ridge、LightGBM 4.7.0、因子诊断、封存历史实验与FF3＋Momentum研究风险模型。安装器安装固定本地依赖，同时实际执行Kronos推理及LightGBM训练/因子处理自检。
 

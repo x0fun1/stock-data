@@ -8,9 +8,19 @@ import zipfile
 import pytest
 
 from stock_research.config import default_runtime_root, default_skill_root, load_policies
+from stock_research.common.package_files import package_files
 
 
 ROOT = Path(__file__).resolve().parents[1]
+LOCAL_ONLY_FILES = (
+    'docs/api.txt', 'docs/planning/notes.md', 'runtime/private.json', '.env', '.env.local',
+    '.gitignore', '.gitattributes', 'vendor/kronos/.gitignore', 'vendor/kronos/.gitattributes',
+    'model-comparison/compare.py', 'hourly-model-test/predictions.json',
+    'scratch/compare_models.py', 'scripts/model-comparison/compare.py',
+    'scripts/stock_research/__pycache__/discard.py',
+    'vendor/kronos/examples/new_prediction.json', 'vendor/kronos/new_comparison.py',
+    'vendor/chronos/model.py', 'model-assets/kronos-small/local-training.pth',
+)
 
 
 def load_script(name):
@@ -43,10 +53,13 @@ def package_source(tmp_path):
         path = source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"synthetic public fixture: {relative}\n".encode())
-    for relative in (
-        "docs/api.txt", "docs/planning/notes.md", "runtime/private.json", ".env",
-        ".gitignore", ".gitattributes", "vendor/kronos/.gitignore", "vendor/kronos/.gitattributes",
-    ):
+    manifest = {
+        'source_directory': 'vendor/kronos', 'source_files': [{'path': 'LICENSE'}],
+        'checkpoints': [{'files': [{'path': f'{name}/model.safetensors'}]}
+                        for name in ('small', 'tokenizer')],
+    }
+    (source / 'model-assets/kronos-small/manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
+    for relative in LOCAL_ONLY_FILES:
         path = source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("synthetic local-only fixture\n", encoding="utf-8")
@@ -63,6 +76,7 @@ def test_package_copy_excludes_docs_and_runtime_but_keeps_model_resources(packag
     assert not (destination / ".env").exists()
     assert not list(destination.rglob(".gitignore"))
     assert not list(destination.rglob(".gitattributes"))
+    assert all(not (destination / relative).exists() for relative in LOCAL_ONLY_FILES)
     for relative in (
         "SKILL.md", "vendor/kronos/LICENSE", "model-assets/kronos-small/manifest.json",
         "model-assets/kronos-small/small/model.safetensors",
@@ -84,11 +98,25 @@ def test_portable_zip_excludes_local_docs_and_keeps_relative_resources(package_s
         assert all(not name.startswith(("stock-research/docs/", "stock-research/runtime/")) for name in names)
         assert "stock-research/.env" not in names
         assert all(Path(name).name not in {".gitignore", ".gitattributes"} for name in names)
+        assert all('stock-research/' + relative not in names for relative in LOCAL_ONLY_FILES)
         manifest = json.loads(archive.read("stock-research/bundle-manifest.json"))
         assert all(not entry["path"].startswith(("docs/", "runtime/")) for entry in manifest["files"])
         relative = "model-assets/kronos-small/tokenizer/model.safetensors"
         assert archive.read("stock-research/" + relative) == (package_source / relative).read_bytes()
         assert "stock-research/references/multifactor-workflow.md" in names
+
+
+def test_package_selection_preserves_exact_pinned_upstream_and_checkpoints():
+    manifest = json.loads((ROOT / 'model-assets/kronos-small/manifest.json').read_text(encoding='utf-8'))
+    selected = {path.relative_to(ROOT).as_posix() for path in package_files(ROOT)}
+    assert {name for name in selected if name.startswith('vendor/')} == {
+        'vendor/kronos/' + entry['path'] for entry in manifest['source_files']
+    }
+    assert {name for name in selected if name.startswith('model-assets/')} == {
+        'model-assets/kronos-small/manifest.json',
+        *('model-assets/kronos-small/' + entry['path'] for checkpoint in manifest['checkpoints']
+          for entry in checkpoint['files'] if (ROOT / 'model-assets/kronos-small' / entry['path']).is_file()),
+    }
 
 
 def test_bundle_rejects_output_inside_source(package_source, monkeypatch):

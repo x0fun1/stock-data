@@ -17,12 +17,9 @@ import urllib.request
 import venv
 
 from stock_research.common.hashing import verify_pinned_file
+from stock_research.common.package_files import package_files
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
-EXCLUDED_DIRS = {'.git', '.venv', '__pycache__', '.pytest_cache', '.pytest-tmp',
-                 'docs', 'runtime', 'reports', 'cache', 'node_modules', '.install-tmp', '.pip-cache'}
-EXCLUDED_FILES = {'inference.lock', 'install-receipt.json', '.env', '.secrets', 'rolling_baseline.py',
-                  '.gitignore', '.gitattributes'}
 
 
 def sha(path: Path) -> str:
@@ -72,22 +69,13 @@ def verify_source(root: Path, manifest: dict) -> None:
 
 def copy_package(source: Path, destination: Path) -> int:
     copied = 0
-    for current, dirs, files in os.walk(source, followlinks=False):
-        here = Path(current)
-        dirs[:] = [name for name in dirs if name not in EXCLUDED_DIRS and not (here / name).is_symlink()]
-        relative_dir = here.relative_to(source)
-        out_dir = bounded(destination, relative_dir.as_posix())
-        out_dir.mkdir(parents=True, exist_ok=True)
-        for name in files:
-            if name in EXCLUDED_FILES or name.endswith(('.pyc', '.pyo')):
-                continue
-            original = here / name
-            if original.is_symlink():
-                raise ValueError(f'package symlink not accepted: {original}')
-            target = bounded(destination, (relative_dir / name).as_posix())
-            if not target.exists() or sha(target) != sha(original):
-                shutil.copy2(original, target)
-                copied += 1
+    source = source.resolve()
+    for original in package_files(source):
+        target = bounded(destination, original.relative_to(source).as_posix())
+        target.parent.mkdir(parents=True, exist_ok=True)
+        if not target.exists() or sha(target) != sha(original):
+            shutil.copy2(original, target)
+            copied += 1
     return copied
 
 

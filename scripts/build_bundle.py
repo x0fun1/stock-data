@@ -6,11 +6,9 @@ import hashlib
 import json
 import zipfile
 
+from stock_research.common.package_files import package_files
+
 ROOT = Path(__file__).resolve().parents[1]
-SKIP_DIRS = {'.git', '.venv', '__pycache__', '.pytest_cache', '.pytest-tmp',
-             'docs', 'runtime', 'reports', 'cache', 'node_modules', '.install-tmp', '.pip-cache'}
-SKIP_FILES = {'inference.lock', 'install-receipt.json', '.env', '.secrets',
-              '.gitignore', '.gitattributes', 'rolling_baseline.py'}
 
 
 def sha(path):
@@ -29,14 +27,8 @@ def main():
     if output.is_relative_to(ROOT.resolve()):
         raise SystemExit('bundle output must be outside the source skill directory')
     files = []
-    for path in sorted(ROOT.rglob('*')):
+    for path in package_files(ROOT):
         relative = path.relative_to(ROOT)
-        if any(part in SKIP_DIRS for part in relative.parts) or path.name in SKIP_FILES:
-            continue
-        if path.is_symlink():
-            raise SystemExit('bundle does not accept symlinks: ' + str(relative))
-        if not path.is_file() or path.suffix in {'.pyc', '.pyo'}:
-            continue
         files.append({'path': relative.as_posix(), 'bytes': path.stat().st_size, 'sha256': sha(path)})
     required = {'SKILL.md', 'scripts/install_skill.py', 'scripts/skill.py',
                 'vendor/kronos/LICENSE', 'model-assets/kronos-small/manifest.json',
