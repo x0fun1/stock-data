@@ -218,7 +218,7 @@ def cmd_doctor(args) -> int:
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(description="US/HK evidence-first quantitative and news research skill")
     root_parent = argparse.ArgumentParser(add_help=False)
-    root_parent.add_argument("--root", help="runtime data root (default: sibling runtime or skill runtime)")
+    root_parent.add_argument("--root", help="runtime data root (default: this skill's runtime directory)")
     parser.add_argument("--root", help=argparse.SUPPRESS)
     sub = parser.add_subparsers(dest="command", required=True)
 

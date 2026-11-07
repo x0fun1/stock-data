@@ -48,7 +48,7 @@ python scripts/install_skill.py --destination "$env:USERPROFILE\.codex\skills\st
 
 ## 命令
 
-在 `stock-data/` 目录运行；也可用 `PYTHONPATH=scripts python scripts/research.py ...`。
+在仓库根目录或安装后的 skill 目录运行；也可用 `PYTHONPATH=scripts python scripts/research.py ...`。
 
 ```bash
 # 当前研究（缺已验证概率模型时仍输出描述、风险、新闻和缺口）
@@ -84,7 +84,7 @@ python scripts/skill.py doctor
 python scripts/skill.py reproduce --run-id run-...
 ```
 
-`--root` 指定运行数据目录；默认使用 skill 同级的 `runtime/`（不存在则使用 `stock-data/runtime/`）。
+`--root` 指定运行数据目录；默认使用当前 skill 目录内的 `runtime/`，也可通过 `STOCK_RESEARCH_RUNTIME` 指定已有数据目录。
 
 ## 运行流程
 
@@ -159,7 +159,7 @@ Kronos基准默认取当前已完成日线截止，输入全部此前有效OHLCV
 ## 目录
 
 ```text
-stock-data/
+仓库根目录或安装后的 stock-research/
   SKILL.md
   references/
   policies/                  # 默认参数、来源政策、日历策略
@@ -174,4 +174,4 @@ stock-data/
   tests/
 ```
 
-设计依据在仓库 `docs/`：`QUANT_ANALYSIS_DESIGN_2026-11.md`、`QUANT_SKILL_ARCHITECTURE_2026-11.md`、`ANALYSIS_DATA_READINESS_2026-11.md`。本实现不改变这些规格中的收益定义、新闻七档、US/HK 范围或分能力发布原则。
+完整运行规则按上述 `references/` 按需加载。规划、调研及数据渠道审计保留在本地 `docs/`，不提交到 GitHub，也不进入安装包；执行分析不依赖该目录。

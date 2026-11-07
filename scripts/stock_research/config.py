@@ -20,9 +20,6 @@ def default_runtime_root(skill_root: Path | None = None) -> Path:
     if override:
         return Path(override)
     root = Path(skill_root or default_skill_root())
-    sibling = root.parent / "runtime"
-    if sibling.exists():
-        return sibling
     return root / "runtime"
 
 

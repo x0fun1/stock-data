@@ -13,5 +13,8 @@ runtime/
 .workbuddy-ai/
 .workbuddy/
 
-# never commit keys the user drops in docs/
-docs/api.txt
+# Local planning, research notes and credentials stay out of the repository.
+/docs/
+
+model-assets/kronos-small/*/model.safetensors
+model-assets/kronos-small/inference.lock

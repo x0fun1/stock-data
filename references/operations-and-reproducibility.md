@@ -77,8 +77,9 @@ runtime/
 
 ## 测试
 
+从仓库根目录或安装后的 skill 目录运行：
+
 ```bash
-cd stock-data
 python -m pytest
 ```
 
