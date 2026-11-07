@@ -9,7 +9,8 @@ import zipfile
 ROOT = Path(__file__).resolve().parents[1]
 SKIP_DIRS = {'.git', '.venv', '__pycache__', '.pytest_cache', '.pytest-tmp',
              'docs', 'runtime', 'reports', 'cache', 'node_modules', '.install-tmp', '.pip-cache'}
-SKIP_FILES = {'inference.lock', 'install-receipt.json', '.env', '.secrets', 'rolling_baseline.py'}
+SKIP_FILES = {'inference.lock', 'install-receipt.json', '.env', '.secrets',
+              '.gitignore', '.gitattributes', 'rolling_baseline.py'}
 
 
 def sha(path):

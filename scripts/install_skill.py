@@ -16,10 +16,13 @@ import tempfile
 import urllib.request
 import venv
 
+from stock_research.common.hashing import verify_pinned_file
+
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
 EXCLUDED_DIRS = {'.git', '.venv', '__pycache__', '.pytest_cache', '.pytest-tmp',
                  'docs', 'runtime', 'reports', 'cache', 'node_modules', '.install-tmp', '.pip-cache'}
-EXCLUDED_FILES = {'inference.lock', 'install-receipt.json', '.env', '.secrets', 'rolling_baseline.py'}
+EXCLUDED_FILES = {'inference.lock', 'install-receipt.json', '.env', '.secrets', 'rolling_baseline.py',
+                  '.gitignore', '.gitattributes'}
 
 
 def sha(path: Path) -> str:
@@ -52,7 +55,9 @@ def verify_source(root: Path, manifest: dict) -> None:
     tree = hashlib.sha256()
     for entry in manifest['source_files']:
         path = bounded(source, entry['path'])
-        if not path.is_file() or sha(path) != entry['sha256']:
+        if not path.is_file() or not verify_pinned_file(
+            path, entry['sha256'], entry.get('bytes'), restore_text_newlines=True
+        ):
             raise ValueError(f'packaged official source hash mismatch: {entry["path"]}')
         tree.update((entry['path'] + '|' + entry['sha256'] + '\n').encode())
     if tree.hexdigest() != manifest['source_tree_sha256']:
@@ -92,7 +97,10 @@ def ensure_checkpoints(assets: Path, manifest: dict, offline: bool) -> dict:
         for entry in checkpoint['files']:
             path = bounded(assets, entry['path'])
             if path.exists():
-                if sha(path) != entry['sha256']:
+                if not verify_pinned_file(
+                    path, entry['sha256'], entry.get('bytes'),
+                    restore_text_newlines=path.suffix.lower() == '.json'
+                ):
                     raise ValueError(f'existing checkpoint is corrupt: {entry["path"]}')
                 results[entry['path']] = 'bundled_verified'
                 continue

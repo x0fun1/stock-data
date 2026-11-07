@@ -43,7 +43,10 @@ def package_source(tmp_path):
         path = source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"synthetic public fixture: {relative}\n".encode())
-    for relative in ("docs/api.txt", "docs/planning/notes.md", "runtime/private.json", ".env"):
+    for relative in (
+        "docs/api.txt", "docs/planning/notes.md", "runtime/private.json", ".env",
+        ".gitignore", ".gitattributes", "vendor/kronos/.gitignore", "vendor/kronos/.gitattributes",
+    ):
         path = source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text("synthetic local-only fixture\n", encoding="utf-8")
@@ -58,6 +61,8 @@ def test_package_copy_excludes_docs_and_runtime_but_keeps_model_resources(packag
     assert not (destination / "docs").exists()
     assert not (destination / "runtime").exists()
     assert not (destination / ".env").exists()
+    assert not list(destination.rglob(".gitignore"))
+    assert not list(destination.rglob(".gitattributes"))
     for relative in (
         "SKILL.md", "vendor/kronos/LICENSE", "model-assets/kronos-small/manifest.json",
         "model-assets/kronos-small/small/model.safetensors",
@@ -78,6 +83,7 @@ def test_portable_zip_excludes_local_docs_and_keeps_relative_resources(package_s
         names = archive.namelist()
         assert all(not name.startswith(("stock-research/docs/", "stock-research/runtime/")) for name in names)
         assert "stock-research/.env" not in names
+        assert all(Path(name).name not in {".gitignore", ".gitattributes"} for name in names)
         manifest = json.loads(archive.read("stock-research/bundle-manifest.json"))
         assert all(not entry["path"].startswith(("docs/", "runtime/")) for entry in manifest["files"])
         relative = "model-assets/kronos-small/tokenizer/model.safetensors"

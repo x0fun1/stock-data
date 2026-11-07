@@ -35,4 +35,4 @@ python scripts/skill.py research --root MY-DATA --market US --ticker NVDA --benc
 - [Kronos 历史训练方案](references/kronos-training-plan.md)
 - [存储与复现](references/operations-and-reproducibility.md)
 
-本地 `docs/` 保留规划、调研和数据渠道审计，不随源码发布。文档中指向 `runtime/` 的文件是本机实验与复现证据。`scripts/rolling_baseline.py` 保留为旧研究档案，不是当前 CLI 入口，也不进入独立安装包。固定上游代码、LICENSE 和公开示例保留原出处。
+本地 `docs/` 保留规划、调研和数据渠道审计，不随源码发布。文档中指向 `runtime/` 的文件是本机实验与复现证据。旧实验脚本和上游示例生成的报告、预测图片保留在本地 `runtime/` 档案；Git 本地配置也不随发布或安装包分发。模型、微调与示例代码、LICENSE，以及教程和回归测试所需资源保留原出处，并由模型清单记录实际分发文件和上游来源。

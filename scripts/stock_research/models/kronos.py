@@ -24,6 +24,7 @@ import numpy as np
 import pandas as pd
 
 from ..config import default_skill_root
+from ..common.hashing import verify_pinned_file
 
 FIELDS = ('open', 'high', 'low', 'close', 'volume', 'amount')
 PATH_COUNT = 16
@@ -145,18 +146,18 @@ def _audit_assets(package_root: Path):
         hashes = {}
         for key, expected in _PINNED.items():
             path = models / key
-            actual = _sha(path)
             name, filename = key.split('/')
             declared = next(f for f in checkpoints[name]['files'] if Path(f['path']).name == filename)
-            if actual != expected or declared['sha256'] != expected:
+            if declared['sha256'] != expected or not verify_pinned_file(
+                path, expected, declared.get('bytes'), restore_text_newlines=filename.endswith('.json')
+            ):
                 raise ValueError('checkpoint_hash_mismatch:' + key)
-            hashes[key] = actual
+            hashes[key] = expected
         source_hashes = {}
         for filename, expected in _PINNED_SOURCE.items():
-            actual = _sha(source / filename)
-            if actual != expected:
+            if not verify_pinned_file(source / filename, expected, restore_text_newlines=True):
                 raise ValueError('vendor_source_hash_mismatch:' + filename)
-            source_hashes[filename] = actual
+            source_hashes[filename] = expected
     except FileNotFoundError as exc:
         raise BaselineUnavailable('missing_local_kronos_assets') from exc
     return models, source, {

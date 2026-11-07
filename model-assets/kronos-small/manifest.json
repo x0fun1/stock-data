@@ -7,13 +7,8 @@
   "source_archive_sha256": "5ef8e3d01d1076bb208cc5035eec13afee48dd8fc1bbe6347913a2a5d7b07b9d",
   "source_directory": "vendor/kronos",
   "source_file_path_basis": "source_directory",
-  "source_tree_sha256": "ff89242b662f2b8d6b5fddec29bc53ec337b02640245402f9f658ff3c40a8f18",
+  "source_tree_sha256": "2bb4deb60f96d7f05f60282a6c7cee9589b3f164716db1eb037d97f4c49b13a5",
   "source_files": [
-    {
-      "path": ".gitignore",
-      "sha256": "75f33054b0717c2055c8cc8a9ffb0b28fd669813edf9b1447a9cac71c3a4fcf3",
-      "bytes": 619
-    },
     {
       "path": "examples/get_akshare_date_2024-2025_x.py",
       "sha256": "847bf9c04514cb36a5ae140d8f6fc02822bde1ed76257333ba72a653654a7236",
@@ -65,54 +60,9 @@
       "bytes": 16811
     },
     {
-      "path": "examples/yuce/000021_comprehensive_analysis_report.json",
-      "sha256": "2766b78ab57a57bd2b8c3057c6397299b276f4e0145876909858ca68834e6759",
-      "bytes": 1793
-    },
-    {
-      "path": "examples/yuce/000021_optimized_prediction.png",
-      "sha256": "531a03e19120d9a69fb8e4380341f1c2a9cc6b7b98ddd543989ed7fbe71106c5",
-      "bytes": 877297
-    },
-    {
-      "path": "examples/yuce/002354_comprehensive_analysis_report.json",
-      "sha256": "37e98f985f88b75839097c48e5db9f5065f9fce9c77ef90b073c9fa64fc86704",
-      "bytes": 1796
-    },
-    {
-      "path": "examples/yuce/002354_optimized_prediction.png",
-      "sha256": "8d85805a3001d717a1ffbd6ca8afa492e62760b2ca3061cfbbff850bea3b3f89",
-      "bytes": 962962
-    },
-    {
-      "path": "examples/yuce/300207_comprehensive_analysis_report.json",
-      "sha256": "62f479820c239f01be909a08e1cffcbcdaa6441ae236e10413bd6d6696714af6",
-      "bytes": 2022
-    },
-    {
-      "path": "examples/yuce/300207_optimized_prediction.png",
-      "sha256": "d932e80b049511934ac261b8868146a522acb8da3d2f0387931c42f79adb43e6",
-      "bytes": 794966
-    },
-    {
-      "path": "examples/yuce/600580_comprehensive_analysis_report.json",
-      "sha256": "2578ddb7c39ade879f277ad87070ae619cc4d0e3eec7086279a2a2df4e9225ff",
-      "bytes": 2937
-    },
-    {
-      "path": "examples/yuce/600580_optimized_prediction.png",
-      "sha256": "eeedf79aa21322dd64febdd4b3911519bdd871673ade2710cea08e185942fab8",
-      "bytes": 910964
-    },
-    {
       "path": "examples/yuce/historical_backtest.py",
       "sha256": "0f8dbd415b1621d844bca702c73f42f3f482ce325846a3e3e71be8a86be5db77",
       "bytes": 14807
-    },
-    {
-      "path": "examples/yuce/market_analysis_report.json",
-      "sha256": "0a5f35048ae70a83fe2e8d463c9cec190576cd6828bba4f33779b8423d88b689",
-      "bytes": 1084
     },
     {
       "path": "figures/backtest_result_example.png",
@@ -300,6 +250,159 @@
       "bytes": 30464
     },
     {
+      "path": "webui/README.md",
+      "sha256": "c7bc1a545ddacd8b94c31af2baae4b55d470952300d9bd96bb3c1d8e1d32baa6",
+      "bytes": 4120
+    },
+    {
+      "path": "webui/requirements.txt",
+      "sha256": "1104212a070bb3076eb31d6a2aa2c0bd11608343c2869833b93651d86abef767",
+      "bytes": 111
+    },
+    {
+      "path": "webui/run.py",
+      "sha256": "b60179095e4b15be60281dbc7daf2e202d5fff2e0a67676b2aa8118be9a68d31",
+      "bytes": 2608
+    },
+    {
+      "path": "webui/start.sh",
+      "sha256": "09b4dbbd1e4b94e57661ea202a6b7fd896510c89802f512bac6b94f68dba55f3",
+      "bytes": 1007
+    },
+    {
+      "path": "webui/templates/index.html",
+      "sha256": "94995c6cf0b5e83053736b11024cc7103d67b8ae73e6bfa2d4091ea59ebc4e99",
+      "bytes": 45997
+    }
+  ],
+  "source_file_normalizations": [
+    {
+      "path": "model/kronos.py",
+      "official_archive_sha256": "0a5f90282e2039c2de0771473419715c845def154896dbd0f5747837e6241032",
+      "packaged_sha256": "bf075627ad412ce195b985b47296eae3571a4cc4c33e43b8b0ef4f194d165242",
+      "reason": "only CRLF/LF and final blank-line normalization to match audited native bytes"
+    },
+    {
+      "path": "model/module.py",
+      "official_archive_sha256": "a07edbadc0e96804c8158c021bbc6063bb7cc43b34d7fc470d5c8ff2005a409f",
+      "packaged_sha256": "6bc2f4594e33be391071ea236ad28886bd59667562d38f24db3adb06bd079092",
+      "reason": "only CRLF/LF and final blank-line normalization to match audited native bytes"
+    },
+    {
+      "path": "model/__init__.py",
+      "official_archive_sha256": "f8f856ca3fedadcaac97e196be23d1aeda1c3c9ffe8903d66d43ea3bcac6240c",
+      "packaged_sha256": "1bf70432e43a45f0205c1e092eb785ec05ac2e69589a9d7d3608b46f891e36a2",
+      "reason": "only CRLF/LF and final blank-line normalization to match audited native bytes"
+    },
+    {
+      "path": "LICENSE",
+      "official_archive_sha256": "acb2d194d378204e5f2be4dcd24d39ecac437903620c790c3315a96dab388fdc",
+      "packaged_sha256": "524237e0d96b1add581ff126513e09a782ed0d6fc28b93df938f4c5599e01c29",
+      "reason": "only CRLF/LF and final blank-line normalization to match audited native bytes"
+    }
+  ],
+  "checkpoint_path_basis": "manifest_directory",
+  "checkpoints": [
+    {
+      "name": "small",
+      "repo": "NeoQuasar/Kronos-small",
+      "revision": "ac5c409a313c4eadd1ca78201322f5cadb9c34ab",
+      "published_at": "2025-06-30T16:44:37Z",
+      "license": "mit",
+      "files": [
+        {
+          "path": "small/config.json",
+          "sha256": "5e0f6a605d5f81b5c9b559fe5cf716a1acb041c744e6f41bd05b097b7a685396",
+          "bytes": 228,
+          "url": "https://huggingface.co/NeoQuasar/Kronos-small/resolve/ac5c409a313c4eadd1ca78201322f5cadb9c34ab/config.json"
+        },
+        {
+          "path": "small/model.safetensors",
+          "sha256": "b082dfcbd8e8c142a725c8bbb99781802f38fec81210e13479effb32b3c3e020",
+          "bytes": 98980656,
+          "url": "https://huggingface.co/NeoQuasar/Kronos-small/resolve/ac5c409a313c4eadd1ca78201322f5cadb9c34ab/model.safetensors"
+        }
+      ]
+    },
+    {
+      "name": "tokenizer",
+      "repo": "NeoQuasar/Kronos-Tokenizer-base",
+      "revision": "9ef143b98ee3c2488eebd85404e0c215c112b46a",
+      "published_at": "2025-06-30T17:04:10Z",
+      "license": "mit",
+      "files": [
+        {
+          "path": "tokenizer/config.json",
+          "sha256": "2366e7ccfec76cbc19cf3c4c1b9c5d901be336ca1e83f2d2292c9bff381b77a2",
+          "bytes": 301,
+          "url": "https://huggingface.co/NeoQuasar/Kronos-Tokenizer-base/resolve/9ef143b98ee3c2488eebd85404e0c215c112b46a/config.json"
+        },
+        {
+          "path": "tokenizer/model.safetensors",
+          "sha256": "59d85f6af76a2c3b8240ea06cb21db4213b4eeca053f246b23e29cf832fc6bee",
+          "bytes": 15842368,
+          "url": "https://huggingface.co/NeoQuasar/Kronos-Tokenizer-base/resolve/9ef143b98ee3c2488eebd85404e0c215c112b46a/model.safetensors"
+        }
+      ]
+    }
+  ],
+  "license": "MIT",
+  "network_weights_updated": false,
+  "bundled_assets_bytes": 114823553,
+  "source_full_tree_sha256": "ff89242b662f2b8d6b5fddec29bc53ec337b02640245402f9f658ff3c40a8f18",
+  "source_full_tree_order": "path_casefold",
+  "source_excluded_files": [
+    {
+      "path": ".gitignore",
+      "sha256": "75f33054b0717c2055c8cc8a9ffb0b28fd669813edf9b1447a9cac71c3a4fcf3",
+      "bytes": 619
+    },
+    {
+      "path": "examples/yuce/000021_comprehensive_analysis_report.json",
+      "sha256": "2766b78ab57a57bd2b8c3057c6397299b276f4e0145876909858ca68834e6759",
+      "bytes": 1793
+    },
+    {
+      "path": "examples/yuce/000021_optimized_prediction.png",
+      "sha256": "531a03e19120d9a69fb8e4380341f1c2a9cc6b7b98ddd543989ed7fbe71106c5",
+      "bytes": 877297
+    },
+    {
+      "path": "examples/yuce/002354_comprehensive_analysis_report.json",
+      "sha256": "37e98f985f88b75839097c48e5db9f5065f9fce9c77ef90b073c9fa64fc86704",
+      "bytes": 1796
+    },
+    {
+      "path": "examples/yuce/002354_optimized_prediction.png",
+      "sha256": "8d85805a3001d717a1ffbd6ca8afa492e62760b2ca3061cfbbff850bea3b3f89",
+      "bytes": 962962
+    },
+    {
+      "path": "examples/yuce/300207_comprehensive_analysis_report.json",
+      "sha256": "62f479820c239f01be909a08e1cffcbcdaa6441ae236e10413bd6d6696714af6",
+      "bytes": 2022
+    },
+    {
+      "path": "examples/yuce/300207_optimized_prediction.png",
+      "sha256": "d932e80b049511934ac261b8868146a522acb8da3d2f0387931c42f79adb43e6",
+      "bytes": 794966
+    },
+    {
+      "path": "examples/yuce/600580_comprehensive_analysis_report.json",
+      "sha256": "2578ddb7c39ade879f277ad87070ae619cc4d0e3eec7086279a2a2df4e9225ff",
+      "bytes": 2937
+    },
+    {
+      "path": "examples/yuce/600580_optimized_prediction.png",
+      "sha256": "eeedf79aa21322dd64febdd4b3911519bdd871673ade2710cea08e185942fab8",
+      "bytes": 910964
+    },
+    {
+      "path": "examples/yuce/market_analysis_report.json",
+      "sha256": "0a5f35048ae70a83fe2e8d463c9cec190576cd6828bba4f33779b8423d88b689",
+      "bytes": 1084
+    },
+    {
       "path": "webui/prediction_results/prediction_20250826_163800.json",
       "sha256": "bb9a1478ac36303264550920c7a75b42c92dc08784f0a114f8ffb44e4f913e57",
       "bytes": 53680
@@ -443,105 +546,7 @@
       "path": "webui/prediction_results/prediction_20250826_181932.json",
       "sha256": "58b3bb971ed95fac095ee380a4947739026ce5ef331f74eb06dc8ce2e7473598",
       "bytes": 53459
-    },
-    {
-      "path": "webui/README.md",
-      "sha256": "c7bc1a545ddacd8b94c31af2baae4b55d470952300d9bd96bb3c1d8e1d32baa6",
-      "bytes": 4120
-    },
-    {
-      "path": "webui/requirements.txt",
-      "sha256": "1104212a070bb3076eb31d6a2aa2c0bd11608343c2869833b93651d86abef767",
-      "bytes": 111
-    },
-    {
-      "path": "webui/run.py",
-      "sha256": "b60179095e4b15be60281dbc7daf2e202d5fff2e0a67676b2aa8118be9a68d31",
-      "bytes": 2608
-    },
-    {
-      "path": "webui/start.sh",
-      "sha256": "09b4dbbd1e4b94e57661ea202a6b7fd896510c89802f512bac6b94f68dba55f3",
-      "bytes": 1007
-    },
-    {
-      "path": "webui/templates/index.html",
-      "sha256": "94995c6cf0b5e83053736b11024cc7103d67b8ae73e6bfa2d4091ea59ebc4e99",
-      "bytes": 45997
     }
   ],
-  "source_file_normalizations": [
-    {
-      "path": "model/kronos.py",
-      "official_archive_sha256": "0a5f90282e2039c2de0771473419715c845def154896dbd0f5747837e6241032",
-      "packaged_sha256": "bf075627ad412ce195b985b47296eae3571a4cc4c33e43b8b0ef4f194d165242",
-      "reason": "only CRLF/LF and final blank-line normalization to match audited native bytes"
-    },
-    {
-      "path": "model/module.py",
-      "official_archive_sha256": "a07edbadc0e96804c8158c021bbc6063bb7cc43b34d7fc470d5c8ff2005a409f",
-      "packaged_sha256": "6bc2f4594e33be391071ea236ad28886bd59667562d38f24db3adb06bd079092",
-      "reason": "only CRLF/LF and final blank-line normalization to match audited native bytes"
-    },
-    {
-      "path": "model/__init__.py",
-      "official_archive_sha256": "f8f856ca3fedadcaac97e196be23d1aeda1c3c9ffe8903d66d43ea3bcac6240c",
-      "packaged_sha256": "1bf70432e43a45f0205c1e092eb785ec05ac2e69589a9d7d3608b46f891e36a2",
-      "reason": "only CRLF/LF and final blank-line normalization to match audited native bytes"
-    },
-    {
-      "path": "LICENSE",
-      "official_archive_sha256": "acb2d194d378204e5f2be4dcd24d39ecac437903620c790c3315a96dab388fdc",
-      "packaged_sha256": "524237e0d96b1add581ff126513e09a782ed0d6fc28b93df938f4c5599e01c29",
-      "reason": "only CRLF/LF and final blank-line normalization to match audited native bytes"
-    }
-  ],
-  "checkpoint_path_basis": "manifest_directory",
-  "checkpoints": [
-    {
-      "name": "small",
-      "repo": "NeoQuasar/Kronos-small",
-      "revision": "ac5c409a313c4eadd1ca78201322f5cadb9c34ab",
-      "published_at": "2025-06-30T16:44:37Z",
-      "license": "mit",
-      "files": [
-        {
-          "path": "small/config.json",
-          "sha256": "5e0f6a605d5f81b5c9b559fe5cf716a1acb041c744e6f41bd05b097b7a685396",
-          "bytes": 228,
-          "url": "https://huggingface.co/NeoQuasar/Kronos-small/resolve/ac5c409a313c4eadd1ca78201322f5cadb9c34ab/config.json"
-        },
-        {
-          "path": "small/model.safetensors",
-          "sha256": "b082dfcbd8e8c142a725c8bbb99781802f38fec81210e13479effb32b3c3e020",
-          "bytes": 98980656,
-          "url": "https://huggingface.co/NeoQuasar/Kronos-small/resolve/ac5c409a313c4eadd1ca78201322f5cadb9c34ab/model.safetensors"
-        }
-      ]
-    },
-    {
-      "name": "tokenizer",
-      "repo": "NeoQuasar/Kronos-Tokenizer-base",
-      "revision": "9ef143b98ee3c2488eebd85404e0c215c112b46a",
-      "published_at": "2025-06-30T17:04:10Z",
-      "license": "mit",
-      "files": [
-        {
-          "path": "tokenizer/config.json",
-          "sha256": "2366e7ccfec76cbc19cf3c4c1b9c5d901be336ca1e83f2d2292c9bff381b77a2",
-          "bytes": 301,
-          "url": "https://huggingface.co/NeoQuasar/Kronos-Tokenizer-base/resolve/9ef143b98ee3c2488eebd85404e0c215c112b46a/config.json"
-        },
-        {
-          "path": "tokenizer/model.safetensors",
-          "sha256": "59d85f6af76a2c3b8240ea06cb21db4213b4eeca053f246b23e29cf832fc6bee",
-          "bytes": 15842368,
-          "url": "https://huggingface.co/NeoQuasar/Kronos-Tokenizer-base/resolve/9ef143b98ee3c2488eebd85404e0c215c112b46a/model.safetensors"
-        }
-      ]
-    }
-  ],
-  "license": "MIT",
-  "network_weights_updated": false,
-  "bundled_assets_bytes": 114823553
+  "source_selection_reason": "Full model, fine-tuning and example code with required tutorial/regression resources; excludes Git configuration and generated historical predictions."
 }
