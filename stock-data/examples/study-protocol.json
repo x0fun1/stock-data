@@ -1,0 +1,18 @@
+{
+  "name": "us-5d-absolute-v1",
+  "market": "US",
+  "horizons": [5],
+  "targets": ["absolute"],
+  "factors": ["mom_60", "rv_20", "ep_ttm", "roa_ttm"],
+  "train_start": "2023-01-03",
+  "train_end": "2024-06-28",
+  "dev_start": "2024-07-01",
+  "dev_end": "2024-09-30",
+  "cal_start": "2024-10-01",
+  "cal_end": "2024-12-31",
+  "test_start": "2025-01-02",
+  "test_end": "2025-06-30",
+  "l2_grid": [0.01, 0.1, 1.0],
+  "seed": 20261106,
+  "notes": "Engineering example only. Register the final protocol before viewing results."
+}

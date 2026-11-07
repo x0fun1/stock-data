@@ -1,0 +1,13 @@
+{
+  "version": "2026-11-06.1",
+  "US": {
+    "mode": "rules",
+    "provenance": "nyse_rules_v1"
+  },
+  "HK": {
+    "mode": "observed_benchmark",
+    "holidays": [],
+    "provenance": "observed_benchmark_sessions",
+    "note": "No verified HK holiday table is shipped. A research run must supply observed benchmark sessions or a validated configured holiday list."
+  }
+}

@@ -1,0 +1,11 @@
+-r requirements.txt
+
+# CPU inference and the bundled official CSV fine-tuning code.
+# install_skill.py installs the CPU PyTorch wheel before this requirements file.
+torch==2.8.0
+einops==0.8.1
+huggingface_hub==0.36.0
+safetensors==0.6.2
+tqdm==4.67.1
+PyYAML>=6.0
+matplotlib>=3.9.3

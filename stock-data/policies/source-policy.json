@@ -1,0 +1,115 @@
+{
+  "version": "2026-11-06.1",
+  "scope": "US and Hong Kong; free sources; personal research",
+  "sources": {
+    "sec": {
+      "markets": ["US"],
+      "datasets": ["filings", "financial_facts"],
+      "usage": "public filing data; point-in-time availability must be validated before historical training",
+      "text_scope": "official_excerpt",
+      "store_full_text": false,
+      "notes": "8-K primary documents are cover pages; exhibits require a separate authorized import."
+    },
+    "fred": {
+      "markets": ["US"],
+      "datasets": ["macro"],
+      "usage": "macro series; vintage availability must be validated per series",
+      "text_scope": "numeric",
+      "store_full_text": false
+    },
+    "eastmoney": {
+      "markets": ["US", "HK"],
+      "datasets": ["prices"],
+      "usage": "personal research; vendor-defined fields; no redistribution",
+      "text_scope": "numeric",
+      "risk_flag": "gray_source",
+      "notes": "Use raw prices (fqt=0) only; never use the vendor adjusted series as truth."
+    },
+    "sina": {
+      "markets": ["US", "HK"],
+      "datasets": ["prices"],
+      "usage": "personal research; no redistribution",
+      "text_scope": "numeric",
+      "risk_flag": "gray_source"
+    },
+    "tencent": {
+      "markets": ["HK"],
+      "datasets": ["prices"],
+      "usage": "personal research; no redistribution",
+      "text_scope": "numeric",
+      "risk_flag": "gray_source"
+    },
+    "tiingo": {
+      "markets": ["US"],
+      "datasets": ["prices"],
+      "usage": "additional US vendor where the free entitlement applies; no news entitlement assumed",
+      "text_scope": "numeric"
+    },
+    "finnhub": {
+      "markets": ["US"],
+      "datasets": ["news", "calendar"],
+      "usage": "licensed API; sharing derived results is restricted; headlines are context only",
+      "text_scope": "title",
+      "store_full_text": false
+    },
+    "gdelt": {
+      "markets": ["US", "HK"],
+      "datasets": ["news"],
+      "usage": "article metadata with attribution; original publication time is not guaranteed",
+      "text_scope": "title",
+      "store_full_text": false
+    },
+    "hkma": {
+      "markets": ["HK"],
+      "datasets": ["news", "macro"],
+      "usage": "official releases; context unless a historical availability record exists",
+      "text_scope": "official_excerpt",
+      "store_full_text": false
+    },
+    "census": {
+      "markets": ["US"],
+      "datasets": ["macro"],
+      "usage": "background statistics only; not a high-frequency stock factor",
+      "text_scope": "numeric"
+    },
+    "company_ir": {
+      "markets": ["US", "HK"],
+      "datasets": ["filings", "news"],
+      "usage": "user-supplied or licensed material only",
+      "text_scope": "official_excerpt",
+      "store_full_text": true
+    },
+    "user_import": {
+      "markets": ["US", "HK"],
+      "datasets": ["prices", "actions", "action_coverage", "financial_facts", "macro", "news", "securities", "security_metadata"],
+      "usage": "material supplied by the user; import is allowed only for the stated personal research purpose",
+      "text_scope": "varies",
+      "store_full_text": true
+    },
+    "ken_french": {
+      "markets": ["US"],
+      "datasets": ["factor_returns"],
+      "usage": "user-authorized local public factor archives for personal risk attribution; publication times not presumed known",
+      "text_scope": "numeric",
+      "store_full_text": false
+    }
+  },
+  "prohibited": {
+    "hk_yahoo": {
+      "markets": ["HK"],
+      "reason": "HK data must not come from Yahoo, including prices, actions and estimates."
+    },
+    "hkexnews_automation": {
+      "markets": ["HK"],
+      "reason": "HKEXnews terms prohibit automated access, scraping, text mining and AI training. Use user-supplied or licensed material."
+    },
+    "cboe": {
+      "markets": ["US"],
+      "reason": "Usage eligibility is unresolved; advance approval may be required. Do not enable by default."
+    },
+    "ecb_tls_bypass": {
+      "markets": ["US", "HK"],
+      "reason": "TLS verification must never be disabled."
+    }
+  }
+}

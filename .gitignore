@@ -2,6 +2,16 @@ __pycache__/
 *.py[cod]
 runtime/
 .pytest_cache/
+.pytest-tmp/
 .ruff_cache/
+.venv/
+.install-tmp/
+.pip-cache/
+.env
+.env.*
+.secrets
 .workbuddy-ai/
 .workbuddy/
+
+# never commit keys the user drops in docs/
+docs/api.txt

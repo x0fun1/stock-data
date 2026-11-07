@@ -1,0 +1,18 @@
+[
+  {
+    "event_id": "",
+    "market": "US",
+    "security_ids": ["US:XNAS:AAPL"],
+    "title": "Company reports results",
+    "body": "Authorized excerpt text goes here.",
+    "published_at": "2024-11-01T20:30:00+00:00",
+    "available_at": "2024-11-01T20:30:00+00:00",
+    "received_at": "2024-11-01T20:35:00+00:00",
+    "source_id": "user_import",
+    "source_kind": "user_import",
+    "evidence_scope": "official_excerpt",
+    "url": "https://example.com/authorized-excerpt",
+    "evidence_locator": "paragraph 3",
+    "permissions": {"store_full_text": true}
+  }
+]

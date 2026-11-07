@@ -1,0 +1,3 @@
+# The installer verifies bundled upstream source and checkpoint manifests.
+# Preserve the local source bytes across staging, GitHub archives and clones.
+* -text

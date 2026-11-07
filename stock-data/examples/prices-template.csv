@@ -1,0 +1,3 @@
+security_id,market,date,open,high,low,close,volume,amount,currency,source_id,available_at
+US:XNAS:AAPL,US,2024-01-02,185.0,188.0,184.0,185.5,1000000,185500000,USD,user_import,
+US:XNAS:AAPL,US,2024-01-03,186.0,187.0,183.0,184.0,900000,165600000,USD,user_import,

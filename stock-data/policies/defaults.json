@@ -1,0 +1,103 @@
+{
+  "version": "2026-11-07.2",
+  "multifactor": {
+    "enabled": true,
+    "version": "multifactor-1.0",
+    "history_sessions": 126,
+    "min_cross_section": 20,
+    "neutralize": true,
+    "candidates": ["equal_weight", "ridge", "lightgbm"],
+    "risk_factor_lookback": 252,
+    "risk_covariance_diagonal_shrinkage": 0.1,
+    "publish_calibrated_probability": false
+  },
+  "quant_baseline": {
+    "enabled": true,
+    "model": "kronos-small",
+    "role": "frozen_research_baseline",
+    "device": "cpu",
+    "threads": 8,
+    "lock_wait_seconds": 60,
+    "history": "all_prior_valid_completed_bars",
+    "sampling_paths": 16,
+    "training_context_reference": 512,
+    "direction_accuracy_requirement": 0.6,
+    "publish_calibrated_probability": false
+  },
+  "registration_required": true,
+  "note": "Engineering defaults only. They are not validated thresholds and must be registered in an experiment protocol before a probability is published.",
+  "horizons": [
+    1,
+    5,
+    20,
+    60
+  ],
+  "targets": [
+    "absolute",
+    "excess"
+  ],
+  "price": {
+    "annualization_days": {
+      "US": 252,
+      "HK": 252
+    },
+    "min_history_days": 252,
+    "beta_min_days": 120,
+    "winsor_quantiles": [
+      0.01,
+      0.99
+    ],
+    "mad_clip": 3.0,
+    "correlation_alert": 0.8,
+    "volume_baseline_days": 20,
+    "amihud_days": 20,
+    "return_window_days": 60,
+    "minimum_window_coverage": 0.8
+  },
+  "label": {
+    "entry": "next_open",
+    "exit": "close",
+    "strict_positive": true,
+    "require_complete_path": true,
+    "maturity_delay_hours": 2,
+    "require_verified_action_coverage": false
+  },
+  "publication": {
+    "min_samples": 200,
+    "min_independent_dates": 60,
+    "min_brier_skill_ci_low": 0.0,
+    "calibration_slope": [
+      0.5,
+      1.5
+    ],
+    "max_ece": 0.1,
+    "require_verified_model": true,
+    "bootstrap_resamples": 500,
+    "block_days": 5
+  },
+  "data": {
+    "max_staleness_days": 5,
+    "minimum_price_coverage": 0.8
+  },
+  "news": {
+    "min_scope_for_grade": [
+      "full_text",
+      "official_excerpt",
+      "numeric"
+    ],
+    "grade_version": "lexicon_v1"
+  },
+  "quantile": {
+    "taus": [
+      0.1,
+      0.5,
+      0.9
+    ],
+    "min_pinball_skill_ci_low": 0.0,
+    "coverage_range": [
+      0.7,
+      0.95
+    ],
+    "l2": 0.01
+  }
+}

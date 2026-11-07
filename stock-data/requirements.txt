@@ -1,5 +1,7 @@
-# Core news-source and factual-background HTTP dependency; Yahoo is optional.
-requests>=2.31,<3
-
-# IANA timezone data for environments without a system database (notably Windows).
-tzdata>=2024.1
+numpy>=1.26
+pandas>=2.2
+pyarrow>=15
+scipy>=1.11
+requests>=2.31
+lightgbm==4.7.0
+pytest>=8

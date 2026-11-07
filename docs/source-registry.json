@@ -1,0 +1,901 @@
+{
+ "generated": "2026-11-05",
+ "scope": {
+  "markets": [
+   "US",
+   "HK"
+  ],
+  "cost": "free-only",
+  "keys_used_while_probing": "none",
+  "rule": "HTTP 200 was never treated as success; the payload shape was checked (empty klines, {\"code\":1,\"msg\":\"bad params\"} and \"Service not valid\" all appeared behind 200)"
+ },
+ "evidence": {
+  "raw_jsonl": [
+   "runtime/probe/out/probes1.jsonl",
+   "runtime/probe/out/probes2.jsonl",
+   "runtime/probe/out/probes3.jsonl",
+   "runtime/probe/out/probes4.jsonl",
+   "runtime/probe/out/probes5.jsonl",
+   "runtime/probe/out/probes6.jsonl",
+   "runtime/probe/out/probes7.jsonl",
+   "runtime/probe/out/probes8.jsonl"
+  ],
+  "readable_tables": [
+   "runtime/probe/out/run1.txt",
+   "runtime/probe/out/run2.txt",
+   "runtime/probe/out/run3.txt",
+   "runtime/probe/out/run4.txt",
+   "runtime/probe/out/run5.txt",
+   "runtime/probe/out/run6.txt",
+   "runtime/probe/out/run7.txt",
+   "runtime/probe/out/run8.txt",
+   "runtime/probe/out/terms.txt"
+  ],
+  "terms_full_text": "runtime/probe/dl/terms/*.txt",
+  "scripts": [
+   "runtime/probe/scripts/probe1.py",
+   "runtime/probe/scripts/probe2.py",
+   "runtime/probe/scripts/probe3.py",
+   "runtime/probe/scripts/probe4.py",
+   "runtime/probe/scripts/probe5.py",
+   "runtime/probe/scripts/probe6.py",
+   "runtime/probe/scripts/probe7.py",
+   "runtime/probe/scripts/probe8.py",
+   "runtime/probe/scripts/terms_sweep.py",
+   "runtime/probe/scripts/terms_sweep2.py",
+   "runtime/probe/scripts/fetch_ml4t.py"
+  ],
+  "contributed_by": "Rounds 5-8 were driven by endpoints published in simonlin1212/global-stock-data (docs-only, S/B/C/D compliance tiers with verbatim terms quotes); every endpoint listed in this registry was re-measured here rather than trusted from that repo.",
+  "run_through": "Runnable adapters for every declared source live in runtime/live/sources.py with a smoke runner in runtime/live/run_smoke.py; receipts land in runtime/live/receipts/smoke-r*.jsonl and payload heads in runtime/live/samples/. Final measured run 2026-11-05: 45 sources OK, 1 not (census_api needs a free key), 14 declared sources deliberately not called for terms/scope reasons. Keys are read in place from docs/api.txt (gitignored) and never copied."
+ },
+ "verdict_legend": {
+  "adopt": "measured working, terms/robots acceptable or official public data",
+  "adopt_limited": "measured working but with a real limitation (coverage, granularity or point-in-time)",
+  "grey_personal_use": "measured working, no explicit authorisation; robots flag or vendor terms unread; personal research only",
+  "unverified": "not reproduced in this environment; needs a re-test",
+  "reject": "measured unusable or explicitly disallowed"
+ },
+ "sources": [
+  {
+   "id": "sina_us_daily",
+   "discipline": [
+    "price"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://stock.finance.sina.com.cn/usstock/api/json_v2.php/US_MinKService.getDailyK?symbol=AAPL",
+   "recipe": "json_v2.php returns a bare JSON array [{d,o,h,l,c,v,a}]; the jsonp_v2.php/var _x=/ variant is equivalent. The quotes.sina.cn host is dead ('Service not valid').",
+   "granularity": "daily",
+   "history": "AAPL from 1984-09-07; delisted ATVI from 1993-10-25",
+   "robots": "finance.sina.com.cn/robots.txt empty; stock.finance.sina.com.cn serves an HTML page instead of rules; www.sina.com.cn = Allow: /",
+   "terms": "unread (vendor site terms page is a JS shell)",
+   "measured": "200, 600000+ bytes for AAPL, 566675 bytes for ATVI",
+   "note": "Only free US price source measured that keeps delisted tickers, so survivorship-aware US work must lead with it."
+  },
+  {
+   "id": "em_kline_us_hk",
+   "discipline": [
+    "price"
+   ],
+   "markets": [
+    "US",
+    "HK"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://push2his.eastmoney.com/api/qt/stock/kline/get",
+   "recipe": "beg and end are MANDATORY (omitting them returns rc:102 with data:null); fqt=0 gives raw prices (the only usable base); secid=105.AAPL for US, secid=116.00700 for HK; full history via beg=0&end=20500101",
+   "granularity": "klt=1 (1-minute), klt=101 (daily), klt=102 (weekly) confirmed; klt=5/15/30/60 return empty klines",
+   "history": "AAPL dktotal=10624 from 1984; 0700 dktotal=5518",
+   "robots": "push2his.eastmoney.com and push2.eastmoney.com both Disallow: / ; www.eastmoney.com is Allow: /",
+   "terms": "site terms page returned a 404 shell; Chinese ToS not read",
+   "measured": "200 daily/weekly/1m for US and HK; cross-checked against Sina raw: 2 of 10067 overlapping days differ by 0.01",
+   "note": "Hong Kong has no clean free alternative, so this is the practical HK price layer. Flagged for a user decision because the API host disallows crawlers. USER RULING 2026-11-05: keep using it (grey tier acknowledged) alongside Tiingo for the US."
+  },
+  {
+   "id": "em_quote_and_trends",
+   "discipline": [
+    "price"
+   ],
+   "markets": [
+    "US",
+    "HK"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://push2.eastmoney.com/api/qt/stock/get?secid=... and https://push2his.eastmoney.com/api/qt/stock/trends2/get?ndays=1&secid=...",
+   "recipe": "quote fields f43 price, f44 high, f45 low, f46 open, f47 volume, f48 amount, f60 previous close, f169 change, f170 change pct; trends2 gives the current session 1-minute series",
+   "granularity": "current quote + current-day 1-minute",
+   "history": "current session only",
+   "robots": "both hosts Disallow: /",
+   "terms": "unread",
+   "measured": "quote 230 bytes (US) / 237 bytes (HK); trends2 31386 bytes (US) / 26569 bytes (HK)",
+   "note": "Fills the intraday gap: no free source provides minute history beyond the current day."
+  },
+  {
+   "id": "tencent_kline",
+   "discipline": [
+    "price"
+   ],
+   "markets": [
+    "US",
+    "HK"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://web.ifzq.gtimg.cn/appstock/app/kline/kline?param=hk00700,day,,,100 and .../appstock/app/hkfqkline/get?param=hk00700,day,,,100,qfq",
+   "recipe": "the unadjusted path is kline/kline (hkfqkline rejects an empty adjustment with 'bad params'); qfq path gives the adjusted series; quote batch via https://qt.gtimg.cn/q=hk00700,usAAPL",
+   "granularity": "daily",
+   "history": "not measured to the end",
+   "robots": "no rules served (qt.gtimg.cn returns 'bad request', web.ifzq.gtimg.cn returns 'No dispatch info found')",
+   "terms": "unread",
+   "measured": "unadjusted HK 18058 bytes, US 8650 bytes, qfq HK 20356 bytes, quote batch 824 bytes",
+   "note": "Rows carry FHcontent/HGcontent dividend and buyback annotations: a lead for HK corporate actions, not a ledger. The mkline (5-minute) path failed with an SSL EOF twice from this box."
+  },
+  {
+   "id": "yahoo_chart",
+   "discipline": [
+    "price"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://query1.finance.yahoo.com/v8/finance/chart/{symbol}?range=<bounded>&interval=1d&events=div%2Csplit",
+   "recipe": "Use a BOUNDED range (range=10y, 5y, 1y) for prices: range=max returns monthly-sampled bars that are still labelled daily (0700.HK: 270 bars spanning 2004-2026, while range=10y returns 2461 daily bars), which is the trap the global-stock-data changelog describes for its own earlier code. Add events=div,split to get the corporate-action ledger. period1/period2 epoch bounds also work but were only partially measured (the payload exceeded the probe read cap).",
+   "granularity": "daily by default; interval=1m returns ~2000 bars over the last 5 sessions for HK",
+   "history": "US: AAPL 2512 bars over 10y; HK: 2461 daily bars over 10y; range=max hides a monthly series behind a daily label",
+   "robots": "not re-checked",
+   "terms": "D-tier: Yahoo forbids collecting data \"using any automated means... for any purpose without our express, prior permission\". Personal study only, no commercial use, no redistribution.",
+   "measured": "200 for AAPL (10y, 39 dividends + one 4:1 split on 2020-08-31), 0700.HK (10y, 2461 bars, 10 dividends; range=max: 270 bars but 19 dividends back to 2008-05-06 and the 2014 5:1 split), ^HSI, HKD=X and 1-minute HK bars. ATVI returns 404 \"No data found, symbol may be delisted\".",
+   "note": "USER RULING 2026-11-05: no Hong Kong data from Yahoo. HK klines therefore come from Eastmoney/Tencent only. Not wired into the default US chain either; Tiingo and Finnhub now hold that role. The action-ledger capability (events=div,split) stays documented for the US only."
+  },
+  {
+   "id": "cboe_delayed_options",
+   "discipline": [
+    "price",
+    "derivatives"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://cdn.cboe.com/api/global/delayed_quotes/options/AAPL.json",
+   "recipe": "current delayed chain; the historical_data/<symbol>.json path is only a delayed snapshot (annual highs), not history",
+   "granularity": "current chain snapshot",
+   "history": "none",
+   "robots": "cdn.cboe.com/robots.txt = S3 AccessDenied (no file published)",
+   "terms": "C-tier with an exact quote: using any Cboe Content requires to \"receive approval in advance from Cboe\" and the \"execution of a license agreement\"; the policy draws no commercial/non-commercial and no real-time/delayed distinction. Personal research only; the user must decide before any display or redistribution.",
+   "measured": "200, 400000+ bytes for AAPL, 300000+ for SPX, VIX/SPX snapshot 616 bytes",
+   "note": "Legitimacy is now documented rather than unknown (the earlier entry said the terms could not be read). Still a current-chain snapshot with no history; Yahoo options/{symbol} with a crumb is the only other free chain, and both are personal-use only."
+  },
+  {
+   "id": "nasdaq_undocumented_api",
+   "discipline": [
+    "price",
+    "fundamentals"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "reject",
+   "access": "no-key",
+   "endpoint": "https://api.nasdaq.com/api/quote/AAPL/historical?...",
+   "recipe": "n/a",
+   "granularity": "n/a",
+   "history": "returned totalRecords=2 regardless of the requested window",
+   "robots": "api.nasdaq.com/robots.txt: 'User-agent: * Disallow: /' with a comment that it disallows all web crawlers",
+   "terms": "nasdaq.com terms pages returned 404",
+   "measured": "200 but only 2 rows; HK symbol lookup returns 'Symbol not exists'",
+   "note": "Both disallowed and functionally useless for history. Rejected on both grounds."
+  },
+  {
+   "id": "sec_primary_data",
+   "discipline": [
+    "fundamentals",
+    "events"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://data.sec.gov/api/xbrl/{companyfacts|companyconcept|frames}/..., https://data.sec.gov/submissions/CIK##########.json, https://www.sec.gov/Archives/edgar/..., https://www.sec.gov/Archives/edgar/daily-index/..., https://efts.sec.gov/LATEST/search-index?...",
+   "recipe": "a descriptive User-Agent with a contact is REQUIRED: sec.gov/cgi-bin/browse-edgar returned 503 with a contactless UA and 200 (18562 bytes) with 'stock-data-research/0.1 (contact: github.com/x0fun1)'. Point-in-time anchor is the filed/accession date; join filing dates from submissions onto frames facts. 8-K text lives in the EX-99.1 exhibit, found via index.json.",
+   "granularity": "per-fact, per-filing",
+   "history": "companyfacts covers the whole XBRL era; quarterly financial statement data sets from 2009q1 (sub.txt carries filed)",
+   "robots": "data.sec.gov publishes no robots.txt; www.sec.gov/robots.txt returned 403 'Request Rate Threshold Exceeded' during probing",
+   "terms": "SEC requires a declared UA and <=10 requests/second; public data",
+   "measured": "companyfacts 400000+, companyconcept 18811, frames 400000+, submissions 163919, full-text 58715-63214, daily index 300000+, financial-statement dataset 400000+, N-PORT atom 18562, Archives directory 13578. NOTE 2026-11-05 evening: after a day of probing, data.sec.gov answered 403 to every request including a compliant email-format User-Agent, i.e. the block is rate/IP based, not UA based; an hour of cooldown did not clear it.",
+   "note": "The single authoritative free US fundamentals and events source, and the layer that most needs throttle discipline: the UA rule (contactless -> 503, contact-bearing -> 200) is real, but it is not sufficient once the request rate is too high. Budget well under 10 req/s, back off on 403 and re-test from another network before concluding anything. RUN-THROUGH 2026-11-05: XBRL companyfacts returns 25507 us-gaap facts for AAPL with filed dates usable as the point-in-time anchor; Form 4/13F work once the Archives path is built as <accession-without-dashes>/index.json (the earlier 403s were Akamai \"Access Denied\" on a non-existent path, not an IP throttle). RUN-THROUGH 2026-11-05: XBRL companyfacts returns 25507 us-gaap facts for AAPL with filed dates usable as the point-in-time anchor; Form 4/13F work once the Archives path is built as <accession-without-dashes>/index.json (the earlier 403s were Akamai \"Access Denied\" on a non-existent path, not an IP throttle)."
+  },
+  {
+   "id": "finra_short_interest",
+   "discipline": [
+    "events",
+    "positioning"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "reject",
+   "access": "no-key",
+   "endpoint": "https://api.finra.org/data/group/otcMarket/name/consolidatedShortInterest (per symbol) and https://cdn.finra.org/equity/{regsho/daily/<MARKET>shvol<YYYYMMDD>.txt, otcmarket/biweekly/shrt<YYYYMMDD>.csv}",
+   "recipe": "api.finra.org answers unauthenticated and supports compareFilters=issueSymbolIdentifier==AAPL. Bulk files by extension: RegSHO daily exists for the CNMS (consolidated), FNSQ, FNYX and other market codes with the header Date|Symbol|ShortVolume|ShortExemptVolume|TotalVolume|Market; the bi-weekly short-interest file must be fetched as .csv (the .txt path is 403) and is published only for settlement dates that have passed, so probe backwards from the anchor.",
+   "granularity": "bi-weekly (short interest), daily (RegSHO)",
+   "history": "not measured to the end",
+   "robots": "api.finra.org/robots.txt returned a 307 redirect shell; cdn.finra.org/robots.txt is 403",
+   "terms": "the FINRA data terms page is behind Cloudflare and was not retrieved",
+   "measured": "API 98330 bytes unfiltered and 470 bytes filtered; RegSHO CNMSshvol20261103.txt 536436 bytes, FNSQ 508709, FNYX 253709; biweekly shrt20261015.csv and shrt20260930.csv 600000+ bytes each, shrt20261030/1031/1113 -> 403",
+   "note": "Both layers now have a working bulk path plus a per-symbol API. The earlier record understated this: the bi-weekly CSV path works and only the date calendar and the extension were wrong. RUN-THROUGH 2026-11-05: both API datasets are frozen (consolidatedShortInterest at 2020-04-15, equityShortInterest at 2018-09-14) and compareFilters is ignored, so the API cannot serve current short interest; the biweekly regulatory file is the working route. RUN-THROUGH 2026-11-05: both API datasets are frozen (consolidatedShortInterest at 2020-04-15, equityShortInterest at 2018-09-14) and compareFilters is ignored, so the API cannot serve current short interest; the biweekly regulatory file is the working route."
+  },
+  {
+   "id": "em_hk_f10",
+   "discipline": [
+    "fundamentals"
+   ],
+   "markets": [
+    "HK"
+   ],
+   "verdict": "adopt_limited",
+   "access": "no-key",
+   "endpoint": "https://datacenter.eastmoney.com/securities/api/data/get?type=RPT_HKF10_FN_MAININDICATOR&sty=ALL&filter=(SECUCODE%3D%2200700.HK%22)&source=F10&client=PC",
+   "recipe": "payload is GBK-encoded (utf-8 decoding mojibakes the Chinese names); 89 fields, 32 pages of history; RPT_HKF10_INFO_ORGPROFILE also works (2730 bytes)",
+   "granularity": "semi-annual and annual reporting periods",
+   "history": "32 pages (~16 years)",
+   "robots": "datacenter host not checked; the eastmoney API hosts that were checked are Disallow: /",
+   "terms": "unread",
+   "measured": "MAININDICATOR 25857 bytes, ORGPROFILE 2730 bytes; income/balance/cashflow/bonus/dividend/holding/executive/index report names all return 'report configuration does not exist'",
+   "note": "Fields carry STD_REPORT_DATE/REPORT_DATE only: no announcement date, so HK fundamentals are usable for current analysis and NOT point-in-time. This preserves the earlier conclusion for HK."
+  },
+  {
+   "id": "hkex_announcements",
+   "discipline": [
+    "events"
+   ],
+   "markets": [
+    "HK"
+   ],
+   "verdict": "reject",
+   "access": "n/a",
+   "endpoint": "https://www1.hkexnews.hk/search/titleSearchServlet.do",
+   "recipe": "recorded only; not to be wired in",
+   "granularity": "n/a",
+   "history": "n/a",
+   "robots": "n/a",
+   "terms": "HKEXnews terms forbid automated access, scraping and text/data mining",
+   "measured": "200 with recordCnt 0 for the parameters used",
+   "note": "USER RULING 2026-11-05: the user cannot supply authorised HK filings, so this stays a permanent gap rather than an open question. Only a licensed HK feed would close it."
+  },
+  {
+   "id": "gdelt_doc_api",
+   "discipline": [
+    "news",
+    "text"
+   ],
+   "markets": [
+    "global"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://api.gdeltproject.org/api/v2/doc/doc?query=AAPL&mode=artlist&maxrecords=5&format=json",
+   "recipe": "one request per >=5 seconds (429 otherwise); returns url, title, seendate, domain, language, sourcecountry",
+   "granularity": "article list / tone timeline",
+   "history": "rolling window by timespan",
+   "robots": "no robots.txt (404)",
+   "terms": "'available for unlimited and unrestricted use for any academic, commercial, or governmental use of any kind without fee'; redistribution allowed with a citation to the GDELT Project",
+   "measured": "429 while bursting, 200 (1465 bytes) on a spaced single request; covers Nepali, Chinese and other non-English sources",
+   "note": "The cleanest free news-discovery source measured, and the only one reaching Chinese-language coverage."
+  },
+  {
+   "id": "official_rss_and_pages",
+   "discipline": [
+    "news"
+   ],
+   "markets": [
+    "US",
+    "HK",
+    "global"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://www.federalreserve.gov/feeds/press_monetary.xml, https://www.hkma.gov.hk/eng/news-and-media/press-releases/, https://www.prnewswire.com/rss/news-releases-list.rss",
+   "recipe": "plain GET",
+   "granularity": "release level",
+   "history": "rolling",
+   "robots": "not checked for these paths",
+   "terms": "official / syndication feeds",
+   "measured": "9687 / 119101 / 41352 bytes",
+   "note": "Headline-level; full text still needs an authorised import path."
+  },
+  {
+   "id": "historical_news_corpora",
+   "discipline": [
+    "news",
+    "text"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt_limited",
+   "access": "no-key",
+   "endpoint": "https://huggingface.co/datasets/Zihan1004/FNSPID, https://huggingface.co/datasets/danidanou/Bloomberg_Financial_News",
+   "recipe": "dataset download (FNSPID 1999-2023, Bloomberg archive 2006-2013)",
+   "granularity": "article level with timestamps",
+   "history": "1999-2023 / 2006-2013",
+   "robots": "n/a",
+   "terms": "dataset licences must be read per dataset",
+   "measured": "identified from the ml4t data layer (not downloaded here)",
+   "note": "Useful for calibrating event studies, not for live coverage. Live discovery stays on GDELT/Finnhub/official feeds."
+  },
+  {
+   "id": "finnhub",
+   "discipline": [
+    "news"
+   ],
+   "markets": [
+    "US",
+    "HK"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "free-key",
+   "endpoint": "https://finnhub.io/api/v1/company-news",
+   "recipe": "no key returns 401; the credentials file was lost with the wiped runtime directory",
+   "granularity": "article level",
+   "history": "not measured to the end",
+   "robots": "not checked",
+   "terms": "'you agree to not redistribute or share access to data or derived results ... with anyone or any 3rd party without written approval from Finnhub'",
+   "measured": "401 without a key (34 bytes)",
+   "note": "Personal use only, and no sharing of derived results. Previously measured to return zero admissible (non-headline) evidence on its own."
+  },
+  {
+   "id": "keyed_price_vendors",
+   "discipline": [
+    "price",
+    "fundamentals"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt_limited",
+   "access": "free-key",
+   "endpoint": "Tiingo, Polygon, Financial Modeling Prep, Twelve Data, Alpha Vantage, EODHD, marketstack",
+   "recipe": "all return 401 without a key (measured); demo keys worked only for the demo symbols (Alpha Vantage 21302 bytes, Twelve Data 3809 bytes)",
+   "granularity": "EOD and intraday, plus dividends/splits/earnings calendars",
+   "history": "varies by tier",
+   "robots": "n/a (API, not crawling)",
+   "terms": "Twelve Data: no automated tools to exceed rate limits, no storing or caching beyond documented timeframes, no free-tier commercial use. FMP: personal, non-business, non-commercial use only, no display on multi-user platforms. Tiingo/Polygon/Alpha Vantage/EODHD unverified (404/JS-rendered/rebrand stub). Tiingo terms were cited verbatim by the global-stock-data extract: \"Your use of the Services... is for your own personal use\".",
+   "measured": "401 for financialmodelingprep, polygon, finnhub, marketstack",
+   "note": "RESOLVED by the user on 2026-11-05: a Tiingo key was supplied, so Tiingo is the chosen vendor (US only, personal non-commercial terms). Other vendors stay unchosen; no other key was provided. RUN-THROUGH 2026-11-05: the Tiingo free plan carries the raw close plus divCash (AAPL 2026-02-09 0.26, 05-11 0.27, 08-10 0.27) and splitFactor (2020-08-31 = 4.0), i.e. the ex-date/split ledger this project needs; there is no earnings-calendar product (news 403, fund_meta 404, fundamentals/daily and /statements entitled). RUN-THROUGH 2026-11-05: the Tiingo free plan carries the raw close plus divCash (AAPL 2026-02-09 0.26, 05-11 0.27, 08-10 0.27) and splitFactor (2020-08-31 = 4.0), i.e. the ex-date/split ledger this project needs; there is no earnings-calendar product (news 403, fund_meta 404, fundamentals/daily and /statements entitled)."
+  },
+  {
+   "id": "fred_alfred",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "US",
+    "global"
+   ],
+   "verdict": "adopt",
+   "access": "free-key",
+   "endpoint": "https://api.stlouisfed.org/fred/series/observations, .../series/vintagedates",
+   "recipe": "vintagedates plus realtime_start/realtime_end reconstructs the initial-release series (the recipe ml4t's data/macro/download_alfred.py uses)",
+   "granularity": "per-series",
+   "history": "long series",
+   "robots": "api.stlouisfed.org/robots.txt: allows all, Crawl-delay: 2",
+   "terms": "free with a key; some series carry third-party licences",
+   "measured": "400 with 'Variable api_key is not set' (162 bytes)",
+   "note": "Key must be re-provisioned. Without FRED/ALFRED the macro layer loses its vintage (point-in-time) capability."
+  },
+  {
+   "id": "official_macro_others",
+   "discipline": [
+    "macro",
+    "positioning"
+   ],
+   "markets": [
+    "US",
+    "global"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "home.treasury.gov daily-treasury-rates.csv, api.fiscaldata.treasury.gov, publicreporting.cftc.gov (Socrata), api.bls.gov (v1/v2), api.census.gov, api.worldbank.org, sdmx.oecd.org, mba.tuck.dartmouth.edu Ken French zips, api.frankfurter.app (plus BIS, NY Fed, Federal Reserve Board H.10/H.6, EIA, DOL ETA in their own records)",
+   "recipe": "plain GET; OECD uses SDMX dataflow endpoints (format=sdmx-json returned 406, format=jsondata worked)",
+   "granularity": "daily to quarterly",
+   "history": "long",
+   "robots": "treasury Allow: /; cftc robots lists specific disallows but not these data paths; others publish none",
+   "terms": "public data",
+   "measured": "20155 / 2061 / 4720 / 3290 / 8764 / 513 / 55470 / 178326 / 6137 bytes",
+   "note": "The round-5 probe widened this layer: the official no-key sources now cover policy rates (BIS), the money market (NY Fed), USD crosses incl HKD and M1/M2 (Board), weekly energy inventory (EIA), weekly jobless claims (DOL) and the volatility surface (CBOE). BLS stays adopt_limited because the keyless tier is capped at 25 requests per day."
+  },
+  {
+   "id": "hk_censtatd_api",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "HK"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://www.censtatd.gov.hk/api/get.php?id=...",
+   "recipe": "parameters must follow the published guide; guessed parameters return 'Validation error, Parameter is not defined'",
+   "granularity": "official HK statistics tables",
+   "history": "per table",
+   "robots": "explicitly allows /, and lists /data/SKILL.MD, /llms.txt, en/API_Guide.html as allowed",
+   "terms": "government open data, agent-oriented documentation published",
+   "measured": "API reachable (541 bytes, validation error); SKILL.MD 200 (3696 bytes); API_Guide 200 (57928 bytes)",
+   "note": "The cleanest HK macro entry point; read SKILL.MD before wiring it. RUN-THROUGH 2026-11-05: the live table returns header.status=Success (2090 bytes, GDP deflator series); the earlier \"validation error\" was a guessed parameter, and the working one is now recorded in sources.py. RUN-THROUGH 2026-11-05: the live table returns header.status=Success (2090 bytes, GDP deflator series); the earlier \"validation error\" was a guessed parameter, and the working one is now recorded in sources.py."
+  },
+  {
+   "id": "hkma_api",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "HK"
+   ],
+   "verdict": "unverified",
+   "access": "no-key",
+   "endpoint": "https://api.hkma.gov.hk/public/market-data-and-statistics/...",
+   "recipe": "previously recorded as working; four variants tried today",
+   "granularity": "daily / monthly",
+   "history": "varies",
+   "robots": "no robots.txt (404)",
+   "terms": "public data",
+   "measured": "timeouts and 405 on four https shapes earlier today, then 503 on the http:// scheme (empty body). Not reproduced from this host, contradicting the earlier \"HKMA open API works\" record.",
+   "note": "Still unverified. Re-test from a different network before relying on it. RUN-THROUGH 2026-11-05 re-test: 仍不可用. https://api.hkma.gov.hk/public/market-data-and-statistics/daily-monetary-statistics/da -> http=None, 0 bytes, RUN-THROUGH 2026-11-05 re-test: 仍不可用（TLS 握手被服务端中断）. 三个 URL 形态全部失败：`SSL: UNEXPECTED_EOF_WHILE_READING`，与此前记录的 405/503 一致；HKMA 的新闻稿走官方 RSS 是通的（30 条），港股宏观另有 BIS 与统计处覆盖"
+  },
+  {
+   "id": "ecb_sdw",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "EU"
+   ],
+   "verdict": "unverified",
+   "access": "no-key",
+   "endpoint": "https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?format=csvdata",
+   "recipe": "SDMX REST",
+   "granularity": "daily",
+   "history": "long",
+   "robots": "not retrievable",
+   "terms": "public data",
+   "measured": "URLError / CERTIFICATE_VERIFY_FAILED (unable to get local issuer certificate) twice",
+   "note": "Blocked by this sandbox's TLS chain, not by ECB. Re-test elsewhere. RUN-THROUGH 2026-11-05 re-test: 仍不可用. https://data-api.ecb.europa.eu/service/data/EXR/D.USD.EUR.SP00.A?lastNObservations=2&f -> http=None, 0 bytes, RUN-THROUGH 2026-11-05 re-test: 仍不可用（本机证书链缺中间证书）. `CERTIFICATE_VERIFY_FAILED: unable to get local issuer certificate`；不使用跳过校验的方式规避（安全策略），欧元区利率可由 fred_alfred 直接覆盖，故不阻塞"
+  },
+  {
+   "id": "dbnomics",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "global"
+   ],
+   "verdict": "unverified",
+   "access": "no-key",
+   "endpoint": "https://api.db.nomics.world/v22/series/...",
+   "recipe": "series path form unresolved",
+   "granularity": "n/a",
+   "history": "n/a",
+   "robots": "Disallow: /",
+   "terms": "unread",
+   "measured": "404 for /v22/series/USA/FRED/DGS10 and /v22/series/FRED/DGS10; 400 for the search form",
+   "note": "Low priority: FRED direct covers the same data with a key. RUN-THROUGH 2026-11-05 re-test: 仍不可用. https://api.db.nomics.world/v22/series/USA/FRED/DGS10?observations=1 -> http=404, 306 bytes, {\"_meta\":{\"args\":{\"align_periods\":false,\"dataset_code\":\"FRED\",\"dimensions\":{},\"facets\":fal RUN-THROUGH 2026-11-05 re-test: 可达但序列路径未解开. 返回的是 JSON 错误而非阻断：`/v22/series/USA/FRED/DGS10?observations=1` → 404（回显 dataset_code=FRED），`/v22/series?q=DGS10` → 400 invalid value；与 fred_alfred 功能重复，暂不接"
+  },
+  {
+   "id": "etf_holdings",
+   "discipline": [
+    "holdings"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "SEC N-PORT (primary), https://www.ssga.com/.../holdings-daily-us-en-spy.xlsx, https://www.ishares.com/us/products/239726/.../1467271812596.ajax?fileType=csv&fileName=IVV_holdings&dataType=fund",
+   "recipe": "N-PORT filing bodies via SEC; issuer files as a cross-check",
+   "granularity": "quarterly (N-PORT) / daily (issuer)",
+   "history": "N-PORT from 2019",
+   "robots": "ishares robots disallows specific paths only; ssga disallows specific paths only",
+   "terms": "issuer terms unread",
+   "measured": "SSGA XLSX 54482 bytes; iShares AJAX 400000+ bytes (content type not yet validated against the CSV claim)",
+   "note": "Earlier 'blocked' verdict on these was a probe artifact; they are reachable. RUN-THROUGH 2026-11-05: the iShares CSV ajax path now returns its 2.3MB product web page on all three URL variants tried, so IVV holdings are unavailable; SPDR (SPY xlsx) and SEC N-PORT work. RUN-THROUGH 2026-11-05: the iShares CSV ajax path now returns its 2.3MB product web page on all three URL variants tried, so IVV holdings are unavailable; SPDR (SPY xlsx) and SEC N-PORT work. RUN-THROUGH 2026-11-05: the iShares CSV ajax path now returns its 2.3MB product web page on all three URL variants tried, so IVV holdings are unavailable; SPDR (SPY xlsx) and SEC N-PORT work."
+  },
+  {
+   "id": "coingecko",
+   "discipline": [
+    "price"
+   ],
+   "markets": [
+    "crypto"
+   ],
+   "verdict": "adopt_limited",
+   "access": "no-key",
+   "endpoint": "https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=1",
+   "recipe": "plain GET",
+   "granularity": "daily/hourly depending on range",
+   "history": "365 days on the public tier",
+   "robots": "not checked",
+   "terms": "unread",
+   "measured": "200 (29756 bytes) for market_chart; simple/price returned 25 bytes",
+   "note": "Out of the declared US/HK scope. Recorded only so the option is on file."
+  },
+  {
+   "id": "binance",
+   "discipline": [
+    "price"
+   ],
+   "markets": [
+    "crypto"
+   ],
+   "verdict": "reject",
+   "access": "no-key",
+   "endpoint": "https://api.binance.com/api/v3/klines, https://data.binance.vision/",
+   "recipe": "n/a",
+   "granularity": "n/a",
+   "history": "n/a",
+   "robots": "n/a",
+   "terms": "n/a",
+   "measured": "api.binance.com returned HTTP 451 (unavailable for legal reasons) from this box; the data.binance.vision S3 mirror listing returned 200 (1561 bytes)",
+   "note": "Out of scope anyway; the mirror is the only reachable Binance path."
+  },
+  {
+   "id": "stooq",
+   "discipline": [
+    "price"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "reject",
+   "access": "no-key",
+   "endpoint": "https://stooq.com/q/d/l/?s=aapl.us&i=d",
+   "recipe": "n/a",
+   "granularity": "n/a",
+   "history": "n/a",
+   "robots": "n/a",
+   "terms": "n/a",
+   "measured": "200 but the body is 'enable javascript' (796 bytes)",
+   "note": "Re-confirms the earlier block."
+  },
+  {
+   "id": "bis_policy_rates",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "global"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://stats.bis.org/api/v1/data/WS_CBPOL/{key}/all?format=csv&lastNObservations=N",
+   "recipe": "key = \"D.\" + areas joined by \"+\" (e.g. D.US, D.US+JP+GB+CN); format=csv is required. Fields: FREQ, REF_AREA, TITLE, TIME_PERIOD, OBS_VALUE. 38 reporting central banks; weekend/holiday rows come back empty for some areas, so ask for N+10 observations and then trim.",
+   "granularity": "daily policy rates",
+   "history": "long (US series documented from 1985)",
+   "robots": "no rules published for stats.bis.org",
+   "terms": "S-tier. BIS: \"The use of the statistics is unrestricted, provided that: if the statistics are reproduced, the BIS must be cited in your publication or product as the source of the statistics.\"",
+   "measured": "200, 1475 bytes for D.US; 10315 bytes for D.US+JP+GB+CN; 616 bytes for D.HK",
+   "note": "Fills the central-bank layer with a citable, reusable licence. Use the BIS key, not the BIS website pages: the API answers without any key."
+  },
+  {
+   "id": "nyfed_reference_rates",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://markets.newyorkfed.org/api/rates/{secured|unsecured|all}/{rate}/last/{1-999}.json and .../search.json",
+   "recipe": "kind comes from the rate: sofr/tgcr/bgcr/sofrai -> secured, effr/obfr -> unsecured. last=1..999, or search.json?startDate=&endDate=. Fields: effectiveDate, percentRate, percentPercentile1/25/75/99, volumeInBillions; effr adds targetRateFrom/To; sofrai returns average30day/90day/180day plus index.",
+   "granularity": "daily",
+   "history": "not measured to the end",
+   "robots": "no rules published for markets.newyorkfed.org",
+   "terms": "S-tier. NY Fed: \"The New York Fed grants you a non-exclusive license... to use, copy, and distribute Content for your personal or business purposes... through an automated process\". Displaying the reference rates requires the NY Fed attribution sentence (the bracketed NAME OF DATA / NAME OF PUBLISHER form must be filled in).",
+   "measured": "all/latest.json 1427 bytes; secured/sofr/last/10.json 2398 bytes (SOFR 3.97% for 2026-11-03, volume 3260bn); unsecured/effr/search.json 6527 bytes (EFFR 3.88%, target 3.75-...); secured/sofrai/last/5.json 893 bytes (index 1.26564788)",
+   "note": "This is the funding-rate layer: it replaces FRED for the daily money-market rates and needs no key."
+  },
+  {
+   "id": "fed_board_h10_h6",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "US",
+    "global"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://www.federalreserve.gov/datadownload/Output.aspx?rel=H10|H6&series=<package-hash>&lastobs=N&filetype=csv&label=include&layout=seriescolumn&type=package",
+   "recipe": "H10 package hash 60f32914ab61dfab590e0e470153e3ae (US dollar vs 23 currencies, published Mondays for the prior week); H6 hash 798e2796917702a5f8423426ba7e6b42 (M1/M2 and components, monthly). lastobs 1..5000 (above 5000 the Board returns an empty file). Parse the two header rows; \"Time Period\" must be present or the address rule has changed.",
+   "granularity": "daily (H10) / monthly (H6)",
+   "history": "long",
+   "robots": "www.federalreserve.gov publishes no blocking rules for these paths",
+   "terms": "S-tier. Board: \"Unless otherwise indicated, information on Board website is in the public domain and may be copied and distributed without permission. Please cite to the Board as the source of the information.\"",
+   "measured": "H10 csv 2925 bytes (Series Description row carries 23 currencies incl Hong Kong Dollar); H6 csv 4564 bytes (M1/M2, currency, demand deposits...)",
+   "note": "HKD is inside H10, so the USD/HKD leg can come from an official source; note H10 quotes AUD/EUR/NZD/GBP inverted (1 unit of foreign currency in USD)."
+  },
+  {
+   "id": "eia_weekly_energy",
+   "discipline": [
+    "macro",
+    "commodities"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://ir.eia.gov/wpsr/table1.csv and https://ir.eia.gov/ngs/wngsr.json",
+   "recipe": "WPSR table1.csv: row 0 is the header (STUB_1 then the week dates), rows below are inventory lines in thousand barrels; the second half of the file is a different (supply/demand) table and must be cut off at the second STUB_1. WNGSR json: series[].data pairs keyed by week, plus calculated net_change / 5yr-avg.",
+   "granularity": "weekly",
+   "history": "WPSR and WNGSR current-year files; the same directories keep prior years",
+   "robots": "ir.eia.gov serves the files directly",
+   "terms": "S-tier for EIA-authored data: \"U.S. government publications are in the public domain and are not subject to copyright protection.\" Credit as \"Source: U.S. Energy Information Administration (Oct 2008).\" The spot-price files are NOT EIA data (see eia_spot_prices).",
+   "measured": "wpsr/table1.csv 6594 bytes (crude 691.944 Mbbl for week 10/23/26, -1.264 week over week, -16.7% year over year); ngs/wngsr.json 7198 bytes (release_date 2026-Oct-29, current_week 2026-10-23)",
+   "note": "Weekly oil and gas inventories are a direct input to energy-sector event studies; both files are plain text with a stable header. RUN-THROUGH 2026-11-05: WPSR table1.csv returns 58 rows; WNGSR is withheld with 403 \"Access Restricted ... outside of a release window\" before its weekly release, so it is window-gated rather than broken. RUN-THROUGH 2026-11-05: WPSR table1.csv returns 58 rows; WNGSR is withheld with 403 \"Access Restricted ... outside of a release window\" before its weekly release, so it is window-gated rather than broken."
+  },
+  {
+   "id": "eia_spot_prices",
+   "discipline": [
+    "commodities"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt_limited",
+   "access": "no-key",
+   "endpoint": "https://www.eia.gov/dnav/pet/hist_xls/RWTCd.xls (WTI, also RBRTEd for Brent, RNGWHHDd for Henry Hub)",
+   "recipe": "daily spot history comes back as a legacy .xls (Excel 97) file, so parsing needs an xls reader, not csv. The repository of record is the dnav/pet directory.",
+   "granularity": "daily",
+   "history": "WTI from 1986",
+   "robots": "www.eia.gov allows these files",
+   "terms": "B-tier, not S: EIA states these spot prices are sourced from \"Refinitiv, an LSEG business\" and that reproducing protected third-party material \"requires the written permission of the copyright owners\". Personal research only.",
+   "measured": "472064 bytes, content-type application/vnd.ms-excel",
+   "note": "Commodity spot history is useful but the licence is not the public-domain one that covers EIA-authored data. Treat it as research-only until the user decides."
+  },
+  {
+   "id": "dol_eta_weekly_claims",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt",
+   "access": "no-key",
+   "endpoint": "https://oui.doleta.gov/unemploy/wkclaims/report.asp (POST, not GET)",
+   "recipe": "POST form fields level=us, strtdate=YYYY, enddate=YYYY, filetype=xml. The root element is r539cyNational; each <week> has weekEnded (%m/%d/%Y) and InitialClaims/ContinuedClaims with NSA, SA and SA4WK children, plus IUR and CoveredEmployment. A GET returns only the HTML form page, so the POST is mandatory. A 200 whose body starts with \"Unable to connect!\" is a database outage, not a schema change.",
+   "granularity": "weekly",
+   "history": "weekly claims from 1967 (per the repo), one call per year range",
+   "robots": "no rules published for oui.doleta.gov",
+   "terms": "S-tier. DOL: \"Materials created by the federal government are generally part of the public domain and may be used, reproduced and distributed without permission.\" Credit \"U.S. Department of Labor and/or https://www.dol.gov\".",
+   "measured": "POST 200, 18854 bytes, root r539cyNational rundate=\"11/5/2026\"; first week 01/03/2026 with InitialClaims NSA 298,700 / SA 207,000 / SA4WK 212,250. GET (with or without query string) returns 6599 bytes of HTML.",
+   "note": "Weekly initial and continuing claims are the highest-frequency labour input we can get free; the XML also carries the seasonal factors, which is what an event study needs."
+  },
+  {
+   "id": "bls_public_api",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt_limited",
+   "access": "no-key",
+   "endpoint": "https://api.bls.gov/publicAPI/v1/timeseries/data/<SERIES> (v2 too)",
+   "recipe": "plain GET; a User-Agent carrying a contact is required (403 without one). The unregistered keyless tier is capped at 25 requests per day, 25 series per request, 10 years per request.",
+   "granularity": "monthly/quarterly series",
+   "history": "10 years per request on the keyless tier",
+   "robots": "www.bls.gov blocks robots without contact information (measured: 403)",
+   "terms": "S-tier with obligations. BLS: material is \"in the public domain... although we do ask that you cite the Bureau of Labor Statistics as the source\", plus the API terms: cite the retrieval date and state \"BLS.gov cannot vouch for the data or analyses derived from these data after the data have been retrieved from BLS.gov.\" Hard limits: \"If BLS reasonably believes that a user has attempted to exceed or circumvent these limits, that user's access to the API may be permanently or temporarily blocked.\"",
+   "measured": "api.bls.gov/publicAPI/v1/timeseries/data/CUUR0000SA0 -> 200, 3290 bytes, status REQUEST_SUCCEEDED (CUUR0000SA0, Sep 2026); www.bls.gov/schedule/news_release/bls.ics -> 403 Access Denied even with a browser UA",
+   "note": "The 25-requests-per-day cap makes the keyless tier unusable as a bulk macro layer: prefer the DOL/EIA/BIS/NY Fed files above and reserve BLS for CPI/PPI/payroll series that exist nowhere else. The .ics release-calendar file is blocked; the HTML schedule page remains."
+  },
+  {
+   "id": "cboe_vol_index_history",
+   "discipline": [
+    "price",
+    "derivatives",
+    "risk"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://cdn.cboe.com/api/global/us_indices/daily_prices/{INDEX}_History.csv",
+   "recipe": "INDEX is the plain code (VIX, VIX1D, VIX9D, VIX3M, VIX6M, VIX1Y, VVIX, SKEW, OVX, GVZ, VXN, RVX). A leading underscore (/_VIX_History.csv) is 403: the code is VIX_History.csv. VIX-family files are DATE,OPEN,HIGH,LOW,CLOSE; VVIX/SKEW/OVX/GVZ carry a single value column, so open/high/low are absent. Term structure = the 1D/9D/30D/3M/6M/1Y set (contango vs backwardation), no futures needed.",
+   "granularity": "daily",
+   "history": "VIX from 1990-01-02; SKEW from 1990; VVIX from 2006; VIX1Y 2007, VIX6M 2008, VIX3M and OVX and GVZ and VXN and RVX 2009, VIX9D 2011, VIX1D 2022",
+   "robots": "cdn.cboe.com/robots.txt is an S3 AccessDenied (no file published)",
+   "terms": "C-tier with an exact quote: any use of Cboe Content requires to \"receive approval in advance from Cboe\" and \"execution of a license agreement\"; the policy does not distinguish commercial from non-commercial use, nor real-time from delayed. Personal research only, and the user must decide before any display or redistribution.",
+   "measured": "VIX_History.csv 474502 bytes from 01/02/1990; VIX9D 202325; VIX3M 219784; VIX6M 241816; VIX1Y 254311; VIX1D 56033; VVIX 109389; SKEW 203796; OVX 90503; GVZ 90396; VXN 220083; RVX 219631",
+   "note": "This closes the volatility-history gap that the delayed options snapshot could not: the whole VIX term structure with 35 years of history, as one CSV per tenor."
+  },
+  {
+   "id": "finra_biweekly_short_interest",
+   "discipline": [
+    "positioning",
+    "events"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt_limited",
+   "access": "no-key",
+   "endpoint": "https://cdn.finra.org/equity/otcmarket/biweekly/shrt<YYYYMMDD>.csv",
+   "recipe": "Use the .csv path (the .txt form is 403). The body is pipe-delimited with a quoted header: accountingYearMonthNumber|symbolCode|issueName|issuerServicesGroupExchangeCode|marketClassCode|currentShortPositionQuantity|previousShortPositionQuantity|stockSplitFlag|averageDailyVolumeQuantity|daysToCoverQuantity|... Files exist only for settlement dates that have already been published (roughly the 15th and the last business day, with a publication lag), so probe backwards from the anchor and treat 403 as \"not published yet\", exactly like the repo's _si_resolve does.",
+   "granularity": "bi-weekly (two settlement dates per month)",
+   "history": "one file per settlement date",
+   "robots": "cdn.finra.org/robots.txt is 403",
+   "terms": "B-tier. FINRA files are published for download, but the site terms forbid using \"any process to monitor or copy the FINRA Website in bulk, or use any data mining, scraping or harvesting tools (including robots)\" and state \"FINRA Data provides non-commercial use of data\". Downloading a published file is ordinary use; bulk crawling pages is not. Confirm with FINRA before commercial use.",
+   "measured": "shrt20261015.csv 200, 600000+ bytes; shrt20260930.csv 200, 600000+ bytes; shrt20261030.csv, shrt20261031.csv, shrt20261113.csv -> 403 Access Denied",
+   "note": "Supersedes the earlier \"cdn.finra.org biweekly path is 403\" record: the path is fine, only the extension and the settlement-date calendar were wrong. This is the cross-sectional short-interest file (22k+ issues), the API being the per-symbol route."
+  },
+  {
+   "id": "em_fund_flow_daily",
+   "discipline": [
+    "positioning"
+   ],
+   "markets": [
+    "US",
+    "HK"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://push2his.eastmoney.com/api/qt/stock/fflow/daykline/get?lmt=N&klt=101&secid=105.AAPL|116.00700",
+   "recipe": "fields1=f1,f2,f3,f7 and fields2=f51..f65 give per-day rows of main/large/medium/small net inflow plus their percentage shares; secid=105.AAPL (US) / 116.00700 (HK). lmt is honoured; beg/end are accepted. Without lmt the endpoint returns its default window (~100 rows).",
+   "granularity": "daily",
+   "history": "not measured to the end",
+   "robots": "push2his.eastmoney.com robots.txt = Disallow: / (same host as the kline endpoint)",
+   "terms": "unread (site terms page is a JS shell)",
+   "measured": "US 7389 bytes and HK 7584 bytes, rc:0 with real klines (e.g. AAPL 2026-08-12 main net inflow -54145621.0; 00700 663355376.0)",
+   "note": "Money-flow is a genuine news-adjacent dataset for both markets and it comes from the same host that already carries the price layer, so it adds no new legitimacy question."
+  },
+  {
+   "id": "em_hk_index_and_connect",
+   "discipline": [
+    "price",
+    "positioning"
+   ],
+   "markets": [
+    "HK"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "push2his .../stock/kline/get (secid=100.HSI) , push2 .../clist/get?fs=m:124 , push2 .../kamt/get and push2his .../kamt.kline/get",
+   "recipe": "HSI daily: secid=100.HSI with klt=101&fqt=0&beg=0&end=20500101 (dktotal=9001, from 1990-05-14). Index universe: fs=m:124 lists 345 HK indices by change%, and it includes VHSI (hang seng volatility index), the HK analogue of VIX. Stock Connect: kamt/get gives the four channels with dayNetAmtIn/dayAmtThreshold; kamt.kline/get gives a daily series per channel; kamt.rtmin/get gives an intraday series.",
+   "granularity": "daily / intraday",
+   "history": "HSI from 1990-05-14",
+   "robots": "push2.eastmoney.com and push2his.eastmoney.com both Disallow: /",
+   "terms": "unread (site terms page is a JS shell)",
+   "measured": "HSI quote f43=2479698 i.e. 24796.98, identical to Sina hq.sinajs.cn/list=int_hangseng (24796.98) -> cross-validated; HSI kline 200 with 9001 bars; m:124 200 with 345 indices; kamt/get 200; kamt.kline 200",
+   "note": "Two cautions: the northbound channels (hk2sh, hk2sz) report dayNetAmtIn 0.00, consistent with the mainland stopping real-time northbound net-buy publication in August 2024, so only the southbound series is usable; and the kamt field semantics are undocumented, so the series must be characterised before it feeds any analysis."
+  },
+  {
+   "id": "em_market_screen",
+   "discipline": [
+    "price",
+    "screening"
+   ],
+   "markets": [
+    "US",
+    "HK"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://push2.eastmoney.com/api/qt/clist/get?fs=<universe>&fields=f12,f13,f14,f2,f3,f4,f5,f6,f20",
+   "recipe": "HK equities only: fs=m:116+t:3 (2620 names) - the plain fs=m:116 returns 17465 rows because it also carries warrants, CBBCs and other derivatives. US: fs=m:105,m:106,m:107 (13899 names). Fields: f12 code, f13 market, f14 name, f2 price, f3 %change, f5 volume, f6 turnover, f20 market cap; pz caps the page size.",
+   "granularity": "daily snapshot (current)",
+   "history": "current only",
+   "robots": "push2.eastmoney.com robots.txt = Disallow: /",
+   "terms": "unread (site terms page is a JS shell)",
+   "measured": "m:116+t:3 -> total 2620; m:116 -> total 17465; m:105,m:106,m:107 -> total 13899",
+   "note": "Gives the cross-sectional screen both markets need, and the m:116+t:3 filter matters: without it the HK universe is mostly warrants."
+  },
+  {
+   "id": "yahoo_crumb_endpoints",
+   "discipline": [
+    "fundamentals",
+    "positioning",
+    "economics"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "grey_personal_use",
+   "access": "no-key",
+   "endpoint": "https://query2.finance.yahoo.com/v10/finance/quoteSummary/{symbol}?modules=...&crumb=... ; .../v7/finance/options/{symbol}?crumb=...",
+   "recipe": "The crumb is mandatory and cookie priming must come first: GET https://fc.yahoo.com/ (answers 404 but sets the cookie), then GET https://query2.finance.yahoo.com/v1/test/getcrumb with the same cookie jar - skipping the priming step returns 401 \"Invalid Cookie\"/\"Invalid Crumb\". Then quoteSummary returns recommendationTrend (analyst rating counts for 0m/-1m/-2m/-3m), institutionOwnership (holder, reportDate, pctHeld, position), earnings, earningsHistory, calendarEvents, incomeStatementHistory, financialData, defaultKeyStatistics. options/{symbol} returns the current chain with expirationDates and per-strike IV/OI.",
+   "granularity": "quarterly / per-posting",
+   "history": "rating trend 4 months, ownership at quarter end",
+   "robots": "not re-checked",
+   "terms": "D-tier with an exact quote: Yahoo forbids to \"access or collect data, or attempt to access or collect data, from our Services using any automated means, devices, programs, algorithms or methodologies, including but not limited to robots, spiders, scrapers... for any purpose without our express, prior permission.\" Personal study only; no commercial use and no redistribution.",
+   "measured": "0700.HK quoteSummary 200, 13634 bytes, modules recommendationTrend/institutionOwnership/earnings/calendarEvents/earningsHistory/incomeStatementHistory/defaultKeyStatistics/financialData; AAPL options 200, 48867 bytes; 0700.HK options 200 but 0 expirations (no HK option chain)",
+   "note": "USER RULING 2026-11-05: HK analyst estimates are NOT to be taken from Yahoo, so this source is US-only and not wired into the default chain. Its HK capability is recorded only to document why the HK analyst-estimate gap stands."
+  },
+  {
+   "id": "cboe_terms_note",
+   "discipline": [
+    "policy"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "unverified",
+   "access": "n/a",
+   "endpoint": "cboe.com legal / Use of Content policy (text read via the global-stock-data repo extract)",
+   "recipe": "n/a - documentation record only",
+   "granularity": "n/a",
+   "history": "n/a",
+   "robots": "n/a",
+   "terms": "Exact clauses: using any Cboe Content requires to \"receive approval in advance from Cboe\" and the \"execution of a license agreement\"; no commercial/non-commercial distinction is drawn anywhere in the policy.",
+   "measured": "quote extracted from the repo, which states it read the policy on 2026-07-24 and re-checked in V2.2 on 2026-10-12",
+   "note": "Upgrades the previous \"CBOE terms unverified\" entry: the delayed option chain and the volatility-index files are C-tier, i.e. usable for personal research now, licence required before anything user-facing."
+  },
+  {
+   "id": "census_api",
+   "discipline": [
+    "macro"
+   ],
+   "markets": [
+    "US"
+   ],
+   "verdict": "adopt_limited",
+   "access": "key-required (free)",
+   "endpoint": "https://api.census.gov/data/{year}/{dataset}?get=...&key=...",
+   "recipe": "Read CENSUS_API_KEY in place, pass key= in the Census request, and validate header, numeric population and requested state/county. Never count HTTP-only success.",
+   "granularity": "US census and economic tables",
+   "history": "per survey",
+   "robots": "allows the /data/ endpoints",
+   "terms": "US federal statistical data; the no-key queries tested on 2026-11-05 requested a key. A blanket start date for mandatory keys has not been independently established.",
+   "measured": "2026-11-06 keyed ACS 2022 acs5 query: Los Angeles County, California, population estimate 9936690, state=06 county=037, one parsed row; HTTP 200. Receipt: runtime/live/receipts/smoke-census-20261106.jsonl.",
+   "note": "The user supplied the key and this query is now verified. Only this historical population table is confirmed, not all Census economic datasets or a point-in-time macro predictor.",
+   "analysis_readiness": {
+    "observed_value": true,
+    "history_validated": false,
+    "availability_validated": false,
+    "eligible_for_training": false,
+    "use": "historical economic context"
+   }
+  }
+ ],
+ "gaps": [
+  "HK corporate-action ledger: no complete verified permitted ledger. The user excluded all HK Yahoo paths; Tencent annotations and F10 cash-dividend fields are not a complete ledger.",
+  "HK point-in-time fundamentals and company-event evidence: unavailable under the current permitted sources. The user cannot provide authorised filings; do not repeatedly ask for them.",
+  "Historical security master and delisted universe are not validated. Some US delisted price histories are available; that does not prove survivorship-free coverage. HK delisted coverage remains unavailable.",
+  "Multi-year minute/tick history and historical option chains are not available in the verified collection. Current snapshots cannot be inserted retrospectively into model training.",
+  "Analyst consensus: no validated frozen historical consensus panel. A current earnings-calendar row does not establish consensus coverage, and no HK Yahoo fallback is permitted.",
+  "Full immutable payload storage, units/action validation, point-in-time joins and nested time-based forecast validation are still required before publishing calibrated probabilities."
+ ],
+ "decisions_required": [],
+ "decisions_resolved": [
+  "PRICE LAYER (ruled: keep Eastmoney/Sina/Tencent, and add a Tiingo key the user supplied). The grey free layer stays and keeps its flag; Tiingo becomes the second US price source with published terms. Nothing in the HK price layer changes.",
+  "FREE VENDOR KEY (ruled: check whether Tiingo carries it). Tiingo is now wired as tiingo_eod_actions; the run-through in section 9 records exactly what its free plan returns.",
+  "HK AUTHORISED MATERIALS (ruled: cannot provide). HK point-in-time fundamentals and HK event-driven work are therefore permanent gaps unless a licensed HK feed is bought. Do not raise this again as an open question.",
+  "YAHOO (ruled: we are personal research, but no Hong Kong data from Yahoo). Yahoo is removed from every HK path: HK klines, HK ex-dividend/split dates and HK analyst estimates all go back to the gap list. Yahoo is also NOT wired into the default US chain; it stays a documented last resort only, because Tiingo and Finnhub now cover the US role."
+ ],
+ "analysis_readiness_review": {
+  "date": "2026-11-06",
+  "document": "docs/ANALYSIS_DATA_READINESS_2026-11.md",
+  "design": "docs/QUANT_ANALYSIS_DESIGN_2026-11.md",
+  "status": "design_complete_not_a_trained_or_validated_forecaster",
+  "warning": "Source verdicts describe adoption decisions, not training readiness. Historical smoke ok flags include directories, HTTP/file-header checks and partial composite success. They do not prove a ready training dataset or predictive advantage.",
+  "census_key_verified": true,
+  "source_policy_note": "Technical reachability does not override source usage terms; the no-HK-Yahoo user ruling remains binding."
+ },
+ "operational_notes": [
+  "Use descriptive SEC identification and a genuine contact when supplied; do not fabricate an email. Missing contact is not a reason to fabricate filing evidence.",
+  "Census credentials are supplied and verified for one query. HKMA/ECB and other unresolved paths are not needed to complete the present analysis design."
+ ]
+}

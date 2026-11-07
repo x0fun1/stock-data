@@ -1,0 +1,3 @@
+security_id,ex_date,action_type,q,cash_old,currency,announced_at,available_at,accession,source_id,confirmed,supported,note
+US:XNAS:AAPL,2020-08-31,split,4,0,USD,2020-07-30T20:30:00+00:00,2020-07-30T20:30:00+00:00,,sec,true,true,4-for-1 split
+US:XNAS:AAPL,2024-02-09,cash_dividend,1,0.24,USD,2024-02-01T21:00:00+00:00,2024-02-01T21:00:00+00:00,,sec,true,true,quarterly dividend

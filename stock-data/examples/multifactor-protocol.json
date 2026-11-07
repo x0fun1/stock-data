@@ -1,0 +1,33 @@
+{
+  "name": "us-20d-excess-native-example",
+  "market": "US",
+  "horizons": [20],
+  "targets": ["excess"],
+  "factors": ["mom_60", "rv_20", "ep_ttm", "roa_ttm", "size_log"],
+  "train_start": "2015-01-02",
+  "train_end": "2022-12-30",
+  "dev_start": "2023-01-03",
+  "dev_end": "2023-12-29",
+  "cal_start": "2024-01-02",
+  "cal_end": "2024-06-28",
+  "test_start": "2024-07-01",
+  "test_end": "2025-12-31",
+  "multifactor_candidates": ["equal_weight", "ridge", "lightgbm"],
+  "ridge_grid": [0.01, 0.1, 1.0],
+  "lightgbm_grid": [
+    {"num_leaves": 7, "max_depth": 3, "num_boost_round": 80},
+    {"num_leaves": 15, "max_depth": 4, "num_boost_round": 80}
+  ],
+  "selection_metric": "date_weighted_mse",
+  "dev_min_prediction_coverage": 0.9,
+  "embargo_days": 1,
+  "bootstrap_resamples": 250,
+  "block_days": 20,
+  "cost_bps": 10.0,
+  "seed": 20261107,
+  "dataset_admission": {
+    "status": "research_development_unverified",
+    "reason": "example_only_replace_with_actual_field_and_version_acceptance_evidence"
+  },
+  "notes": "Historical example only; not acquired data or a new blind test. Freeze actual shared coverage before viewing outcomes. Use --development-only until data acceptance is evidenced. No probability activation."
+}
