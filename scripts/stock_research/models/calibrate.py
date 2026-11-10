@@ -47,6 +47,21 @@ class PlattCalibrator:
     def to_dict(self) -> dict:
         return {"type": "platt", "a": self.a, "b": self.b, "converged": self.converged_}
 
+    def diagnostics(self, p_raw: np.ndarray) -> dict:
+        values = np.asarray(p_raw,dtype=float)
+        finite = values[np.isfinite(values)]
+        output = self.predict(finite) if len(finite) else np.array([])
+        threshold = float(1/(1+np.exp(-np.clip(-self.a/self.b,-60,60)))) if self.b else None
+        return {'parameters':self.to_dict(),'ranking_reversed':self.b<0,
+            'raw_threshold_for_calibrated_half':threshold,
+            'threshold_sense':'raw_below_threshold_predicts_up' if self.b<0 else 'raw_above_threshold_predicts_up' if self.b>0 else 'constant',
+            'input_score_min':float(finite.min()) if len(finite) else None,
+            'input_score_max':float(finite.max()) if len(finite) else None,
+            'output_score_min':float(output.min()) if len(output) else None,
+            'output_score_max':float(output.max()) if len(output) else None,
+            'output_up_fraction':float((output>=.5).mean()) if len(output) else None,
+            'is_direction_training':False}
+
     @classmethod
     def from_dict(cls, data: dict) -> "PlattCalibrator":
         return cls(a=float(data.get("a", 0.0)), b=float(data.get("b", 1.0)), converged_=bool(data.get("converged", True)))

@@ -12,6 +12,8 @@ python scripts/install_skill.py --destination "$env:USERPROFILE\.codex\skills\st
 
 安装器复制 skill、创建目标内独立 `.venv`、安装依赖，并执行真实 Kronos 推理及 LightGBM/因子处理自检。模型的完整推理及微调源码在 `vendor/kronos/`；首次安装从清单指定的官方固定 revision 下载权重并校验 SHA256。已有权重则校验复用。模型在本地运行，不通过 MCP 或在线推理服务调用。
 
+macOS Apple Silicon、Python 3.13.13、CPU 环境也已完成真实安装与模型自检。macOS 自动从 PyPI 安装原生 PyTorch wheel，并在 skill 的 `.venv` 内复用它的 OpenMP 库供 LightGBM 加载。
+
 GitHub 源码发布只包含当前核心 skill、固定模型源码、依赖与使用/训练方案。旧横向模型比较代码、全部本地生成数据与报告、本地 `docs/`、大体积权重、账户凭证和环境缓存不上传；本地数据保留。安装器和便携包同样排除旧比较及本地运行数据。GitHub 克隆安装时，权重由固定清单指定的官方 revision 获取并校验 SHA256；使用已包含权重的便携包时可离线复用权重。`--offline` 只禁止权重下载，首次 Python 依赖安装仍需联网。
 
 ## 研究入口

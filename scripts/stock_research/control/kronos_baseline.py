@@ -162,6 +162,7 @@ def execute_baseline(history: list[dict], *, runtime_root, config, ticker, frequ
         frequency=frequency, cutoff=cutoff.isoformat(), target_start=target_start.isoformat(), target_end=target_end.isoformat())
     result.update({'run_id': run_id, 'role': 'frozen_research_baseline', 'frequency': frequency,
         'ticker': ticker, 'probability_verified': False, 'network_weights_updated': False,
+        'vote_calibration_applied':False,'vote_calibration_mode':'off',
         'input_file': str(input_file), 'input_file_sha256': sha256_file(input_file),
         'excluded_history': excluded or [], 'provenance': provenance or {},
         'history_availability_verified': bool(history) and all(b.get('available_at') for b in history)})
@@ -174,6 +175,21 @@ def execute_baseline(history: list[dict], *, runtime_root, config, ticker, frequ
     if not result['history_availability_verified']:
         result.setdefault('limitations', []).append('历史供应商首次可得时间未完整核验；本次为历史研究基准。')
     result.setdefault('limitations', []).append('模型生成分数未经校准；本次只研究下一根报价开收盘方向。')
+    diagnostic_path = runtime / 'validation/kronos-calibration-diagnostic.json'
+    if diagnostic_path.is_file():
+        diagnostic = json.loads(diagnostic_path.read_text(encoding='utf-8'))
+        direction_path=runtime/'validation/kronos-direction-diagnostic.json'
+        if direction_path.is_file():
+            direction_audit=json.loads(direction_path.read_text(encoding='utf-8'))
+            if direction_audit['study_id']==diagnostic.get('study_id'):
+                diagnostic['direction_audit']=direction_audit
+        if (diagnostic.get('ticker') == ticker and diagnostic.get('frequency') == frequency
+                and diagnostic.get('model_version') == result.get('model_version')
+                and date.fromisoformat(diagnostic['test_end']) <= cutoff.date()):
+            if diagnostic.get('context_matches_default',True):
+                result['calibration_diagnostic'] = diagnostic
+            else:
+                result['context_calibration_study'] = diagnostic
     forecast_file = folder / 'forecast.json'
     result['forecast_file'] = str(forecast_file)
     write_json(forecast_file, result)
@@ -260,18 +276,49 @@ def render_baseline(result: dict) -> str:
         lines.append('基准未执行：' + str(result.get('reason', result.get('status', 'unknown'))))
         return '\n'.join(lines) + '\n'
     direction = '上涨' if result.get('direction') == 'up' else '不上涨'
+    score = result.get('vote_score', (result['up_paths'] + 1) / (result['valid_paths'] + 2))
     lines += [f'- 研究方向：**{direction}**；目标自身收盘是否高于开盘。',
               f'- 目标：{result["target_start"]} → {result["target_end"]}；数据截止：{result["cutoff"]}。',
               f'- 全部历史：{result["n_history"]} 根；上涨路径 {result["up_paths"]}/{result["valid_paths"]}。',
-              '- 角色：冻结预训练基准；路径投票未经概率校准，未达到已验证投资概率发布资格。']
+              '- 每条路径是一次随机采样的下一根K线；预测收盘高于预测开盘记1票，否则记0票。',
+              f'- 原始路径比例：{result["up_paths"]}/{result["valid_paths"]}；平滑研究分数=(上涨票数+1)/(有效路径数+2)={score:.4f}。',
+              '- 16次生成共享模型与输入，并非16个独立历史样本；路径票数不能直接当作真实上涨概率。']
     if result.get('context_exceeds_training_reference'):
         lines.append('- 输入超过512根训练上下文参考，属于长上下文研究压力测试。')
     violations = result.get('ohlc_order_violations', 0)
     if violations:
-        lines.append(f'- 生成路径有 {violations} 条OHLC排序异常；只保留方向研究，不作为价格极值或风险预测。')
+        if result.get('constrained_paths'):
+            lines.append(f'- 原始解码有 {violations} 条OHLC顺序异常，已生成严格满足高低价约束的独立派生K线；开盘/收盘及方向票数保持原样。原始路径保留供审计。')
+            lines.append('- 约束后结构有效不代表价格区间已准确；价格区间与路径风险仍需独立样本外检验。')
+        else:
+            lines.append(f'- 原始解码有 {violations} 条OHLC顺序异常；不能作为价格极值或风险预测。')
     if result.get('lag_age_hours', 0) > 0:
         lines.append(f'- 历史距目标开始 {result["lag_age_hours"]:g} 小时；分组：{result.get("target_group")}。')
-    for note in dict.fromkeys(result.get('limitations', [])):
-        lines.append('- ' + note)
+    if not result.get('history_availability_verified'):
+        lines.append('- 数据时点：已核对历史交易日与行情内容，尚无逐根历史首次供应记录；下载时间不能倒填成过去的首次可得时间。')
+    diagnostic = result.get('calibration_diagnostic')
+    candidate_study = result.get('context_calibration_study')
+    if candidate_study:
+        effective = candidate_study['calibrator']['calibration_rows']
+        lines.append(f"- 输入与方向研究已完成：{candidate_study['sample_count']}个预测时点，开发{candidate_study['development_samples']}、诊断块{candidate_study['calibration_samples']}（有效{effective}）、留出{candidate_study['test_samples']}；开发段选中{candidate_study['selected_variant']}。该候选与本栏全部历史基准分别保存。")
+        metrics=candidate_study['test_metrics']
+        lines.append(f"- 原始方向留出诊断：命中率{candidate_study['direction_accuracy']:.1%}，前日方向基线{candidate_study['previous_direction_accuracy']:.1%}；Brier {metrics['brier']:.4f}，ECE {metrics['ece']:.3f}。尚未证实预测优势，未获得可靠概率资格。历史回放不等同于新进行的前瞻盲测。")
+        if candidate_study.get('direction_audit'):
+            from .kronos_diagnostics import render_direction_comparison
+            audit=candidate_study['direction_audit']
+            parameters=audit['calibrator']['parameters']
+            if audit.get('calibration_mode')=='off':
+                lines.append('- 外加投票校准默认关闭，未拟合、未改变原始分数或方向；诊断块用于检查可靠性。旧校准器及退化结果保留。')
+            else:
+                lines.append(f"- 投票校准诊断= sigmoid({parameters['a']:.4f} + ({parameters['b']:.4f}) × logit(原始分数))；它不是神经训练，不得替代原始方向。")
+            lines+=['',render_direction_comparison(audit),'']
+    if diagnostic:
+        reason = '独立样本外样本/日期不足' if diagnostic['reason'].startswith('insufficient_out_of_sample_evidence') else diagnostic['reason']
+        effective=diagnostic.get('calibrator',{}).get('calibration_rows',diagnostic['calibration_samples'])
+        lines.append(f"- 校准诊断：已用{effective}个历史样本拟合Platt，并在后续{diagnostic['test_samples']}个样本检验；{reason}。概率资格按该版本的独立证据判定。")
+    elif candidate_study:
+        lines.append('- 本栏全历史基准保留原始票数；512根上下文候选另行研究，二者均未发布真实上涨概率。')
+    else:
+        lines.append('- 校准状态：须用历史遮蔽生成分数，在独立校准段拟合后，在留出段验证Brier、校准误差和简单基线优势。')
     lines.append('- 输入哈希：' + str(result.get('input_sha256', '')))
     return '\n'.join(lines) + '\n'

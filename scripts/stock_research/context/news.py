@@ -95,7 +95,7 @@ def event_id_for(event: ContextEvent) -> str:
 
 def _scope_allowed(scope: EvidenceScope, allowed: Iterable[str]) -> bool:
     allowed_set = {str(x) for x in allowed}
-    return scope.value in allowed_set or scope.value in {"full_text", "official_excerpt"}
+    return scope.value in allowed_set or scope.value in {"full_text", "official_excerpt", "source_excerpt"}
 
 
 def _score(text: str) -> tuple[float, list[str]]:
@@ -159,7 +159,7 @@ def grade_event(event: ContextEvent, policy: Mapping | None = None) -> ContextEv
 def dedupe_events(events: Iterable[ContextEvent]) -> list[ContextEvent]:
     kept: list[ContextEvent] = []
     seen: dict[str, str] = {}
-    for event in sorted(events, key=lambda e: (e.published_at or datetime.min.replace(tzinfo=now_utc().tzinfo))):
+    for event in sorted(events, key=lambda e: (e.available_at or e.published_at or datetime.min.replace(tzinfo=now_utc().tzinfo)),reverse=True):
         keys = []
         if event.url:
             keys.append("url:" + canonical_url(event.url))
@@ -185,6 +185,7 @@ def build_context(
     lookback_days: int,
     policy: Mapping | None = None,
     limit: int = 50,
+    deduplicate: bool = True,
 ) -> list[ContextEvent]:
     cutoff_dt = ensure_utc(parse_dt(cutoff))
     start = cutoff_dt - timedelta(days=max(1, int(lookback_days)))
@@ -196,8 +197,9 @@ def build_context(
         if event.published_at is not None and event.published_at < start:
             continue
         selected.append(event)
-    graded = [grade_event(e, policy) for e in dedupe_events(selected)]
-    graded.sort(key=lambda e: (e.published_at or datetime.min.replace(tzinfo=cutoff_dt.tzinfo)), reverse=True)
+    graded = [grade_event(e, policy) for e in (dedupe_events(selected) if deduplicate else selected)]
+    graded.sort(key=lambda e: (e.grade is not Grade.INSUFFICIENT,
+        e.published_at or datetime.min.replace(tzinfo=cutoff_dt.tzinfo)), reverse=True)
     for event in graded:
         event.in_model = False
     return graded[:limit]

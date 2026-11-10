@@ -9,10 +9,11 @@ import numpy as np
 import pandas as pd
 
 from ..common.hashing import canonical_hash
+from ..common.errors import DataError
 from ..contracts import Market, to_dict
 from ..corporate_actions.returns import PriceSeries, build_total_return_series
 from ..features.financial import FinancialStore, compute_financial_features
-from ..features.macro import MacroStore, resolve_macro_series_map
+from ..features.macro import MacroStore, compute_macro_features, resolve_macro_series_map
 from ..features.metadata import metadata_asof
 from ..features.panel import build_feature_row
 from ..features.price import compute_price_features
@@ -20,6 +21,9 @@ from ..features.registry import ALL_FACTORS, FINANCIAL_FACTORS, MACRO_FACTORS, P
 from ..multifactor.catalog import factor_group, group_equal_weight_score
 from ..multifactor.preprocessing import confirmed, prepare_cross_section
 from ..multifactor.risk import estimate_factor_risk
+from ..storage.raw_store import RawStore
+from ..acquisition.sources.fred import parse_observations
+import json
 
 VERSION = "multifactor-1.0"
 ACCEPTANCE_QUALITIES = {"acceptance_matched", "submission_acceptance_matched"}
@@ -40,7 +44,7 @@ LABELS = {
     "revenue_growth_yoy": ("TTM营收同比", "percent"), "profit_improvement_yoy": ("利润改善/资产", "percent"),
     "leverage": ("披露口径债务/资产", "percent"), "net_debt_ratio": ("披露口径债务减现金/资产", "percent"),
     "interest_coverage": ("利息保障倍数", "multiple"), "share_change_yoy": ("拆股统一后股数同比", "percent"),
-    "curve_10y_2y": ("10年减2年利差", "percentage_points"), "cpi_yoy": ("CPI同比", "percentage_points"),
+    "curve_10y_2y": ("10年减2年利差", "percentage_points"), "cpi_yoy": ("CPI同比", "percent_level"),
     "fx_20d": ("20观测汇率变化", "log_return"), "policy_change_20d": ("20观测政策利率变化", "percentage_points"),
 }
 
@@ -71,6 +75,8 @@ def format_factor(name: str, value) -> str:
         return f"{value:.3e} /货币单位"
     if unit == "percentage_points":
         return f"{value:.2f}个百分点"
+    if unit == "percent_level":
+        return f"{value:.2f}%"
     if unit == "multiple":
         return f"{value:.2f}倍"
     return f"{value:.4f}"
@@ -100,18 +106,57 @@ def _channel_admission(inputs) -> dict:
                           "historical_training_ready": False}
         if name == "financial_facts":
             channels[name]["accepted_timestamp_rows"] = int(frame.get("quality", pd.Series("", index=frame.index)).astype(str).isin(ACCEPTANCE_QUALITIES).sum())
-        channels[name]["reason"] = "field_history_and_publication_readiness_must_be_verified_separately"
+        metadata = entry.get('metadata', {})
+        declared = metadata.get('readiness', {})
+        channels[name]['content_validation'] = declared.get('content_validation', 'not_recorded')
+        if name == 'macro' and metadata.get('vintage_boundaries_observed') and times.notna().all():
+            qualities = set(frame.get('quality', pd.Series('', index=frame.index)).astype(str))
+            raw = RawStore(inputs.store.root)
+            manifests = entry.get('source_manifests', [])
+            try:
+                payloads_verified = bool(manifests) and all(raw.verify(path) and raw.read_manifest(path).get('source_id') == 'fred' for path in manifests)
+                evidence_rows = set()
+                if payloads_verified:
+                    for path in manifests:
+                        receipt = raw.read_manifest(path)
+                        series = receipt.get('params_redacted', {}).get('series_id')
+                        if not series:
+                            payloads_verified = False
+                            break
+                        observations = parse_observations(json.loads(raw.read_payload(path)), series, use_realtime_boundaries=True)
+                        evidence_rows.update((item.series_id, str(item.observation_date), item.value,
+                            item.available_at.isoformat(), item.vintage_id) for item in observations)
+                    payloads_verified = payloads_verified and all((str(row['series_id']), str(row['observation_date']),
+                        float(row['value']), pd.Timestamp(row['available_at']).isoformat(), str(row.get('vintage_id', '')))
+                        in evidence_rows for row in frame.to_dict('records'))
+            except (OSError, ValueError, KeyError, TypeError, DataError):
+                payloads_verified = False
+            if qualities == {'alfred_vintage_date_conservative'} and payloads_verified:
+                channels[name]['historical_training_ready'] = True
+                channels[name]['availability_basis'] = 'conservative_end_of_ALFRED_vintage_date'
+                channels[name]['exact_intraday_release_time_verified'] = False
+        channels[name]["reason"] = ('verified_dated_vintages_with_conservative_availability' if channels[name]['historical_training_ready']
+            else 'field_history_and_publication_readiness_must_be_verified_separately')
     return channels
 
 
-def _historical_percentiles(prices, ledger, calendar, cutoff, current, config, lookback):
+def _historical_percentiles(prices, ledger, calendar, cutoff, current, config, lookback,
+                            *, identity=None, benchmark=None, benchmark_ledger=None,
+                            financial_store=None, macro_store=None, macro_series_map=None):
     if calendar is None:
         return {}
     days = [d for d in prices.dates if d < cutoff and calendar.is_session(d)][-lookback:]
-    values = {name: [] for name in PRICE_FACTORS}
+    values = {name: [] for name in current}
     for day in days:
-        historical = compute_price_features(prices, ledger, day, known_by=calendar.session_close_utc(day),
-                                            price_config=config, include_display=False)
+        known = calendar.session_close_utc(day)
+        historical = compute_price_features(prices, ledger, day, known_by=known,
+            benchmark=benchmark, benchmark_ledger=benchmark_ledger,
+            price_config=config, include_display=False)
+        if identity is not None and financial_store is not None:
+            historical.update(compute_financial_features(identity, financial_store, prices, ledger, day, known_by=known))
+        if macro_store is not None:
+            historical.update(compute_macro_features(macro_store, day, known_by=known,
+                series_map=macro_series_map, market=identity.market if identity else 'US'))
         for name in values:
             obs = historical.get(name)
             if obs and obs.status == "ok" and obs.value is not None:
@@ -120,6 +165,9 @@ def _historical_percentiles(prices, ledger, calendar, cutoff, current, config, l
     for name, seq in values.items():
         obs = current.get(name)
         if obs is None or obs.value is None or len(seq) < 20:
+            result[name] = {"percentile": None, "observations": len(seq), "window_sessions": lookback,
+                "reason": "current_factor_missing" if obs is None or obs.value is None else "fewer_than_20_historical_observations",
+                "kind": "own_past_history_descriptive", "is_alpha_score": False}
             continue
         population = np.asarray(seq)
         result[name] = {"percentile": float((np.sum(population < obs.value) + .5 * np.sum(population == obs.value)) / len(population)),
@@ -219,7 +267,10 @@ def build_multifactor_snapshot(inputs, request, history_sessions: int | None = N
         strict = compute_financial_features(identity, FinancialStore(strict_facts), prices, inputs.ledger, inputs.cutoff, known_by=known_by)
         observations_by_sid[identity.security_id] = observations
         own_history = _historical_percentiles(prices, inputs.ledger, inputs.calendar, inputs.cutoff, observations,
-            inputs.policies.defaults.get("price", {}), history_sessions) if identity.ticker in request.tickers else {}
+            inputs.policies.defaults.get("price", {}), history_sessions,
+            identity=identity, benchmark=benchmark, benchmark_ledger=inputs.benchmark_ledger,
+            financial_store=financial_store, macro_store=macro_store,
+            macro_series_map=inputs.policies.defaults.get("macro_series_map"))
         controls = metadata_asof(metadata, identity.security_id, inputs.cutoff, known_by)
         industry = controls.get("industry", identity.industry)
         industry_confirmed = controls.get("industry_pit_confirmed", False)
@@ -240,15 +291,17 @@ def build_multifactor_snapshot(inputs, request, history_sessions: int | None = N
                 warnings.append("财务事实的精确公开时刻或单股口径尚未全部核验")
             if name in PRICE_FACTORS or name in {"ep_ttm", "fcf_yield_ttm", "size_log", "bp"}:
                 if not price_pit:
-                    warnings.append("行情历史可知时点/版本未核验；仅描述")
+                    warnings.append("历史行情可得时点待补证")
                 warnings.append("公司行动覆盖与公开时点须独立核验")
             raw[name] = {"name": factor_label(name, obs.inputs if obs else {}), "value": value,
                          "formatted": format_factor(name, value), "unit": LABELS.get(name, (name, "ratio"))[1],
                          "group": factor_group(name), "status": obs.status if obs else "missing",
                          "reason": obs.reason if obs else "no_data", "inputs": obs.inputs if obs else {},
                          "exact_financial_timestamp_value_reproduced": measured_with_acceptance if name in FINANCIAL_FACTORS else None,
-                         "historical_training_ready": False, "warnings": warnings,
+                         "historical_training_ready": bool(name in MACRO_FACTORS and channels.get('macro', {}).get('historical_training_ready') and obs and obs.status == 'ok'), "warnings": warnings,
                          "own_history": own_history.get(name)}
+            if name == 'fx_20d' and inputs.policies.defaults.get('macro_series_map', {}).get('fx_20d') == 'DEXUSEU':
+                raw[name]['name'] = '20观测美元/欧元汇率变化'
         rows.append(row)
         securities.append({"security_id": identity.security_id, "ticker": identity.ticker,
                            "currency": identity.currency, "industry": industry, "factors": raw})
@@ -276,6 +329,7 @@ def build_multifactor_snapshot(inputs, request, history_sessions: int | None = N
     result = {"version": VERSION, "status": "descriptive" if securities else "unavailable",
               "cutoff": known_by.isoformat() if known_by else inputs.cutoff.isoformat(),
               "frequency": "daily", "factors_requested": len(names), "securities": securities,
+              "requested_tickers": list(request.tickers),
               "cross_section": processed["diagnostics"], "excluded": excluded, "risk_model": risk,
               "macro_context": _raw_macro_context(inputs), "macro_requirements": _macro_requirements(inputs),
               "channels": channels,
@@ -284,7 +338,7 @@ def build_multifactor_snapshot(inputs, request, history_sessions: int | None = N
                          "published_probability": None},
               "limitations": ["因子值、历史分位及风险暴露均是研究描述，合成分数未校准为上涨概率。",
                                "少量科技大盘股不能代表全美股截面；ETF只作市场对照。",
-                               "当前因子historical_training_ready=false，补齐字段级PIT证据后再登记训练。",
+                               "历史训练准入按数据通道分别核验；宏观日期版本规则与行情首次供应记录是不同证据。",
                                "日频基本面和小时方向分别建模；低频财报不能当作每小时新信息。"]}
     result["feature_sha256"] = canonical_hash(to_dict(securities))
     result["analysis_sha256"] = canonical_hash(to_dict(result))
@@ -299,14 +353,21 @@ def render_multifactor(result: dict) -> str:
         lines += ["截面排名、行业/市值中性化及合成分数未形成：合格经营公司样本不足。仍展示可计算因子和个股自身历史位置。"]
     elif cross.get("neutralize_requested") and cross.get("neutralization_status") != "ok":
         lines += ["截面原始标准化可计算，行业/市值中性化因PIT控制、秩或覆盖不足未形成；原因保存在逐因子诊断中。"]
+    requested = set(result.get("requested_tickers", []))
     for security in result.get("securities", []):
+        if requested and security['ticker'] not in requested:
+            continue
         lines += ["", f"### {security['ticker']} 因子画像", "", "| 因子族 | 因子 | 当前值 | 自身过去历史分位 | 状态/口径 |", "|---|---|---|---|---|"]
         for name, factor in security["factors"].items():
             history = factor.get("own_history")
-            position = f"{history['percentile']:.1%}（{history['observations']}日）" if history else "未建立"
-            state = "仅描述" if factor["status"] == "ok" else f"缺失：{factor.get('reason', 'no_data')}"
+            position = (f"{history['percentile']:.1%}（{history['observations']}日）" if history and history.get('percentile') is not None
+                else f"历史样本{history.get('observations', 0)}日，不足20日" if history and factor['status'] == 'ok'
+                else "当前值缺失，暂不排名" if factor['status'] != 'ok' else "尚未计算")
+            state = ("已计算；披露时点已匹配" if factor.get('exact_financial_timestamp_value_reproduced') else "已计算") if factor["status"] == "ok" else f"缺失：{factor.get('reason', 'no_data')}"
             if factor.get("warnings"):
                 state += "；" + factor["warnings"][0]
+            if factor.get('historical_training_ready'):
+                state += '；版本日期已核验（保守日末可得）'
             lines.append(f"| {factor['group']} | {factor['name']} | {factor['formatted']} | {position} | {state} |")
         score = security.get("group_equal_weight_score")
         score_label = "行业/市值处理后的等权研究分数" if cross.get("neutralize_requested") else "未中性化的等权研究分数"
@@ -322,6 +383,13 @@ def render_multifactor(result: dict) -> str:
             bits.append(f"当前TTM盈利收益率为{ep['formatted']}")
         if bits:
             lines.append("观察：" + "；".join(bits) + "。这些维度反映不同信息，尚需同业比较和样本外检验来确定权重。")
+    peers = [security for security in result.get('securities', []) if requested and security['ticker'] not in requested]
+    if peers:
+        lines += ['', '### 同行因子对照', '', '| 证券 | 60日动量 | 盈利收益率 | 营收同比 | 市场Beta |', '|---|---|---|---|---|']
+        for security in peers:
+            values = [security['factors'].get(name, {}).get('formatted', '缺失') for name in ('mom_60', 'ep_ttm', 'revenue_growth_yoy', 'beta_252')]
+            lines.append('| ' + ' | '.join([security['ticker'], *values]) + ' |')
+        lines.append('全部同行历史分位与逐项证据保存在 JSON 中；此表只作限定股票池对照。')
     risk = result.get("risk_model", {})
     lines += ["", "### 独立风险解释", ""]
     if risk.get("status") == "descriptive":
@@ -334,7 +402,10 @@ def render_multifactor(result: dict) -> str:
     else:
         lines.append(f"共同因子风险模型尚无可用输入：{risk.get('reason', 'no_data')}。价格Beta/波动指标仍在因子表中。")
     if result.get("macro_context"):
-        lines += ["", "### 已保存的宏观背景", "", "以下来自本地载荷版本；首次发布时间未核验的观测未用于上述截止时点的预测特征。", "", "| 序列 | 数值 | 统计期 | 数据版本 |", "|---|---|---|---|"]
+        basis = result.get('channels', {}).get('macro', {}).get('availability_basis')
+        explanation = ('ALFRED历史版本按纽约发布日期日末才可使用；保留修订版本，不假定精确盘中发布时间。' if basis else
+            '以下来自本地载荷版本；缺可得时间的观测只作背景，不进入截止时点预测特征。')
+        lines += ["", "### 宏观数据与版本", "", explanation, "", "| 序列 | 数值 | 统计期 | 数据版本 |", "|---|---|---|---|"]
         for item in result["macro_context"]:
             lines.append(f"| {item['series_id']} | {item['value']:.4f} | {item['observation_date']} | {item.get('vintage_id', '')} |")
     gaps = []

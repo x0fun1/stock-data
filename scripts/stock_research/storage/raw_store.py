@@ -67,7 +67,18 @@ class RawStore:
         receipt.byte_count = len(payload)
         receipt.raw_path = str(payload_path)
         manifest_path = payload_path.with_suffix(payload_path.suffix + ".manifest.json")
-        write_json(manifest_path, to_dict(receipt))
+        previous = read_json(manifest_path) if manifest_path.is_file() else {}
+        from ..common.timeutil import parse_dt
+        first_value = previous.get('first_observed_at') or previous.get('received_at')
+        last_value = previous.get('last_observed_at') or previous.get('received_at')
+        retained_first = parse_dt(first_value) if first_value else None
+        retained_last = parse_dt(last_value) if last_value else None
+        first = min(retained_first, day) if retained_first else day
+        last = max(retained_last, day) if retained_last else day
+        manifest = {**to_dict(receipt), 'first_observed_at': first.isoformat(),
+            'last_observed_at': last.isoformat(),
+            'observation_time_basis': 'earliest_retained_local_receipt_for_this_payload; not_provider_first_publication'}
+        write_json(manifest_path, manifest)
         return manifest_path
 
     def read_payload(self, manifest_or_payload: str | Path) -> bytes:

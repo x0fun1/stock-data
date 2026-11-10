@@ -1,5 +1,5 @@
 {
-  "version": "2026-11-07.2",
+  "version": "2026-11-08.3",
   "multifactor": {
     "enabled": true,
     "version": "multifactor-1.0",
@@ -22,9 +22,14 @@
     "sampling_paths": 16,
     "training_context_reference": 512,
     "direction_accuracy_requirement": 0.6,
+    "vote_calibration": "off",
     "publish_calibrated_probability": false
   },
   "registration_required": true,
+  "macro_series_map": {
+    "fx_20d": "DEXUSEU",
+    "policy_change_20d": "DFEDTARU"
+  },
   "note": "Engineering defaults only. They are not validated thresholds and must be registered in an experiment protocol before a probability is published.",
   "horizons": [
     1,
@@ -73,7 +78,8 @@
     "max_ece": 0.1,
     "require_verified_model": true,
     "bootstrap_resamples": 500,
-    "block_days": 5
+    "block_days": 5,
+    "direction": {"reject_degenerate": true, "min_balanced_accuracy": 0.5, "min_auc": 0.5}
   },
   "data": {
     "max_staleness_days": 5,
@@ -85,7 +91,13 @@
       "official_excerpt",
       "numeric"
     ],
-    "grade_version": "lexicon_v1"
+    "grade_version": "lexicon_v1",
+    "impact": {
+      "impact_weights": {"light": 1.0, "medium": 2.0, "major": 4.0},
+      "half_life_days": {"earnings": 3.0, "price_move": 2.0, "institutional_flow": 3.0, "opinion": 2.0,
+        "regulation": 14.0, "partnership": 14.0, "capacity": 45.0, "calendar": 7.0, "other": 7.0},
+      "neutral_band": 0.15
+    }
   },
   "quantile": {
     "taus": [

@@ -80,6 +80,33 @@ python scripts/skill.py study --market US --horizon 5 --target absolute \
 # 查看数据/模型注册状态（不打印凭证）
 python scripts/skill.py doctor
 
+# Agent搜索原文后导入带引用、事实、判断理由和核实时间的新闻分析
+python scripts/skill.py import-news-reviews --root MY-DATA --file news-reviews.json
+
+# 逐标题持久队列；宿主agent检索、阅读和逐项判断后循环apply
+python scripts/skill.py news-workflow --root MY-DATA --ticker NVDA --workflow-id NEWS-ID --step prepare
+python scripts/skill.py news-workflow --root MY-DATA --ticker NVDA --workflow-id NEWS-ID --step next --limit 8
+python scripts/skill.py news-workflow --root MY-DATA --ticker NVDA --workflow-id NEWS-ID --step apply --file assessments.json
+python scripts/skill.py news-workflow --root MY-DATA --ticker NVDA --workflow-id NEWS-ID --step finalize
+
+# 数百个独立预测日期；选择、校准、封存测试依时间分开，可恢复
+python scripts/skill.py kronos-study --root MY-DATA --ticker NVDA --samples 1000 --dev-samples 200 --cal-samples 500 --study-id STUDY-ID
+# 默认校准关闭；platt-diagnostic仅作单列诊断，主方向仍取原始票数
+python scripts/skill.py kronos-study --root MY-DATA --ticker NVDA --study-id NEW-STUDY-ID --reuse-study-id STUDY-ID --calibration-mode off
+python scripts/skill.py kronos-bank --root MY-DATA --study-id NEW-STUDY-ID
+
+# 原始票数/校准后方向退化诊断；不重拟合、不改封存预测
+python scripts/skill.py kronos-diagnostics --root MY-DATA --study-id STUDY-ID --out direction-audit.md
+
+# 一次命令自动遍历原标题、Search/Fetch并输出分析前证据Markdown
+# TinyFish API鉴权读取本地TINYFISH_API_KEY；不把凭证写入包或命令参数
+python scripts/skill.py news-collect --root MY-DATA --workflow-id NEWS-ID --collection-id COLLECTION-ID --provider tinyfish
+
+# 已连接TinyFish插件：导出标题计划，宿主执行一次固定批量驱动，再导入其联网证据
+python scripts/skill.py news-plugin-plan --root MY-DATA --workflow-id NEWS-ID --batch-id BATCH-ID
+# 执行references/tinyfish-plugin-batch.md的程序驱动；不需要另配API Key
+python scripts/skill.py news-collect --root MY-DATA --workflow-id NEWS-ID --collection-id COLLECTION-ID --provider tinyfish-plugin --plugin-batch-id BATCH-ID
+
 # 复现既有运行
 python scripts/skill.py reproduce --run-id run-...
 ```
@@ -98,6 +125,12 @@ python scripts/skill.py reproduce --run-id run-...
 6. 按固定结构输出；缺失值写原因，不补中性值。
 7. 保存运行清单和 Markdown/JSON 到 `runtime/reports/`。
 
+当前报告同时读取同目录已登记候选模型：已计算但验证未通过的候选以研究分数/收益估算单列，不误称未执行，不授予活动预测资格。1/5/20/60日需要分别训练和验证；当前报告不临时重训。
+
+新闻不能停在标题分类。当前研究有新Finnhub标题时，用`news-workflow`建立队列。已连接TinyFish时优先`news-plugin-plan`及[固定批量驱动](references/tinyfish-plugin-batch.md)，用插件已有鉴权逐标题Search/Fetch，不再索要独立API Key；完成后`news-collect --provider tinyfish-plugin`导入并输出分析前Markdown。只有独立Python/API方式才使用`TINYFISH_API_KEY`。遍历、失败回退和落盘由程序完成，不让大语言模型逐条决定或发起采集调用；大语言模型在证据表完成后分批分析。`--provider archive`只重放旧证据，不能说成联网采集。分析后重复`next/apply`直到所有标题进入终态，再`finalize`生成报告；内容或日期缺口追加确定性采集任务。每条保留事实与条件、方向符号、强度及理由、原始信息时间、实际核实时间与事件聚类。无法核实和无关联分别记录，不算中性。执行格式及衰减见[新闻证据流程](references/news-evidence-and-grades.md)。
+
+Kronos同时保存原始解码和受约束派生K线：最高价至少为开收盘较大者，最低价不高于较小者；不交换开盘/收盘，不改变方向票数。结构约束解决无效K线，价格预测准确性仍须独立验证。
+
 Kronos基准默认取当前已完成日线截止，输入全部此前有效OHLCV；小时CSV必须保留`bar_start_utc/bar_end_utc`，不用会丢失小时精度的日线导入契约。过滤未结束、截止后才可得、非交易时段和零量质量缺口，预测前保存输入，预测后封存输出。16条路径不因方向错或OHLC排序异常而事后删除；异常路径不用于价格极值或风险推断。超过512根公开训练上下文参考时保留全部历史并标记压力测试。宏观、新闻与财务仍由相应研究模块解释，未被编码训练时不声称Kronos已经使用它们。
 
 原始冻结基准永不被候选训练覆盖；之后训练版本独立保存。历史遮蔽、多股票训练和数据量学习曲线按[训练方案](references/kronos-training-plan.md)实施。基准推理与多因子研究已接入；Kronos神经微调仍按方案另行实施，不把增加上下文误称神经训练。
@@ -111,6 +144,14 @@ Kronos基准默认取当前已完成日线截止，输入全部此前有效OHLCV
 3. 训练段拟合变换和模型；开发段选有限超参数；测试段只评估。`study`的方向概率在校准段单独拟合Platt；`multifactor-study`的收益评分在校准段只做诊断，当前不拟合概率校准器。
 4. 保存所有候选及失败记录，不覆盖历史样本外预测。
 5. 只有 `ValidationEvidence.status = verified` 才能激活模型。
+
+`kronos-study`比较预登记的全历史、512根原始价格和512根仅截至当时拆股换算上下文；开发段选择，诊断段检查原始分数可靠性，测试封存后揭示标签。默认`calibration-mode off`，不拟合或变换原始票数；`platt-diagnostic`仅作研究对照，始终不替代主方向。旧校准器与失败结果保留。输入K线数、路径数、验证日期数分别报告。历史覆盖起点不是供应商首次发布时点，缺档案仍可研究并标边界。详见[研究与验证](references/research-and-validation.md)。
+
+优化效率先读[Kronos优化方案](references/kronos-optimization.md)。`kronos-bank`把已封存预测导出为无量纲特征，不调用神经推理；它不等于隐藏表征缓存或已训练方向头。研究元模型或新权重时可复用同输入/权重/生成配置的预测，不能把旧留出重新宣称盲测。优先多股票共同时间训练与股票留出，不以单股调参制造普适优势。
+
+方向验证必须同时展示预测上涨占比、混淆矩阵、上涨/非上涨识别率、平衡准确率及AUC；原始票数与校准输出分别列示。单一预测类别、某类识别率为零或分数近常数会阻止方向资格。仅提高总准确率或反转AUC不能证明校准成功。融合量价、财务、宏观、新闻时先读[融合候选设计](references/multimodal-fusion.md)：未训练的融合不能写成已实现，新闻研究分数不能直接与未验证概率按主观比例混合。
+
+测试阶段保留原始载荷、数据版本、输入、预测、校准器和报告，不自动清理或删除。安装包与运行数据分离；数据留在`--root`指定目录，SQLite管理索引，表格/工件单独存储。去重只影响新闻贡献计算，不删除源标题。
 
 ## 数据导入约定
 
@@ -150,7 +191,7 @@ Kronos基准默认取当前已完成日线截止，输入全部此前有效OHLCV
 
 ## 输出规则
 
-- 表中概率只在 `verified` 时显示；否则显示“不发布（原因）”。
+- 表中概率数值只在 `verified` 时显示。已计算候选标“待验证”并解释失败项，研究分数/收益估算另列；缺模型与缺数据分别说明，不混称未执行。
 - 基准率单独说明“不是预测”。
 - 新闻等级使用：极大利好、高度利好、中度利好、中性、中度利空、高度利空、极大利空；证据不足独立。
 - 不输出买卖指令、目标价、仓位或图表。

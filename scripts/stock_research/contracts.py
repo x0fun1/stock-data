@@ -85,6 +85,7 @@ class EvidenceScope(str, Enum):
     TITLE = "title"
     ABSTRACT = "abstract"
     OFFICIAL_EXCERPT = "official_excerpt"
+    SOURCE_EXCERPT = "source_excerpt"
     FULL_TEXT = "full_text"
     NUMERIC = "numeric"
     NONE = "none"
@@ -670,6 +671,7 @@ class QuantitativeResult:
     model_id: str = ""
     evidence_id: str = ""
     validation: dict[str, Any] = field(default_factory=dict)
+    research_estimate: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         self.market = Market(self.market)
@@ -708,6 +710,7 @@ class ReportBundle:
     headline: str = ""
     baseline_forecasts: dict[str, dict[str, Any]] = field(default_factory=dict)
     multifactor_snapshot: dict[str, Any] = field(default_factory=dict)
+    news_impact_summary: dict[str, Any] = field(default_factory=dict)
 
 
 def as_json_list(records: Iterable[Any]) -> list[dict[str, Any]]:

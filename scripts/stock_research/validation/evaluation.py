@@ -17,6 +17,7 @@ from .metrics import (
     calibration_fit,
     calibration_table,
     date_block_bootstrap,
+    direction_diagnostics,
     ece,
     interval_coverage,
     log_loss,
@@ -49,7 +50,8 @@ def evaluate_binary(
     data = _finite(frame, [p_col, y_col] + ([base_col] if base_col and base_col in frame.columns else []))
     data = data[data[y_col].isin([0, 1])]
     if data.empty:
-        return {"status": "empty", "sample_count": 0, "independent_dates": 0}
+        return {"status": "empty", "sample_count": 0, "independent_dates": 0,
+            "metrics":{"direction":direction_diagnostics(pd.to_numeric(frame[y_col],errors='coerce'),pd.to_numeric(frame[p_col],errors='coerce'))}}
     y = data[y_col].astype(float).to_numpy()
     p = data[p_col].astype(float).to_numpy()
     dates = pd.to_datetime(data[date_col]).dt.date.to_numpy()
@@ -58,6 +60,7 @@ def evaluate_binary(
         "log_loss": log_loss(y, p),
         "auc": auc(y, p),
         "ece": ece(y, p, n_bins=n_bins),
+        "direction": direction_diagnostics(pd.to_numeric(frame[y_col],errors='coerce'),pd.to_numeric(frame[p_col],errors='coerce')),
     }
     calib = {
         "fit": calibration_fit(y, p),
@@ -97,6 +100,7 @@ def evaluate_binary(
             "n": int(len(group)),
             "brier": brier(gy, gp),
             "auc": auc(gy, gp),
+            "direction":direction_diagnostics(gy,gp),
         }
     if "partition" in data.columns:
         for partition, group in data.groupby("partition"):
@@ -106,6 +110,7 @@ def evaluate_binary(
                 "n": int(len(group)),
                 "brier": brier(gy, gp),
                 "auc": auc(gy, gp),
+                "direction":direction_diagnostics(gy,gp),
             }
     years = sorted(stability["by_year"])
     if years:
@@ -153,6 +158,15 @@ def classify_evidence(evaluation: dict[str, Any], policy: dict[str, Any]) -> tup
     min_dates = int(policy.get("min_independent_dates", 60))
     if evaluation["sample_count"] < min_samples or evaluation["independent_dates"] < min_dates:
         return ValidationState.UNVERIFIED, f"insufficient_out_of_sample_evidence:samples={evaluation['sample_count']},dates={evaluation['independent_dates']}"
+    direction = evaluation.get('metrics',{}).get('direction')
+    requirements = policy.get('direction',{})
+    if direction and requirements.get('reject_degenerate',True):
+        if direction['degenerate']:
+            return ValidationState.FAILED,'direction_degenerate:'+','.join(direction['issues'])
+        if direction['balanced_accuracy'] <= float(requirements.get('min_balanced_accuracy',.5)):
+            return ValidationState.UNVERIFIED,'balanced_accuracy_not_above_baseline'
+        if direction['auc'] is None or direction['auc'] <= float(requirements.get('min_auc',.5)):
+            return ValidationState.UNVERIFIED,'auc_not_above_baseline'
     skill_ci = evaluation.get("skill", {}).get("ci") or {}
     low = skill_ci.get("low")
     if low is None or low <= float(policy.get("min_brier_skill_ci_low", 0.0)):

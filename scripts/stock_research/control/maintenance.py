@@ -112,6 +112,14 @@ def import_file(
     elif kind == "news":
         _require(frame, ["title", "published_at", "source_id"], kind)
         frame["published_at"] = pd.to_datetime(frame["published_at"], errors="coerce", utc=True).dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+        # Keep nested evidence fields portable through Parquet, including empty
+        # objects and security lists that Arrow otherwise returns as arrays.
+        for column in ("security_ids", "permissions", "price_reaction"):
+            if column in frame:
+                frame[column] = frame[column].map(
+                    lambda value: json.dumps(value, ensure_ascii=False)
+                    if isinstance(value, (list, dict)) else value
+                )
     elif kind == "securities":
         _require(frame, ["ticker", "market", "valid_from"], kind)
     elif kind == "security_metadata":

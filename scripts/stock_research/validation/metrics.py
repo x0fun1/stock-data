@@ -45,6 +45,43 @@ def balanced_accuracy(y, p, threshold: float = 0.5) -> float:
     return float(np.mean(recalls)) if recalls else float("nan")
 
 
+def direction_diagnostics(y, p, threshold: float = 0.5) -> dict:
+    """Report both classes and abstentions; one-class output is never hidden."""
+    labels, scores = np.asarray(y,dtype=float), np.asarray(p,dtype=float)
+    if labels.shape != scores.shape or labels.ndim != 1:
+        raise ValueError('matched one-dimensional labels and scores required')
+    if not 0 <= threshold <= 1:
+        raise ValueError('direction threshold must be in [0,1]')
+    mask = np.isfinite(labels) & np.isfinite(scores) & np.isin(labels,[0,1]) & (scores>=0) & (scores<=1)
+    yy, pp = labels[mask], scores[mask]
+    prediction = pp >= threshold
+    tp = int(np.sum((yy==1)&prediction)); fn = int(np.sum((yy==1)&~prediction))
+    fp = int(np.sum((yy==0)&prediction)); tn = int(np.sum((yy==0)&~prediction))
+    recall_up = tp/(tp+fn) if tp+fn else None
+    recall_not_up = tn/(tn+fp) if tn+fp else None
+    balanced = (recall_up+recall_not_up)/2 if recall_up is not None and recall_not_up is not None else None
+    issues = []
+    if not len(pp):issues.append('no_valid_predictions')
+    elif prediction.all() or (~prediction).all():issues.append('single_predicted_class')
+    if recall_up is None or recall_not_up is None:issues.append('single_observed_class')
+    if recall_up==0 or recall_not_up==0:issues.append('zero_class_recall')
+    if len(pp) and float(np.std(pp))<=1e-6:issues.append('constant_or_near_constant_score')
+    up_count = int(prediction.sum())
+    return {'threshold':float(threshold),'input_rows':len(labels),'evaluated_rows':len(pp),
+        'unavailable_or_invalid_rows':int((~mask).sum()),'coverage':float(mask.mean()) if len(mask) else 0.,
+        'predicted_up_count':up_count,'predicted_not_up_count':len(pp)-up_count,
+        'predicted_up_fraction':up_count/len(pp) if len(pp) else None,
+        'observed_up_count':tp+fn,'observed_not_up_count':tn+fp,
+        'confusion_matrix':{'row_labels':['actual_not_up','actual_up'],
+            'column_labels':['predicted_not_up','predicted_up'],'values':[[tn,fp],[fn,tp]]},
+        'tp':tp,'fn':fn,'fp':fp,'tn':tn,'up_recall':recall_up,'not_up_recall':recall_not_up,
+        'balanced_accuracy':balanced,'accuracy':(tp+tn)/len(pp) if len(pp) else None,
+        'auc':auc(yy,pp),'score_min':float(pp.min()) if len(pp) else None,
+        'score_max':float(pp.max()) if len(pp) else None,'score_std':float(pp.std()) if len(pp) else None,
+        'degenerate':bool(issues),'issues':issues,
+        'near_single_class_warning':bool(len(pp) and (up_count/len(pp)>=.95 or up_count/len(pp)<=.05))}
+
+
 def auc(y, p) -> float | None:
     y, p = _arrays(y, p)
     if len(y) == 0 or np.all(y == y[0]):

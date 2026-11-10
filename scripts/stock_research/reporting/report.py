@@ -47,6 +47,8 @@ def _prob_cell(result: QuantitativeResult | None) -> str:
         return "未执行"
     if result.state is CapabilityState.VERIFIED and result.probability is not None:
         return _pct(result.probability)
+    if result.research_estimate.get('execution') == 'computed':
+        return "待验证（候选已计算）"
     return f"不发布（{STATE_LABEL.get(result.state, result.state.value)}）"
 
 
@@ -56,7 +58,21 @@ def _validation_cell(decision: CapabilityDecision | None) -> str:
     label = STATE_LABEL.get(decision.state, decision.state.value)
     if decision.state is CapabilityState.VERIFIED:
         return f"{label}；样本外日期 {decision.details.get('independent_dates', '?')}"
-    return f"{label}：{decision.reason}"
+    return f"{label}：{_reason_text(decision.reason)}"
+
+
+def _reason_text(reason: str) -> str:
+    if reason.startswith('direction_degenerate:'):
+        return '方向输出退化：单一预测类别、零类别识别率或分数近常数；详见两类识别诊断'
+    if reason == 'brier_skill_ci_crosses_zero_or_missing' or reason.startswith('brier_skill_ci_crosses_zero'):
+        return '尚未证实误差优于历史基准'
+    if reason.startswith('coverage_outside_range:'):
+        return f"收益区间样本外覆盖率未达要求（{float(reason.split(':', 1)[1]):.1%}）"
+    if reason.startswith('insufficient_out_of_sample_evidence'):
+        return '独立样本外样本/日期不足'
+    return {'no_active_verified_model':'该期限/目标尚未登记合格模型',
+            'validated_candidate_not_activated':'统计验证完成，数据准入/激活尚未完成',
+            'no_price_at_cutoff':'截止时点没有可用的完整行情'}.get(reason, reason)
 
 
 def _feature_line(features: dict[str, FeatureObservation], names: list[str]) -> str:
@@ -77,6 +93,11 @@ def _quantile_text(results: list[QuantitativeResult]) -> str:
         if result.quantiles:
             q = result.quantiles
             return f"{_num(q.get('q50'))}（10% {_num(q.get('q10'))} / 90% {_num(q.get('q90'))}）"
+    if any(result.research_estimate.get('quantiles') for result in results):
+        return "候选区间已计算，验证未通过"
+    risk = next((result.risk for result in results if 'return_median' in result.risk), None)
+    if risk:
+        return f"历史 {_pct(risk['return_median'])}（{_pct(risk['return_q10'])}/{_pct(risk['return_q90'])}）；非预测"
     return "样本不足"
 
 
@@ -117,6 +138,8 @@ def render_report(bundle: ReportBundle) -> str:
     versions = "；".join(f"{k}={v['version']}" for k, v in snapshot.items()) if snapshot else "无已登记数据版本"
     lines.append(f"- 数据版本：{versions}")
     lines.append(f"- 数据截止与模型版本：{bundle.run_manifest.policy_version}；运行：{bundle.run_manifest.run_id}")
+    if bundle.run_manifest.snapshot.get('knowledge_cutoff'):
+        lines.append(f"- 完整日线截止：{bundle.run_manifest.snapshot.get('cutoff')}；新闻/知识截止：{bundle.run_manifest.snapshot['knowledge_cutoff']}")
     if bundle.headline:
         lines.append(f"- 结论：{bundle.headline}")
     lines.append("")
@@ -141,6 +164,18 @@ def render_report(bundle: ReportBundle) -> str:
                 f"{_quantile_text([r for r in own if r.horizon == horizon])} | "
                 f"{_risk_text(abs_result or ex_result, features)} | {_validation_cell(decision)} |"
             )
+        computed = [result for result in own if result.research_estimate.get('execution') == 'computed']
+        if computed:
+            lines += ['', '候选模型已实际计算；下列分数/区间为研究输出，尚未取得已验证概率或预测区间资格。', '',
+                '| 期限/目标 | 研究输出 | 样本外验证 |', '|---|---|---|']
+            for result in computed:
+                estimate = result.research_estimate
+                if 'score' in estimate:
+                    value = f"分数 {estimate['score']:.4f}（不作真实概率）"
+                else:
+                    q = estimate['quantiles']
+                    value = f"收益估算 {_pct(q.get('q50'))}（10% {_pct(q.get('q10'))} / 90% {_pct(q.get('q90'))}）；未验证"
+                lines.append(f"| {result.horizon}日/{result.target.value} | {value} | {_reason_text(result.reason)}；{result.validation.get('independent_dates', '?')}个测试日期 |")
         baselines = sorted({r.baseline_probability for r in own if r.baseline_probability is not None})
         if baselines:
             lines.append("")
@@ -174,23 +209,53 @@ def render_report(bundle: ReportBundle) -> str:
         lines.append(render_multifactor(bundle.multifactor_snapshot).rstrip())
         lines.append("")
     lines.append("## 新闻与事件")
+    impact = bundle.news_impact_summary
+    if impact.get('status')=='computed':
+        lines += ['', f"新闻综合判断：**{impact['classification']}**；利多贡献 {impact['positive_contribution']:.3f}，利空贡献 {impact['negative_contribution']:.3f}，净贡献 {impact['net_contribution']:+.3f}。",
+            '贡献=方向符号×影响强度×证据可信度×关联度×时间衰减；按独立事件去重。这是新闻影响研究分数，不是上涨概率。', '',
+            '| 事件 | 符号 | 影响 | 原始信息时间 | 时间权重 | 净贡献 |', '|---|---|---|---|---|---|']
+        for item in impact.get('events',[])[:20]:
+            sign={-1:'−',0:'0',1:'+'}[item['direction_sign']]
+            level={'major':'重大','medium':'中等','light':'轻微'}[item['impact_level']]
+            lines.append(f"| {item['title']} | {sign} | {level} | {item['event_time']} | {item['time_decay']:.3f} | {item['signed_contribution']:+.3f} |")
+    for ticker,status in impact.get('coverage',{}).items():
+        if status:
+            counts=status['counts']
+            lines.append(f"{ticker}逐项工作流：{status['completed']}/{status['total']}项已处理；已核实{counts['verified']}、无关联{counts['unrelated']}、核实未完成{counts['unresolved']}、待处理{counts['pending']}。未核实项不当作中性。")
+            for item in status.get('unresolved_items',[])[:5]:
+                lines.append(f"- 核实缺口：{item['title']}；原因：{item['reason']}")
     if not bundle.context_events:
         lines.append("观察窗内没有合格事件证据。")
     else:
         lines.append("以下为当前上下文；未经历史验证的新闻不调整上述模型概率。")
         lines.append("")
-        for event in bundle.context_events:
+        reviewed = [event for event in bundle.context_events if event.grade is not Grade.INSUFFICIENT]
+        pending = [event for event in bundle.context_events if event.grade is Grade.INSUFFICIENT]
+        for event in reviewed:
             published = event.published_at.isoformat() if event.published_at else "时间未知"
-            scope = event.evidence_scope.value
+            scope = {'official_excerpt':'官方公告/摘录已核对', 'source_excerpt':'原文相关段落已核对', 'full_text':'媒体正文已核对', 'numeric':'数值证据已核对'}.get(event.evidence_scope.value, event.evidence_scope.value)
+            sources = event.permissions.get('review_sources', [])
+            source_label = sources[0].get('title', event.source_id) if sources else event.source_id
+            method = '正文/公告核实' if event.grade_method == 'source_review' else event.grade_method
             url = f"；{event.url}" if event.url else ""
             lines.append(
-                f"- **{event.grade.value}**：{event.title}（{event.source_id}，{published}，证据范围：{scope}，"
-                f"方法：{event.grade_method}{url}）"
+                f"- **{event.grade.value}**：{event.title}（{source_label}，{published}，证据范围：{scope}，"
+                f"方法：{method}{url}）"
             )
             if event.grade_reason:
                 lines.append(f"  - 依据：{event.grade_reason}")
             if event.fact_summary:
                 lines.append(f"  - 事实摘要：{event.fact_summary}")
+            for source in event.permissions.get('review_sources', []):
+                lines.append(f"  - 核实来源：[{source.get('title', '原文')}]({source['url']})；发布日期：{source.get('published_at', '未知')}")
+            if event.permissions.get('conditions'):
+                lines.append('  - 待确认条件：' + event.permissions['conditions'])
+            if event.permissions.get('impact_reason'):
+                lines.append('  - 影响强度依据：' + event.permissions['impact_reason'])
+        if pending:
+            lines += ['', f'展示窗中另有 {len(pending)} 条发现记录未形成已核实方向评估；逐项检索与具体缺口保留在工作流/JSON中，不计作独立利多/利空。']
+            for event in pending[:5]:
+                lines.append(f"- 待核实：[{event.title}]({event.url})；{event.permissions.get('workflow_reason',event.grade_reason)}")
 
     lines.append("")
     lines.append("## 综合摘要")
@@ -209,7 +274,9 @@ def render_report(bundle: ReportBundle) -> str:
     if failed:
         lines.append(f"{len(failed)} 个目标因数据或验证失败不发布。")
     if bundle.context_events:
-        lines.append("新闻与量化可能一致也可能冲突；事件后价格变化不证明因果关系，也不证明已充分定价。")
+        if impact.get('status')=='computed':
+            lines.append(f"在{impact['asof']}知识截止下，已核实新闻按时间衰减和独立事件去重后的综合判断为{impact['classification']}，净贡献{impact['net_contribution']:+.3f}，共{impact['event_count']}个事件。")
+        lines.append("新闻贡献描述当前证据方向，未进入Kronos量价模型；事件后价格变化不证明因果关系或已充分定价。")
     lines.append("综合摘要不覆盖任何“不发布”决定，不提供买卖、仓位或执行指令。")
 
     lines.append("")

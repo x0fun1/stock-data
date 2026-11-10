@@ -36,15 +36,17 @@ def resolve_macro_series_map(
 @dataclass(slots=True)
 class MacroStore:
     observations: list[MacroObservation]
+    _by_series: dict[str, list[MacroObservation]]
 
     def __init__(self, observations: Iterable[MacroObservation] = ()) -> None:
         self.observations = list(observations)
+        self._by_series = {}
+        for observation in self.observations:
+            self._by_series.setdefault(observation.series_id, []).append(observation)
 
     def history(self, series_id: str, known_by: datetime | None = None) -> list[MacroObservation]:
         latest: dict[date, MacroObservation] = {}
-        for obs in self.observations:
-            if obs.series_id != series_id:
-                continue
+        for obs in self._by_series.get(series_id, []):
             if known_by is not None:
                 if obs.observation_date > known_by.date() or obs.available_at is None or obs.available_at > known_by:
                     continue

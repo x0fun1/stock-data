@@ -145,6 +145,15 @@ class ModelRegistry:
                 return self.load_quantile(entry["model_id"])
         return None
 
+    def load_candidate(self, market: str, horizon: int, target: Target | str):
+        """Latest registered candidate, without granting publication status."""
+        target = Target(target)
+        for entry in self.catalog.list_models('candidate'):
+            meta = entry.get('metadata', {})
+            if meta.get('market') == Market(market).value and int(meta.get('horizon', -1)) == int(horizon) and meta.get('target') == target.value:
+                return self.load_quantile(entry['model_id']) if target is Target.QUANTILE else self.load(entry['model_id'])
+        return None
+
     def activate_quantile(self, artifact_id: str, evidence: ValidationEvidence):
         artifact = self.load_quantile(artifact_id)
         if evidence.status is not ValidationState.VERIFIED:

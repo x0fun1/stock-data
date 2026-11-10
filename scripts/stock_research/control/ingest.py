@@ -241,6 +241,7 @@ def news_from_frame(frame: pd.DataFrame) -> list[ContextEvent]:
                     event_cluster=str(_value(data, "event_cluster", "")),
                     grade=str(_value(data, "grade", Grade.INSUFFICIENT.value)),
                     grade_method=str(_value(data, "grade_method", "insufficient_evidence")),
+                    grade_reason=str(_value(data, "grade_reason", "")),
                     grade_version=str(_value(data, "grade_version", "")),
                     fact_summary=str(_value(data, "fact_summary", "")),
                     permissions=_jsonish(_value(data, "permissions"), {}),

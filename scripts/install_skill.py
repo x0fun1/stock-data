@@ -139,6 +139,22 @@ def run(command: list[str], cwd: Path, env: dict | None = None) -> None:
     subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
+def ensure_macos_openmp(destination: Path) -> None:
+    """Reuse the pinned Torch wheel's OpenMP runtime inside this environment.
+
+    LightGBM's macOS wheel searches the environment's lib directory. Linking
+    the already bundled runtime avoids a global Homebrew dependency and an
+    accidental requirement to import Torch before LightGBM.
+    """
+    if sys.platform != 'darwin':
+        return
+    library_dir = destination / '.venv' / 'lib'
+    candidates = list(library_dir.glob('python*/site-packages/torch/lib/libomp.dylib'))
+    target = library_dir / 'libomp.dylib'
+    if len(candidates) == 1 and not target.exists():
+        target.symlink_to(os.path.relpath(candidates[0], library_dir))
+
+
 def smoke(python: Path, destination: Path) -> dict:
     code = r'''
 import json,sys
@@ -195,8 +211,10 @@ print(json.dumps({'model_id':result['model_id'],'status':result['status'],
                   'n_history':result['n_history'],'paths':result.get('path_count'),
                   'multifactor':multifactor,'prediction_is_calibrated_probability':False}))
 '''
-    result = subprocess.run([str(python), '-c', code], cwd=destination, env=install_environment(destination), check=True,
+    result = subprocess.run([str(python), '-c', code], cwd=destination, env=install_environment(destination),
                             capture_output=True, text=True, encoding='utf-8')
+    if result.returncode:
+        raise RuntimeError('installation self-test failed:\n' + result.stderr[-8000:])
     return {'status': 'passed', 'result': json.loads(result.stdout.splitlines()[-1]),
             'artifact': 'runtime/install-smoke.json'}
 
@@ -208,8 +226,8 @@ def main(argv=None) -> int:
     parser.add_argument('--offline', action='store_true', help='require bundled weights; do not download checkpoints')
     parser.add_argument('--skip-deps', action='store_true', help='reuse the invoking Python for an existing prepared environment')
     parser.add_argument('--skip-smoke', action='store_true', help='copy/verify only, without calling the actual model')
-    parser.add_argument('--torch-index-url', default='https://download.pytorch.org/whl/cpu',
-                        help='CPU PyTorch wheel index or a compatible trusted CPU mirror')
+    parser.add_argument('--torch-index-url',
+                        help='PyTorch wheel index override (macOS: PyPI; other platforms: CPU index)')
     args = parser.parse_args(argv)
     if sys.version_info < (3, 12):
         raise SystemExit('Python 3.12 or newer is required by the pinned dependency lock; no files have been installed')
@@ -249,10 +267,15 @@ def main(argv=None) -> int:
                                    env=env, capture_output=True)
         if pip_check.returncode:
             run([str(python), '-m', 'ensurepip', '--upgrade', '--default-pip'], destination, env)
+        torch_index = args.torch_index_url or (
+            'https://pypi.org/simple' if sys.platform == 'darwin'
+            else 'https://download.pytorch.org/whl/cpu'
+        )
         run([str(python), '-m', 'pip', 'install', '--disable-pip-version-check',
-             'torch==2.8.0', '--index-url', args.torch_index_url, '-c', str(lock)], destination, env)
+             'torch==2.8.0', '--index-url', torch_index, '-c', str(lock)], destination, env)
         run([str(python), '-m', 'pip', 'install', '--disable-pip-version-check',
              '-r', str(destination / 'requirements-kronos.txt'), '-c', str(lock)], destination, env)
+        ensure_macos_openmp(destination)
     model_smoke = {'status': 'skipped'} if args.skip_smoke else smoke(python, destination)
     receipt = {'installed_at': datetime.now(timezone.utc).isoformat(), 'source_commit': manifest['source_commit'],
                'model_manifest_sha256': sha(installed_assets / 'manifest.json'), 'copied_files': copied,

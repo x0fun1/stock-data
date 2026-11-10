@@ -279,6 +279,31 @@ def _load_local(models: Path, source: Path, threads: int):
         sys.path[:] = old_paths
 
 
+def constrain_ohlc_paths(paths: list[dict]) -> dict:
+    """Project decoded high/low onto valid candles without changing direction.
+
+    Raw decoder output remains in ``paths``. This produces separately labelled
+    feasible candles; it does not establish forecast accuracy or calibration.
+    """
+    constrained, changed, unusable = [], [], []
+    for index, path in enumerate(paths):
+        if not all(math.isfinite(float(path[key])) for key in FIELDS) or min(path['open'], path['close']) <= 0:
+            unusable.append(index)
+            continue
+        candle = dict(path)
+        candle['high'] = max(path['high'], path['open'], path['close'])
+        candle['low'] = max(min(1e-12, path['open'], path['close']), min(path['low'], path['open'], path['close']))
+        candle['volume'] = max(0., path['volume'])
+        candle['amount'] = max(0., path['amount'])
+        if candle != path:
+            changed.append(index)
+        constrained.append(candle)
+    return {'constrained_paths': constrained, 'projection_adjusted_path_indices': changed,
+        'projection_adjusted_paths': len(changed), 'unusable_path_indices': unusable,
+        'ohlc_constraint_method': 'high=max(raw_high,open,close); low=max(epsilon,min(raw_low,open,close)); open/close unchanged',
+        'constrained_ohlc_order_violations': 0, 'price_intervals_validated': False}
+
+
 def forecast_kronos(history: list[dict], *, runtime_root, config: dict,
                     ticker: str, frequency: str, cutoff: str,
                     target_start: str, target_end: str) -> dict:
@@ -341,6 +366,7 @@ def forecast_kronos(history: list[dict], *, runtime_root, config: dict,
         paths = [dict(zip(FIELDS, map(float, row))) for row in output]
         if len(paths) != PATH_COUNT or not all(all(math.isfinite(v) for v in p.values()) for p in paths):
             raise RuntimeError('nonfinite_or_incomplete_generated_paths')
+        result.update(constrain_ohlc_paths(paths))
         valid = [p for p in paths if p['open'] > 0 and p['close'] > 0]
         result.update({'paths': paths, 'sampled_tokens': tokens, 'valid_paths': len(valid)})
         if len(valid) < 8:

@@ -137,11 +137,16 @@ def infer_security(
     results: list[QuantitativeResult] = []
     decisions: list[CapabilityDecision] = []
     for horizon in horizons:
-        for target in targets:
+        own_targets = list(targets)
+        if Target.QUANTILE not in own_targets and (registry.load_active_quantile(market, horizon) or registry.load_candidate(market, horizon, Target.QUANTILE)):
+            own_targets.append(Target.QUANTILE)
+        for target in own_targets:
             if Target(target) is Target.QUANTILE:
-                q_artifact = registry.load_active_quantile(market, horizon)
+                q_artifact = registry.load_active_quantile(market, horizon) or registry.load_candidate(market, horizon, Target.QUANTILE)
                 q_evidence = registry.load_evidence(q_artifact.evidence_id) if q_artifact is not None and q_artifact.evidence_id else None
                 decision = decide_quantile(market, horizon, data_ready, data_reason, q_evidence, q_artifact, security_id=security_id)
+                if q_artifact is not None and q_artifact.status != 'active' and decision.state is CapabilityState.VERIFIED:
+                    decision.state, decision.reason = CapabilityState.UNVERIFIED, 'validated_candidate_not_activated'
                 decisions.append(decision)
                 result = QuantitativeResult(
                     market=Market(market),
@@ -154,8 +159,8 @@ def infer_security(
                     model_id=decision.model_id,
                     evidence_id=decision.evidence_id,
                 )
-                if q_artifact is not None and q_evidence is not None and decision.state is CapabilityState.VERIFIED:
-                    model_features = [k[3:] for k in row if k.startswith("m__")]
+                if q_artifact is not None and q_evidence is not None and data_ready:
+                    model_features = [item['name'] if isinstance(item, dict) else item for item in q_artifact.transformer.get('features', [])]
                     if not row or not model_features or all(int(row.get(f"m__{name}", 1)) == 1 for name in model_features):
                         result.state = CapabilityState.INSUFFICIENT_DATA
                         result.reason = "all_model_features_missing"
@@ -163,7 +168,11 @@ def infer_security(
                         try:
                             from ..models.quantiles import predict_quantiles
 
-                            result.quantiles = predict_quantiles(q_artifact, pd.DataFrame([row]))
+                            estimated = predict_quantiles(q_artifact, pd.DataFrame([row]))
+                            if decision.state is CapabilityState.VERIFIED:
+                                result.quantiles = estimated
+                            else:
+                                result.research_estimate = {'quantiles': estimated, 'execution': 'computed', 'publication_verified': False}
                             result.validation = {
                                 "samples": q_evidence.sample_count,
                                 "independent_dates": q_evidence.independent_dates,
@@ -174,11 +183,13 @@ def infer_security(
                             result.reason = f"quantile_inference_error:{type(exc).__name__}"
                 results.append(result)
                 continue
-            artifact = registry.load_active(market, horizon, target)
+            artifact = registry.load_active(market, horizon, target) or registry.load_candidate(market, horizon, target)
             evidence = None
             if artifact is not None and artifact.evidence_id:
                 evidence = registry.load_evidence(artifact.evidence_id)
             decision = decide(market, horizon, target, data_ready, data_reason, evidence, artifact, policy, security_id=security_id)
+            if artifact is not None and artifact.status != 'active' and decision.state is CapabilityState.VERIFIED:
+                decision.state, decision.reason = CapabilityState.UNVERIFIED, 'validated_candidate_not_activated'
             decisions.append(decision)
             result = QuantitativeResult(
                 market=Market(market),
@@ -192,8 +203,8 @@ def infer_security(
                 evidence_id=decision.evidence_id,
                 baseline_probability=artifact.baseline_rate if artifact is not None else None,
             )
-            if artifact is not None and evidence is not None and decision.state is CapabilityState.VERIFIED:
-                model_features = [k[3:] for k in row if k.startswith("m__")]
+            if artifact is not None and evidence is not None and data_ready:
+                model_features = [item['name'] if isinstance(item, dict) else item for item in artifact.transformer.get('features', [])]
                 if not row or not model_features or all(int(row.get(f"m__{name}", 1)) == 1 for name in model_features):
                     result.state = CapabilityState.INSUFFICIENT_DATA
                     result.reason = "all_model_features_missing"
@@ -201,7 +212,11 @@ def infer_security(
                     continue
                 try:
                     p = float(predict_proba(artifact, pd.DataFrame([row]))[0])
-                    result.probability = p
+                    if decision.state is CapabilityState.VERIFIED:
+                        result.probability = p
+                    else:
+                        result.research_estimate = {'score': p, 'execution': 'computed',
+                            'calibrator_fitted': bool(artifact.calibrator), 'publication_verified': False}
                     result.validation = {
                         "samples": evidence.sample_count,
                         "independent_dates": evidence.independent_dates,

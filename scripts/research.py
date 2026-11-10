@@ -59,7 +59,7 @@ def cmd_research(args) -> int:
     runtime = args.root or default_runtime_root()
     bundle, markdown = run_research(request, runtime_root=runtime)
     if args.json:
-        print(json.dumps({"summary": {"run_id": bundle.run_manifest.run_id, "results": to_dict(bundle.results), "decisions": to_dict(bundle.decisions), "baseline_forecasts": bundle.baseline_forecasts, "multifactor_snapshot": bundle.multifactor_snapshot, "limitations": bundle.limitations}, "report": markdown}, ensure_ascii=False, indent=2))
+        print(json.dumps({"summary": {"run_id": bundle.run_manifest.run_id, "results": to_dict(bundle.results), "decisions": to_dict(bundle.decisions), "baseline_forecasts": bundle.baseline_forecasts, "multifactor_snapshot": bundle.multifactor_snapshot, "news_impact_summary": bundle.news_impact_summary, "limitations": bundle.limitations}, "report": markdown}, ensure_ascii=False, indent=2))
     else:
         print(markdown)
     if args.out:
@@ -98,6 +98,71 @@ def cmd_import_factors(args) -> int:
     from stock_research.multifactor.factor_returns import import_factor_archives
     result = import_factor_archives(args.ff3, args.momentum, args.root or default_runtime_root())
     print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_import_news_reviews(args) -> int:
+    from stock_research.control.news_reviews import import_news_reviews
+    result = import_news_reviews(args.file, args.root or default_runtime_root())
+    print(json.dumps(result, ensure_ascii=False, indent=2))
+    return 0
+
+
+def cmd_kronos_study(args) -> int:
+    from stock_research.control.kronos_study import run_kronos_study
+    result = run_kronos_study(args.root or default_runtime_root(),args.ticker,args.samples,
+        args.dev_samples,args.cal_samples,args.study_id,
+        progress=lambda value: print(json.dumps(value),file=sys.stderr,flush=True),reuse_study_id=args.reuse_study_id,calibration_mode=args.calibration_mode)
+    print(json.dumps(result,ensure_ascii=False,indent=2))
+    return 0
+
+
+def cmd_kronos_diagnostics(args) -> int:
+    from stock_research.control.kronos_diagnostics import audit_kronos_study, render_direction_comparison
+    result=audit_kronos_study(args.root or default_runtime_root(),args.study_id)
+    if args.out:Path(args.out).write_text(render_direction_comparison(result)+'\n',encoding='utf-8')
+    print(json.dumps(result,ensure_ascii=False,indent=2))
+    return 0
+
+
+def cmd_news_collect(args) -> int:
+    from stock_research.acquisition.news_collector import collect_news_evidence
+    result=collect_news_evidence(args.root or default_runtime_root(),args.workflow_id,
+        args.collection_id,provider=args.provider,max_sources=args.max_sources,plugin_batch_id=args.plugin_batch_id)
+    print(json.dumps(result,ensure_ascii=False,indent=2))
+    return 0
+
+
+def cmd_news_plugin_plan(args) -> int:
+    from stock_research.acquisition.news_collector import prepare_plugin_title_plan
+    result=prepare_plugin_title_plan(args.root or default_runtime_root(),args.workflow_id,args.batch_id)
+    print(json.dumps(result,ensure_ascii=False,indent=2))
+    return 0
+
+
+def cmd_kronos_bank(args) -> int:
+    from stock_research.control.kronos_bank import export_kronos_bank
+    print(json.dumps(export_kronos_bank(args.root or default_runtime_root(),args.study_id),ensure_ascii=False,indent=2))
+    return 0
+
+
+def cmd_news_workflow(args) -> int:
+    from stock_research.control.news_workflow import prepare_news_workflow,next_news_tasks,apply_news_assessments,workflow_status,finalize_news_workflow
+    root=Path(args.root or default_runtime_root())
+    folder=root/'news-workflows'/args.workflow_id
+    if args.step=='prepare':
+        result=prepare_news_workflow(root,args.ticker,args.workflow_id)
+    elif args.step=='next':
+        result=next_news_tasks(folder,args.limit)
+    elif args.step=='apply':
+        if not args.file:
+            raise ValueError('apply requires --file with per-item host LLM assessments')
+        result=apply_news_assessments(root,folder,args.file)
+    elif args.step=='finalize':
+        result=finalize_news_workflow(folder)
+    else:
+        result=workflow_status(folder)
+    print(json.dumps(result,ensure_ascii=False,indent=2))
     return 0
 
 
@@ -189,6 +254,9 @@ def cmd_doctor(args) -> int:
         entry = catalog.get_dataset(name)
         datasets[name] = None if entry is None else {"version": entry["version"], "rows": entry["rows"], "created_at": entry["created_at"]}
     models = catalog.list_models()
+    storage_bytes = {name: sum(path.stat().st_size for path in (root / name).rglob('*') if path.is_file())
+        for name in ('raw', 'curated', 'models', 'reports', 'baseline-runs', 'kronos-history')}
+    storage_bytes['sqlite_index'] = (root / 'catalog.sqlite').stat().st_size
     print(json.dumps(
         {
             "skill_root": str(default_skill_root()),
@@ -197,6 +265,8 @@ def cmd_doctor(args) -> int:
             "policy_hash": policies.hash,
             "datasets": datasets,
             "models": [{"model_id": m["model_id"], "status": m["status"], **m["metadata"]} for m in models],
+            "storage_bytes": storage_bytes,
+            "packaging": {"runtime_data_in_skill_bundle": False, "sqlite_role": "version_and_file_index", "data_storage": "external_Parquet_and_raw_files"},
             "quant_baseline": {"model": "kronos-small", "role": "frozen_research_baseline",
                 "enabled": policies.defaults.get('quant_baseline', {}).get('enabled', False),
                 "package_manifest": str(default_skill_root() / 'model-assets/kronos-small/manifest.json'),
@@ -256,6 +326,50 @@ def build_parser() -> argparse.ArgumentParser:
     imp.add_argument("--security-id")
     imp.add_argument("--source", default="user_import")
     imp.set_defaults(func=cmd_import)
+
+    reviews = sub.add_parser('import-news-reviews', help='import cited full-text or official-source event reviews', parents=[root_parent])
+    reviews.add_argument('--file', required=True)
+    reviews.set_defaults(func=cmd_import_news_reviews)
+
+    kronos_study = sub.add_parser('kronos-study', help='run resumable chronological context selection, calibration and sealed holdout', parents=[root_parent])
+    kronos_study.add_argument('--ticker',default='NVDA')
+    kronos_study.add_argument('--samples',type=int,default=1000)
+    kronos_study.add_argument('--dev-samples',type=int,default=200)
+    kronos_study.add_argument('--cal-samples',type=int,default=500)
+    kronos_study.add_argument('--study-id',default='kronos-nvda-1000-v4')
+    kronos_study.add_argument('--calibration-mode',choices=['off','platt-diagnostic'],default='off')
+    kronos_study.add_argument('--reuse-study-id',help='reuse immutable forecasts only; refit selection/calibration with current protocol')
+    kronos_study.set_defaults(func=cmd_kronos_study)
+
+    diagnostics=sub.add_parser('kronos-diagnostics',help='audit raw/calibrated direction degeneracy in a sealed study',parents=[root_parent])
+    diagnostics.add_argument('--study-id',required=True)
+    diagnostics.add_argument('--out')
+    diagnostics.set_defaults(func=cmd_kronos_diagnostics)
+
+    bank=sub.add_parser('kronos-bank',help='export reusable features from sealed forecasts without neural inference',parents=[root_parent])
+    bank.add_argument('--study-id',required=True)
+    bank.set_defaults(func=cmd_kronos_bank)
+
+    news_workflow=sub.add_parser('news-workflow',help='run the durable per-headline search/LLM review workflow',parents=[root_parent])
+    news_workflow.add_argument('--step',choices=['prepare','next','apply','status','finalize'],default='prepare')
+    news_workflow.add_argument('--ticker',default='NVDA')
+    news_workflow.add_argument('--workflow-id',default='news-nvda-20261108')
+    news_workflow.add_argument('--limit',type=int,default=8)
+    news_workflow.add_argument('--file')
+    news_workflow.set_defaults(func=cmd_news_workflow)
+
+    collect=sub.add_parser('news-collect',help='collect every title through Search/Fetch before any LLM analysis',parents=[root_parent])
+    collect.add_argument('--workflow-id',required=True)
+    collect.add_argument('--collection-id',required=True)
+    collect.add_argument('--provider',choices=['tinyfish','tinyfish-plugin','archive'],default='tinyfish')
+    collect.add_argument('--plugin-batch-id')
+    collect.add_argument('--max-sources',type=int,default=2)
+    collect.set_defaults(func=cmd_news_collect)
+
+    plugin_plan=sub.add_parser('news-plugin-plan',help='export a deterministic title plan for the connected TinyFish batch runner',parents=[root_parent])
+    plugin_plan.add_argument('--workflow-id',required=True)
+    plugin_plan.add_argument('--batch-id',required=True)
+    plugin_plan.set_defaults(func=cmd_news_plugin_plan)
 
     factor_import = sub.add_parser("import-factors", help="import local Ken French FF3+RF/Momentum daily archives for risk attribution", parents=[root_parent])
     factor_import.add_argument("--ff3", required=True)

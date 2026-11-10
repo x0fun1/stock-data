@@ -65,6 +65,7 @@ class ResearchInputs:
     macro: list[MacroObservation]
     news: list[ContextEvent]
     snapshot: dict[str, Any]
+    knowledge_cutoff: datetime
     limitations: list[str] = field(default_factory=list)
 
 
@@ -110,6 +111,10 @@ def resolve_cutoff(
         day = now.date()
     while not calendar.is_session(day):
         day = calendar.prev_session(day)
+    if now < calendar.session_close_utc(day):
+        previous = calendar.prev_session(day)
+        notes.append(f"{day} 尚未收盘；使用上一交易日 {previous} 的数据")
+        day = previous
     return day, notes
 
 
@@ -154,6 +159,8 @@ def load_inputs(
     actions_frame = load_optional("actions")
     coverage_frame = load_optional("action_coverage")
     ledger = actions_from_frame(actions_frame, coverage_frame)
+    if not coverage_frame.empty and not any(coverage.complete for coverage in ledger.coverages()):
+        limitations.append('公司行动台账已登记已知拆股/分红；独立完整覆盖核验仍未完成，不能据此声称全历史行动已验证。')
     financials = financials_from_frame(load_optional("financial_facts"))
     macro = macro_from_frame(load_optional("macro"))
     news = news_from_frame(load_optional("news"))
@@ -165,6 +172,7 @@ def load_inputs(
         benchmark_identity = _resolve_ticker(master, market, request.benchmark, date.today())
         if benchmark_identity is not None:
             benchmark = price_map.get(benchmark_identity.security_id)
+            benchmark_ledger = ledger if benchmark is not None else None
             if benchmark is None:
                 limitations.append(f"基准 {request.benchmark} 没有价格数据；超额概率不发布。")
         else:
@@ -204,6 +212,7 @@ def load_inputs(
         macro=macro,
         news=news,
         snapshot=snapshot,
+        knowledge_cutoff=ensure_utc(request.cutoff or now or now_utc()),
         limitations=limitations,
     )
 
@@ -372,10 +381,15 @@ def run_research(
 
     context_events: list[ContextEvent] = []
     if inputs.news:
-        selected = [e for e in inputs.news if not e.security_ids or any(s in e.security_ids for s in [i.security_id for i in inputs.securities.all()])]
+        requested_security_ids = {i.security_id for i in inputs.securities.all()
+            if i.ticker in request.tickers and i.market is Market(request.market) and i.active_on(inputs.cutoff)}
+        selected = [e for e in inputs.news if e.market is Market(request.market)
+            and (not e.security_ids or requested_security_ids.intersection(e.security_ids))]
+        from .news_workflow import apply_workflow_dispositions
+        selected = apply_workflow_dispositions(selected,inputs.store.root,request.tickers,inputs.knowledge_cutoff)
         context_events = build_context(
             selected,
-            inputs.calendar.session_close_utc(inputs.cutoff) if inputs.calendar else inputs.cutoff,
+            inputs.knowledge_cutoff,
             request.news_lookback_days,
             policies.defaults.get("news", {}),
         )
@@ -383,6 +397,15 @@ def run_research(
         stages.append({"name": "news_context", "status": "ok", "detail": f"{len(context_events)} events"})
     else:
         stages.append({"name": "news_context", "status": "degraded", "detail": "no news dataset"})
+
+    from ..context.news_impact import synthesize_news_impacts
+    from .news_workflow import latest_workflow_coverage
+    coverage = {ticker:latest_workflow_coverage(inputs.store.root,ticker) for ticker in request.tickers}
+    # Synthesis uses every eligible reviewed event, before the display limit.
+    impact_events = build_context(selected,inputs.knowledge_cutoff,request.news_lookback_days,
+        policies.defaults.get('news',{}),limit=len(selected),deduplicate=False) if inputs.news else []
+    news_impact_summary = synthesize_news_impacts(impact_events,inputs.knowledge_cutoff,
+        policies.defaults.get('news',{}).get('impact',{}),coverage)
 
     multifactor_snapshot = {}
     if request.multifactor and policies.defaults.get("multifactor", {}).get("enabled", True):
@@ -407,6 +430,7 @@ def run_research(
             "policy_hash": policies.hash,
             "calendar": inputs.calendar.coverage_label() if inputs.calendar else None,
             "cutoff": inputs.cutoff.isoformat(),
+            "knowledge_cutoff": inputs.knowledge_cutoff.isoformat(),
         },
         stages=stages,
         outputs={},
@@ -418,6 +442,8 @@ def run_research(
     if multifactor_snapshot:
         manifest.artifacts["multifactor"] = {"version": multifactor_snapshot.get("version"),
                                              "analysis_sha256": multifactor_snapshot.get("analysis_sha256")}
+    manifest.artifacts['news_impact'] = {'policy_sha256':news_impact_summary['policy_sha256'],
+        'coverage':news_impact_summary['coverage'],'event_count':news_impact_summary['event_count']}
     bundle = ReportBundle(
         request=request,
         securities=[i for i in inputs.securities.all() if i.ticker in request.tickers and i.market is Market(request.market)],
@@ -430,6 +456,7 @@ def run_research(
         headline="",
         baseline_forecasts=baseline_forecasts,
         multifactor_snapshot=multifactor_snapshot,
+        news_impact_summary=news_impact_summary,
     )
     markdown = render_report(bundle)
     reports_dir = inputs.store.root / "reports"

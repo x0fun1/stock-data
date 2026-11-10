@@ -162,6 +162,9 @@ class DebtValue:
 class FinancialStore:
     def __init__(self, facts: Iterable[FinancialFact]) -> None:
         self.facts = list(facts)
+        self._index = {}
+        for position, fact in enumerate(self.facts):
+            self._index.setdefault((fact.security_id, fact.concept.split(":")[-1]), []).append((position, fact))
 
     def _eligible(self, fact: FinancialFact, known_by: datetime | None) -> bool:
         if known_by is None:
@@ -180,11 +183,8 @@ class FinancialStore:
     ) -> list[FinancialFact]:
         wanted = {c.split(":")[-1] for c in concepts}
         out = []
-        for fact in self.facts:
-            if fact.security_id != security_id:
-                continue
-            if fact.concept.split(":")[-1] not in wanted:
-                continue
+        candidates = sorted((item for concept in wanted for item in self._index.get((security_id, concept), [])), key=lambda item: item[0])
+        for _, fact in candidates:
             if instant is not None and fact.is_instant != instant:
                 continue
             if not self._eligible(fact, known_by):
