@@ -1,11 +1,11 @@
 {
-  "version": "2026-11-06.1",
-  "scope": "US and Hong Kong; free sources; personal research",
+  "version": "2026-11-15.1",
+  "scope": "US and Hong Kong; free sources; personal research on news, macro and company messages",
   "sources": {
     "sec": {
       "markets": ["US"],
-      "datasets": ["filings", "financial_facts"],
-      "usage": "public filing data; point-in-time availability must be validated before historical training",
+      "datasets": ["filings"],
+      "usage": "public filings cited as official evidence in a source review",
       "text_scope": "official_excerpt",
       "store_full_text": false,
       "notes": "8-K primary documents are cover pages; exhibits require a separate authorized import."
@@ -16,34 +16,6 @@
       "usage": "macro series; vintage availability must be validated per series",
       "text_scope": "numeric",
       "store_full_text": false
-    },
-    "eastmoney": {
-      "markets": ["US", "HK"],
-      "datasets": ["prices"],
-      "usage": "personal research; vendor-defined fields; no redistribution",
-      "text_scope": "numeric",
-      "risk_flag": "gray_source",
-      "notes": "Use raw prices (fqt=0) only; never use the vendor adjusted series as truth."
-    },
-    "sina": {
-      "markets": ["US", "HK"],
-      "datasets": ["prices"],
-      "usage": "personal research; no redistribution",
-      "text_scope": "numeric",
-      "risk_flag": "gray_source"
-    },
-    "tencent": {
-      "markets": ["HK"],
-      "datasets": ["prices"],
-      "usage": "personal research; no redistribution",
-      "text_scope": "numeric",
-      "risk_flag": "gray_source"
-    },
-    "tiingo": {
-      "markets": ["US"],
-      "datasets": ["prices"],
-      "usage": "additional US vendor where the free entitlement applies; no news entitlement assumed",
-      "text_scope": "numeric"
     },
     "finnhub": {
       "markets": ["US"],
@@ -69,7 +41,7 @@
     "census": {
       "markets": ["US"],
       "datasets": ["macro"],
-      "usage": "background statistics only; not a high-frequency stock factor",
+      "usage": "background statistics only",
       "text_scope": "numeric"
     },
     "company_ir": {
@@ -81,31 +53,20 @@
     },
     "user_import": {
       "markets": ["US", "HK"],
-      "datasets": ["prices", "actions", "action_coverage", "financial_facts", "macro", "news", "securities", "security_metadata"],
+      "datasets": ["macro", "news", "securities"],
       "usage": "material supplied by the user; import is allowed only for the stated personal research purpose",
       "text_scope": "varies",
       "store_full_text": true
-    },
-    "ken_french": {
-      "markets": ["US"],
-      "datasets": ["factor_returns"],
-      "usage": "user-authorized local public factor archives for personal risk attribution; publication times not presumed known",
-      "text_scope": "numeric",
-      "store_full_text": false
     }
   },
   "prohibited": {
     "hk_yahoo": {
       "markets": ["HK"],
-      "reason": "HK data must not come from Yahoo, including prices, actions and estimates."
+      "reason": "HK data must not come from Yahoo."
     },
     "hkexnews_automation": {
       "markets": ["HK"],
       "reason": "HKEXnews terms prohibit automated access, scraping, text mining and AI training. Use user-supplied or licensed material."
-    },
-    "cboe": {
-      "markets": ["US"],
-      "reason": "Usage eligibility is unresolved; advance approval may be required. Do not enable by default."
     },
     "ecb_tls_bypass": {
       "markets": ["US", "HK"],

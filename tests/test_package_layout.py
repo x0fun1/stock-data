@@ -12,14 +12,17 @@ from stock_research.common.package_files import package_files
 
 
 ROOT = Path(__file__).resolve().parents[1]
+PUBLIC_FILES = (
+    'SKILL.md', 'README.md', 'requirements.txt', 'scripts/install_skill.py', 'scripts/skill.py',
+    'scripts/research.py', 'references/news-evidence-and-grades.md', 'policies/defaults.json',
+    'examples/news-template.json',
+)
 LOCAL_ONLY_FILES = (
     'docs/api.txt', 'docs/planning/notes.md', 'runtime/private.json', '.env', '.env.local',
-    '.gitignore', '.gitattributes', 'vendor/kronos/.gitignore', 'vendor/kronos/.gitattributes',
-    'model-comparison/compare.py', 'hourly-model-test/predictions.json',
-    'scratch/compare_models.py', 'scripts/model-comparison/compare.py',
-    'scripts/stock_research/__pycache__/discard.py',
-    'vendor/kronos/examples/new_prediction.json', 'vendor/kronos/new_comparison.py',
-    'vendor/chronos/model.py', 'model-assets/kronos-small/local-training.pth',
+    '.gitignore', '.gitattributes', 'scratch/compare_models.py',
+    'scripts/stock_research/__pycache__/discard.py', 'examples/local-notes.json',
+    'vendor/kronos/model/kronos.py', 'model-assets/kronos-small/small/model.safetensors',
+    'requirements-kronos.txt',
 )
 
 
@@ -35,30 +38,10 @@ def load_script(name):
 @pytest.fixture
 def package_source(tmp_path):
     source = tmp_path / "source"
-    public_files = (
-        "SKILL.md",
-        "scripts/install_skill.py",
-        "scripts/skill.py",
-        "vendor/kronos/LICENSE",
-        "model-assets/kronos-small/manifest.json",
-        "model-assets/kronos-small/small/model.safetensors",
-        "model-assets/kronos-small/tokenizer/model.safetensors",
-        "references/kronos-training-plan.md",
-        "references/multifactor-workflow.md",
-        "scripts/stock_research/multifactor/study.py",
-        "scripts/stock_research/multifactor/risk.py",
-        "scripts/stock_research/control/multifactor.py",
-    )
-    for relative in public_files:
+    for relative in PUBLIC_FILES:
         path = source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(f"synthetic public fixture: {relative}\n".encode())
-    manifest = {
-        'source_directory': 'vendor/kronos', 'source_files': [{'path': 'LICENSE'}],
-        'checkpoints': [{'files': [{'path': f'{name}/model.safetensors'}]}
-                        for name in ('small', 'tokenizer')],
-    }
-    (source / 'model-assets/kronos-small/manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
     for relative in LOCAL_ONLY_FILES:
         path = source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
@@ -66,26 +49,17 @@ def package_source(tmp_path):
     return source
 
 
-def test_package_copy_excludes_docs_and_runtime_but_keeps_model_resources(package_source, tmp_path):
+def test_package_copy_keeps_only_declared_skill_files(package_source, tmp_path):
     installer = load_script("install_skill")
     destination = tmp_path / "installed"
-    installer.copy_package(package_source, destination)
-
-    assert not (destination / "docs").exists()
-    assert not (destination / "runtime").exists()
-    assert not (destination / ".env").exists()
-    assert not list(destination.rglob(".gitignore"))
-    assert not list(destination.rglob(".gitattributes"))
+    assert installer.copy_package(package_source, destination) == len(PUBLIC_FILES)
     assert all(not (destination / relative).exists() for relative in LOCAL_ONLY_FILES)
-    for relative in (
-        "SKILL.md", "vendor/kronos/LICENSE", "model-assets/kronos-small/manifest.json",
-        "model-assets/kronos-small/small/model.safetensors",
-        "references/multifactor-workflow.md",
-    ):
+    assert not (destination / 'vendor').exists() and not (destination / 'model-assets').exists()
+    for relative in PUBLIC_FILES:
         assert (destination / relative).read_bytes() == (package_source / relative).read_bytes()
 
 
-def test_portable_zip_excludes_local_docs_and_keeps_relative_resources(package_source, tmp_path, monkeypatch):
+def test_portable_zip_excludes_local_files(package_source, tmp_path, monkeypatch):
     builder = load_script("build_bundle")
     output = tmp_path / "portable.zip"
     monkeypatch.setattr(builder, "ROOT", package_source)
@@ -94,29 +68,20 @@ def test_portable_zip_excludes_local_docs_and_keeps_relative_resources(package_s
 
     with zipfile.ZipFile(output) as archive:
         assert archive.testzip() is None
-        names = archive.namelist()
-        assert all(not name.startswith(("stock-research/docs/", "stock-research/runtime/")) for name in names)
-        assert "stock-research/.env" not in names
-        assert all(Path(name).name not in {".gitignore", ".gitattributes"} for name in names)
-        assert all('stock-research/' + relative not in names for relative in LOCAL_ONLY_FILES)
+        names = set(archive.namelist())
         manifest = json.loads(archive.read("stock-research/bundle-manifest.json"))
-        assert all(not entry["path"].startswith(("docs/", "runtime/")) for entry in manifest["files"])
-        relative = "model-assets/kronos-small/tokenizer/model.safetensors"
-        assert archive.read("stock-research/" + relative) == (package_source / relative).read_bytes()
-        assert "stock-research/references/multifactor-workflow.md" in names
+    assert names == {'stock-research/' + relative for relative in PUBLIC_FILES} | {'stock-research/bundle-manifest.json'}
+    assert {entry['path'] for entry in manifest['files']} == set(PUBLIC_FILES)
 
 
-def test_package_selection_preserves_exact_pinned_upstream_and_checkpoints():
-    manifest = json.loads((ROOT / 'model-assets/kronos-small/manifest.json').read_text(encoding='utf-8'))
+def test_repository_package_contains_no_price_model_or_quantitative_code():
     selected = {path.relative_to(ROOT).as_posix() for path in package_files(ROOT)}
-    assert {name for name in selected if name.startswith('vendor/')} == {
-        'vendor/kronos/' + entry['path'] for entry in manifest['source_files']
-    }
-    assert {name for name in selected if name.startswith('model-assets/')} == {
-        'model-assets/kronos-small/manifest.json',
-        *('model-assets/kronos-small/' + entry['path'] for checkpoint in manifest['checkpoints']
-          for entry in checkpoint['files'] if (ROOT / 'model-assets/kronos-small' / entry['path']).is_file()),
-    }
+    assert {'SKILL.md', 'requirements.txt', 'scripts/research.py', 'policies/source-policy.json'} <= selected
+    assert not [name for name in selected if name.startswith(('vendor/', 'model-assets/'))]
+    retired = ('kronos', 'multifactor', '/models/', '/features/', '/datasets/', '/validation/', '/corporate_actions/')
+    assert not [name for name in selected if any(term in name for term in retired)]
+    requirements = (ROOT / 'requirements.txt').read_text(encoding='utf-8').lower()
+    assert not any(name in requirements for name in ('torch', 'lightgbm', 'scipy', 'safetensors'))
 
 
 def test_bundle_rejects_output_inside_source(package_source, monkeypatch):
@@ -138,6 +103,27 @@ def test_installer_rejects_nested_destination_before_copy(package_source, monkey
     assert not destination.exists()
 
 
+def test_unsupported_python_fails_before_copy(tmp_path, monkeypatch):
+    installer = load_script("install_skill")
+    destination = tmp_path / "must_remain_absent"
+    monkeypatch.setattr(installer.sys, "version_info", (3, 11, 9))
+    with pytest.raises(SystemExit, match="Python 3.12 or newer"):
+        installer.main(["--destination", str(destination)])
+    assert not destination.exists()
+
+
+def test_install_copies_the_real_skill_and_passes_the_news_self_test(tmp_path):
+    installer = load_script("install_skill")
+    import tempfile
+    with tempfile.TemporaryDirectory() as folder:
+        destination = Path(folder) / "installed"
+        assert installer.main(["--destination", str(destination), "--skip-deps"]) == 0
+        receipt = json.loads((destination / "install-receipt.json").read_text(encoding="utf-8"))
+        assert receipt["smoke"]["status"] == "passed"
+        assert receipt["smoke"]["result"]["classification"] == "利多"
+        assert not (destination / "runtime").exists() and not (destination / ".pip-cache").exists()
+
+
 def test_default_runtime_stays_with_skill_when_sibling_runtime_exists(tmp_path, monkeypatch):
     monkeypatch.delenv("STOCK_RESEARCH_RUNTIME", raising=False)
     skill = tmp_path / "stock-research"
@@ -153,11 +139,8 @@ def test_runtime_environment_override_is_preserved(tmp_path, monkeypatch):
     assert default_runtime_root(tmp_path / "stock-research") == override
 
 
-def test_flattened_root_reads_policies_and_pinned_source_manifest():
+def test_flattened_root_reads_policies():
     installer = load_script("install_skill")
     builder = load_script("build_bundle")
     assert default_skill_root() == installer.PACKAGE_ROOT == builder.ROOT == ROOT
     assert load_policies().skill_root == ROOT
-    assets, manifest = installer.read_manifest(ROOT)
-    assert assets == ROOT / "model-assets" / "kronos-small"
-    installer.verify_source(ROOT, manifest)

@@ -1,31 +1,20 @@
 """Select the current skill source, independently of local research directories."""
 from __future__ import annotations
 
-import json
 import os
 from pathlib import Path
 
 
-ROOT_FILES = {
-    'README.md', 'SKILL.md', 'pyproject.toml', 'requirements.txt',
-    'requirements-kronos.txt', 'requirements-kronos.lock.txt',
-}
+ROOT_FILES = {'README.md', 'SKILL.md', 'pyproject.toml', 'requirements.txt'}
 SOURCE_DIRS = {
     'scripts': {'.py'}, 'tests': {'.py'},
     'references': {'.md'}, 'policies': {'.json'},
 }
-EXAMPLE_FILES = {
-    'actions-template.csv', 'financial-facts-template.csv', 'news-template.json',
-    'prices-template.csv', 'request-hk.json', 'request-us.json',
-    'study-protocol.json', 'multifactor-protocol.json',
-}
+EXAMPLE_FILES = {'news-template.json', 'macro-template.csv', 'request-hk.json', 'request-us.json'}
 LOCAL_DIRS = {
     '.git', '.venv', '__pycache__', '.pytest_cache', '.pytest-tmp', '.ruff_cache',
     '.install-tmp', '.pip-cache', 'docs', 'runtime', 'reports', 'cache', 'node_modules',
-    'model-comparison', 'hourly-model-test', 'full-hourly-model-test',
-    'input-parity', 'walk-forward-baseline',
 }
-ASSET_MANIFEST = 'model-assets/kronos-small/manifest.json'
 
 
 def _file(root: Path, relative: str) -> Path:
@@ -39,12 +28,8 @@ def _file(root: Path, relative: str) -> Path:
     return path
 
 
-def package_files(root: Path, *, include_weights: bool = True, manifest: dict | None = None) -> list[Path]:
-    """Only declared first-party files and pinned upstream assets enter a package.
-
-    Checkpoints may be absent in a source clone; the installer retrieves them
-    using the fixed manifest. Local output never expands this selection.
-    """
+def package_files(root: Path) -> list[Path]:
+    """Only declared first-party files enter a package; local output never expands it."""
     root = root.resolve()
     selected = set(ROOT_FILES)
     selected.update('examples/' + name for name in EXAMPLE_FILES)
@@ -59,32 +44,16 @@ def package_files(root: Path, *, include_weights: bool = True, manifest: dict | 
                 _file(root, (here / name).relative_to(root).as_posix())
             for name in files:
                 path = here / name
-                if path.suffix in suffixes and name != 'rolling_baseline.py':
+                if path.suffix in suffixes:
                     selected.add(path.relative_to(root).as_posix())
-
-    manifest_path = _file(root, ASSET_MANIFEST)
-    if manifest is None:
-        manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-    selected.add(ASSET_MANIFEST)
-    source_directory = manifest['source_directory']
-    if source_directory != 'vendor/kronos':
-        raise ValueError('manifest must use the pinned vendor/kronos source')
-    selected.update(source_directory + '/' + entry['path'] for entry in manifest['source_files'])
-    for checkpoint in manifest['checkpoints']:
-        selected.update(
-            'model-assets/kronos-small/' + entry['path']
-            for entry in checkpoint['files']
-            if include_weights or entry['path'].endswith('/config.json')
-        )
     files = [_file(root, relative) for relative in sorted(selected)]
     return [path for path in files if path.is_file()]
 
 
-def repository_files(root: Path, *, manifest: dict | None = None) -> set[str]:
-    """Git publishes the source and download manifest, without checkpoint weights."""
+def repository_files(root: Path) -> set[str]:
+    """Git publishes exactly the package source plus the shared ignore file."""
     root = root.resolve()
-    files = {path.relative_to(root).as_posix()
-             for path in package_files(root, include_weights=False, manifest=manifest)}
+    files = {path.relative_to(root).as_posix() for path in package_files(root)}
     if _file(root, '.gitignore').is_file():
         files.add('.gitignore')
     return files

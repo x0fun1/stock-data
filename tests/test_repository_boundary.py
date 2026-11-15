@@ -38,13 +38,8 @@ def repository(tmp_path):
     git(root, "init", "-q")
     write(root, "README.md", b"Core research source\n")
     write(root, "scripts/research.py", b"print('core')\n")
-    write(root, ".gitignore", b"runtime/\n*.safetensors\n")
-    manifest = {
-        "model_id": "kronos-small", "source_directory": "vendor/kronos",
-        "source_files": [], "checkpoints": [],
-    }
-    write(root, "model-assets/kronos-small/manifest.json", json.dumps(manifest).encode())
-    git(root, "add", "README.md", "scripts/research.py", "model-assets")
+    write(root, ".gitignore", b"runtime/\n")
+    git(root, "add", "README.md", "scripts/research.py")
     return root
 
 
@@ -54,15 +49,15 @@ def test_core_source_passes_without_requiring_gitignore_tracking(repository, mon
     assert checker.main() == 0
     receipt = json.loads(capsys.readouterr().out)
     assert receipt["status"] == "passed"
-    assert receipt["files"] == 3
+    assert receipt["files"] == 2
     assert receipt["forbidden"] == []
 
 
 @pytest.mark.parametrize("relative", [
-    "runtime/model-comparison/predictions.json",
+    "runtime/news-workflows/tasks.json",
     "model-assets/kronos-small/small/model.safetensors",
-    "vendor/kronos/unregistered_prediction.py",
-    "model-comparison/compare_models.py",
+    "vendor/kronos/model/kronos.py",
+    "docs/api.txt",
     ".env.local",
 ])
 def test_forced_local_data_in_index_fails(repository, relative, monkeypatch, capsys):
@@ -81,19 +76,6 @@ def test_size_summary_uses_indexed_bytes_not_working_tree(repository):
     expected = checker.check_repository(repository)["bytes"]
     write(repository, "README.md", b"unstaged local edit\n" * 100)
     assert checker.check_repository(repository)["bytes"] == expected
-
-
-def test_unstaged_manifest_cannot_allow_unregistered_indexed_output(repository):
-    relative = 'vendor/kronos/new_prediction.json'
-    write(repository, relative, b'local generated output\n')
-    git(repository, 'add', '-f', '--', relative)
-    manifest_path = repository / 'model-assets/kronos-small/manifest.json'
-    manifest = json.loads(manifest_path.read_text(encoding='utf-8'))
-    manifest['source_files'].append({'path': 'new_prediction.json'})
-    manifest_path.write_text(json.dumps(manifest), encoding='utf-8')
-    receipt = load_checker().check_repository(repository)
-    assert receipt['status'] == 'failed'
-    assert receipt['forbidden'] == [relative]
 
 
 def test_indexed_symlink_cannot_be_hidden_by_regular_working_tree_file(repository):

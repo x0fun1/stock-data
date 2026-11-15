@@ -2,7 +2,6 @@
 from pathlib import Path
 from urllib.parse import urlsplit
 import json
-import pandas as pd
 
 from ..common.jsonio import read_json
 from ..common.timeutil import parse_dt, now_utc
@@ -16,9 +15,11 @@ def import_news_reviews(path, runtime_root):
     reviews = read_json(path)
     if not isinstance(reviews, list) or not reviews:
         raise ValueError('news reviews must be a nonempty list')
-    assert load_policies().source_allowed('user_import', 'US', 'news')
+    policies = load_policies()
     events = []
     for review in reviews:
+        if not policies.source_allowed('user_import', review.get('market', 'US'), 'news'):
+            raise ValueError('news review is outside the authorized source/market policy')
         sources = review.get('sources', [])
         if not sources or not review.get('fact_summary') or not review.get('grade_reason'):
             raise ValueError('a review requires source citations, facts, and an explained grade')
@@ -56,23 +57,18 @@ def import_news_reviews(path, runtime_root):
                 'historical_training_ready':False,'store_full_text':False})
         events.append(to_dict(event))
     store = CuratedStore(runtime_root)
-    frame = pd.DataFrame(events)
-    for column in ('security_ids', 'permissions', 'price_reaction'):
-        frame[column] = frame[column].map(lambda value: json.dumps(value, ensure_ascii=False))
-    old = store.catalog.get_dataset('news')
-    if old:
-        frame = pd.concat([store.load('news'), frame], ignore_index=True)
-    version = store.save('news', frame, {'source_id':'user_import','review_method':'source-review-v1',
+    records = store.load('news') if store.catalog.get_dataset('news') else []
+    records.extend(events)
+    version = store.save('news', records, {'source_id':'user_import','review_method':'source-review-v1',
         'evidence_file':str(Path(path).resolve()),'new_reviews':len(events),
         'historical_training_ready':False}, source_manifests=[str(Path(path).resolve())])
-    return {'version':version,'reviews_imported':len(events),'rows':len(frame)}
+    return {'version':version,'reviews_imported':len(events),'rows':len(records)}
 
 
 def retract_news_reviews(runtime_root, task_reasons):
     """Append a dated retraction; older reports and source reviews stay intact."""
     store = CuratedStore(runtime_root)
-    frame = store.load('news')
-    rows = frame.to_dict('records')
+    rows = store.load('news')
     additions = []
     stamp = now_utc().isoformat()
     for task_id, reason in task_reasons:
@@ -86,10 +82,12 @@ def retract_news_reviews(runtime_root, task_reasons):
         if not matches:
             continue
         row, permissions = max(matches,key=lambda pair:parse_dt(pair[0]['available_at']))
+        if row.get('grade') == Grade.INSUFFICIENT.value:
+            continue
         additions.append({**row,'event_id':'','available_at':stamp,'received_at':stamp,
             'grade':Grade.INSUFFICIENT.value,'grade_method':'review_retracted','grade_reason':reason,
             'evidence_scope':EvidenceScope.NONE.value,
-            'permissions':json.dumps({**permissions,'impact_assessment':None,'review_status':'retracted'},ensure_ascii=False)})
+            'permissions':{**permissions,'impact_assessment':None,'review_status':'retracted'}})
     if additions:
-        store.save('news',pd.concat([frame,pd.DataFrame(additions)],ignore_index=True),
+        store.save('news',rows + additions,
             {'source_id':'user_import','review_method':'dated-retraction-v1','new_retractions':len(additions)})

@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Build a portable source + weights ZIP without machine caches or research data."""
+"""Build a portable source ZIP without machine caches or research data."""
 from pathlib import Path
 import argparse
 import hashlib
@@ -30,18 +30,12 @@ def main():
     for path in package_files(ROOT):
         relative = path.relative_to(ROOT)
         files.append({'path': relative.as_posix(), 'bytes': path.stat().st_size, 'sha256': sha(path)})
-    required = {'SKILL.md', 'scripts/install_skill.py', 'scripts/skill.py',
-                'vendor/kronos/LICENSE', 'model-assets/kronos-small/manifest.json',
-                'model-assets/kronos-small/small/model.safetensors',
-                'model-assets/kronos-small/tokenizer/model.safetensors',
-                'references/kronos-training-plan.md', 'references/multifactor-workflow.md',
-                'scripts/stock_research/multifactor/study.py',
-                'scripts/stock_research/multifactor/risk.py',
-                'scripts/stock_research/control/multifactor.py'}
+    required = {'SKILL.md', 'requirements.txt', 'scripts/install_skill.py', 'scripts/skill.py',
+                'scripts/research.py', 'references/news-evidence-and-grades.md'}
     if not required <= {entry['path'] for entry in files}:
-        raise SystemExit('portable bundle is missing required code, weights or training plan')
+        raise SystemExit('portable bundle is missing required skill files')
     manifest = {'skill': 'stock-research', 'package_prefix': 'stock-research/',
-                'files': files, 'bundled_weights': True,
+                'files': files,
                 'dependencies': 'installer creates a package-local venv; first install requires package access'}
     output.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=1) as z:

@@ -1,12 +1,13 @@
 """Durable per-headline search/LLM workflow, supplied by a tool-capable host agent."""
 from pathlib import Path
 import json
-import pandas as pd
 
 from ..common.hashing import canonical_hash
 from ..common.jsonio import read_json,write_json
 from ..common.timeutil import now_utc,parse_dt
 from ..context.news import event_id_for
+from ..contracts import EvidenceScope, Grade, Market
+from ..identity_calendar.identity import default_identity
 from ..context.news_impact import evaluate_event_impact, validate_grade_sign
 from ..storage.curated_store import CuratedStore
 from .ingest import news_from_frame
@@ -15,22 +16,34 @@ from .news_reviews import import_news_reviews, retract_news_reviews
 TERMINAL = {'verified','unrelated','unresolved'}
 
 
-def prepare_news_workflow(root,ticker='NVDA',workflow_id='news-nvda-20261108'):
+def prepare_news_workflow(root,ticker='NVDA',workflow_id='news-nvda-20261108',market='US'):
     root=Path(root)
+    market=Market(market)
     store=CuratedStore(root)
     entry=store.metadata('news')
     events=news_from_frame(store.load('news'))
-    security_ids={identity['security_id'] for identity in store.load('securities').to_dict('records') if identity['ticker'].upper()==ticker.upper()}
+    identities=store.load('securities') if store.catalog.get_dataset('securities') else []
+    security_ids={identity['security_id'] for identity in identities
+        if identity['ticker'].upper()==ticker.upper() and identity.get('market','US')==market.value}
+    if not security_ids:
+        security_ids={default_identity(market,ticker).security_id}
     tasks=[]
+    seen=set()
     for event in sorted(events,key=lambda item:item.published_at or now_utc(),reverse=True):
-        if event.source_id!='finnhub' or not security_ids.intersection(event.security_ids):
+        reviewed=event.grade_method=='source_review' and event.grade is not Grade.INSUFFICIENT and event.evidence_scope not in {EvidenceScope.TITLE,EvidenceScope.ABSTRACT,EvidenceScope.NONE}
+        if event.market is not market or reviewed or (event.security_ids and not security_ids.intersection(event.security_ids)):
             continue
-        tasks.append({'task_id':event.event_id or event_id_for(event),'title':event.title,
+        task_id=event.event_id or event_id_for(event)
+        if task_id in seen:
+            continue
+        seen.add(task_id)
+        tasks.append({'task_id':task_id,'title':event.title,
             'source_url':event.url,'published_at':event.published_at.isoformat() if event.published_at else None,
-            'security_ids':event.security_ids,'ticker':ticker,'search_query':event.title,
+            'security_ids':event.security_ids,'ticker':ticker,'market':market.value,'search_query':event.title,
             'status':'pending','search_attempts':[],'review':None})
     folder=root/'news-workflows'/workflow_id
-    manifest={'workflow_id':workflow_id,'ticker':ticker,'source_version':entry['version'],
+    manifest={'workflow_id':workflow_id,'ticker':ticker,'market':market.value,'source_version':entry['version'],
+        'created_at':now_utc().isoformat(),
         'task_ids':[task['task_id'] for task in tasks],'all_source_headlines_retained':True,
         'host_route':'one title search via available free search MCP, read original/official evidence, per-item LLM assessment, apply, finalize',
         'cleanup_enabled':False,'reviews_are_not_trading_probabilities':True}
@@ -79,20 +92,21 @@ def apply_news_assessments(root,folder,path):
             review=assessment['review']
             if not review.get('impact_reason'):
                 raise ValueError('LLM must explain impact magnitude separately from sentiment')
-            evaluated=evaluate_event_impact(review,review['reviewed_at'])
+            evaluate_event_impact(review,review['reviewed_at'])
             validate_grade_sign(review)
             if not any(attempt.get('kind') in {'article_read','original_read','official_read'} for attempt in assessment['search_attempts']):
                 raise ValueError('verified review requires a read evidence trace')
             if not review.get('event_cluster'):
                 raise ValueError('semantic event cluster required to avoid counting reprints')
             review['security_ids']=task['security_ids']
+            review['market']=task.get('market','US')
             review['discovered_titles']=[task['title']]
             review['workflow_task_id']=task['task_id']
             review['impact_assessment']={key:review[key] for key in ['direction_sign','impact_level','event_kind','event_time','stock_relevance','evidence_confidence']}
             accepted.append(review)
         elif status=='unrelated' and assessment.get('stock_relevance',0)!=0:
             raise ValueError('unrelated items must have zero stock relevance')
-        if status!='verified' and task['status']=='verified':
+        if status!='verified':
             retracted.append((task['task_id'],assessment['reason']))
         if task['status']!='pending':
             task.setdefault('assessment_history',[]).append({key:task.get(key) for key in ('status','search_attempts','reason','review','reviewed_at')})
@@ -120,19 +134,36 @@ def finalize_news_workflow(folder):
     return status
 
 
-def latest_workflow_coverage(root,ticker):
+def latest_workflow_coverage(root,ticker,asof=None):
     pointer=Path(root)/'news-workflows'/f'{ticker.upper()}-latest.json'
     if not pointer.exists():
         return {}
     folder=Path(read_json(pointer)['folder'])
     if not folder.resolve().is_relative_to(Path(root).resolve()):
         raise ValueError('news workflow pointer leaves runtime root')
-    status=workflow_status(folder)
+    cutoff=parse_dt(asof or now_utc())
+    manifest=read_json(folder/'manifest.json')
+    if manifest.get('created_at') and parse_dt(manifest['created_at'])>cutoff:
+        return {}
+    tasks=[]
+    for task in read_json(folder/'tasks.json'):
+        if task.get('published_at') and parse_dt(task['published_at'])>cutoff:
+            continue
+        states=[*task.get('assessment_history',[]),task]
+        eligible=[state for state in states if state.get('reviewed_at') and parse_dt(state['reviewed_at'])<=cutoff]
+        state=max(eligible,key=lambda value:parse_dt(value['reviewed_at'])) if eligible else {'status':'pending','reason':None}
+        tasks.append({'task_id':task['task_id'],'title':task['title'],'source_url':task.get('source_url'),
+            'status':state['status'],'reason':state.get('reason')})
+    counts={status:sum(task['status']==status for task in tasks) for status in ['pending',*sorted(TERMINAL)]}
+    status={'workflow_id':folder.name,'total':len(tasks),'counts':counts,
+        'completed':sum(counts[value] for value in TERMINAL),'all_processed':counts['pending']==0,
+        'task_state_sha256':canonical_hash(tasks)}
     completion=read_json(folder/'completion.json') if (folder/'completion.json').exists() else {}
+    finalized=bool(completion.get('completed_at')) and parse_dt(completion['completed_at'])<=cutoff
+    finalized=finalized and completion.get('task_state_sha256')==workflow_status(folder)['task_state_sha256']
     return {**status,'unresolved_items':[{'task_id':task['task_id'],'title':task['title'],
-        'reason':task.get('reason'),'source_url':task.get('source_url')} for task in read_json(folder/'tasks.json') if task['status']=='unresolved'],
-        'finalized':bool(completion) and completion.get('task_state_sha256')==status['task_state_sha256'],
-        'manifest_sha256':canonical_hash(read_json(folder/'manifest.json'))}
+        'reason':task.get('reason'),'source_url':task.get('source_url')} for task in tasks if task['status']=='unresolved'],
+        'finalized':bool(finalized),'manifest_sha256':canonical_hash(manifest)}
 
 
 def apply_workflow_dispositions(events,root,tickers,asof):
@@ -150,7 +181,8 @@ def apply_workflow_dispositions(events,root,tickers,asof):
             if eligible:dispositions[task['task_id']]=max(eligible,key=lambda state:parse_dt(state['reviewed_at']))
     selected=[]
     for event in events:
-        disposition=dispositions.get(event.event_id or event_id_for(event)) if event.source_id=='finnhub' else None
+        task_id=event.permissions.get('workflow_task_id') or event.event_id or event_id_for(event)
+        disposition=dispositions.get(task_id)
         if disposition:
             if disposition['status']=='unrelated':continue
             event.permissions={**event.permissions,'workflow_status':disposition['status'],

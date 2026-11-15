@@ -1,3 +1,3 @@
-"""US/HK evidence-first quantitative and news research skill."""
+"""US/HK evidence-first news, macro and company-message research skill."""
 
-__version__ = "0.1.0"
+__version__ = "0.4.0"

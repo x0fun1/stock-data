@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 import subprocess
 
-from stock_research.common.package_files import ASSET_MANIFEST, repository_files
+from stock_research.common.package_files import repository_files
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -22,8 +22,7 @@ def git(root: Path, *args: str, input: bytes | None = None) -> bytes:
 def check_repository(root: Path) -> dict:
     """Inspect indexed paths and sizes, including files added with ``git add -f``."""
     root = root.resolve()
-    manifest = json.loads(git(root, 'show', ':' + ASSET_MANIFEST))
-    allowed = repository_files(root, manifest=manifest)
+    allowed = repository_files(root)
     indexed = {
         name.decode("utf-8", errors="surrogateescape")
         for name in git(root, "ls-files", "--cached", "-z").split(b"\0") if name

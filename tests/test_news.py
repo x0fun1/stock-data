@@ -61,6 +61,15 @@ def test_context_excludes_future_events():
     assert selected[0].in_model is False
 
 
+def test_preassigned_grade_cannot_upgrade_headline_only_evidence():
+    item = event('Optimistic title', scope='title')
+    item.grade = Grade.BULLISH
+    item.grade_method = 'source_review'
+    result = grade_event(item)
+    assert result.grade is Grade.INSUFFICIENT
+    assert result.grade_method == 'insufficient_evidence'
+
+
 def test_no_recognized_terms_is_neutral_not_bullish():
     e = grade_event(event("Update", body="The company issued a routine administrative notice."), {})
     assert e.grade is Grade.NEUTRAL

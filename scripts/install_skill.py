@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-"""Install the complete local stock-research skill with an isolated Python env."""
+"""Install the local stock-research news skill with an isolated Python env."""
 from __future__ import annotations
 
 import argparse
@@ -12,11 +12,8 @@ import re
 import shutil
 import subprocess
 import sys
-import tempfile
-import urllib.request
 import venv
 
-from stock_research.common.hashing import verify_pinned_file
 from stock_research.common.package_files import package_files
 
 PACKAGE_ROOT = Path(__file__).resolve().parents[1]
@@ -38,35 +35,6 @@ def bounded(root: Path, relative: str) -> Path:
     return target
 
 
-def read_manifest(root: Path) -> tuple[Path, dict]:
-    assets = root / 'model-assets/kronos-small'
-    path = assets / 'manifest.json'
-    manifest = json.loads(path.read_text(encoding='utf-8'))
-    if manifest.get('model_id') != 'kronos-small':
-        raise ValueError('manifest is not the pinned Kronos-small package')
-    return assets, manifest
-
-
-def verify_source(root: Path, manifest: dict) -> None:
-    source = bounded(root, manifest['source_directory'])
-    tree = hashlib.sha256()
-    for entry in manifest['source_files']:
-        path = bounded(source, entry['path'])
-        if not path.is_file() or not verify_pinned_file(
-            path, entry['sha256'], entry.get('bytes'), restore_text_newlines=True
-        ):
-            raise ValueError(f'packaged official source hash mismatch: {entry["path"]}')
-        tree.update((entry['path'] + '|' + entry['sha256'] + '\n').encode())
-    if tree.hexdigest() != manifest['source_tree_sha256']:
-        raise ValueError('source manifest tree hash mismatch')
-    required = ('LICENSE', 'model/kronos.py', 'model/module.py', 'finetune_csv/finetune_base_model.py',
-                'finetune_csv/finetune_tokenizer.py', 'finetune/train_predictor.py')
-    # Keep the complete source tree; this check identifies the essential code.
-    for rel in required:
-        if not bounded(source, rel).is_file():
-            raise ValueError(f'complete source is missing {rel}')
-
-
 def copy_package(source: Path, destination: Path) -> int:
     copied = 0
     source = source.resolve()
@@ -79,59 +47,16 @@ def copy_package(source: Path, destination: Path) -> int:
     return copied
 
 
-def ensure_checkpoints(assets: Path, manifest: dict, offline: bool) -> dict:
-    results = {}
-    for checkpoint in manifest['checkpoints']:
-        for entry in checkpoint['files']:
-            path = bounded(assets, entry['path'])
-            if path.exists():
-                if not verify_pinned_file(
-                    path, entry['sha256'], entry.get('bytes'),
-                    restore_text_newlines=path.suffix.lower() == '.json'
-                ):
-                    raise ValueError(f'existing checkpoint is corrupt: {entry["path"]}')
-                results[entry['path']] = 'bundled_verified'
-                continue
-            if offline:
-                raise ValueError(f'checkpoint absent in offline install: {entry["path"]}')
-            path.parent.mkdir(parents=True, exist_ok=True)
-            expected_url = (f'https://huggingface.co/{checkpoint["repo"]}/resolve/'
-                            f'{checkpoint["revision"]}/{Path(entry["path"]).name}')
-            if entry['url'] != expected_url:
-                raise ValueError('checkpoint download URL is not bound to the pinned revision')
-            request = urllib.request.Request(expected_url, headers={'User-Agent': 'stock-research-installer'})
-            with tempfile.NamedTemporaryFile(dir=path.parent, prefix='.download-', delete=False) as output:
-                temporary = Path(output.name)
-                try:
-                    with urllib.request.urlopen(request, timeout=60) as response:
-                        shutil.copyfileobj(response, output)
-                except Exception:
-                    output.close()
-                    temporary.unlink(missing_ok=True)
-                    raise
-            if sha(temporary) != entry['sha256'] or temporary.stat().st_size != entry['bytes']:
-                temporary.unlink(missing_ok=True)
-                raise ValueError(f'download checkpoint hash/size mismatch: {entry["path"]}')
-            os.replace(temporary, path)
-            results[entry['path']] = 'pinned_download_verified'
-    return results
-
-
 def environment_python(destination: Path) -> Path:
     return destination / '.venv' / ('Scripts/python.exe' if os.name == 'nt' else 'bin/python')
 
 
 def install_environment(destination: Path) -> dict:
-    temp_dir = bounded(destination, '.install-tmp')
-    cache_dir = bounded(destination, '.pip-cache')
-    temp_dir.mkdir(exist_ok=True)
-    cache_dir.mkdir(exist_ok=True)
     env = os.environ.copy()
     env.pop('PYTHONPATH', None)
     env.pop('PYTHONHOME', None)
-    for name in ('TEMP', 'TMP', 'TMPDIR'):
-        env[name] = str(temp_dir)
-    env['PIP_CACHE_DIR'] = str(cache_dir)
+    # No pip cache or temp directory is left inside the installed skill.
+    env['PIP_NO_CACHE_DIR'] = '1'
     return env
 
 
@@ -139,98 +64,47 @@ def run(command: list[str], cwd: Path, env: dict | None = None) -> None:
     subprocess.run(command, cwd=cwd, env=env, check=True)
 
 
-def ensure_macos_openmp(destination: Path) -> None:
-    """Reuse the pinned Torch wheel's OpenMP runtime inside this environment.
-
-    LightGBM's macOS wheel searches the environment's lib directory. Linking
-    the already bundled runtime avoids a global Homebrew dependency and an
-    accidental requirement to import Torch before LightGBM.
-    """
-    if sys.platform != 'darwin':
-        return
-    library_dir = destination / '.venv' / 'lib'
-    candidates = list(library_dir.glob('python*/site-packages/torch/lib/libomp.dylib'))
-    target = library_dir / 'libomp.dylib'
-    if len(candidates) == 1 and not target.exists():
-        target.symlink_to(os.path.relpath(candidates[0], library_dir))
-
-
 def smoke(python: Path, destination: Path) -> dict:
+    """Run the real import -> review -> report path on a temporary data root."""
     code = r'''
-import json,sys
+import json,sys,tempfile
 from pathlib import Path
-from datetime import datetime,timedelta,timezone
 sys.path.insert(0,str(Path.cwd()/'scripts'))
-from stock_research.models.kronos import forecast_kronos
-import numpy as np
-import pandas as pd
-import lightgbm as lgb
-from stock_research.multifactor.preprocessing import prepare_cross_section
-from stock_research.multifactor.catalog import group_equal_weight_score
-from stock_research.multifactor.study import run_multifactor_study, load_candidate
-history=[]
-for i in range(4):
-    start=datetime(2026,11,5,15+i,tzinfo=timezone.utc)
-    price=180+i*.3
-    history.append({'date':f'2026-11-05T{10+i:02d}:00:00','start_utc':start.isoformat(),
-                    'end_utc':(start+timedelta(hours=1)).isoformat(),'market_date':'2026-11-05',
-                    'open':price,'high':price+.5,'low':price-.4,'close':price+.1,
-                    'volume':400000+i*1000,'amount':(400000+i*1000)*(price+.05)})
-result=forecast_kronos(history,runtime_root=Path.cwd()/'runtime',config={},ticker='SELFTEST',
-                       frequency='1h',cutoff='2026-11-05T19:00:00+00:00',
-                       target_start='2026-11-05T19:00:00+00:00',target_end='2026-11-05T20:00:00+00:00')
-if result.get('status')!='ok':
-    raise RuntimeError('real pinned-model self-test failed: '+json.dumps(result,ensure_ascii=False))
-if result.get('n_history')!=4 or result.get('history_truncated'):
-    raise RuntimeError('unexpected self-test history policy')
-Path('runtime').mkdir(exist_ok=True)
-Path('runtime/install-smoke.json').write_text(json.dumps(result,ensure_ascii=False,indent=2),encoding='utf-8')
-rng=np.random.default_rng(20261107)
-X=rng.normal(size=(80,3))
-y=.02*X[:,0]-.01*X[:,1]
-booster=lgb.train({'objective':'regression','verbosity':-1,'num_threads':2,
-    'num_leaves':7,'min_data_in_leaf':5,'seed':20261107,'deterministic':True,'force_col_wise':True},
-    lgb.Dataset(X,label=y),num_boost_round=8)
-pred=booster.predict(X)
-if not np.isfinite(pred).all() or np.std(pred)<=0 or booster.num_trees()!=8:
-    raise RuntimeError('native LightGBM fit/predict self-test failed')
-section=pd.DataFrame({'security_id':[f'S{i}' for i in range(24)],
-    'cutoff_date':'2025-01-02','industry':['a']*12+['b']*12,
-    'industry_pit_confirmed':True,'size_pit_confirmed':True,
-    'f__size_log':rng.normal(25,1,24),'f__mom_60':rng.normal(size=24),
-    'f__ep_ttm':rng.normal(.05,.01,24)})
-normalized=prepare_cross_section(section,['mom_60','ep_ttm'],neutralize=True)['frame']
-scores=group_equal_weight_score(normalized,['mom_60','ep_ttm'],column_prefix='n__')
-if scores.isna().any():
-    raise RuntimeError('native factor normalization/neutralization self-test failed')
-multifactor={'status':'passed','library_version':lgb.__version__,'actual_trained_trees':booster.num_trees(),
-    'cross_section_rows':len(section),'model_loader':'native_json_and_lightgbm_text',
-    'synthetic_functional_check':True,'probability_verified':False}
-Path('runtime/install-multifactor-smoke.json').write_text(json.dumps(multifactor,indent=2),encoding='utf-8')
-print(json.dumps({'model_id':result['model_id'],'status':result['status'],
-                  'n_history':result['n_history'],'paths':result.get('path_count'),
-                  'multifactor':multifactor,'prediction_is_calibrated_probability':False}))
+from stock_research.contracts import ResearchRequest
+from stock_research.control.news_reviews import import_news_reviews
+from stock_research.control.orchestration import run_research
+review={'title':'Self-test partnership','security_ids':['US:XNAS:SELFTEST'],'event_cluster':'selftest',
+    'fact_summary':'Synthetic installer check.','grade':'中度利好','grade_reason':'Synthetic.',
+    'reviewed_at':'2026-11-07T10:00:00Z','evidence_scope':'official_excerpt',
+    'impact_assessment':{'direction_sign':1,'impact_level':'medium','event_kind':'partnership',
+        'event_time':'2026-11-05T15:00:00Z','stock_relevance':1.0,'evidence_confidence':0.8},
+    'sources':[{'url':'https://example.com/selftest','published_at':'2026-11-05T15:00:00Z','evidence_locator':'paragraph 1'}]}
+with tempfile.TemporaryDirectory() as folder:
+    path=Path(folder)/'review.json';path.write_text(json.dumps([review]),encoding='utf-8')
+    import_news_reviews(path,Path(folder)/'data')
+    bundle,markdown=run_research(ResearchRequest(market='US',tickers=['SELFTEST'],cutoff='2026-11-08T00:00:00+00:00'),
+        runtime_root=Path(folder)/'data')
+impact=bundle.news_impact_summary
+if impact['status']!='computed' or impact['classification']!='利多' or '中度利好' not in markdown:
+    raise RuntimeError('news review/report self-test failed')
+print(json.dumps({'status':'ok','events':impact['event_count'],'classification':impact['classification']},ensure_ascii=False))
 '''
     result = subprocess.run([str(python), '-c', code], cwd=destination, env=install_environment(destination),
                             capture_output=True, text=True, encoding='utf-8')
     if result.returncode:
         raise RuntimeError('installation self-test failed:\n' + result.stderr[-8000:])
-    return {'status': 'passed', 'result': json.loads(result.stdout.splitlines()[-1]),
-            'artifact': 'runtime/install-smoke.json'}
+    return {'status': 'passed', 'result': json.loads(result.stdout.splitlines()[-1])}
 
 
 def main(argv=None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--destination', required=True, type=Path, help='empty target skill directory')
     parser.add_argument('--update', action='store_true', help='overwrite matching package files in an existing installation; never deletes user files')
-    parser.add_argument('--offline', action='store_true', help='require bundled weights; do not download checkpoints')
     parser.add_argument('--skip-deps', action='store_true', help='reuse the invoking Python for an existing prepared environment')
-    parser.add_argument('--skip-smoke', action='store_true', help='copy/verify only, without calling the actual model')
-    parser.add_argument('--torch-index-url',
-                        help='PyTorch wheel index override (macOS: PyPI; other platforms: CPU index)')
+    parser.add_argument('--skip-smoke', action='store_true', help='copy only, without running the self-test')
     args = parser.parse_args(argv)
     if sys.version_info < (3, 12):
-        raise SystemExit('Python 3.12 or newer is required by the pinned dependency lock; no files have been installed')
+        raise SystemExit('Python 3.12 or newer is required; no files have been installed')
     source = PACKAGE_ROOT.resolve()
     destination = args.destination.expanduser().resolve()
     inplace = destination == source
@@ -246,45 +120,23 @@ def main(argv=None) -> int:
         skill_entry = destination / 'SKILL.md'
         if not skill_entry.is_file() or not re.search(r'^name:\s*stock-research\s*$', skill_entry.read_text(encoding='utf-8'), re.MULTILINE):
             raise SystemExit('--update only accepts an existing stock-research skill directory')
-    assets, manifest = read_manifest(source)
-    verify_source(source, manifest)
     destination.mkdir(parents=True, exist_ok=True)
     copied = 0 if inplace else copy_package(source, destination)
-    installed_assets, installed_manifest = read_manifest(destination)
-    verify_source(destination, installed_manifest)
-    checkpoints = ensure_checkpoints(installed_assets, installed_manifest, args.offline)
     python = Path(sys.executable)
     if not args.skip_deps:
-        env_dir = destination / '.venv'
         if not environment_python(destination).is_file():
-            venv.EnvBuilder(with_pip=False, clear=False).create(env_dir)
+            venv.EnvBuilder(with_pip=True, clear=False).create(destination / '.venv')
         python = environment_python(destination)
-        env = install_environment(destination)
-        lock = destination / 'requirements-kronos.lock.txt'
-        if not lock.is_file():
-            raise SystemExit('verified Kronos dependency lock file is missing')
-        pip_check = subprocess.run([str(python), '-m', 'pip', '--version'], cwd=destination,
-                                   env=env, capture_output=True)
-        if pip_check.returncode:
-            run([str(python), '-m', 'ensurepip', '--upgrade', '--default-pip'], destination, env)
-        torch_index = args.torch_index_url or (
-            'https://pypi.org/simple' if sys.platform == 'darwin'
-            else 'https://download.pytorch.org/whl/cpu'
-        )
         run([str(python), '-m', 'pip', 'install', '--disable-pip-version-check',
-             'torch==2.8.0', '--index-url', torch_index, '-c', str(lock)], destination, env)
-        run([str(python), '-m', 'pip', 'install', '--disable-pip-version-check',
-             '-r', str(destination / 'requirements-kronos.txt'), '-c', str(lock)], destination, env)
-        ensure_macos_openmp(destination)
-    model_smoke = {'status': 'skipped'} if args.skip_smoke else smoke(python, destination)
-    receipt = {'installed_at': datetime.now(timezone.utc).isoformat(), 'source_commit': manifest['source_commit'],
-               'model_manifest_sha256': sha(installed_assets / 'manifest.json'), 'copied_files': copied,
-               'dependency_lock_sha256': sha(destination / 'requirements-kronos.lock.txt'),
-               'checkpoints': checkpoints, 'python_environment': '.venv' if not args.skip_deps else 'invoking_environment',
-               'smoke': model_smoke, 'global_python_modified': False}
-    (destination / 'install-receipt.json').write_text(json.dumps(receipt, indent=2), encoding='utf-8')
+             '-r', str(destination / 'requirements.txt')], destination, install_environment(destination))
+    result = {'status': 'skipped'} if args.skip_smoke else smoke(python, destination)
+    receipt = {'installed_at': datetime.now(timezone.utc).isoformat(), 'copied_files': copied,
+               'requirements_sha256': sha(destination / 'requirements.txt'),
+               'python_environment': '.venv' if not args.skip_deps else 'invoking_environment',
+               'smoke': result, 'global_python_modified': False}
+    (destination / 'install-receipt.json').write_text(json.dumps(receipt, indent=2, ensure_ascii=False), encoding='utf-8')
     print(json.dumps({'status': 'installed', 'destination': str(destination),
-                      'python': str(python), 'smoke': model_smoke['status'], 'copied_files': copied}, ensure_ascii=False, indent=2))
+                      'python': str(python), 'smoke': result['status'], 'copied_files': copied}, ensure_ascii=False, indent=2))
     return 0
 
 

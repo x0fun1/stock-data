@@ -199,8 +199,11 @@ def _collect_task(task, provider, max_sources):
                     row['content_sha256']=row.get('content_sha256') or hashlib.sha256(body.encode()).hexdigest()
                     row['excerpt']=' '.join(body.split()[:200])
                     row['excerpt_truncated']=bool(row.get('excerpt_only')) or len(body.split())>200
-                if row.get('status')=='fetched' and not row.get('excerpt'):
-                    row.update(status='unavailable',reason='empty_body_or_excerpt')
+                restricted=any(term in body[:4000].lower() for term in (
+                    'access denied','verify you are human','enable javascript and cookies',
+                    'subscribe to continue','sign in to read','we do not host the original article'))
+                if row.get('status')=='fetched' and (not row.get('excerpt') or restricted):
+                    row.update(status='unavailable',reason='access_restricted' if restricted else 'empty_body_or_excerpt')
                 # HTTP fetch is evidence acquisition, not semantic verification.
                 row['semantic_review_complete']=False
                 documents.append(row)

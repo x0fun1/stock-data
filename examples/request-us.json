@@ -1,9 +1,6 @@
 {
   "market": "US",
   "tickers": ["AAPL"],
-  "benchmark": "SPY",
-  "horizons": [1, 5, 20, 60],
-  "targets": ["absolute", "excess"],
   "news_lookback_days": 30,
   "cutoff": null,
   "output_format": "markdown"

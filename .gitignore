@@ -5,21 +5,17 @@
 !/SKILL.md
 !/pyproject.toml
 !/requirements.txt
-!/requirements-kronos.txt
-!/requirements-kronos.lock.txt
 !/examples/
-!/model-assets/
 !/policies/
 !/references/
 !/scripts/
 !/tests/
-!/vendor/
 
 __pycache__/
 *.py[cod]
 runtime/
 .pytest_cache/
-.pytest-tmp/
+.pytest-tmp*/
 .ruff_cache/
 .venv/
 .install-tmp/
@@ -36,15 +32,7 @@ runtime/
 # Local planning, research notes and credentials stay out of the repository.
 /docs/
 
-# Retired cross-model experiments, wherever an old copy is placed.
-model-comparison/
-hourly-model-test/
-full-hourly-model-test/
-input-parity/
-walk-forward-baseline/
-rolling_baseline.py
-
-# Local data, checkpoints, archives and generated databases.
+# Local data, archives and generated databases.
 *.parquet
 *.arrow
 *.feather
@@ -53,17 +41,3 @@ rolling_baseline.py
 *.sqlite-*
 *.db
 *.zip
-*.pth
-*.pt
-*.safetensors
-*.npy
-*.npz
-
-model-assets/kronos-small/*/model.safetensors
-model-assets/kronos-small/inference.lock
-
-# Upstream examples create these outputs; keep new runs local as well.
-/vendor/kronos/webui/prediction_results/
-/vendor/kronos/examples/yuce/*_comprehensive_analysis_report.json
-/vendor/kronos/examples/yuce/*_optimized_prediction.png
-/vendor/kronos/examples/yuce/market_analysis_report.json

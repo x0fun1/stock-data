@@ -18,18 +18,14 @@ class SourceDefinition:
 
 
 SOURCE_DEFINITIONS: dict[str, SourceDefinition] = {
-    "sec": SourceDefinition("sec", ("US",), ("filings", "financial_facts"), "official"),
+    "sec": SourceDefinition("sec", ("US",), ("filings",), "official"),
     "fred": SourceDefinition("fred", ("US",), ("macro",), "official"),
-    "eastmoney": SourceDefinition("eastmoney", ("US", "HK"), ("prices",), "vendor_gray"),
-    "sina": SourceDefinition("sina", ("US", "HK"), ("prices",), "vendor_gray"),
-    "tencent": SourceDefinition("tencent", ("HK",), ("prices",), "vendor_gray"),
-    "tiingo": SourceDefinition("tiingo", ("US",), ("prices",), "vendor"),
     "finnhub": SourceDefinition("finnhub", ("US",), ("news", "calendar"), "vendor"),
     "gdelt": SourceDefinition("gdelt", ("US", "HK"), ("news",), "metadata"),
     "hkma": SourceDefinition("hkma", ("HK",), ("news", "macro"), "official"),
     "census": SourceDefinition("census", ("US",), ("macro",), "official"),
     "company_ir": SourceDefinition("company_ir", ("US", "HK"), ("filings", "news"), "authorized_import"),
-    "user_import": SourceDefinition("user_import", ("US", "HK"), ("prices", "actions", "financial_facts", "macro", "news", "securities"), "user_import"),
+    "user_import": SourceDefinition("user_import", ("US", "HK"), ("macro", "news", "securities"), "user_import"),
 }
 
 

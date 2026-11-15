@@ -119,13 +119,13 @@ def grade_event(event: ContextEvent, policy: Mapping | None = None) -> ContextEv
     policy = policy or {}
     allowed = policy.get("min_scope_for_grade", ["full_text", "official_excerpt", "numeric"])
     version = str(policy.get("grade_version", "lexicon_v1"))
-    if event.grade is not Grade.INSUFFICIENT and event.grade_method not in {"", "insufficient_evidence"}:
-        return event
     if not _scope_allowed(event.evidence_scope, allowed):
         event.grade = Grade.INSUFFICIENT
         event.grade_method = "insufficient_evidence"
         event.grade_version = version
         event.grade_reason = f"evidence_scope={event.evidence_scope.value}"
+        return event
+    if event.grade is not Grade.INSUFFICIENT and event.grade_method not in {"", "insufficient_evidence"}:
         return event
     text = event.body or event.fact_summary or event.title
     if not text.strip():

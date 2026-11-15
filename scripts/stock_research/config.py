@@ -27,7 +27,6 @@ def default_runtime_root(skill_root: Path | None = None) -> Path:
 class Policies:
     defaults: dict[str, Any]
     sources: dict[str, Any]
-    calendars: dict[str, Any]
     skill_root: Path
 
     @property
@@ -36,13 +35,7 @@ class Policies:
 
     @property
     def hash(self) -> str:
-        return canonical_hash(
-            {
-                "defaults": self.defaults,
-                "sources": self.sources,
-                "calendars": self.calendars,
-            }
-        )
+        return canonical_hash({"defaults": self.defaults, "sources": self.sources})
 
     def source(self, source_id: str) -> dict[str, Any]:
         return dict(self.sources.get("sources", {}).get(source_id, {}))
@@ -66,6 +59,5 @@ def load_policies(skill_root: str | Path | None = None) -> Policies:
     return Policies(
         defaults=read_json(policies_dir / "defaults.json"),
         sources=read_json(policies_dir / "source-policy.json"),
-        calendars=read_json(policies_dir / "calendars.json"),
         skill_root=root,
     )

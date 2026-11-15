@@ -1,227 +1,139 @@
 from __future__ import annotations
 
+import json
 import subprocess
 import sys
-from datetime import date, datetime, timedelta, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
-import pandas as pd
 import pytest
 
-from conftest import make_days, price_rows, security_rows, write_runtime
+from conftest import security_rows
 from stock_research.contracts import ResearchRequest
+from stock_research.control.news_reviews import import_news_reviews
 from stock_research.control.orchestration import run_research
-from stock_research.control.studies import build_dataset_from_store, protocol_from_dict
-from stock_research.models.registry import ModelRegistry
-from stock_research.models.training import train_binary_model
 from stock_research.storage import CuratedStore
 
-
-def runtime_with_prices(tmp_path: Path):
-    days = make_days(count=320)
-    prices = pd.DataFrame(
-        price_rows("US:XNAS:X", days, seed=21)
-        + price_rows("US:XNAS:Y", days, start_price=50, seed=22)
-        + price_rows("US:XNAS:SPY", days, start_price=400, vol=0.008, seed=23)
-    )
-    return write_runtime(tmp_path, prices, security_rows("X", "Y", "SPY")), days
+UTC = timezone.utc
+CUTOFF = datetime(2026, 11, 8, tzinfo=UTC)
 
 
-def test_research_degrades_to_description_without_models(tmp_path):
-    store, days = runtime_with_prices(tmp_path)
-    request = ResearchRequest(market="US", tickers=["X"], benchmark="SPY", horizons=(1, 5))
-    bundle, markdown = run_research(request, runtime_root=tmp_path)
-    assert "## 量化结果" in markdown
-    assert "不发布" in markdown
-    probability_section = markdown.split("## 量化结果")[1].split("## 多因子分析")[0]
-    assert "50.0%" not in probability_section
-    assert len(bundle.results) == 4
-    assert all(r.probability is None for r in bundle.results)
-    assert any("缺少数据集" in x for x in bundle.limitations)
+def headline(ticker, when='2026-11-06T12:00:00+00:00', security_ids=None):
+    ids = [f'US:XNAS:{ticker}'] if security_ids is None else security_ids
+    return {'title': ticker + ' event', 'security_ids': json.dumps(ids), 'market': 'US',
+            'source_id': 'user_import', 'published_at': when, 'available_at': when}
 
 
-def test_current_report_does_not_admit_an_explicitly_late_close(tmp_path):
-    store, days = runtime_with_prices(tmp_path)
-    frame = store.load("prices")
-    cutoff = days[-1]
-    late = (frame["security_id"] == "US:XNAS:X") & (frame["date"] == cutoff.isoformat())
-    frame.loc[late, "available_at"] = (datetime.combine(cutoff, datetime.max.time(), tzinfo=timezone.utc) + timedelta(days=1)).isoformat()
-    store.save("prices", frame, {"scope": "synthetic_late_quote_behavior"})
-    request = ResearchRequest(market="US", tickers=["X"], benchmark="SPY",
-        cutoff=datetime.combine(cutoff, datetime.max.time(), tzinfo=timezone.utc), horizons=(1,), quant_baseline=False)
-    bundle, _ = run_research(request, runtime_root=tmp_path)
-    assert all(r.probability is None and r.reason == "no_price_at_cutoff" for r in bundle.results)
-    assert any(e["ticker"] == "X" and e["reason"] == "no_available_completed_price_at_cutoff"
-        for e in bundle.multifactor_snapshot["excluded"])
+def review(tmp_path, root, grade='中度利好', sign=1):
+    entry = {'title': 'Confirmed partnership', 'security_ids': ['US:XNAS:X'], 'event_cluster': 'partner',
+        'fact_summary': 'A signed partnership is announced.', 'grade': grade,
+        'grade_reason': 'Adoption expands; revenue impact undisclosed.',
+        'reviewed_at': '2026-11-07T10:00:00Z', 'evidence_scope': 'official_excerpt',
+        'impact_assessment': {'direction_sign': sign, 'impact_level': 'medium', 'event_kind': 'partnership',
+            'event_time': '2026-11-05T15:00:00Z', 'stock_relevance': 1.0, 'evidence_confidence': 0.8},
+        'sources': [{'url': 'https://example.com/official', 'published_at': '2026-11-05T15:00:00Z',
+            'evidence_locator': 'official announcement, paragraph 2'}]}
+    path = tmp_path / 'review.json'
+    path.write_text(json.dumps([entry]), encoding='utf-8')
+    import_news_reviews(path, root)
 
 
-def test_active_verified_model_is_used_for_report(tmp_path):
-    store, days = runtime_with_prices(tmp_path)
-    proto = protocol_from_dict(
-        {
-            "name": "e2e",
-            "market": "US",
-            "horizons": [5],
-            "targets": ["absolute"],
-            "factors": ["mom_60", "rv_20"],
-            "train_start": "2024-01-02",
-            "train_end": "2024-06-30",
-            "dev_start": "2024-07-01",
-            "dev_end": "2024-07-31",
-            "cal_start": "2024-08-01",
-            "cal_end": "2024-08-31",
-            "test_start": "2024-09-01",
-            "test_end": "2024-12-31",
-        }
-    )
-    built = build_dataset_from_store(
-        "US", ["X", "Y"], "SPY", "2024-01-02", "2024-12-31", [5], ["absolute"], ["mom_60", "rv_20"], proto, tmp_path
-    )
-    frame = store.load("features_labels", built["version"])
-    subset = frame[(frame["horizon"] == 5) & (frame["target"] == "absolute")]
-    registry = ModelRegistry(tmp_path, store.catalog)
-    trained = train_binary_model(
-        subset,
-        "US",
-        5,
-        "absolute",
-        ["mom_60", "rv_20"],
-        proto,
-        {
-            "min_samples": 20,
-            "min_independent_dates": 20,
-            "min_brier_skill_ci_low": -10.0,
-            "calibration_slope": [0.0, 10.0],
-            "max_ece": 1.0,
-            "bootstrap_resamples": 50,
-            "block_days": 5,
-        },
-        registry,
-        "features_labels",
-        built["version"],
-    )
-    assert trained["evidence"].status.value == "verified"
-    registry.activate(trained["artifact"].model_id, trained["evidence"])
-    request = ResearchRequest(
-        market="US",
-        tickers=["X"],
-        benchmark="SPY",
-        cutoff=datetime(2024, 12, 20, 23, tzinfo=timezone.utc),
-        horizons=(5,),
-        targets=("absolute", "excess"),
-    )
-    bundle, markdown = run_research(request, runtime_root=tmp_path)
-    verified = [r for r in bundle.results if r.state.value == "verified"]
-    assert len(verified) == 1
-    assert verified[0].probability is not None
-    assert "已验证" in markdown
-    assert f"{verified[0].probability * 100:.1f}%" in markdown
+def test_empty_runtime_reports_gaps_without_calling_them_neutral(tmp_path):
+    bundle, markdown = run_research(ResearchRequest(market='US', tickers=['X'], cutoff=CUTOFF), runtime_root=tmp_path)
+    assert bundle.context_events == [] and bundle.news_impact_summary['status'] == 'unavailable'
+    assert '缺少证据不等于中性' in markdown
+    assert sum('缺少数据集' in item for item in bundle.limitations) == 3
+    assert '量化' not in markdown and '概率参考' not in markdown
 
 
-def test_cli_doctor_and_research(tmp_path):
-    store, days = runtime_with_prices(tmp_path)
-    script = Path(__file__).resolve().parents[1] / "scripts" / "research.py"
-    env = {"PYTHONPATH": str(Path(__file__).resolve().parents[1] / "scripts"), "STOCK_RESEARCH_RUNTIME": str(tmp_path)}
-    doctor = subprocess.run([sys.executable, str(script), "doctor"], capture_output=True, text=True, encoding="utf-8", env=env)
-    assert doctor.returncode == 0, doctor.stderr
-    assert "policy_hash" in doctor.stdout
-    research = subprocess.run(
-        [sys.executable, str(script), "research", "--ticker", "X", "--benchmark", "SPY", "--horizons", "5", "--root", str(tmp_path)],
-        capture_output=True,
-        text=True,
-        encoding="utf-8",
-        env=env,
-    )
-    assert research.returncode == 0, research.stderr
-    assert "# 研究报告" in research.stdout
-    assert "不发布" in research.stdout
+def test_news_context_is_limited_to_requested_securities_and_market_wide_events(tmp_path):
+    store = CuratedStore(tmp_path)
+    store.save('securities', security_rows('X', 'Y'))
+    store.save('news', [headline('X'), headline('Y'), headline('Macro', security_ids=[])])
+    bundle, _ = run_research(ResearchRequest(market='US', tickers=['X'], cutoff=CUTOFF), runtime_root=tmp_path)
+    assert sorted(event.title for event in bundle.context_events) == ['Macro event', 'X event']
 
 
-def test_hk_research_uses_observed_sessions_and_degrades_without_models(tmp_path):
-    days = make_days(count=260)
-    prices = pd.DataFrame(
-        price_rows("HK:XHKG:0700", days, start_price=300, vol=0.014, seed=31, market="HK")
-        + price_rows("HK:XHKG:2800", days, start_price=20, vol=0.009, seed=32, market="HK")
-    )
-    store = write_runtime(
-        tmp_path,
-        prices,
-        [
-            {"security_id": "HK:XHKG:0700", "ticker": "0700", "market": "HK", "exchange": "XHKG", "security_type": "common_stock", "currency": "HKD", "valid_from": "2000-01-01", "valid_to": None, "name": "0700", "industry": "technology", "source_id": "test"},
-            {"security_id": "HK:XHKG:2800", "ticker": "2800", "market": "HK", "exchange": "XHKG", "security_type": "etf", "currency": "HKD", "valid_from": "2000-01-01", "valid_to": None, "name": "2800", "industry": "", "source_id": "test"},
-        ],
-    )
-    request = ResearchRequest(market="HK", tickers=["0700"], benchmark=None, horizons=(5,), targets=("absolute",))
-    bundle, markdown = run_research(request, runtime_root=tmp_path)
-    assert "## 量化结果" in markdown
-    assert "0700" in markdown
-    assert bundle.run_manifest.snapshot["calendar"].startswith("observed_benchmark_sessions")
-    assert all(r.probability is None for r in bundle.results)
+def test_events_after_the_knowledge_cutoff_or_outside_the_window_are_excluded(tmp_path):
+    store = CuratedStore(tmp_path)
+    store.save('securities', security_rows('X'))
+    late = (CUTOFF + timedelta(hours=1)).isoformat()
+    old = (CUTOFF - timedelta(days=40)).isoformat()
+    store.save('news', [headline('X'), headline('X', late), headline('X', old)])
+    bundle, _ = run_research(ResearchRequest(market='US', tickers=['X'], cutoff=CUTOFF), runtime_root=tmp_path)
+    assert len(bundle.context_events) == 1
 
 
-def test_quantile_artifact_trains_activates_and_reports_interval(tmp_path):
-    store, days = runtime_with_prices(tmp_path)
-    proto = protocol_from_dict(
-        {
-            "name": "q-e2e",
-            "market": "US",
-            "horizons": [5],
-            "targets": ["quantile"],
-            "factors": ["mom_60", "rv_20"],
-            "train_start": "2024-01-02",
-            "train_end": "2024-06-30",
-            "dev_start": "2024-07-01",
-            "dev_end": "2024-07-31",
-            "cal_start": "2024-08-01",
-            "cal_end": "2024-08-31",
-            "test_start": "2024-09-01",
-            "test_end": "2024-12-31",
-        }
-    )
-    built = build_dataset_from_store(
-        "US", ["X", "Y"], "SPY", "2024-01-02", "2024-12-31", [5], ["quantile"], ["mom_60", "rv_20"], proto, tmp_path
-    )
-    frame = store.load("features_labels", built["version"])
-    subset = frame[(frame["horizon"] == 5) & (frame["target"] == "quantile")]
-    from stock_research.models.quantiles import train_quantile_artifact
+def test_reviewed_event_reaches_the_graded_report_only_after_its_review_time(tmp_path):
+    root = tmp_path / 'data'
+    CuratedStore(root).save('securities', security_rows('X'))
+    review(tmp_path, root)
+    bundle, markdown = run_research(ResearchRequest(market='US', tickers=['X'], cutoff=CUTOFF), runtime_root=root)
+    impact = bundle.news_impact_summary
+    assert impact['status'] == 'computed' and impact['classification'] == '利多' and impact['event_count'] == 1
+    assert '**中度利好**' in markdown and 'https://example.com/official' in markdown
+    assert '不是上涨概率' in markdown
+    before, _ = run_research(ResearchRequest(market='US', tickers=['X'],
+        cutoff=datetime(2026, 11, 6, tzinfo=UTC)), runtime_root=root)
+    assert before.context_events == [] and before.news_impact_summary['status'] == 'unavailable'
 
-    registry = ModelRegistry(tmp_path, store.catalog)
-    trained = train_quantile_artifact(
-        subset,
-        "US",
-        5,
-        ["mom_60", "rv_20"],
-        proto,
-        {
-            "min_samples": 20,
-            "min_independent_dates": 20,
-            "min_pinball_skill_ci_low": -10.0,
-            "coverage_range": [0.0, 1.0],
-            "bootstrap_resamples": 50,
-            "block_days": 5,
-            "winsor_quantiles": [0.01, 0.99],
-            "mad_clip": 3.0,
-        },
-        registry,
-        "features_labels",
-        built["version"],
-    )
-    assert trained["evidence"].status.value == "verified"
-    q = trained["artifact"].quantiles
-    assert set(q) == {"0.1", "0.5", "0.9"}
-    registry.activate_quantile(trained["artifact"].artifact_id, trained["evidence"])
-    request = ResearchRequest(
-        market="US",
-        tickers=["X"],
-        benchmark="SPY",
-        cutoff=datetime(2024, 12, 20, 23, tzinfo=timezone.utc),
-        horizons=(5,),
-        targets=("quantile",),
-    )
-    bundle, markdown = run_research(request, runtime_root=tmp_path)
-    quantile_results = [r for r in bundle.results if r.target.value == "quantile"]
-    assert len(quantile_results) == 1
-    assert quantile_results[0].state.value == "verified"
-    qd = quantile_results[0].quantiles
-    assert qd["q10"] <= qd["q50"] <= qd["q90"]
-    assert "样本不足" not in markdown.split("## 量化结果")[1].split("## 多因子分析")[0].split("## 新闻")[0]
+
+def test_headline_only_records_are_listed_as_pending_and_do_not_count(tmp_path):
+    store = CuratedStore(tmp_path)
+    store.save('securities', security_rows('X'))
+    store.save('news', [{**headline('X'), 'title': 'X beats estimates', 'evidence_scope': 'title'}])
+    bundle, markdown = run_research(ResearchRequest(market='US', tickers=['X'], cutoff=CUTOFF), runtime_root=tmp_path)
+    assert bundle.context_events[0].grade.value == '证据不足'
+    assert '待核实' in markdown and '尚无已核实的影响评估' in markdown
+
+
+def test_macro_background_uses_only_observations_public_by_the_cutoff(tmp_path):
+    store = CuratedStore(tmp_path)
+    known = '2026-11-06T21:00:00+00:00'
+    rows = [{'series_id': 'DGS10', 'observation_date': '2026-11-05', 'value': 4.1, 'market': 'US', 'available_at': known},
+            {'series_id': 'DGS2', 'observation_date': '2026-11-05', 'value': 3.6, 'market': 'US', 'available_at': known},
+            {'series_id': 'DGS10', 'observation_date': '2026-11-07', 'value': 9.0, 'market': 'US',
+             'available_at': (CUTOFF + timedelta(days=1)).isoformat()},
+            {'series_id': 'DGS2', 'observation_date': '2026-11-06', 'value': 0.0, 'market': 'US', 'available_at': None}]
+    store.save('macro', rows)
+    bundle, markdown = run_research(ResearchRequest(market='US', tickers=['X'], cutoff=CUTOFF), runtime_root=tmp_path)
+    readings = {item['name']: item for item in bundle.macro_background}
+    assert readings['curve_10y_2y']['value'] == pytest.approx(0.5)
+    assert readings['cpi_yoy']['status'] == 'missing' and readings['cpi_yoy']['reason'] == 'window_insufficient'
+    assert '10年−2年国债利差' in markdown and '0.5000' in markdown
+
+
+def test_unknown_ticker_keeps_running_with_a_stated_default_identity(tmp_path):
+    bundle, _ = run_research(ResearchRequest(market='HK', tickers=['0700'], cutoff=CUTOFF), runtime_root=tmp_path)
+    assert bundle.securities[0].security_id == 'HK:XHKG:0700'
+    assert any('默认身份' in item for item in bundle.limitations)
+
+
+def test_old_request_files_with_retired_quantitative_keys_still_load():
+    request = ResearchRequest.from_dict({'market': 'US', 'tickers': ['aapl'], 'benchmark': 'SPY',
+        'horizons': [1, 5], 'targets': ['absolute'], 'quant_baseline': True, 'multifactor': True})
+    assert request.tickers == ['AAPL']
+
+
+def test_cli_doctor_research_and_reproduce(tmp_path):
+    root = tmp_path / 'data'
+    CuratedStore(root).save('securities', security_rows('X'))
+    review(tmp_path, root)
+    base = Path(__file__).resolve().parents[1]
+    script = base / 'scripts' / 'research.py'
+    env = {'PYTHONPATH': str(base / 'scripts'), 'STOCK_RESEARCH_RUNTIME': str(root)}
+
+    def cli(*args):
+        result = subprocess.run([sys.executable, str(script), *args], capture_output=True, text=True, encoding='utf-8', env=env)
+        assert result.returncode == 0, result.stderr
+        return result.stdout
+
+    doctor = json.loads(cli('doctor'))
+    assert doctor['policy_hash'] and doctor['datasets']['news']['rows'] == 1
+    assert 'quant_baseline' not in doctor and 'multifactor' not in doctor
+    output = json.loads(cli('research', '--ticker', 'X', '--cutoff', '2026-11-08T00:00:00Z', '--json'))
+    assert output['report'].startswith('# 消息研究报告：X')
+    assert output['summary']['news_impact_summary']['classification'] == '利多'
+    assert cli('reproduce', '--run-id', output['summary']['run_id']).strip() == output['report'].strip()
+    help_text = cli('--help')
+    assert 'kronos' not in help_text and 'multifactor' not in help_text and 'quant-baseline' not in help_text
