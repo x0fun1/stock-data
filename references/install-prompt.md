@@ -11,7 +11,7 @@
 4. 在安装后的目录启动 python scripts/skill.py news-local-serve，并用 GET http://127.0.0.1:8765/health 检查服务。标题采集、服务搜索和抓取默认并发均为 32，不设置固定搜索间隔。若端口已被占用，先识别已有服务；兼容且默认并发为 32 时复用，否则选择空闲端口并为采集命令同时设置 --search-url 和 --fetch-url，不结束不相关进程。用当前宿主支持的方式保持进程运行，记录启动命令、进程或日志位置；不要擅自配置系统开机启动。如果宿主不能保持后台进程，明确提供独立终端启动命令。
 5. 如果公网域名被本机 Tun 代理解析为 198.18.0.0/15 的 Fake-IP 地址，确认该网络模式后，在启动命令加 --allow-vpn-fake-ip；普通网络不要加。需要 SearXNG 时才使用 --search-backend searxng --searxng-url LOCAL-URL，并确认其 JSON 搜索已启用；SearXNG 是可选后端，不是默认安装依赖。
 6. 核对安装器自检包含报告生成、DDGS 导入、Trafilatura 实际抽取，以及 search_workers=32、fetch_workers=32。/health 成功只能证明本地服务就绪；还需通过本地 /search 搜索一条公开公司公告，再调用 /fetch 读取结果中的公开文章，记录网络成功或具体失败，不把本地存档当作联网验证，不将取得正文当作事实已核实。
-7. Finnhub 和 FRED 凭证使用用户已有的本地配置或环境，不把凭证写进命令参数、安装 Prompt、Git 或共享文档。保留运行数据和旧证据；首次没有新闻数据时说明如何导入标题或使用包内 FinnhubClient，随后准备 workflow，再用 news-collect 采集。
+7. Finnhub 和 FRED 凭证使用用户已有的本地配置或环境，不把凭证写进命令参数、安装 Prompt、Git 或共享文档。运行缓存适用七天保存期：每次运行前以请求开始时间为准，清理最后写入超过七天的旧报告、抓取缓存、数据快照、工作流和临时文件；同步整理索引，保护活动任务，不删除原始输入或凭证。清理回执仅保留运行目录中的 .retention-last.json。可用 cleanup --dry-run 检查，细则见 references/cache-retention.md。首次没有新闻数据或数据已过期时，说明如何导入标题或使用包内 FinnhubClient，随后准备 workflow，再用 news-collect 采集。
 
 交付时报告 Skill 安装目录、Python 版本、依赖与自检结果、本地服务地址和运行方式，以及以下后续命令（替换目录、workflow ID 和 collection ID）：
   python scripts/skill.py news-workflow --root MY-DATA --ticker NVDA --workflow-id NEWS-ID --step prepare

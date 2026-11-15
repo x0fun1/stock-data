@@ -12,6 +12,7 @@ from ..common.timeutil import parse_date, parse_dt
 from ..config import load_policies
 from ..contracts import Market
 from ..storage.curated_store import CuratedStore, validate_records
+from ..storage.retention import retained_runtime
 
 IMPORT_KINDS = ("news", "macro", "securities")
 
@@ -38,6 +39,7 @@ def _require(records: list[dict], columns: list[str], kind: str) -> None:
         raise DataError(f"{kind} import missing columns: {missing}")
 
 
+@retained_runtime()
 def import_file(
     kind: str,
     path: str | Path,

@@ -17,13 +17,15 @@ from ..contracts import Market, ReportBundle, RunManifest, to_dict
 from ..identity_calendar.identity import default_identity
 from ..reporting.report import render_report
 from ..storage.curated_store import CuratedStore
+from ..storage.retention import current_retention, retained_runtime
 from .ingest import macro_from_frame, news_from_frame, securities_from_frame
 from .news_workflow import apply_workflow_dispositions, latest_workflow_coverage
 
-CODE_VERSION = "skill-0.4.0-news"
+CODE_VERSION = "skill-0.6.0-news"
 DATASETS = ("securities", "news", "macro")
 
 
+@retained_runtime()
 def run_research(
     request,
     runtime_root: str | Path | None = None,
@@ -92,7 +94,8 @@ def run_research(
         code_version=CODE_VERSION,
         snapshot={**snapshot, "policy_hash": policies.hash, "knowledge_cutoff": cutoff.isoformat()},
         stages=stages,
-        artifacts={"news_impact": {"policy_sha256": news_impact_summary["policy_sha256"],
+        artifacts={"retention": current_retention(),
+                   "news_impact": {"policy_sha256": news_impact_summary["policy_sha256"],
                                    "coverage": news_impact_summary["coverage"],
                                    "event_count": news_impact_summary["event_count"]}},
         errors=[{"kind": "limitation", "detail": x} for x in limitations],

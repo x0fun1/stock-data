@@ -15,6 +15,7 @@ from stock_research.control.maintenance import IMPORT_KINDS, import_file
 from stock_research.control.orchestration import DATASETS, run_research
 from stock_research.storage.catalog import Catalog
 from stock_research.storage.curated_store import CuratedStore
+from stock_research.storage.retention import cleanup_runtime, runtime_session
 
 
 def _request_from_args(args) -> ResearchRequest:
@@ -79,6 +80,11 @@ def cmd_news_local_serve(args) -> int:
           search_workers=args.search_workers, fetch_workers=args.fetch_workers,
           timeout=args.timeout, max_results=args.max_results, port=args.port,
           allow_vpn_fake_ip=args.allow_vpn_fake_ip)
+    return 0
+
+
+def cmd_cleanup(args) -> int:
+    _print(cleanup_runtime(args.root or default_runtime_root(), dry_run=args.dry_run))
     return 0
 
 
@@ -221,6 +227,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     doctor = sub.add_parser("doctor", help="show data registry state without credentials", parents=[root_parent])
     doctor.set_defaults(func=cmd_doctor)
+    cleanup = sub.add_parser("cleanup", help="remove generated runtime cache older than seven days", parents=[root_parent])
+    cleanup.add_argument("--dry-run", action="store_true", help="report expired files without deleting them")
+    cleanup.set_defaults(func=cmd_cleanup)
     return parser
 
 
@@ -229,7 +238,20 @@ def main(argv: list[str] | None = None) -> int:
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
     args = build_parser().parse_args(argv)
-    return int(args.func(args))
+    if args.func is cmd_cleanup:
+        return int(args.func(args))
+    root = getattr(args, 'root', None) or default_runtime_root()
+    def notify_cleanup(receipt):
+        if receipt['deleted_files'] or receipt['errors']:
+            print(json.dumps({'cache_cleanup': receipt}, ensure_ascii=False), file=sys.stderr)
+    if args.func is cmd_news_local_serve:
+        # A resident HTTP server must not hold the analysis lock indefinitely.
+        with runtime_session(root) as receipt:
+            notify_cleanup(receipt)
+        return int(args.func(args))
+    with runtime_session(root) as receipt:
+        notify_cleanup(receipt)
+        return int(args.func(args))
 
 
 if __name__ == "__main__":

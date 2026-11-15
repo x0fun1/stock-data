@@ -10,12 +10,14 @@ from ..contracts import EvidenceScope, Grade, Market
 from ..identity_calendar.identity import default_identity
 from ..context.news_impact import evaluate_event_impact, validate_grade_sign
 from ..storage.curated_store import CuratedStore
+from ..storage.retention import retained_runtime
 from .ingest import news_from_frame
 from .news_reviews import import_news_reviews, retract_news_reviews
 
 TERMINAL = {'verified','unrelated','unresolved'}
 
 
+@retained_runtime('root')
 def prepare_news_workflow(root,ticker='NVDA',workflow_id='news-nvda-20261108',market='US'):
     root=Path(root)
     market=Market(market)
@@ -70,6 +72,7 @@ def next_news_tasks(folder,limit=8):
     return [task for task in read_json(Path(folder)/'tasks.json') if task['status']=='pending'][:limit]
 
 
+@retained_runtime('root')
 def apply_news_assessments(root,folder,path):
     folder=Path(folder)
     tasks=read_json(folder/'tasks.json')

@@ -1,5 +1,7 @@
 # 已连接TinyFish的批量驱动
 
+旧批次适用[七天缓存清理](cache-retention.md)。驱动中的 cleanup 标记仅说明当前批次执行期间不删除证据；独立的运行前清理仍会删除超过七天的旧批次。
+
 在支持tools对象的宿主工具运行器中执行一次本驱动。标题队列与运行目录由tinyfish_tasks、tinyfish_native_config提供；普通Node进程没有自动获得聊天插件OAuth连接。整个逐标题Search/Fetch循环由程序运行，不由大语言模型逐条选择或发起请求。保留源标题、查询、内容SHA256、截段和访问缺口；不计算情绪。行情/新闻目录URL先按固定规则排除，再选择原始文章URL；原文抓取成功不等于标题、公司与日期已核实。最大8个工作线程，Search全局间隔2.5秒，每次Fetch最多2个URL。批次目录已完成IDs可用于断点继续；保留旧批次，用新batch_id重新采集。
 
 先用`news-plugin-plan`输出计划；宿主将计划中的tasks保存为tinyfish_tasks，将folder、manifest、completed_ids、workflow_id、batch_id保存为tinyfish_native_config，再执行下面程序。程序在实际工具响应后确认鉴权，并保存批次manifest/driver-result；完成后用`news-collect --provider tinyfish-plugin --plugin-batch-id ...`生成表格。

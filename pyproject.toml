@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "stock-research-skill"
-version = "0.5.0"
+version = "0.6.0"
 description = "US/HK evidence-first news, macro and company-message research skill"
 requires-python = ">=3.12"
 dependencies = ["requests>=2.31", "ddgs>=9,<10", "trafilatura>=2,<3"]

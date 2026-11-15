@@ -9,8 +9,10 @@ from ..context.news_impact import evaluate_event_impact, validate_grade_sign
 from ..config import load_policies
 from ..contracts import ContextEvent, EvidenceScope, Grade, SourceKind, to_dict
 from ..storage.curated_store import CuratedStore
+from ..storage.retention import retained_runtime
 
 
+@retained_runtime()
 def import_news_reviews(path, runtime_root):
     reviews = read_json(path)
     if not isinstance(reviews, list) or not reviews:

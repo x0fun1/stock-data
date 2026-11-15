@@ -13,6 +13,7 @@ import requests
 from ..common.hashing import canonical_hash, sha256_file
 from ..common.jsonio import read_json, write_json
 from ..common.timeutil import now_utc
+from ..storage.retention import retained_runtime
 
 
 class TinyFishSearchFetch:
@@ -242,6 +243,7 @@ def render_collection_table(records):
     return '\n'.join(lines)+'\n'
 
 
+@retained_runtime()
 def collect_news_evidence(runtime_root, workflow_id, collection_id, provider='local', max_sources=2, client=None,
                           plugin_batch_id=None, workers=None, search_url=None, fetch_url=None, local_timeout=45):
     root=Path(runtime_root)
@@ -277,7 +279,7 @@ def collect_news_evidence(runtime_root, workflow_id, collection_id, provider='lo
             ('task_id','title','ticker','published_at','source_url')} for task in tasks])
     path=folder/'manifest.json'
     if path.exists() and read_json(path)!=manifest:raise ValueError('collection protocol changed; use a new collection ID')
-    write_json(path,manifest)
+    if not path.exists():write_json(path,manifest)
     records_by_id={};pending=[]
     completion_path=folder/'completion.json'
     old_completion=read_json(completion_path) if completion_path.exists() else None
@@ -324,6 +326,7 @@ def collect_news_evidence(runtime_root, workflow_id, collection_id, provider='lo
     return output
 
 
+@retained_runtime()
 def prepare_plugin_title_plan(runtime_root,workflow_id,batch_id):
     """Expose only frozen title requests, never prior LLM sentiment decisions."""
     root=Path(runtime_root).resolve()
@@ -339,7 +342,7 @@ def prepare_plugin_title_plan(runtime_root,workflow_id,batch_id):
     path=folder/'title-plan.json'
     if path.exists() and read_json(path)!=plan:
         raise ValueError('frozen plugin title plan changed; choose a new batch ID')
-    write_json(path,plan)
+    if not path.exists():write_json(path,plan)
     manifest_path=folder/'manifest.json'
     if not manifest_path.exists():
         write_json(manifest_path,{'workflow_id':workflow_id,'batch_id':batch_id,

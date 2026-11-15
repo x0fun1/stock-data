@@ -116,7 +116,11 @@ python scripts/skill.py reproduce --root MY-DATA --run-id run-...
 2. 新闻与事件：综合判断、逐事件贡献表、工作流覆盖率、每条已核实事件的依据与来源、待核实清单。
 3. 综合摘要与限制。
 
-报告的 Markdown/JSON 保存到 `runtime/reports/`，可用 `reproduce` 原样重放。结构见[报告结构](references/publication-and-report.md)。
+报告的 Markdown/JSON 保存到 `runtime/reports/`，在七天保存期内可用 `reproduce` 原样重放。结构见[报告结构](references/publication-and-report.md)。
+
+### 5. 七天缓存期限
+
+每次运行前自动检查以前生成的报告、数据快照、抓取缓存、工作流和临时文件。以本次请求开始时间为准，最后写入超过 7×24 小时的缓存按完整文件组清理，并同步移除失效索引。新闻发布时间和报告知识截止不决定缓存年龄。正在执行的任务受运行锁保护，源码、原始输入、凭证和依赖环境不清理。使用 `cleanup --dry-run` 预览或 `cleanup` 立即清理；细则见[七天缓存清理](references/cache-retention.md)。
 
 ## 数据导入约定
 
@@ -139,6 +143,7 @@ python scripts/skill.py reproduce --root MY-DATA --run-id run-...
 | 场景 | 文件 |
 |---|---|
 | 安装或更新 Skill，部署本地应用 | `references/install-prompt.md` |
+| 自动清理、七天期限和运行数据占用 | `references/cache-retention.md` |
 | 来源、市场与禁止用途 | `references/scope-and-source-policy.md` |
 | 新闻证据、去重、七档、强度与衰减 | `references/news-evidence-and-grades.md` |
 | 本地 Search/Fetch 部署、并发与接口 | `references/local-search-fetch.md` |
@@ -174,4 +179,4 @@ python scripts/skill.py reproduce --root MY-DATA --run-id run-...
   tests/
 ```
 
-运行数据留在 `--root` 指定目录，不进入安装包。测试阶段保留源标题、查询、证据元数据和版本，不自动清理；去重只影响贡献计算，不删除源标题。
+运行数据留在 `--root` 指定目录，不进入安装包。源标题、查询、证据元数据和版本适用七天保存期，每次运行前自动清理过期缓存；单次采集和分析过程中保留完整证据。去重只影响贡献计算，缓存期限由独立清理流程执行。

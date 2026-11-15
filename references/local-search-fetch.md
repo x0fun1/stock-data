@@ -52,6 +52,8 @@ python scripts/skill.py news-local-serve --allow-vpn-fake-ip
 
 `completion.json` 包含标题数、取得正文数、访问缺口数、搜索次数、工作线程数与本次用时。Search 失败原因保留在每条的 `searches[].result` 中，正文失败保留在 `documents[].reason` 中。采集不读取之前的方向判断，也不调用大语言模型。
 
+每次采集或分析前自动执行[七天缓存清理](cache-retention.md)。超过七天的旧 collection 和工作流会被移除；读取封存结果不会刷新保存时间。过期后需重新准备任务或使用新的 collection ID 采集。
+
 服务只抽取公开 HTML，不渲染 JavaScript 页面，不绕过付费墙和验证码。正文只在内存与本地响应中存在，工作流持久化最多 200 词截段及内容 SHA256。日期保留原始值，仅显式带时区的发布时间进入规范化字段；Finnhub 的消息时间不补作文章发布时间。取得正文不代表公司、事件和日期已经语义核实，仍需后续逐条审核。
 
 ## HTTP 接口

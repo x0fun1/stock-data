@@ -38,6 +38,8 @@ python scripts/skill.py news-collect --root MY-DATA --workflow-id NEWS-ID --coll
 
 服务没有固定搜索等待，先抓取已有新闻 URL，失败后搜索原标题。可用 `--workers 16` 降低标题并发，服务上限通过 `--search-workers` / `--fetch-workers` 调整；其他 provider 默认串行。上游引擎与网站的限流、付费墙和 JavaScript 页面仍可能导致访问缺口。部署、接口与 SearXNG 配置见[本地 Search / Fetch](references/local-search-fetch.md)。
 
+每次运行前自动清理最后写入超过 **7 天**的旧报告、抓取缓存、数据快照、工作流和临时文件，并同步清理失效索引。只保留一份清理回执，保护正在执行的任务。用 `python scripts/skill.py cleanup --root MY-DATA --dry-run` 可预览；去掉 `--dry-run` 立即执行。详见[七天缓存期限](references/cache-retention.md)。
+
 提交前运行 `python scripts/check_repository.py` 检查实际 Git 暂存区。共享 `.gitignore` 排除本地数据；检查器还会拒绝被强制暂存的本地文件。安装器与便携包（`scripts/build_bundle.py`）使用同一份文件选择规则。
 
 ## 文档
@@ -46,6 +48,7 @@ python scripts/skill.py news-collect --root MY-DATA --workflow-id NEWS-ID --coll
 - [Skill 安装 Prompt](references/install-prompt.md)
 - [新闻证据、七档与影响综合](references/news-evidence-and-grades.md)
 - [本地 Search / Fetch 部署](references/local-search-fetch.md)
+- [七天运行缓存清理](references/cache-retention.md)
 - [来源政策](references/scope-and-source-policy.md)
 - [报告结构](references/publication-and-report.md)
 - [存储与复现](references/operations-and-reproducibility.md)
