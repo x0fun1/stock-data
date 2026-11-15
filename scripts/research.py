@@ -67,7 +67,18 @@ def cmd_news_collect(args) -> int:
     from stock_research.acquisition.news_collector import collect_news_evidence
     _print(collect_news_evidence(args.root or default_runtime_root(), args.workflow_id, args.collection_id,
                                  provider=args.provider, max_sources=args.max_sources,
-                                 plugin_batch_id=args.plugin_batch_id))
+                                 plugin_batch_id=args.plugin_batch_id,
+                                 workers=args.workers,
+                                 search_url=args.search_url, fetch_url=args.fetch_url, local_timeout=args.local_timeout))
+    return 0
+
+
+def cmd_news_local_serve(args) -> int:
+    from stock_research.acquisition.local_service import serve
+    serve(search_backend=args.search_backend, searxng_url=args.searxng_url, engines=args.engines,
+          search_workers=args.search_workers, fetch_workers=args.fetch_workers,
+          timeout=args.timeout, max_results=args.max_results, port=args.port,
+          allow_vpn_fake_ip=args.allow_vpn_fake_ip)
     return 0
 
 
@@ -178,10 +189,26 @@ def build_parser() -> argparse.ArgumentParser:
     collect = sub.add_parser("news-collect", help="collect every title through Search/Fetch before any LLM analysis", parents=[root_parent])
     collect.add_argument("--workflow-id", required=True)
     collect.add_argument("--collection-id", required=True)
-    collect.add_argument("--provider", choices=["tinyfish", "tinyfish-plugin", "archive"], default="tinyfish")
+    collect.add_argument("--provider", choices=["local", "tinyfish", "tinyfish-plugin", "archive"], default="local")
     collect.add_argument("--plugin-batch-id")
     collect.add_argument("--max-sources", type=int, default=2)
+    collect.add_argument("--workers", type=int, help="parallel title workers (1–32): local defaults to 32; other providers to 1")
+    collect.add_argument("--search-url", help="loopback /search endpoint; default STOCK_SEARCH_URL or localhost:8765/search")
+    collect.add_argument("--fetch-url", help="loopback /fetch endpoint; default STOCK_FETCH_URL or localhost:8765/fetch")
+    collect.add_argument("--local-timeout", type=float, default=45)
     collect.set_defaults(func=cmd_news_collect)
+
+    local_serve = sub.add_parser("news-local-serve", help="run native loopback Search/Fetch without TinyFish")
+    local_serve.add_argument("--port", type=int, default=8765)
+    local_serve.add_argument("--search-backend", choices=["ddgs", "searxng"], default="ddgs")
+    local_serve.add_argument("--searxng-url", help="local SearXNG base URL with JSON search enabled")
+    local_serve.add_argument("--engines", default="auto", help="DDGS backend names, optionally comma-separated")
+    local_serve.add_argument("--search-workers", type=int, default=32)
+    local_serve.add_argument("--fetch-workers", type=int, default=32)
+    local_serve.add_argument("--timeout", type=int, default=15)
+    local_serve.add_argument("--max-results", type=int, default=6)
+    local_serve.add_argument("--allow-vpn-fake-ip", action="store_true", help="allow synthetic 198.18.0.0/15 DNS addresses from a local Tun proxy")
+    local_serve.set_defaults(func=cmd_news_local_serve)
 
     plugin_plan = sub.add_parser("news-plugin-plan", help="export a deterministic title plan for the connected TinyFish batch runner", parents=[root_parent])
     plugin_plan.add_argument("--workflow-id", required=True)

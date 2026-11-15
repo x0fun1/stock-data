@@ -1,6 +1,6 @@
 ---
 name: stock-research
-description: Evidence-first US/HK news, macro and company-message research. Use to collect headlines and source evidence, review each item, grade its direction and impact, and synthesize a cited message report. No price or K-line model, no probability forecast, no trading execution or position sizing.
+description: Evidence-first US/HK news, macro and company-message research using local Search/Fetch. Use to collect headlines and source evidence, review each item, grade its direction and impact, and synthesize a cited message report. No price or K-line model, no probability forecast, no trading execution or position sizing.
 ---
 
 # Stock Research Skill
@@ -11,13 +11,15 @@ description: Evidence-first US/HK news, macro and company-message research. Use 
 
 ## 安装
 
-需要 Python 3.12 以上。运行依赖只有 `requests`；数据导入、压缩 JSON 存储和 SQLite 索引均使用 Python 标准库。从 skill 目录执行：
+需要 Python 3.12 以上。安装器一并安装 `requests`、DDGS 搜索和 Trafilatura 正文抽取依赖；数据导入、压缩 JSON 存储和 SQLite 索引均使用 Python 标准库。从 skill 目录执行：
 
 ```bash
 python scripts/install_skill.py --destination ~/.claude/skills/stock-research
 ```
 
-安装器复制 skill 源码、在目标目录内创建 `.venv`、安装依赖，并用临时数据实际跑一次“导入审核 → 生成报告”自检。目标已有本 skill 时用显式 `--update`；不改全局 Python，不在目标目录留 pip 缓存。首次依赖安装需要联网。
+安装器复制 skill 源码、在目标目录内创建 `.venv`、安装本地 Search/Fetch 依赖，并自检“导入审核 → 生成报告”、DDGS 导入及 Trafilatura 正文抽取。输出本地服务启动命令，服务由安装助手或用户启动。目标已有本 skill 时用显式 `--update`；不改全局 Python，不在目标目录留 pip 缓存。首次依赖安装需要联网。
+
+执行或编写安装指令时使用[安装 Prompt](references/install-prompt.md)，一并部署本地 Search/Fetch 并验证 `/health` 与真实公开网页。默认监听 `127.0.0.1:8765`，标题、搜索和抓取并发均为 **32**。本地应用使用原生 Python，无须 Docker 或 TinyFish；SearXNG 仅作可选搜索后端。
 
 安装后所有命令使用 `python scripts/skill.py ...`，它调用本 skill 内的 `.venv`。若只开发源码且已有相容环境，可直接运行 `research.py`。来源账户凭证和运行数据不随包分发。
 
@@ -67,7 +69,12 @@ python scripts/skill.py news-workflow --root MY-DATA --ticker NVDA --workflow-id
 python scripts/skill.py news-workflow --root MY-DATA --ticker NVDA --workflow-id NEWS-ID --step apply --file assessments.json
 python scripts/skill.py news-workflow --root MY-DATA --ticker NVDA --workflow-id NEWS-ID --step finalize
 
-# 已连接 TinyFish 插件：导出标题计划，宿主执行一次固定批量驱动，再导入其联网证据
+# 本地 Search/Fetch（默认）：安装器已包含依赖，在独立终端启动服务
+python scripts/skill.py news-local-serve
+# 另一个终端采集；默认 local、32 并发，先 Fetch 已有 URL，失败时 Search
+python scripts/skill.py news-collect --root MY-DATA --workflow-id NEWS-ID --collection-id COLLECTION-ID
+
+# 可选已连接 TinyFish 插件：导出标题计划，宿主执行一次固定批量驱动，再导入其联网证据
 python scripts/skill.py news-plugin-plan --root MY-DATA --workflow-id NEWS-ID --batch-id BATCH-ID
 python scripts/skill.py news-collect --root MY-DATA --workflow-id NEWS-ID --collection-id COLLECTION-ID --provider tinyfish-plugin --plugin-batch-id BATCH-ID
 
@@ -89,7 +96,7 @@ python scripts/skill.py reproduce --root MY-DATA --run-id run-...
 
 ### 2. 采集原文证据
 
-有新的待核实标题时，用 `news-workflow --step prepare` 冻结任务清单；既支持 Finnhub 标题，也支持用户导入的消息。港股传 `--market HK --ticker 0700`，不自动抓取 HKEXnews 公告。已连接 TinyFish 时优先 `news-plugin-plan` 及[固定批量驱动](references/tinyfish-plugin-batch.md)，用插件已有鉴权逐标题 Search/Fetch，不再索要独立 API Key；完成后 `news-collect --provider tinyfish-plugin` 导入并输出分析前证据表。只有独立 Python/API 方式才使用 `TINYFISH_API_KEY`。遍历、失败回退和落盘由程序完成，不让大语言模型逐条决定或发起采集调用。`--provider archive` 只重放旧证据，不能说成联网采集。
+有新的待核实标题时，用 `news-workflow --step prepare` 冻结任务清单；既支持 Finnhub 标题，也支持用户导入的消息。港股传 `--market HK --ticker 0700`，不自动抓取 HKEXnews 公告。默认采用[本地 Search/Fetch](references/local-search-fetch.md)：先启动 `news-local-serve`，再用 `news-collect` 按默认 32 并发采集；优先 Fetch 已有 URL，失败时 Search 原标题及公司/日期组合，无固定搜索间隔。可用 `--workers`、`--search-workers`、`--fetch-workers` 调低上限。可选 TinyFish 插件用 `news-plugin-plan` 及[固定批量驱动](references/tinyfish-plugin-batch.md)，完成后 `news-collect --provider tinyfish-plugin` 导入；只有独立 TinyFish API 方式才使用 `TINYFISH_API_KEY`。遍历、失败回退和落盘由程序完成，不让大语言模型逐条决定或发起采集调用。`--provider archive` 只重放旧证据，不能说成联网采集。
 
 ### 3. 逐条解读
 
@@ -131,8 +138,10 @@ python scripts/skill.py reproduce --root MY-DATA --run-id run-...
 
 | 场景 | 文件 |
 |---|---|
+| 安装或更新 Skill，部署本地应用 | `references/install-prompt.md` |
 | 来源、市场与禁止用途 | `references/scope-and-source-policy.md` |
 | 新闻证据、去重、七档、强度与衰减 | `references/news-evidence-and-grades.md` |
+| 本地 Search/Fetch 部署、并发与接口 | `references/local-search-fetch.md` |
 | TinyFish 插件批量采集驱动 | `references/tinyfish-plugin-batch.md` |
 | 报告结构 | `references/publication-and-report.md` |
 | 时间口径、存储、复现与安全 | `references/operations-and-reproducibility.md` |

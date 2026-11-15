@@ -73,6 +73,8 @@ sys.path.insert(0,str(Path.cwd()/'scripts'))
 from stock_research.contracts import ResearchRequest
 from stock_research.control.news_reviews import import_news_reviews
 from stock_research.control.orchestration import run_research
+from stock_research.acquisition.local_service import LocalService, extract_document
+from ddgs import DDGS
 review={'title':'Self-test partnership','security_ids':['US:XNAS:SELFTEST'],'event_cluster':'selftest',
     'fact_summary':'Synthetic installer check.','grade':'中度利好','grade_reason':'Synthetic.',
     'reviewed_at':'2026-11-07T10:00:00Z','evidence_scope':'official_excerpt',
@@ -87,7 +89,25 @@ with tempfile.TemporaryDirectory() as folder:
 impact=bundle.news_impact_summary
 if impact['status']!='computed' or impact['classification']!='利多' or '中度利好' not in markdown:
     raise RuntimeError('news review/report self-test failed')
-print(json.dumps({'status':'ok','events':impact['event_count'],'classification':impact['classification']},ensure_ascii=False))
+search_client=DDGS(timeout=5)
+if not callable(search_client.text):
+    raise RuntimeError('local search adapter self-test failed')
+paragraph='This synthetic company announcement describes an expanded partnership, additional capacity, and the delivery schedule. '
+html='<html><head><title>Local service self-test</title></head><body><article><h1>Local service self-test</h1>'+''.join('<p>'+paragraph*3+'</p>' for _ in range(5))+'</article></body></html>'
+document=extract_document(html,'https://example.com/selftest')
+if document['status']!='fetched' or not document.get('content_sha256'):
+    raise RuntimeError('local HTML extraction self-test failed')
+service=LocalService()
+try:
+    health=service.health()
+    if health['search_workers']!=32 or health['fetch_workers']!=32:
+        raise RuntimeError('local concurrency self-test failed')
+finally:
+    service.close()
+print(json.dumps({'status':'ok','events':impact['event_count'],'classification':impact['classification'],
+    'local_search_fetch':{'search_import':'passed','html_extraction':'passed',
+        'default_search_workers':health['search_workers'],'default_fetch_workers':health['fetch_workers'],
+        'external_network_calls':False}},ensure_ascii=False))
 '''
     result = subprocess.run([str(python), '-c', code], cwd=destination, env=install_environment(destination),
                             capture_output=True, text=True, encoding='utf-8')
@@ -133,10 +153,15 @@ def main(argv=None) -> int:
     receipt = {'installed_at': datetime.now(timezone.utc).isoformat(), 'copied_files': copied,
                'requirements_sha256': sha(destination / 'requirements.txt'),
                'python_environment': '.venv' if not args.skip_deps else 'invoking_environment',
-               'smoke': result, 'global_python_modified': False}
+               'smoke': result, 'global_python_modified': False,
+               'local_service': {'start_command': [str(python), str(destination / 'scripts/research.py'), 'news-local-serve'],
+                                 'health_url': 'http://127.0.0.1:8765/health',
+                                 'title_workers': 32, 'search_workers': 32, 'fetch_workers': 32,
+                                 'started_by_installer': False}}
     (destination / 'install-receipt.json').write_text(json.dumps(receipt, indent=2, ensure_ascii=False), encoding='utf-8')
     print(json.dumps({'status': 'installed', 'destination': str(destination),
-                      'python': str(python), 'smoke': result['status'], 'copied_files': copied}, ensure_ascii=False, indent=2))
+                      'python': str(python), 'smoke': result['status'], 'copied_files': copied,
+                      'local_service': receipt['local_service']}, ensure_ascii=False, indent=2))
     return 0
 
 

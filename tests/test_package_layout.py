@@ -16,6 +16,7 @@ PUBLIC_FILES = (
     'SKILL.md', 'README.md', 'requirements.txt', 'scripts/install_skill.py', 'scripts/skill.py',
     'scripts/research.py', 'references/news-evidence-and-grades.md', 'policies/defaults.json',
     'examples/news-template.json',
+    'references/install-prompt.md', 'references/local-search-fetch.md',
 )
 LOCAL_ONLY_FILES = (
     'docs/api.txt', 'docs/planning/notes.md', 'runtime/private.json', '.env', '.env.local',
@@ -76,7 +77,10 @@ def test_portable_zip_excludes_local_files(package_source, tmp_path, monkeypatch
 
 def test_repository_package_contains_no_price_model_or_quantitative_code():
     selected = {path.relative_to(ROOT).as_posix() for path in package_files(ROOT)}
-    assert {'SKILL.md', 'requirements.txt', 'scripts/research.py', 'policies/source-policy.json'} <= selected
+    assert {'SKILL.md', 'requirements.txt', 'scripts/research.py', 'policies/source-policy.json',
+            'references/install-prompt.md', 'references/local-search-fetch.md',
+            'scripts/stock_research/acquisition/local_service.py',
+            'scripts/stock_research/acquisition/local_search_fetch.py'} <= selected
     assert not [name for name in selected if name.startswith(('vendor/', 'model-assets/'))]
     retired = ('kronos', 'multifactor', '/models/', '/features/', '/datasets/', '/validation/', '/corporate_actions/')
     assert not [name for name in selected if any(term in name for term in retired)]
@@ -121,6 +125,10 @@ def test_install_copies_the_real_skill_and_passes_the_news_self_test(tmp_path):
         receipt = json.loads((destination / "install-receipt.json").read_text(encoding="utf-8"))
         assert receipt["smoke"]["status"] == "passed"
         assert receipt["smoke"]["result"]["classification"] == "利多"
+        assert receipt['smoke']['result']['local_search_fetch']['html_extraction'] == 'passed'
+        assert receipt['smoke']['result']['local_search_fetch']['default_search_workers'] == 32
+        assert receipt['local_service']['fetch_workers'] == 32
+        assert receipt['local_service']['started_by_installer'] is False
         assert not (destination / "runtime").exists() and not (destination / ".pip-cache").exists()
 
 

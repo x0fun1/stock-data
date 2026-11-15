@@ -22,7 +22,7 @@
 | company_ir | US/HK | filings、news | 仅用户提供或许可材料 |
 | user_import | US/HK | news、macro、securities | 仅导入用户提供或许可材料 |
 
-包内自带适配器只有 Finnhub（标题）和 FRED（宏观）。原文证据通过 TinyFish Search/Fetch 采集，见[新闻证据流程](news-evidence-and-grades.md)。其余来源通过用户导入文件进入。
+包内自带数据源适配器为 Finnhub（标题）和 FRED（宏观）。原文证据默认通过[本地 Search/Fetch](local-search-fetch.md) 采集，也可选择 TinyFish，见[新闻证据流程](news-evidence-and-grades.md)。其余来源通过用户导入文件进入。
 
 ## 明确禁止
 

@@ -4,9 +4,11 @@
 
 ## 采集与分析分开
 
-`acquisition/news_collector.py`提供独立自动采集。先`news-workflow --step prepare`，再`news-collect --workflow-id ... --collection-id ... --provider tinyfish`，程序按原标题顺序执行Search、候选URL的Fetch及公司/事件/日期回退，写入`collections/.../items/`、`collection.json`和`evidence-table.md`。这里不调用大语言模型、不读取已有情绪判断、不输出利多利空。未完成项保留访问缺口，断点续跑不重新抓取已封存项；协议或已完成证据改变须用新collection ID。
+`acquisition/news_collector.py`提供独立自动采集。先`news-workflow --step prepare`，启动本地服务，再`news-collect --workflow-id ... --collection-id ... --provider local --workers 32`；程序优先 Fetch 已有来源 URL，失败时 Search 原标题、候选 URL 的 Fetch 及公司/事件/日期回退，按原标题顺序汇总 `collections/.../items/`、`collection.json`和`evidence-table.md`。这里不调用大语言模型、不读取已有情绪判断、不输出利多利空。未完成项保留访问缺口，断点续跑不重新抓取已封存项；协议或已完成证据改变须用新collection ID。
 
-采集使用TinyFish同一服务的Search/Fetch REST API，鉴权只读取本地`TINYFISH_API_KEY`，不依赖大语言模型逐条调用插件。插件连接和独立API鉴权是不同连接方式，不能因插件目录可用就声称已配置鉴权。Search/Fetch可在官方免费额度内使用；代码不会自动充值，401/402停止批次。当前实现没有调用付费Browser/Agent端点。接口依据：[Search参考](https://docs.tinyfish.ai/search-api/reference)、[Fetch参考](https://docs.tinyfish.ai/fetch-api/reference)。
+默认采集使用[本地 Search/Fetch](local-search-fetch.md)，以 DDGS 或本地 SearXNG 搜索，Trafilatura 抽取公开正文。先启动 `news-local-serve`，然后 `news-collect --provider local --workers 32`。已有消息 URL 优先 Fetch，失败再搜索原标题及公司/日期组合；没有固定搜索间隔，来源网站和上游引擎的限流仍记录为缺口。服务不渲染 JavaScript，也不绕过付费墙。安装器已包含本地服务依赖，默认标题、搜索和抓取并发均为 32。
+
+`--provider tinyfish` 仍可使用 TinyFish Search/Fetch REST API，鉴权只读取本地`TINYFISH_API_KEY`。插件连接和独立API鉴权是不同连接方式，不能因插件目录可用就声称已配置鉴权。代码不会自动充值，401/402停止批次。当前实现没有调用付费Browser/Agent端点。接口依据：[Search参考](https://docs.tinyfish.ai/search-api/reference)、[Fetch参考](https://docs.tinyfish.ai/fetch-api/reference)。
 
 已连接插件时采用`news-plugin-plan`→[固定JS驱动](tinyfish-plugin-batch.md)→`news-collect --provider tinyfish-plugin --plugin-batch-id ...`。宿主程序绑定已授权的search/fetch_content方法，整个循环由程序执行一次；无须另配API Key。导入要求批次完整、鉴权响应已确认、标题和任务ID一致；无效调试批次不得作证据。Python导入阶段没有网络调用，真正联网发生在前面的插件驱动。日期保留原始值，ISO偏移和RFC/GMT显式时区可规范化，日期或无时区时间不擅自当UTC。
 

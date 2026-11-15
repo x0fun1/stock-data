@@ -31,12 +31,13 @@ def main():
         relative = path.relative_to(ROOT)
         files.append({'path': relative.as_posix(), 'bytes': path.stat().st_size, 'sha256': sha(path)})
     required = {'SKILL.md', 'requirements.txt', 'scripts/install_skill.py', 'scripts/skill.py',
-                'scripts/research.py', 'references/news-evidence-and-grades.md'}
+                'scripts/research.py', 'references/news-evidence-and-grades.md',
+                'references/install-prompt.md', 'references/local-search-fetch.md'}
     if not required <= {entry['path'] for entry in files}:
         raise SystemExit('portable bundle is missing required skill files')
     manifest = {'skill': 'stock-research', 'package_prefix': 'stock-research/',
                 'files': files,
-                'dependencies': 'installer creates a package-local venv; first install requires package access'}
+                'dependencies': 'installer creates a package-local venv with requests, DDGS and Trafilatura; first install requires package access'}
     output.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(output, 'w', compression=zipfile.ZIP_DEFLATED, compresslevel=1) as z:
         for entry in files:

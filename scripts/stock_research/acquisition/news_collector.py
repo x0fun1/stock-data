@@ -6,6 +6,7 @@ import os
 import time
 from datetime import datetime, timezone
 from email.utils import parsedate_to_datetime
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import requests
 
@@ -145,7 +146,9 @@ class ConnectedPluginBatch:
 
 
 def _public_url(value):
-    parts=urlsplit(value)
+    if not isinstance(value,str):return False
+    try:parts=urlsplit(value)
+    except ValueError:return False
     if parts.scheme!='https' or not parts.hostname or parts.hostname in {'localhost','127.0.0.1','::1'}:
         return False
     domain=parts.hostname.lower()
@@ -170,21 +173,11 @@ def _publication_metadata(value):
 def _collect_task(task, provider, max_sources):
     searches=[];documents=[];seen=set()
     queries=[task['title'],f"{task['ticker']} {task['title']} {(task.get('published_at') or '')[:10]}"]
-    for index,query in enumerate(queries):
-        # Archive replay cannot invent a thematic search that was never made.
-        if index and isinstance(provider,ArchivedSearchFetch):break
-        search=provider.search(task,query)
-        searches.append({'query':query,'kind':'exact_title' if index==0 else 'company_event_date',
-            'searched_at':now_utc().isoformat(),'result':search})
-        candidates=[]
-        for source in search.get('sources',[]):
-            url=source.get('url','')
-            if _public_url(url) and url not in seen:
-                candidates.append(source);seen.add(url)
-                if len(candidates)>=max_sources:break
+    def fetch_candidates(candidates):
         urls=[source['url'] for source in candidates]
         if urls:
-            for row in provider.fetch(task,urls):
+            for original in provider.fetch(task,urls):
+                row=dict(original)
                 body=row.pop('markdown','')
                 raw_publication=row.get('published_at')
                 source=next((source for source in candidates if source['url']==row.get('url')), {})
@@ -207,6 +200,26 @@ def _collect_task(task, provider, max_sources):
                 # HTTP fetch is evidence acquisition, not semantic verification.
                 row['semantic_review_complete']=False
                 documents.append(row)
+    if getattr(provider,'prefer_source_url',False) and _public_url(task.get('source_url')):
+        url=task['source_url'];seen.add(url)
+        # Finnhub's timestamp remains discovery context, not the publisher's date.
+        searches.append({'kind':'provided_source_url','query':None,'searched_at':None,
+            'result':{'status':'not_searched','sources':[{'url':url}]}})
+        fetch_candidates([{'url':url}])
+    for index,query in enumerate(queries):
+        if any(row['status']=='fetched' for row in documents):break
+        # Archive replay cannot invent a thematic search that was never made.
+        if index and isinstance(provider,ArchivedSearchFetch):break
+        search=provider.search(task,query)
+        searches.append({'query':query,'kind':'exact_title' if index==0 else 'company_event_date',
+            'searched_at':now_utc().isoformat(),'result':search})
+        candidates=[]
+        for source in search.get('sources',[]):
+            url=source.get('url','')
+            if _public_url(url) and url not in seen:
+                candidates.append(source);seen.add(url)
+                if len(candidates)>=max_sources:break
+        fetch_candidates(candidates)
         if any(row['status']=='fetched' for row in documents):break
     return {'task_id':task['task_id'],'title':task['title'],'source_published_at':task.get('published_at'),
         'provider':provider.name,'searches':searches,'documents':documents,
@@ -229,7 +242,8 @@ def render_collection_table(records):
     return '\n'.join(lines)+'\n'
 
 
-def collect_news_evidence(runtime_root, workflow_id, collection_id, provider='tinyfish', max_sources=2, client=None, plugin_batch_id=None):
+def collect_news_evidence(runtime_root, workflow_id, collection_id, provider='local', max_sources=2, client=None,
+                          plugin_batch_id=None, workers=None, search_url=None, fetch_url=None, local_timeout=45):
     root=Path(runtime_root)
     source=root/'news-workflows'/workflow_id
     folder=source/'collections'/collection_id
@@ -241,17 +255,30 @@ def collect_news_evidence(runtime_root, workflow_id, collection_id, provider='ti
             batch=source/'plugin-batches'/plugin_batch_id
             if not batch.resolve().is_relative_to(root.resolve()):raise ValueError('plugin batch leaves runtime')
             client=ConnectedPluginBatch(batch)
-        else:client=ArchivedSearchFetch(source) if provider=='archive' else TinyFishSearchFetch()
+        elif provider=='archive':client=ArchivedSearchFetch(source)
+        elif provider=='tinyfish':client=TinyFishSearchFetch()
+        elif provider=='local':
+            from .local_search_fetch import LocalSearchFetch
+            client=LocalSearchFetch(search_url,fetch_url,local_timeout)
+        else:raise ValueError('unknown Search/Fetch provider')
+    if workers is None:workers=32 if getattr(client,'supports_concurrency',False) else 1
     if not 1<=max_sources<=5:raise ValueError('max_sources must be between 1 and 5')
+    if not 1<=workers<=32:raise ValueError('workers must be between 1 and 32')
+    if workers>1 and not getattr(client,'supports_concurrency',False):
+        raise ValueError('parallel collection requires a concurrency-safe provider; use local or workers=1')
     manifest={'workflow_id':workflow_id,'collection_id':collection_id,'provider':client.name,
         'title_tasks_sha256':canonical_hash([{'task_id':task['task_id'],'title':task['title']} for task in tasks]),
         'max_sources':max_sources,'llm_in_collection':False,'cleanup_enabled':False,'evidence_scope':'source_excerpt'}
     if isinstance(client,ConnectedPluginBatch):
         manifest['plugin_batch_id']=plugin_batch_id
+    if hasattr(client,'collection_config'):
+        manifest['local_config']=client.collection_config
+        manifest['title_tasks_sha256']=canonical_hash([{key:task.get(key) for key in
+            ('task_id','title','ticker','published_at','source_url')} for task in tasks])
     path=folder/'manifest.json'
     if path.exists() and read_json(path)!=manifest:raise ValueError('collection protocol changed; use a new collection ID')
     write_json(path,manifest)
-    records=[]
+    records_by_id={};pending=[]
     completion_path=folder/'completion.json'
     old_completion=read_json(completion_path) if completion_path.exists() else None
     for task in tasks:
@@ -260,18 +287,37 @@ def collect_news_evidence(runtime_root, workflow_id, collection_id, provider='ti
             record=read_json(record_path)
             if record.get('task_id')!=task['task_id'] or record.get('title')!=task['title']:
                 raise ValueError('cached collection item disagrees with frozen title')
+            records_by_id[task['task_id']]=record
         else:
             if old_completion:raise ValueError('completed collection item missing; use a new collection ID')
-            record=_collect_task(task,client,max_sources)
-            write_json(record_path,record)
-        records.append(record)
+            pending.append(task)
+    start=time.monotonic()
+    if pending and hasattr(client,'check_available'):client.check_available()
+    def collect_and_save(task):
+        frozen={key:task.get(key) for key in ('task_id','title','ticker','published_at','source_url','market')}
+        record=_collect_task(frozen,client,max_sources)
+        write_json(folder/'items'/f"{task['task_id']}.json",record)
+        return record
+    if workers==1:
+        for task in pending:
+            record=collect_and_save(task);records_by_id[record['task_id']]=record
+    else:
+        with ThreadPoolExecutor(max_workers=workers,thread_name_prefix='news-collect') as pool:
+            futures=[pool.submit(collect_and_save,task) for task in pending]
+            for future in as_completed(futures):
+                record=future.result();records_by_id[record['task_id']]=record
+    records=[records_by_id[task['task_id']] for task in tasks]
     if old_completion and canonical_hash(records)!=old_completion['records_sha256']:
         raise ValueError('completed collection evidence changed')
+    if old_completion:return old_completion
     output={'total_titles':len(records),'fetched_for_review':sum(row['status']=='fetched_for_review' for row in records),
         'fetch_unresolved':sum(row['status']=='fetch_unresolved' for row in records),'llm_called':False,
         'is_live_provider_run':not isinstance(client,ArchivedSearchFetch),'cleanup_performed':False,
         'python_network_calls':not isinstance(client,(ArchivedSearchFetch,ConnectedPluginBatch)),
-        'records_sha256':canonical_hash(records),'markdown':str(folder/'evidence-table.md')}
+        'records_sha256':canonical_hash(records),'markdown':str(folder/'evidence-table.md'),
+        'workers':workers,'elapsed_seconds':round(time.monotonic()-start,3),
+        'newly_collected_titles':len(pending),
+        'search_requests':sum(attempt.get('kind')!='provided_source_url' for record in records for attempt in record['searches'])}
     write_json(folder/'collection.json',records)
     (folder/'evidence-table.md').write_text(render_collection_table(records),encoding='utf-8')
     write_json(folder/'completion.json',output)
